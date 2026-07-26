@@ -16,17 +16,22 @@ games/
 
 ## Recommended Flow
 
-1. Create new concepts in `prototypes/`.
-2. Promote promising projects into `releases/`.
-3. Keep common code in `shared/unity-packages/`.
-4. Treat every game directory as its own Unity project.
-5. Use the shared hand-drawn sketch visual direction in `docs/visual-direction.md`.
+1. Start from the workflow in `docs/production-workflow.md`.
+2. Create new concepts in `prototypes/`.
+3. Promote promising projects into `releases/`.
+4. Keep common code in `shared/unity-packages/`.
+5. Treat every game directory as its own Unity project.
+6. Use the shared hand-drawn sketch visual direction in `docs/visual-direction.md`.
 
 ```sh
 ./scripts/new-unity-game.sh prototypes stack-jump
 ```
 
 Then open the generated directory from Unity Hub and let Unity import the project.
+
+## Current Prototype
+
+- `10000`: see `docs/10000-game-design.md` and `docs/10000-worklog.md`.
 
 ## Baseline
 
