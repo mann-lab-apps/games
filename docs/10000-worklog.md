@@ -36,8 +36,13 @@
 - Changed: Added an Editor script to recreate the scene and apply Android-oriented project settings after Unity licensing is active.
 - Changed: Added 10000-specific analytics event candidates to `docs/10000-game-design.md`.
 - Verified: `git diff --check` passes.
+- Verified: `scripts/verify-10000-mvp.sh` passes.
+- Verified: Runtime scripts compile against Unity `6000.3.20f1` assemblies.
+- Verified: Editor scripts compile against Unity `6000.3.20f1` assemblies.
+- Verified: `BoardGenerator` generates at least one target sequence for 1000 deterministic seeds.
 - Verified: Unity CLI lists Unity `6000.3.20f1` with Android Build Support, Android SDK & NDK Tools, and OpenJDK.
 - Verified: Android SDK platform `android-36` exists under the installed Unity editor.
+- Verified: Unity batchmode was retried and exits `198` with `No valid Unity Editor license found`.
 - Blocked: Unity batchmode import/compile could not complete because no valid Unity Editor license is activated on this machine.
 - Next: Activate Unity license through Unity Hub.
 - Next: Re-run batchmode import and compile validation.

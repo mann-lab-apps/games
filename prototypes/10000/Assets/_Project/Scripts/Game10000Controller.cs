@@ -202,7 +202,7 @@ namespace MannLab.Games.Game10000
 
         private static void EnsureEventSystem()
         {
-            if (FindObjectOfType<EventSystem>() != null)
+            if (FindFirstObjectByType<EventSystem>() != null)
             {
                 return;
             }

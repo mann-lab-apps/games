@@ -44,7 +44,19 @@ Not implemented:
 
 ## Verification Notes
 
-Unity batchmode import was attempted, but this machine currently has no activated Unity Editor license.
+Compile and board-generation verification can be run without opening the Unity Editor:
+
+```sh
+./scripts/verify-10000-mvp.sh
+```
+
+This verifies:
+
+- Runtime C# script compilation against Unity `6000.3.20f1` assemblies
+- Editor C# script compilation against Unity `6000.3.20f1` assemblies
+- `BoardGenerator` output for 1000 deterministic seeds
+
+Unity batchmode import was also attempted, but this machine currently has no activated Unity Editor license.
 
 After activating Unity through Unity Hub, run:
 
