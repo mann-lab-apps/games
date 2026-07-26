@@ -56,7 +56,19 @@ This verifies:
 - Editor C# script compilation against Unity `6000.3.20f1` assemblies
 - `BoardGenerator` output for 1000 deterministic seeds
 
-Unity batchmode import was also attempted, but this machine currently has no activated Unity Editor license.
+Unity import and Android AAB build verification can be run after Unity Hub sign-in and license activation:
+
+```sh
+./scripts/verify-10000-unity.sh
+```
+
+This verifies:
+
+- Unity batchmode project import
+- `Assets/_Project/Scenes/Game.unity` recreation
+- Android `.aab` build through Unity
+
+Unity batchmode import was attempted, but this machine currently is not logged in to Unity Hub and has no activated Unity Editor license.
 
 After activating Unity through Unity Hub, run:
 
