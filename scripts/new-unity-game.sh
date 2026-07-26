@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   echo "Usage: $0 <prototypes|releases> <game-slug> [unity-editor-version]"
-  echo "Example: $0 prototypes stack-jump 6000.3.0f1"
+  echo "Example: $0 prototypes stack-jump 6000.3.20f1"
 }
 
 if [[ $# -lt 2 || $# -gt 3 ]]; then
@@ -13,7 +13,7 @@ fi
 
 bucket="$1"
 slug="$2"
-unity_version="${3:-6000.3.0f1}"
+unity_version="${3:-6000.3.20f1}"
 
 if [[ "$bucket" != "prototypes" && "$bucket" != "releases" ]]; then
   echo "Bucket must be either prototypes or releases."

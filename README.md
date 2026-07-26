@@ -29,7 +29,6 @@ Then open the generated directory from Unity Hub and let Unity import the projec
 
 ## Baseline
 
-- Engine: Unity 6 LTS line, preferably the current LTS installed via Unity Hub.
+- Engine: Unity 6 LTS line. Current local baseline: Unity 6000.3.20f1.
 - Platform: Android first.
 - Store target: Google Play target API requirements should be checked before every release.
-

@@ -11,13 +11,17 @@ Recommended editor line:
 - Unity 6 LTS
 - Prefer the latest Unity 6 LTS patch available in Unity Hub
 
+Installed baseline on this machine:
+
+- Unity Editor 6000.3.20f1
+- Architecture: x86_64
+- Modules: Android Build Support, Android SDK & NDK Tools, OpenJDK
+
 Install these modules with the editor:
 
 - Android Build Support
 - Android SDK & NDK Tools
 - OpenJDK
-
-Unity Editor was not found on this machine when this repo was initialized, so install it before opening a project.
 
 ## Git LFS
 
@@ -55,4 +59,3 @@ Move a project from `prototypes/` to `releases/` only when:
 - It has a package name.
 - It can build to an Android device.
 - The release checklist in `docs/android-release-baseline.md` is relevant.
-
