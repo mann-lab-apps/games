@@ -54,3 +54,15 @@
 - Next: Re-run `scripts/verify-10000-unity.sh`.
 - Next: Open `Assets/_Project/Scenes/Game.unity` and test touch/readability in Play Mode.
 - Next: Build and smoke test on a real Android device.
+
+## 2026-07-26 Unity license and Android build verification
+
+- Changed: Updated `scripts/verify-10000-unity.sh` to rely on an activated Unity license instead of the Unity CLI login flag.
+- Changed: Unity reserialized `Assets/_Project/Scenes/Game.unity` after the editor import path successfully ran.
+- Changed: Unity applied Android-oriented player settings, including Mann Lab company name and Android package identifier.
+- Verified: Unity CLI lists an assigned `Unity Personal` license.
+- Verified: Unity batchmode scene creation/import completes successfully.
+- Verified: `scripts/verify-10000-unity.sh` completes successfully.
+- Verified: Android App Bundle was created at `prototypes/10000/Builds/Android/10000.aab`.
+- Next: Open the project in Unity Editor GUI and run Play Mode for touch/readability feel.
+- Next: Install the generated Android build on a device for a real smoke test.

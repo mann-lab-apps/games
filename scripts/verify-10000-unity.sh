@@ -18,12 +18,6 @@ if [[ ! -x "$unity_cli" ]]; then
   exit 1
 fi
 
-auth_state="$("$unity_cli" auth status --json 2>/dev/null || true)"
-if ! python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin)["data"]["loggedIn"] else 1)' <<< "$auth_state"; then
-  echo "Unity CLI is not logged in. Open Unity Hub and sign in before running this script." >&2
-  exit 2
-fi
-
 license_state="$("$unity_cli" license --json 2>/dev/null || true)"
 if ! python3 -c 'import json,sys; sys.exit(0 if len(json.load(sys.stdin)["data"]) > 0 else 1)' <<< "$license_state"; then
   echo "No Unity Editor license found. Activate a license in Unity Hub before running this script." >&2
