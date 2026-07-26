@@ -35,6 +35,16 @@ fi
 title="$(echo "$slug" | awk -F- '{ for (i=1; i<=NF; i++) { $i=toupper(substr($i,1,1)) substr($i,2) } print }' OFS=' ')"
 namespace="$(echo "$slug" | awk -F- '{ for (i=1; i<=NF; i++) { printf "%s", toupper(substr($i,1,1)) substr($i,2) } }')"
 
+if [[ "$namespace" =~ ^[0-9] ]]; then
+  namespace="Game$namespace"
+fi
+
+package_slug="${slug//-}"
+
+if [[ "$package_slug" =~ ^[0-9] ]]; then
+  package_slug="game$package_slug"
+fi
+
 mkdir -p \
   "$project_dir/Assets/_Project/Art" \
   "$project_dir/Assets/_Project/Audio" \
@@ -63,7 +73,7 @@ Unity hyper-casual game project.
 
 - Unity editor: $unity_version
 - Platform: Android
-- Package name: com.mannlab.games.${slug//-}
+- Package name: com.mannlab.games.$package_slug
 - Namespace: MannLab.Games.$namespace
 
 ## First Open
