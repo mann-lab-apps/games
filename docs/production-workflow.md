@@ -134,6 +134,60 @@ Unity 프로젝트를 `prototypes/` 아래에 만든다.
 
 스토어 업로드 전에는 항상 `docs/android-release-baseline.md`를 확인한다.
 
+### 오늘 배포용 최소 체크리스트
+
+오늘처럼 광고/분석 SDK 없이 먼저 내부 테스트 배포만 목표로 할 때는 아래 순서로 진행한다.
+
+1. 게임 루프 잠금
+   - 오늘 포함할 룰만 확정한다.
+   - 광고, 분석, 온라인 랭킹, 스킨은 다음 릴리즈 후보로 남긴다.
+2. 로컬 검증
+   - `./scripts/verify-10000-mvp.sh`
+   - `./scripts/verify-10000-unity.sh`
+3. Android App Bundle 생성
+   - 산출물: `prototypes/10000/Builds/Android/10000.aab`
+4. 버전 확인
+   - 앱 버전과 Android bundle version code를 확인한다.
+   - 같은 트랙에 다시 올릴 때는 version code를 반드시 증가시킨다.
+5. 앱 서명 준비
+   - Google Play App Signing 사용을 기본으로 한다.
+   - Unity/keystore 업로드 키 전략은 첫 Play Console 업로드 흐름에서 확정한다.
+6. Play Console 앱 생성
+   - 앱 이름, 기본 언어, 앱/게임 여부, 무료/유료 여부를 입력한다.
+   - 패키지명은 `com.mannlab.games.game10000`을 유지한다.
+7. 스토어 기본 정보 입력
+   - 앱 이름
+   - 짧은 설명
+   - 전체 설명
+   - 앱 아이콘
+   - 스크린샷
+   - 카테고리
+   - 연락처
+8. 앱 콘텐츠 설문
+   - 데이터 보안
+   - 콘텐츠 등급
+   - 타겟 연령
+   - 광고 포함 여부는 오늘 빌드에서는 `아니오`로 답한다.
+   - 개인정보처리방침 URL 필요 여부를 확인한다.
+9. 내부 테스트 트랙 업로드
+   - Internal testing 트랙에 `.aab`를 올린다.
+   - 테스터 목록을 만든다.
+   - 릴리즈 노트를 짧게 적는다.
+10. 실기기 스모크 테스트
+    - 설치 가능 여부
+    - 첫 실행
+    - 터치 입력
+    - 60초 런 종료
+    - 다시하기
+    - 화면 비율/가독성
+
+참고:
+
+- Google Play internal testing: https://support.google.com/googleplay/android-developer/answer/9845334
+- Google Play target API requirements: https://developer.android.com/google/play/requirements/target-sdk
+- Google Play Data safety: https://support.google.com/googleplay/android-developer/answer/10787469
+- Play App Signing: https://support.google.com/googleplay/android-developer/answer/9842756
+
 ## 7. 배포 주기
 
 프로토타입 단계:
@@ -192,4 +246,3 @@ YYYY-MM-DD
 ```
 
 작업 로그는 모든 커밋을 반복해서 적는 곳이 아니다. 왜 방향이 정해졌고, 무엇이 검증됐고, 다음 판단이 무엇인지 남기는 곳이다.
-

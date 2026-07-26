@@ -66,3 +66,16 @@
 - Verified: Android App Bundle was created at `prototypes/10000/Builds/Android/10000.aab`.
 - Next: Open the project in Unity Editor GUI and run Play Mode for touch/readability feel.
 - Next: Install the generated Android build on a device for a real smoke test.
+
+## 2026-07-26 release-candidate loop adjustment
+
+- Decision: Today's release candidate should focus on deployment only; ads, analytics SDKs, Crashlytics, and Google Ads are deferred to a later iteration.
+- Decision: `10000` should use one continuous run timer instead of resetting time on every stage.
+- Decision: The title should be supported by a visual opening cue so players understand they are looking for the `1 0 0 0 0` pattern.
+- Changed: Updated the game loop so a run starts with `60` seconds and each cleared stage keeps the remaining time.
+- Changed: Added an opening `1 / 0 / 0 / 0 / 0` tile motion before each run starts.
+- Changed: Removed unused stage-by-stage time difficulty code.
+- Changed: Documented the minimal Google Play internal testing deployment checklist in `docs/production-workflow.md`.
+- Next: Rebuild Android App Bundle after the timer change.
+- Next: Upload the `.aab` to Google Play Console internal testing.
+- Next: Smoke test the Play-delivered build on a real Android device.

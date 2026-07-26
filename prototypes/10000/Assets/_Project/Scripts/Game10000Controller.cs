@@ -10,6 +10,7 @@ namespace MannLab.Games.Game10000
     {
         private const string BestScoreKey = "mannlab.10000.best_cleared_stages";
         private const float WrongTapPenalty = 0.5f;
+        private const float RunTimeLimit = 60f;
         private static readonly Color Paper = new Color32(250, 247, 239, 255);
         private static readonly Color Ink = new Color32(40, 39, 36, 255);
         private static readonly Color TilePaper = new Color32(255, 253, 247, 255);
@@ -28,13 +29,16 @@ namespace MannLab.Games.Game10000
         private Text resultTitleText;
         private Text resultScoreText;
         private Image timerFill;
+        private CanvasGroup introCanvasGroup;
+        private RectTransform introTilesRoot;
+        private GameObject introPanel;
         private GameObject resultPanel;
-        private float stageTimeLimit;
         private float remainingTime;
         private int stage = 1;
         private int bestClearedStages;
         private bool acceptingInput;
         private bool gameOver;
+        private bool timerRunning;
 
         private void Awake()
         {
@@ -48,7 +52,7 @@ namespace MannLab.Games.Game10000
 
         private void Update()
         {
-            if (gameOver || !acceptingInput)
+            if (gameOver || !timerRunning)
             {
                 return;
             }
@@ -64,17 +68,20 @@ namespace MannLab.Games.Game10000
 
         private void StartRun()
         {
+            StopAllCoroutines();
             stage = 1;
+            remainingTime = RunTimeLimit;
             gameOver = false;
+            timerRunning = false;
             resultPanel.SetActive(false);
             GenerateStage();
+            acceptingInput = false;
+            StartCoroutine(PlayOpeningHint());
         }
 
         private void GenerateStage()
         {
             board = boardGenerator.Generate();
-            stageTimeLimit = StageDifficulty.GetTimeLimit(stage);
-            remainingTime = stageTimeLimit;
             acceptingInput = true;
 
             stageText.text = $"Stage {stage}";
@@ -123,6 +130,11 @@ namespace MannLab.Games.Game10000
 
             yield return new WaitForSeconds(0.18f);
 
+            if (gameOver)
+            {
+                yield break;
+            }
+
             stage++;
             var clearedStages = stage - 1;
             if (clearedStages > bestClearedStages)
@@ -133,6 +145,44 @@ namespace MannLab.Games.Game10000
             }
 
             GenerateStage();
+        }
+
+        private IEnumerator PlayOpeningHint()
+        {
+            introPanel.SetActive(true);
+            introCanvasGroup.alpha = 1f;
+            introTilesRoot.localScale = Vector3.one * 0.92f;
+            introTilesRoot.anchoredPosition = Vector2.zero;
+
+            yield return new WaitForSeconds(0.18f);
+
+            const float settleDuration = 0.22f;
+            var elapsed = 0f;
+            while (elapsed < settleDuration)
+            {
+                elapsed += Time.deltaTime;
+                var progress = Mathf.Clamp01(elapsed / settleDuration);
+                introTilesRoot.localScale = Vector3.Lerp(Vector3.one * 0.92f, Vector3.one, progress);
+                yield return null;
+            }
+
+            yield return new WaitForSeconds(0.42f);
+
+            const float vanishDuration = 0.32f;
+            elapsed = 0f;
+            while (elapsed < vanishDuration)
+            {
+                elapsed += Time.deltaTime;
+                var progress = Mathf.Clamp01(elapsed / vanishDuration);
+                introCanvasGroup.alpha = 1f - progress;
+                introTilesRoot.localScale = Vector3.Lerp(Vector3.one, Vector3.one * 1.08f, progress);
+                introTilesRoot.anchoredPosition = Vector2.Lerp(Vector2.zero, new Vector2(0f, 90f), progress);
+                yield return null;
+            }
+
+            introPanel.SetActive(false);
+            acceptingInput = true;
+            timerRunning = true;
         }
 
         private IEnumerator FlashWrong(int index)
@@ -183,7 +233,7 @@ namespace MannLab.Games.Game10000
 
         private void UpdateTimer()
         {
-            var normalized = stageTimeLimit <= 0f ? 0f : Mathf.Clamp01(remainingTime / stageTimeLimit);
+            var normalized = RunTimeLimit <= 0f ? 0f : Mathf.Clamp01(remainingTime / RunTimeLimit);
             timerFill.fillAmount = normalized;
             timerFill.color = normalized < 0.25f ? Color.Lerp(Amber, WrongMarker, 0.35f) : Amber;
         }
@@ -197,6 +247,7 @@ namespace MannLab.Games.Game10000
             CreateHeader(canvas.transform);
             CreateTimer(canvas.transform);
             CreateBoard(canvas.transform);
+            CreateIntroPanel(canvas.transform);
             CreateResultPanel(canvas.transform);
         }
 
@@ -391,6 +442,58 @@ namespace MannLab.Games.Game10000
             restart.onClick.AddListener(StartRun);
 
             resultPanel.SetActive(false);
+        }
+
+        private void CreateIntroPanel(Transform parent)
+        {
+            introPanel = new GameObject("Opening Target Hint", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
+            introPanel.transform.SetParent(parent, false);
+            Stretch(introPanel.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
+
+            var image = introPanel.GetComponent<Image>();
+            image.color = new Color32(250, 247, 239, 230);
+
+            introCanvasGroup = introPanel.GetComponent<CanvasGroup>();
+            introCanvasGroup.blocksRaycasts = true;
+
+            var row = new GameObject("Target Tiles", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            row.transform.SetParent(introPanel.transform, false);
+            introTilesRoot = row.GetComponent<RectTransform>();
+            introTilesRoot.anchorMin = new Vector2(0.5f, 0.5f);
+            introTilesRoot.anchorMax = new Vector2(0.5f, 0.5f);
+            introTilesRoot.pivot = new Vector2(0.5f, 0.5f);
+            introTilesRoot.sizeDelta = new Vector2(640f, 130f);
+            introTilesRoot.anchoredPosition = Vector2.zero;
+
+            var layout = row.GetComponent<HorizontalLayoutGroup>();
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
+            layout.spacing = 12f;
+
+            var digits = new[] { "1", "0", "0", "0", "0" };
+            foreach (var digit in digits)
+            {
+                CreateIntroTile(row.transform, digit);
+            }
+
+            introPanel.SetActive(false);
+        }
+
+        private void CreateIntroTile(Transform parent, string digit)
+        {
+            var tile = new GameObject($"Hint Tile {digit}", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            tile.transform.SetParent(parent, false);
+            tile.GetComponent<Image>().color = TilePaper;
+            AddSketchOutline(tile.transform);
+
+            var layout = tile.GetComponent<LayoutElement>();
+            layout.preferredWidth = 104f;
+            layout.preferredHeight = 104f;
+
+            var text = CreateText(tile.transform, digit, 64, TextAnchor.MiddleCenter);
+            text.raycastTarget = false;
+            Stretch(text.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
         }
 
         private Button CreateSketchButton(Transform parent, string label, int fontSize)
