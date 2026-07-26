@@ -46,6 +46,9 @@
 - Verified: Android SDK platform `android-36` exists under the installed Unity editor.
 - Verified: `scripts/verify-10000-unity.sh` fails early with exit `2` when Unity CLI is not logged in.
 - Verified: Unity batchmode was retried and exits `198` with `No valid Unity Editor license found`.
+- Verified: Opening the project through Unity CLI starts the editor import path and generates Unity-managed `.meta`, `ProjectSettings`, and `packages-lock.json` files.
+- Verified: Unity generated `Library/ScriptAssemblies/Assembly-CSharp.dll` and `Assembly-CSharp-Editor.dll` during the editor import attempt.
+- Verified: `scripts/verify-10000-mvp.sh` still passes after the editor import attempt.
 - Blocked: Unity batchmode import, Play Mode, and Android `.aab` build could not complete because Unity Hub is not logged in and no valid Unity Editor license is activated on this machine.
 - Next: Activate Unity license through Unity Hub.
 - Next: Re-run `scripts/verify-10000-unity.sh`.
