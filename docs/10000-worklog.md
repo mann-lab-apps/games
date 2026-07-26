@@ -23,3 +23,23 @@
 - Next: Implement the MVP loop.
 - Next: Add analytics event planning after the core loop is playable.
 
+## 2026-07-26 MVP implementation
+
+- Changed: Created the actual Unity project at `prototypes/10000`.
+- Changed: Added `Packages/manifest.json` with `com.unity.ugui`.
+- Changed: Added `Assets/_Project/Scenes/Game.unity` as the MVP scene.
+- Changed: Implemented board generation with guaranteed right/down `10000` placement.
+- Changed: Implemented detection for all right/down `10000` sequences, including accidental extra matches.
+- Changed: Implemented stage difficulty time limits from the design document.
+- Changed: Implemented runtime UI construction for the board, timer, score labels, result panel, restart flow, and local best score.
+- Changed: Added sketch-style UI outlines and marker-style correct/wrong feedback.
+- Changed: Added an Editor script to recreate the scene and apply Android-oriented project settings after Unity licensing is active.
+- Changed: Added 10000-specific analytics event candidates to `docs/10000-game-design.md`.
+- Verified: `git diff --check` passes.
+- Verified: Unity CLI lists Unity `6000.3.20f1` with Android Build Support, Android SDK & NDK Tools, and OpenJDK.
+- Verified: Android SDK platform `android-36` exists under the installed Unity editor.
+- Blocked: Unity batchmode import/compile could not complete because no valid Unity Editor license is activated on this machine.
+- Next: Activate Unity license through Unity Hub.
+- Next: Re-run batchmode import and compile validation.
+- Next: Open `Assets/_Project/Scenes/Game.unity` and test touch/readability in Play Mode.
+- Next: Build and smoke test on a real Android device.

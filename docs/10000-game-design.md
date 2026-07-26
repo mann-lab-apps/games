@@ -187,6 +187,19 @@ Mann Lab Games 공통 비주얼 기준인 손그림 스케치 스타일을 따�
 
 MVP가 플레이 가능해지기 전에는 분석 SDK와 광고 SDK를 붙이지 않는다. 먼저 게임이 다시 하고 싶은지 확인한다.
 
+## 분석 이벤트 후보
+
+SDK는 아직 붙이지 않는다. MVP 플레이 검증 뒤 아래 이벤트를 기준으로 Firebase Analytics / GA4 적용을 검토한다.
+
+| 이벤트 | 발생 조건 | 주요 파라미터 | 알고 싶은 것 |
+| --- | --- | --- | --- |
+| `run_start` | 새 런 시작 | `best_cleared_stages` | 다시 시작 흐름이 자연스러운가 |
+| `stage_clear` | 정답 탭으로 스테이지 클리어 | `stage`, `time_limit`, `remaining_time`, `wrong_taps`, `target_count` | 어느 구간이 너무 쉽거나 어려운가 |
+| `wrong_tap` | 오답 칸 탭 | `stage`, `remaining_time`, `penalty` | 오입력이 많은 구간이 있는가 |
+| `run_end` | 시간 종료 | `cleared_stages`, `failed_stage`, `run_duration`, `wrong_taps` | 평균 도달 지점과 런 길이는 적절한가 |
+| `restart` | 결과 화면에서 다시하기 | `previous_cleared_stages`, `best_cleared_stages` | 한 판이 다음 판으로 이어지는가 |
+| `app_open` | 앱 실행 | `best_cleared_stages` | 재방문이 있는가 |
+
 ## 성공 기준
 
 프로토타입을 계속 밀어볼 만한 기준:
