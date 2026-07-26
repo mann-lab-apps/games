@@ -49,3 +49,6 @@ Start lean. Add SDKs only when the game needs them:
 
 Reusable code should move into `shared/unity-packages/` once two games need it. Avoid moving code into shared while only one game uses it.
 
+## Visual Direction
+
+Use the Mann Lab Games visual direction in `docs/visual-direction.md` as the default look for new prototypes unless a game has a strong reason to diverge.

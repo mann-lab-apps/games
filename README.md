@@ -20,6 +20,7 @@ games/
 2. Promote promising projects into `releases/`.
 3. Keep common code in `shared/unity-packages/`.
 4. Treat every game directory as its own Unity project.
+5. Use the shared hand-drawn sketch visual direction in `docs/visual-direction.md`.
 
 ```sh
 ./scripts/new-unity-game.sh prototypes stack-jump
