@@ -24,6 +24,8 @@ captures/
 *.apk
 *.aab
 *.apks
+*.keystore
+*.jks
 
 # IntelliJ / Android Studio
 .idea/
@@ -48,6 +50,8 @@ MemoryCaptures/
 *.mdb
 *.opendb
 *.VC.db
+sysinfo.txt
+*.utmp
 
 # Godot
 .godot/
@@ -58,4 +62,3 @@ node_modules/
 dist/
 .next/
 .vite/
-
