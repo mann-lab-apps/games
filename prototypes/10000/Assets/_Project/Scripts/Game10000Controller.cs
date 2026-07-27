@@ -45,6 +45,8 @@ namespace MannLab.Games.Game10000
             Application.targetFrameRate = 60;
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             bestClearedStages = PlayerPrefs.GetInt(BestScoreKey, 0);
+            FirebaseTelemetry.Initialize();
+            FirebaseTelemetry.LogEvent("app_open");
 
             BuildInterface();
             StartRun();
@@ -76,6 +78,7 @@ namespace MannLab.Games.Game10000
             resultPanel.SetActive(false);
             GenerateStage();
             acceptingInput = false;
+            FirebaseTelemetry.LogEvent("run_start");
             StartCoroutine(PlayOpeningHint());
         }
 
@@ -114,6 +117,13 @@ namespace MannLab.Games.Game10000
             }
 
             remainingTime = Mathf.Max(0f, remainingTime - WrongTapPenalty);
+            FirebaseTelemetry.LogEvent(
+                "wrong_tap",
+                new Dictionary<string, string>
+                {
+                    { "stage", stage.ToString() },
+                    { "remaining_time", Mathf.CeilToInt(remainingTime).ToString() }
+                });
             StartCoroutine(FlashWrong(index));
             UpdateTimer();
 
@@ -137,6 +147,13 @@ namespace MannLab.Games.Game10000
 
             stage++;
             var clearedStages = stage - 1;
+            FirebaseTelemetry.LogEvent(
+                "stage_clear",
+                new Dictionary<string, string>
+                {
+                    { "stage", clearedStages.ToString() },
+                    { "remaining_time", Mathf.CeilToInt(remainingTime).ToString() }
+                });
             if (clearedStages > bestClearedStages)
             {
                 bestClearedStages = clearedStages;
@@ -220,6 +237,13 @@ namespace MannLab.Games.Game10000
             bestText.text = $"Best {bestClearedStages}";
             resultTitleText.text = "Run Complete";
             resultScoreText.text = $"Cleared {clearedStages}\nBest {bestClearedStages}";
+            FirebaseTelemetry.LogEvent(
+                "run_end",
+                new Dictionary<string, string>
+                {
+                    { "cleared_stages", clearedStages.ToString() },
+                    { "best_cleared_stages", bestClearedStages.ToString() }
+                });
             resultPanel.SetActive(true);
         }
 

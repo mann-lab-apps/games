@@ -89,3 +89,15 @@
 - Verified: `apksigner verify` passes with APK Signature Scheme v2.
 - Next: Publish the APK through the Mannlab site download page.
 - Next: Replace the temporary tester subscription link with a Google Form or Google Group flow.
+
+## 2026-07-27 Firebase Analytics and Crashlytics prep
+
+- Decision: Add Firebase Analytics and Crashlytics before Google Play production release; defer ads until later.
+- Changed: Added a Firebase telemetry adapter that compiles before the Firebase Unity SDK is imported.
+- Changed: Instrumented `app_open`, `run_start`, `wrong_tap`, `stage_clear`, and `run_end` events.
+- Changed: Added Crashlytics forwarding for Unity exceptions when the Firebase Crashlytics SDK is present.
+- Changed: Documented the Firebase Console, `google-services.json`, and Unity SDK import steps.
+- Blocked: Firebase Console app registration and `google-services.json` must be completed from the Mann Lab Firebase account.
+- Next: Create or select the Firebase project and register Android package `com.mannlab.games.game10000`.
+- Next: Import `FirebaseAnalytics.unitypackage` and `FirebaseCrashlytics.unitypackage` into `prototypes/10000`.
+- Next: Run an Android release build on a real device and confirm events/crashes appear in Firebase.

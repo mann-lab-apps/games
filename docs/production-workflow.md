@@ -67,6 +67,18 @@ Unity 프로젝트를 `prototypes/` 아래에 만든다.
 - Firebase Crashlytics
 - 유료 유입을 시작할 경우 attribution SDK 후보
 
+Unity Android 프로토타입에서 Firebase를 붙이는 최소 순서:
+
+1. Firebase Console에서 프로젝트를 만든다.
+2. Unity 앱을 추가하고 Android package ID를 등록한다.
+   - `10000`: `com.mannlab.games.game10000`
+3. `google-services.json`을 내려받아 Unity 프로젝트의 `Assets/` 아래에 넣는다.
+4. Firebase Unity SDK에서 아래 패키지를 import한다.
+   - `FirebaseAnalytics.unitypackage`
+   - `FirebaseCrashlytics.unitypackage`
+5. Unity Editor에서 Android Resolver를 실행해 Android 의존성을 반영한다.
+6. Development Build가 아닌 릴리즈 APK/AAB로 실기기 실행을 확인한다.
+
 최소 이벤트 후보:
 
 - `run_start`
@@ -75,6 +87,16 @@ Unity 프로젝트를 `prototypes/` 아래에 만든다.
 - `run_end`
 - `restart`
 - `app_open`
+
+`10000` MVP 현재 구현 이벤트:
+
+- `app_open`: 앱 첫 실행 시
+- `run_start`: 새 런 시작 시
+- `wrong_tap`: 오답 탭 시
+- `stage_clear`: 정답으로 스테이지를 넘길 때
+- `run_end`: 전체 제한 시간이 끝났을 때
+
+현재 구현은 Firebase SDK가 없어도 컴파일되며 Unity 로그에 이벤트를 남긴다. SDK와 `google-services.json`이 추가되면 같은 호출이 Firebase Analytics/Crashlytics로 전달된다.
 
 각 이벤트마다 적어야 할 것:
 

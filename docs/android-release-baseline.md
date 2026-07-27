@@ -32,6 +32,7 @@ References:
 - Privacy policy URL prepared
 - Data safety answers drafted
 - Ads, analytics, attribution, and consent SDK behavior reviewed
+- Firebase `google-services.json` added for builds that include Analytics or Crashlytics
+- Crashlytics checked with a non-development Android build before external distribution
 - Play Console internal testing track build uploaded
 - Crash-free smoke test completed on at least one real Android device
-
