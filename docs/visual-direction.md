@@ -1,5 +1,7 @@
 # Mann Lab Games Visual Direction
 
+For concrete tokens, component rules, and Unity reuse guidance, see `docs/design-system.md`.
+
 ## Core Direction
 
 Mann Lab Games uses a hand-drawn sketch style inspired by whiteboard tools like Excalidraw.
@@ -76,4 +78,3 @@ When a game graduates from prototype, create a small reusable sketch UI kit:
 - Board tiles
 - Correct/wrong marks
 - Result screen elements
-

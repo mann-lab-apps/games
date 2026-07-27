@@ -12,5 +12,12 @@ Add it to a game project's `Packages/manifest.json` after Unity creates the proj
 }
 ```
 
-Keep this package small. Code should move here only after at least two games need it.
+Included runtime helpers:
 
+- `MobileRuntime`: mobile defaults for fast prototypes
+- `SketchPalette`: shared paper, ink, marker, and warning colors
+- `SketchMetrics`: shared sketch line and spacing metrics
+- `SketchUiFactory`: small UI helper methods
+- `SketchOutlineGraphic`: procedural rough rectangle outline for Unity UI
+
+Keep this package small. Code should move here when it defines the Mann Lab Games baseline or when at least two games need it.

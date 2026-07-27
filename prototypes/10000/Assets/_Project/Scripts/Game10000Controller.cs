@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using MannLab.HyperCasual;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -11,13 +12,6 @@ namespace MannLab.Games.Game10000
         private const string BestScoreKey = "mannlab.10000.best_cleared_stages";
         private const float WrongTapPenalty = 0.5f;
         private const float RunTimeLimit = 60f;
-        private static readonly Color Paper = new Color32(250, 247, 239, 255);
-        private static readonly Color Ink = new Color32(40, 39, 36, 255);
-        private static readonly Color TilePaper = new Color32(255, 253, 247, 255);
-        private static readonly Color CorrectMarker = new Color32(94, 212, 129, 130);
-        private static readonly Color WrongMarker = new Color32(230, 68, 64, 120);
-        private static readonly Color Amber = new Color32(238, 168, 64, 255);
-
         private readonly List<Button> cellButtons = new List<Button>();
         private readonly List<Image> cellBackgrounds = new List<Image>();
         private readonly List<Image> cellHighlights = new List<Image>();
@@ -42,8 +36,7 @@ namespace MannLab.Games.Game10000
 
         private void Awake()
         {
-            Application.targetFrameRate = 60;
-            Screen.sleepTimeout = SleepTimeout.NeverSleep;
+            MobileRuntime.ApplyDefaults();
             bestClearedStages = PlayerPrefs.GetInt(BestScoreKey, 0);
             FirebaseTelemetry.Initialize();
             FirebaseTelemetry.LogEvent("app_open");
@@ -96,8 +89,8 @@ namespace MannLab.Games.Game10000
                 var digit = board.GetDigitAtIndex(i);
                 var label = cellButtons[i].GetComponentInChildren<Text>();
                 label.text = digit.ToString();
-                label.color = Ink;
-                cellBackgrounds[i].color = TilePaper;
+                label.color = SketchPalette.Ink;
+                cellBackgrounds[i].color = SketchPalette.TilePaper;
                 cellHighlights[i].color = Color.clear;
                 cellButtons[i].interactable = true;
             }
@@ -136,7 +129,7 @@ namespace MannLab.Games.Game10000
         private IEnumerator ClearStage()
         {
             acceptingInput = false;
-            RevealTargets(CorrectMarker);
+            RevealTargets(SketchPalette.CorrectMarker);
 
             yield return new WaitForSeconds(0.18f);
 
@@ -206,7 +199,7 @@ namespace MannLab.Games.Game10000
         {
             var background = cellBackgrounds[index];
             var original = background.color;
-            background.color = Color.Lerp(TilePaper, WrongMarker, 0.55f);
+            background.color = Color.Lerp(SketchPalette.TilePaper, SketchPalette.WrongMarker, 0.55f);
 
             yield return new WaitForSeconds(0.1f);
 
@@ -224,7 +217,7 @@ namespace MannLab.Games.Game10000
             acceptingInput = false;
             remainingTime = 0f;
             UpdateTimer();
-            RevealTargets(CorrectMarker);
+            RevealTargets(SketchPalette.CorrectMarker);
 
             var clearedStages = Mathf.Max(0, stage - 1);
             if (clearedStages > bestClearedStages)
@@ -259,7 +252,9 @@ namespace MannLab.Games.Game10000
         {
             var normalized = RunTimeLimit <= 0f ? 0f : Mathf.Clamp01(remainingTime / RunTimeLimit);
             timerFill.fillAmount = normalized;
-            timerFill.color = normalized < 0.25f ? Color.Lerp(Amber, WrongMarker, 0.35f) : Amber;
+            timerFill.color = normalized < 0.25f
+                ? Color.Lerp(SketchPalette.WarningAmber, SketchPalette.WrongMarker, 0.35f)
+                : SketchPalette.WarningAmber;
         }
 
         private void BuildInterface()
@@ -309,7 +304,7 @@ namespace MannLab.Games.Game10000
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
-            background.GetComponent<Image>().color = Paper;
+            background.GetComponent<Image>().color = SketchPalette.Paper;
         }
 
         private void CreateHeader(Transform parent)
@@ -348,7 +343,7 @@ namespace MannLab.Games.Game10000
             rect.pivot = new Vector2(0.5f, 1f);
             rect.offsetMin = new Vector2(32f, -134f);
             rect.offsetMax = new Vector2(-32f, -118f);
-            track.GetComponent<Image>().color = new Color32(255, 253, 247, 255);
+            track.GetComponent<Image>().color = SketchPalette.TilePaper;
             AddSketchOutline(track.transform);
 
             var fill = new GameObject("Timer Fill", typeof(RectTransform), typeof(Image));
@@ -377,7 +372,7 @@ namespace MannLab.Games.Game10000
             var grid = boardRoot.GetComponent<GridLayoutGroup>();
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             grid.constraintCount = BoardData.Size;
-            grid.spacing = new Vector2(5f, 5f);
+            grid.spacing = new Vector2(SketchMetrics.BoardGap, SketchMetrics.BoardGap);
             grid.childAlignment = TextAnchor.MiddleCenter;
 
             for (var i = 0; i < BoardData.Size * BoardData.Size; i++)
@@ -392,22 +387,20 @@ namespace MannLab.Games.Game10000
             cell.transform.SetParent(parent, false);
 
             var background = cell.GetComponent<Image>();
-            background.color = TilePaper;
+            background.color = SketchPalette.TilePaper;
 
             var button = cell.GetComponent<Button>();
             var capturedIndex = index;
             button.onClick.AddListener(() => HandleCellTapped(capturedIndex));
 
-            var colors = button.colors;
-            colors.normalColor = TilePaper;
-            colors.highlightedColor = new Color32(255, 250, 229, 255);
-            colors.pressedColor = new Color32(244, 235, 208, 255);
-            colors.selectedColor = colors.highlightedColor;
-            button.colors = colors;
+            button.colors = SketchUiFactory.ButtonColors();
 
             var highlight = new GameObject("Marker Highlight", typeof(RectTransform), typeof(Image));
             highlight.transform.SetParent(cell.transform, false);
-            Stretch(highlight.GetComponent<RectTransform>(), new Vector2(8f, 8f), new Vector2(-8f, -8f));
+            Stretch(
+                highlight.GetComponent<RectTransform>(),
+                new Vector2(SketchMetrics.MarkerInset, SketchMetrics.MarkerInset),
+                new Vector2(-SketchMetrics.MarkerInset, -SketchMetrics.MarkerInset));
             var highlightImage = highlight.GetComponent<Image>();
             highlightImage.color = Color.clear;
             highlightImage.raycastTarget = false;
@@ -420,7 +413,7 @@ namespace MannLab.Games.Game10000
             outline.transform.SetParent(cell.transform, false);
             Stretch(outline.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
             var outlineGraphic = outline.GetComponent<SketchOutlineGraphic>();
-            outlineGraphic.color = Ink;
+            outlineGraphic.color = SketchPalette.Ink;
             outlineGraphic.raycastTarget = false;
 
             cellButtons.Add(button);
@@ -439,7 +432,7 @@ namespace MannLab.Games.Game10000
             rect.sizeDelta = new Vector2(560f, 430f);
             rect.anchoredPosition = Vector2.zero;
 
-            resultPanel.GetComponent<Image>().color = new Color32(255, 253, 247, 245);
+            resultPanel.GetComponent<Image>().color = new Color(SketchPalette.TilePaper.r, SketchPalette.TilePaper.g, SketchPalette.TilePaper.b, 0.96f);
             AddSketchOutline(resultPanel.transform);
 
             resultTitleText = CreateText(resultPanel.transform, "Run Complete", 52, TextAnchor.MiddleCenter);
@@ -475,7 +468,7 @@ namespace MannLab.Games.Game10000
             Stretch(introPanel.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
 
             var image = introPanel.GetComponent<Image>();
-            image.color = new Color32(250, 247, 239, 230);
+            image.color = new Color(SketchPalette.Paper.r, SketchPalette.Paper.g, SketchPalette.Paper.b, 0.9f);
 
             introCanvasGroup = introPanel.GetComponent<CanvasGroup>();
             introCanvasGroup.blocksRaycasts = true;
@@ -508,7 +501,7 @@ namespace MannLab.Games.Game10000
         {
             var tile = new GameObject($"Hint Tile {digit}", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
             tile.transform.SetParent(parent, false);
-            tile.GetComponent<Image>().color = TilePaper;
+            tile.GetComponent<Image>().color = SketchPalette.TilePaper;
             AddSketchOutline(tile.transform);
 
             var layout = tile.GetComponent<LayoutElement>();
@@ -524,15 +517,11 @@ namespace MannLab.Games.Game10000
         {
             var buttonObject = new GameObject(label, typeof(RectTransform), typeof(Image), typeof(Button));
             buttonObject.transform.SetParent(parent, false);
-            buttonObject.GetComponent<Image>().color = TilePaper;
+            buttonObject.GetComponent<Image>().color = SketchPalette.TilePaper;
             AddSketchOutline(buttonObject.transform);
 
             var button = buttonObject.GetComponent<Button>();
-            var colors = button.colors;
-            colors.normalColor = TilePaper;
-            colors.highlightedColor = new Color32(255, 250, 229, 255);
-            colors.pressedColor = new Color32(238, 225, 193, 255);
-            button.colors = colors;
+            button.colors = SketchUiFactory.ButtonColors();
 
             var text = CreateText(buttonObject.transform, label, fontSize, TextAnchor.MiddleCenter);
             text.raycastTarget = false;
@@ -547,7 +536,7 @@ namespace MannLab.Games.Game10000
             outline.transform.SetParent(parent, false);
             Stretch(outline.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
             var outlineGraphic = outline.GetComponent<SketchOutlineGraphic>();
-            outlineGraphic.color = Ink;
+            outlineGraphic.color = SketchPalette.Ink;
             outlineGraphic.raycastTarget = false;
         }
 
@@ -560,7 +549,7 @@ namespace MannLab.Games.Game10000
             text.font = GetDefaultFont();
             text.fontSize = size;
             text.alignment = alignment;
-            text.color = Ink;
+            text.color = SketchPalette.Ink;
             text.resizeTextForBestFit = true;
             text.resizeTextMinSize = Mathf.Max(16, size / 2);
             text.resizeTextMaxSize = size;

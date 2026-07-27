@@ -10,6 +10,7 @@ unity="$managed/UnityEngine"
 mono_lib="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/unityjit-macos"
 ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.template.2d-cross-platform-2d-6.1.2/ScriptAssemblies/UnityEngine.UI.dll"
 project="$repo_root/prototypes/10000"
+shared_runtime="$repo_root/shared/unity-packages/com.mannlab.hypercasual-core/Runtime"
 tmpdir="$(mktemp -d)"
 
 runtime_dll="$tmpdir/Game10000Runtime.dll"
@@ -26,6 +27,7 @@ editor_dll="$tmpdir/Game10000Editor.dll"
   -r:"$unity/UnityEngine.InputLegacyModule.dll" \
   -r:"$unity/UnityEngine.IMGUIModule.dll" \
   -r:"$ugui" \
+  "$shared_runtime"/*.cs \
   "$project"/Assets/_Project/Scripts/*.cs
 
 "$mono" "$csc" -target:library -nologo -nostdlib -out:"$editor_dll" \
@@ -79,4 +81,3 @@ CS
 "$mono" "$tmpdir/VerifyBoardGenerator.exe"
 
 echo "10000 MVP compile verification passed."
-

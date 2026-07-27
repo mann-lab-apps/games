@@ -49,6 +49,8 @@ Start lean. Add SDKs only when the game needs them:
 
 Reusable code should move into `shared/unity-packages/` once two games need it. Avoid moving code into shared while only one game uses it.
 
+The Mann Lab Games sketch style is a baseline exception. New prototypes should depend on `com.mannlab.hypercasual-core` when they use shared sketch palette, metrics, or UI outline helpers.
+
 ## Visual Direction
 
-Use the Mann Lab Games visual direction in `docs/visual-direction.md` as the default look for new prototypes unless a game has a strong reason to diverge.
+Use the Mann Lab Games visual direction in `docs/visual-direction.md` and the concrete design system in `docs/design-system.md` as the default look for new prototypes unless a game has a strong reason to diverge.

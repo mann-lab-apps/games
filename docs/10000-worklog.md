@@ -101,3 +101,14 @@
 - Next: Create or select the Firebase project and register Android package `com.mannlab.games.game10000`.
 - Next: Import `FirebaseAnalytics.unitypackage` and `FirebaseCrashlytics.unitypackage` into `prototypes/10000`.
 - Next: Run an Android release build on a real device and confirm events/crashes appear in Firebase.
+
+## 2026-07-27 sketch design system baseline
+
+- Decision: Keep `docs/visual-direction.md` as the short visual entry point and add `docs/design-system.md` for concrete design tokens and Unity reuse rules.
+- Decision: Promote sketch palette, spacing, button colors, and rough outlines into `shared/unity-packages/com.mannlab.hypercasual-core`.
+- Changed: Added shared `SketchPalette`, `SketchMetrics`, `SketchUiFactory`, and `SketchOutlineGraphic` runtime helpers.
+- Changed: Updated `10000` to use the shared Mann Lab Games sketch style helpers.
+- Changed: Updated the MVP verification script so it compiles shared Unity package runtime code with the game scripts.
+- Verified: Unity batchmode import succeeds with the local shared package.
+- Next: Add a `SketchTheme` ScriptableObject only after a second game needs theme overrides.
+- Next: Replace system fonts only after a readable, licensed handwritten font is selected.

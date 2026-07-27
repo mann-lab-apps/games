@@ -1,6 +1,6 @@
 {
   "dependencies": {
+    "com.mannlab.hypercasual-core": "file:../../../shared/unity-packages/com.mannlab.hypercasual-core",
     "com.unity.ugui": "2.0.0"
   }
 }
-
