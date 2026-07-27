@@ -79,3 +79,13 @@
 - Next: Rebuild Android App Bundle after the timer change.
 - Next: Upload the `.aab` to Google Play Console internal testing.
 - Next: Smoke test the Play-delivered build on a real Android device.
+
+## 2026-07-27 direct APK sharing
+
+- Decision: Use Mannlab site sharing as the immediate distribution path while Google Play production requirements are pending.
+- Changed: Added release signing support to the Android build script.
+- Changed: Created a local, Git-ignored Android upload keystore for `10000`.
+- Verified: Built a release-signed Android APK at `prototypes/10000/Builds/Android/10000.apk`.
+- Verified: `apksigner verify` passes with APK Signature Scheme v2.
+- Next: Publish the APK through the Mannlab site download page.
+- Next: Replace the temporary tester subscription link with a Google Form or Google Group flow.
