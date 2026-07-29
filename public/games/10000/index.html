@@ -52,12 +52,14 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/10000.loader.js";
+      var assetVersion = "17e3a44c31c4";
+      var versionSuffix = "?v=" + assetVersion;
+      var loaderUrl = buildUrl + "/10000.loader.js" + versionSuffix;
       var config = {
         arguments: [],
-        dataUrl: buildUrl + "/10000.data",
-        frameworkUrl: buildUrl + "/10000.framework.js",
-        codeUrl: buildUrl + "/10000.wasm",
+        dataUrl: buildUrl + "/10000.data" + versionSuffix,
+        frameworkUrl: buildUrl + "/10000.framework.js" + versionSuffix,
+        codeUrl: buildUrl + "/10000.wasm" + versionSuffix,
         streamingAssetsUrl: "StreamingAssets",
         companyName: "Mann Lab",
         productName: "10000",
