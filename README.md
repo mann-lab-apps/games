@@ -1,6 +1,6 @@
 # Mann Lab Games
 
-Unity-first monorepo for Mann Lab hyper-casual game experiments and Android release candidates.
+Unity-first monorepo for Mann Lab hyper-casual game experiments and mobile release candidates.
 
 ## Repo Structure
 
@@ -36,5 +36,6 @@ Then open the generated directory from Unity Hub and let Unity import the projec
 ## Baseline
 
 - Engine: Unity 6 LTS line. Current local baseline: Unity 6000.3.20f1.
-- Platform: Android first.
+- Platform: Android first, iOS supported when Apple release prerequisites are ready.
 - Store target: Google Play target API requirements should be checked before every release.
+- iOS target: App Store submission requirements should be checked before every release.

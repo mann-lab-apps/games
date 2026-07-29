@@ -37,6 +37,8 @@ captures/
 [Oo]bj/
 [Bb]uild/
 [Bb]uilds/
+!web/mannlab-games/public/games/10000/Build/
+!web/mannlab-games/public/games/10000/Build/**
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
 MemoryCaptures/

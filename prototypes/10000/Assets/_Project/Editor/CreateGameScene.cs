@@ -33,6 +33,8 @@ namespace MannLab.Games.Game10000.EditorTools
             PlayerSettings.companyName = "Mann Lab";
             PlayerSettings.productName = "10000";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.mannlab.games.game10000");
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, "com.mannlab.games.game10000");
+            PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.Android.bundleVersionCode = 1;
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);

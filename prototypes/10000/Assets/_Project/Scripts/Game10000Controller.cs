@@ -20,8 +20,11 @@ namespace MannLab.Games.Game10000
         private BoardData board;
         private Text stageText;
         private Text bestText;
+        private Text timeText;
         private Text resultTitleText;
         private Text resultScoreText;
+        private RectTransform timerTrackRect;
+        private RectTransform timerFillRect;
         private Image timerFill;
         private CanvasGroup introCanvasGroup;
         private RectTransform introTilesRoot;
@@ -251,10 +254,20 @@ namespace MannLab.Games.Game10000
         private void UpdateTimer()
         {
             var normalized = RunTimeLimit <= 0f ? 0f : Mathf.Clamp01(remainingTime / RunTimeLimit);
-            timerFill.fillAmount = normalized;
+            if (timerTrackRect != null && timerFillRect != null)
+            {
+                var fillWidth = Mathf.Max(0f, timerTrackRect.rect.width - 8f) * normalized;
+                timerFillRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, fillWidth);
+            }
+
             timerFill.color = normalized < 0.25f
                 ? Color.Lerp(SketchPalette.WarningAmber, SketchPalette.WrongMarker, 0.35f)
                 : SketchPalette.WarningAmber;
+
+            if (timeText != null)
+            {
+                timeText.text = $"{Mathf.CeilToInt(Mathf.Max(0f, remainingTime))}s";
+            }
         }
 
         private void BuildInterface()
@@ -321,13 +334,20 @@ namespace MannLab.Games.Game10000
             stageText = CreateText(header.transform, "Stage 1", 46, TextAnchor.MiddleLeft);
             var stageRect = stageText.GetComponent<RectTransform>();
             stageRect.anchorMin = new Vector2(0f, 0f);
-            stageRect.anchorMax = new Vector2(0.5f, 1f);
+            stageRect.anchorMax = new Vector2(0.34f, 1f);
             stageRect.offsetMin = Vector2.zero;
             stageRect.offsetMax = Vector2.zero;
 
+            timeText = CreateText(header.transform, "60s", 34, TextAnchor.MiddleCenter);
+            var timeRect = timeText.GetComponent<RectTransform>();
+            timeRect.anchorMin = new Vector2(0.33f, 0f);
+            timeRect.anchorMax = new Vector2(0.67f, 1f);
+            timeRect.offsetMin = Vector2.zero;
+            timeRect.offsetMax = Vector2.zero;
+
             bestText = CreateText(header.transform, "Best 0", 34, TextAnchor.MiddleRight);
             var bestRect = bestText.GetComponent<RectTransform>();
-            bestRect.anchorMin = new Vector2(0.5f, 0f);
+            bestRect.anchorMin = new Vector2(0.66f, 0f);
             bestRect.anchorMax = new Vector2(1f, 1f);
             bestRect.offsetMin = Vector2.zero;
             bestRect.offsetMax = Vector2.zero;
@@ -341,22 +361,22 @@ namespace MannLab.Games.Game10000
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(32f, -134f);
-            rect.offsetMax = new Vector2(-32f, -118f);
+            rect.offsetMin = new Vector2(32f, -150f);
+            rect.offsetMax = new Vector2(-32f, -128f);
+            timerTrackRect = rect;
             track.GetComponent<Image>().color = SketchPalette.TilePaper;
             AddSketchOutline(track.transform);
 
             var fill = new GameObject("Timer Fill", typeof(RectTransform), typeof(Image));
             fill.transform.SetParent(track.transform, false);
             var fillRect = fill.GetComponent<RectTransform>();
-            fillRect.anchorMin = Vector2.zero;
-            fillRect.anchorMax = Vector2.one;
+            fillRect.anchorMin = new Vector2(0f, 0f);
+            fillRect.anchorMax = new Vector2(0f, 1f);
+            fillRect.pivot = new Vector2(0f, 0.5f);
             fillRect.offsetMin = new Vector2(4f, 4f);
-            fillRect.offsetMax = new Vector2(-4f, -4f);
+            fillRect.offsetMax = new Vector2(4f, -4f);
+            timerFillRect = fillRect;
             timerFill = fill.GetComponent<Image>();
-            timerFill.type = Image.Type.Filled;
-            timerFill.fillMethod = Image.FillMethod.Horizontal;
-            timerFill.fillOrigin = 0;
         }
 
         private void CreateBoard(Transform parent)
@@ -364,10 +384,10 @@ namespace MannLab.Games.Game10000
             var boardRoot = new GameObject("Board", typeof(RectTransform), typeof(BoardSizeFitter), typeof(GridLayoutGroup), typeof(BoardGridCellSizer));
             boardRoot.transform.SetParent(parent, false);
             var rect = boardRoot.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(0f, -20f);
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -190f);
 
             var grid = boardRoot.GetComponent<GridLayoutGroup>();
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;

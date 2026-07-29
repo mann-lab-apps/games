@@ -154,7 +154,10 @@ Unity Android 프로토타입에서 Firebase를 붙이는 최소 순서:
 - 개인정보처리방침 상태
 - 데이터 보안 초안
 
-스토어 업로드 전에는 항상 `docs/android-release-baseline.md`를 확인한다.
+스토어 업로드 전에는 항상 대상 플랫폼 기준 문서를 확인한다.
+
+- Android: `docs/android-release-baseline.md`
+- iOS: `docs/ios-release-baseline.md`
 
 ### 오늘 배포용 최소 체크리스트
 

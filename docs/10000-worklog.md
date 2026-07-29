@@ -102,6 +102,22 @@
 - Next: Import `FirebaseAnalytics.unitypackage` and `FirebaseCrashlytics.unitypackage` into `prototypes/10000`.
 - Next: Run an Android release build on a real device and confirm events/crashes appear in Firebase.
 
+## 2026-07-27 iOS individual account release prep
+
+- Decision: App Store distribution can proceed through an individual Apple Developer Program account, with the developer name shown as the account holder's legal name.
+- Decision: Keep the iOS bundle identifier aligned with Android: `com.mannlab.games.game10000`.
+- Changed: Added `docs/ios-release-baseline.md` for individual account App Store/TestFlight requirements.
+- Changed: Added a Unity iOS Xcode-project build method at `Builds/iOS/Xcode`.
+- Changed: Added `scripts/verify-10000-ios-readiness.sh` to check local iOS build prerequisites.
+- Verified: `./scripts/verify-10000-mvp.sh` passes after adding the iOS build script.
+- Verified: Unity iOS Build Support is installed for Unity `6000.3.20f1`.
+- Verified: Unity generated the iOS Xcode project at `prototypes/10000/Builds/iOS/Xcode`.
+- Verified: Xcode `16.3` completed an unsigned Release `iphoneos` build and produced `10000.app`.
+- Blocked: Local Xcode is `16.3`; App Store uploads require Xcode 26/iOS 26 SDK or newer as of April 28, 2026.
+- Next: Enroll the personal Apple Developer Program account.
+- Next: Install Xcode 26 or newer before TestFlight/App Store upload.
+- Next: Create the App Store Connect app record and reserve `com.mannlab.games.game10000`.
+
 ## 2026-07-27 sketch design system baseline
 
 - Decision: Keep `docs/visual-direction.md` as the short visual entry point and add `docs/design-system.md` for concrete design tokens and Unity reuse rules.
@@ -112,3 +128,32 @@
 - Verified: Unity batchmode import succeeds with the local shared package.
 - Next: Add a `SketchTheme` ScriptableObject only after a second game needs theme overrides.
 - Next: Replace system fonts only after a readable, licensed handwritten font is selected.
+
+## 2026-07-29 WebGL sharing build
+
+- Decision: Use Unity WebGL as the no-Apple-Developer-account sharing path for iPhone Safari testing.
+- Changed: Installed Unity WebGL Build Support for Unity `6000.3.20f1`.
+- Changed: Added a Unity WebGL build method at `Builds/WebGL/10000`.
+- Changed: Added `scripts/verify-10000-webgl.sh` for repeatable WebGL builds.
+- Changed: Added `scripts/serve-10000-webgl.sh` to serve Unity `.gz` and `.wasm` assets with browser-friendly headers.
+- Verified: WebGL build completed successfully at `prototypes/10000/Builds/WebGL/10000`.
+- Verified: WebGL output size is about `4.7M`.
+- Next: Open the local network URL on iPhone Safari and smoke test touch/readability.
+- Next: Publish the same WebGL folder to a public Mannlab-hosted URL for external sharing.
+
+## 2026-07-29 WebGL timer and layout fix
+
+- Changed: Moved the board to a top-anchored layout so the first tile row no longer overlaps the timer bar.
+- Changed: Replaced `Image.fillAmount` timer rendering with an explicit RectTransform width update for WebGL reliability.
+- Changed: Added a compact seconds label in the header to make timer countdown visible even if the bar is subtle.
+- Changed: Patched the WebGL shell to hide Unity's default footer and use a full-viewport canvas so the last tile row is not clipped.
+- Verified: `./scripts/verify-10000-mvp.sh` passes.
+- Verified: WebGL rebuild completed successfully and the local server is serving the updated `.wasm.gz`.
+- Verified: The local server is serving the updated responsive WebGL CSS with `Cache-Control: no-store`.
+
+## 2026-07-29 Mannlab Games web publish prep
+
+- Decision: Publish the WebGL version through the Mannlab Games website instead of distributing native build files.
+- Changed: Added `web/mannlab-games` as a lightweight Vite site that embeds the `10000` WebGL build.
+- Changed: Added `scripts/sync-10000-webgl-to-site.sh` to copy Unity WebGL output into the site.
+- Changed: The site copy expands Unity `.gz` build artifacts to plain `.data`, `.framework.js`, and `.wasm` files so static hosting does not depend on custom gzip headers.
