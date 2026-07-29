@@ -19,6 +19,7 @@ gzip -dc "$target_dir/Build/10000.framework.js.gz" > "$target_dir/Build/10000.fr
 gzip -dc "$target_dir/Build/10000.wasm.gz" > "$target_dir/Build/10000.wasm"
 
 perl -pi -e 's/10000\.data\.gz/10000.data/g; s/10000\.framework\.js\.gz/10000.framework.js/g; s/10000\.wasm\.gz/10000.wasm/g' "$target_dir/index.html"
+perl -pi -e 's/canvas\.style\.width = "960px";/canvas.style.width = "100%";/g; s/canvas\.style\.height = "600px";/canvas.style.height = "100%";/g' "$target_dir/index.html"
 
 rm "$target_dir/Build/10000.data.gz" \
   "$target_dir/Build/10000.framework.js.gz" \
