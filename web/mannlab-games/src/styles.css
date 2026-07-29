@@ -34,15 +34,14 @@ a {
   min-height: 100%;
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: minmax(236px, 280px) minmax(0, 1fr) minmax(220px, 260px);
+  grid-template-columns: minmax(236px, 280px) minmax(0, 1fr);
   align-items: stretch;
   gap: clamp(12px, 1.8vw, 24px);
   padding: clamp(10px, 2.4vw, 28px);
   background: #f8f5eb;
 }
 
-.hub-panel,
-.promo-rail {
+.hub-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -51,9 +50,7 @@ a {
 
 .brand-link,
 .game-choice,
-.mannlab-card,
-.banner-card,
-.ad-slot {
+.mannlab-card {
   border: 2px solid #27241f;
   border-radius: 8px;
   background: #fdf9ed;
@@ -80,9 +77,7 @@ a {
 
 .brand-link strong,
 .game-choice strong,
-.mannlab-card strong,
-.banner-card strong,
-.ad-slot strong {
+.mannlab-card strong {
   display: block;
 }
 
@@ -130,9 +125,7 @@ a {
   font-weight: 700;
 }
 
-.mannlab-card,
-.banner-card,
-.ad-slot {
+.mannlab-card {
   padding: 16px;
 }
 
@@ -141,9 +134,7 @@ a {
   background: #e8f0dc;
 }
 
-.mannlab-card span,
-.banner-card span,
-.ad-slot span {
+.mannlab-card span {
   display: block;
   margin-bottom: 8px;
   color: #665f52;
@@ -166,6 +157,81 @@ a {
   display: grid;
   place-items: center;
   min-width: 0;
+}
+
+.home-stage {
+  width: min(100%, 960px);
+  min-width: 0;
+  align-self: center;
+  justify-self: center;
+}
+
+.home-copy {
+  margin-bottom: 18px;
+}
+
+.home-copy span {
+  display: block;
+  margin-bottom: 8px;
+  color: #665f52;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.home-copy h1 {
+  max-width: 620px;
+  margin: 0;
+  font-size: clamp(34px, 5vw, 64px);
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+
+.home-games {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.home-game-card {
+  min-height: 210px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 18px;
+  border: 2px solid #27241f;
+  border-radius: 8px;
+  background: #fff4d8;
+  box-shadow: inset 0 -6px 0 #f4b24f;
+}
+
+.home-game-card span {
+  width: fit-content;
+  padding: 3px 8px;
+  border: 1.5px solid #27241f;
+  border-radius: 999px;
+  background: #f8f5eb;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.home-game-card strong {
+  display: block;
+  font-size: 28px;
+}
+
+.home-game-card small {
+  color: #665f52;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.home-game-card.is-disabled {
+  background: #fdf9ed;
+  box-shadow: none;
+  color: #81796b;
+  cursor: default;
 }
 
 .game-window {
@@ -247,57 +313,13 @@ a {
   background: #f8f5eb;
 }
 
-.promo-rail {
-  justify-content: start;
-}
-
-.banner-card {
-  min-height: 132px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  background: #f1ead6;
-}
-
-.primary-banner {
-  min-height: 178px;
-  background: #27241f;
-  color: #f8f5eb;
-}
-
-.primary-banner span {
-  color: #f4b24f;
-}
-
-.ad-slot {
-  min-height: 250px;
-  display: grid;
-  place-items: center;
-  border-style: dashed;
-  color: #665f52;
-  text-align: center;
-}
-
-.ad-slot span,
-.ad-slot strong {
-  margin: 0;
-}
-
 @media (max-width: 1120px) {
   .app-shell {
     grid-template-columns: 220px minmax(0, 1fr);
   }
 
-  .promo-rail {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .banner-card,
-  .primary-banner,
-  .ad-slot {
-    min-height: 116px;
+  .home-games {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -347,13 +369,22 @@ a {
     min-height: 540px;
   }
 
-  .promo-rail {
+  .home-stage {
+    align-self: start;
+  }
+
+  .home-copy h1 {
+    font-size: 36px;
+  }
+
+  .home-games {
     grid-template-columns: 1fr;
   }
 
-  .ad-slot {
-    min-height: 96px;
+  .home-game-card {
+    min-height: 138px;
   }
+
 }
 
 @media (max-width: 420px) {
@@ -361,8 +392,7 @@ a {
     padding: 0;
   }
 
-  .hub-panel,
-  .promo-rail {
+  .hub-panel {
     padding: 0 10px;
   }
 

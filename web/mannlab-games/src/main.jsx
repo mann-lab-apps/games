@@ -4,25 +4,29 @@ import "./styles.css";
 
 const games = [
   {
+    id: "10000",
     title: "10000",
     status: "Live",
     description: "60초 안에 1 0 0 0 0을 찾는 숫자 퍼즐",
-    href: "/games/10000/",
-    active: true,
+    route: "/10000",
+    embedHref: "/games/10000/",
+    available: true,
   },
   {
+    id: "next-tile",
     title: "Next Tile",
     status: "Soon",
     description: "짧은 리듬으로 이어지는 다음 실험",
-    href: "#",
-    active: false,
+    route: "#",
+    available: false,
   },
   {
+    id: "one-more",
     title: "One More",
     status: "Draft",
     description: "한 판만 더 하게 만드는 미니게임",
-    href: "#",
-    active: false,
+    route: "#",
+    available: false,
   },
 ];
 
@@ -47,30 +51,49 @@ function createFeedbackUrl(game) {
 }
 
 function App() {
-  const activeGame = games.find((game) => game.active) ?? games[0];
-  const feedbackUrl = createFeedbackUrl(activeGame);
+  const pathname = window.location.pathname.replace(/\/$/, "") || "/";
+  const activeGame = games.find((game) => game.route === pathname);
+  const isPlayRoute = Boolean(activeGame);
+  const selectedGame = activeGame ?? games[0];
+  const feedbackUrl = createFeedbackUrl(selectedGame);
 
   return (
-    <main className="app-shell">
-      <section className="hub-panel" aria-label="Mannlab Games">
-        <a className="brand-link" href="https://mannlab.app/" aria-label="만랩 본진으로 이동">
-          <span className="brand-mark">M</span>
-          <span>
-            <strong>Mannlab Games</strong>
-            <small>만랩 본진에서 다른 작업 구경하기</small>
-          </span>
-        </a>
+    <main className={`app-shell${isPlayRoute ? " is-play-route" : " is-home-route"}`}>
+      <HubPanel activeGame={selectedGame} isPlayRoute={isPlayRoute} />
 
-        <nav className="game-list" aria-label="게임 선택">
-          {games.map((game) => (
+      {isPlayRoute ? (
+        <GameStage game={selectedGame} feedbackUrl={feedbackUrl} />
+      ) : (
+        <HomeStage />
+      )}
+    </main>
+  );
+}
+
+function HubPanel({ activeGame, isPlayRoute }) {
+  return (
+    <section className="hub-panel" aria-label="Mannlab Games">
+      <a className="brand-link" href="/" aria-label="만랩 게임즈 홈으로 이동">
+        <span className="brand-mark">M</span>
+        <span>
+          <strong>Mannlab Games</strong>
+          <small>작게 만든 웹 게임 모음</small>
+        </span>
+      </a>
+
+      <nav className="game-list" aria-label="게임 선택">
+        {games.map((game) => {
+          const isActive = isPlayRoute && game.id === activeGame.id;
+
+          return (
             <a
               key={game.title}
-              className={`game-choice${game.active ? " is-active" : ""}${game.active ? "" : " is-disabled"}`}
-              href={game.href}
-              aria-current={game.active ? "page" : undefined}
-              aria-disabled={game.active ? undefined : "true"}
+              className={`game-choice${isActive ? " is-active" : ""}${game.available ? "" : " is-disabled"}`}
+              href={game.route}
+              aria-current={isActive ? "page" : undefined}
+              aria-disabled={game.available ? undefined : "true"}
               onClick={(event) => {
-                if (!game.active) {
+                if (!game.available) {
                   event.preventDefault();
                 }
               }}
@@ -81,61 +104,81 @@ function App() {
               </span>
               <em>{game.status}</em>
             </a>
-          ))}
-        </nav>
+          );
+        })}
+      </nav>
 
-        <div className="mannlab-card">
-          <span>Mannlab</span>
-          <strong>게임하다가 진짜 문제도 같이 풀러 오기</strong>
-          <a href="https://mannlab.app/">만랩 열기</a>
+      <div className="mannlab-card">
+        <span>Mannlab</span>
+        <strong>만랩의 다른 작업 구경하기</strong>
+        <a href="https://mannlab.app/">만랩 본진</a>
+      </div>
+    </section>
+  );
+}
+
+function HomeStage() {
+  return (
+    <section className="home-stage" aria-label="만랩 게임즈 홈">
+      <div className="home-copy">
+        <span>Mannlab Games</span>
+        <h1>짧게 해보는 작은 게임들</h1>
+      </div>
+
+      <div className="home-games" aria-label="게임 목록">
+        {games.map((game) => (
+          <a
+            key={game.id}
+            className={`home-game-card${game.available ? "" : " is-disabled"}`}
+            href={game.route}
+            aria-disabled={game.available ? undefined : "true"}
+            onClick={(event) => {
+              if (!game.available) {
+                event.preventDefault();
+              }
+            }}
+          >
+            <span>{game.status}</span>
+            <strong>{game.title}</strong>
+            <small>{game.description}</small>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function GameStage({ game, feedbackUrl }) {
+  return (
+    <section className="play-area" aria-label={`${game.title} 플레이`}>
+      <section className="game-window" aria-label={game.title}>
+        <div className="window-bar">
+          <div className="window-controls" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+          <strong>{game.title}</strong>
+          <a
+            className="feedback-link"
+            href={feedbackUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`${game.title} 피드백 보내기`}
+          >
+            피드백
+          </a>
+        </div>
+        <div className="game-viewport">
+          <iframe
+            title={game.title}
+            className="game-frame"
+            src={game.embedHref}
+            allow="fullscreen; autoplay; gamepad"
+          />
         </div>
       </section>
-
-      <section className="play-area" aria-label={`${activeGame.title} 플레이`}>
-        <section className="game-window" aria-label={activeGame.title}>
-          <div className="window-bar">
-            <div className="window-controls" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </div>
-            <strong>{activeGame.title}</strong>
-            <a
-              className="feedback-link"
-              href={feedbackUrl}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={`${activeGame.title} 피드백 보내기`}
-            >
-              피드백
-            </a>
-          </div>
-          <div className="game-viewport">
-            <iframe
-              title={activeGame.title}
-              className="game-frame"
-              src={activeGame.href}
-              allow="fullscreen; autoplay; gamepad"
-            />
-          </div>
-        </section>
-      </section>
-
-      <section className="promo-rail" aria-label="배너">
-        <a className="banner-card primary-banner" href="https://mannlab.app/">
-          <span>From Mannlab</span>
-          <strong>작은 실험을 실제 제품으로</strong>
-        </a>
-        <a className="banner-card" href="https://in-c.mannlab.app/">
-          <span>in C</span>
-          <strong>생각과 실행을 정리하는 앱</strong>
-        </a>
-        <div className="ad-slot" aria-label="광고 슬롯">
-          <span>Ad</span>
-          <strong>300 x 250</strong>
-        </div>
-      </section>
-    </main>
+    </section>
   );
 }
 
