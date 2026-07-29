@@ -83,7 +83,7 @@ namespace MannLab.Games.Game10000
             board = boardGenerator.Generate();
             acceptingInput = true;
 
-            stageText.text = $"Stage {stage}";
+            stageText.text = $"Score {Mathf.Max(0, stage - 1)}";
             bestText.text = $"Best {bestClearedStages}";
             UpdateTimer();
 
@@ -331,7 +331,7 @@ namespace MannLab.Games.Game10000
             rect.offsetMin = new Vector2(32f, -112f);
             rect.offsetMax = new Vector2(-32f, -28f);
 
-            stageText = CreateText(header.transform, "Stage 1", 46, TextAnchor.MiddleLeft);
+            stageText = CreateText(header.transform, "Score 0", 46, TextAnchor.MiddleLeft);
             var stageRect = stageText.GetComponent<RectTransform>();
             stageRect.anchorMin = new Vector2(0f, 0f);
             stageRect.anchorMax = new Vector2(0.34f, 1f);
@@ -381,13 +381,21 @@ namespace MannLab.Games.Game10000
 
         private void CreateBoard(Transform parent)
         {
+            var boardArea = new GameObject("Board Area", typeof(RectTransform));
+            boardArea.transform.SetParent(parent, false);
+            var areaRect = boardArea.GetComponent<RectTransform>();
+            areaRect.anchorMin = Vector2.zero;
+            areaRect.anchorMax = Vector2.one;
+            areaRect.offsetMin = new Vector2(32f, 48f);
+            areaRect.offsetMax = new Vector2(-32f, -190f);
+
             var boardRoot = new GameObject("Board", typeof(RectTransform), typeof(BoardSizeFitter), typeof(GridLayoutGroup), typeof(BoardGridCellSizer));
-            boardRoot.transform.SetParent(parent, false);
+            boardRoot.transform.SetParent(boardArea.transform, false);
             var rect = boardRoot.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(0.5f, 1f);
             rect.anchorMax = new Vector2(0.5f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = new Vector2(0f, -190f);
+            rect.anchoredPosition = Vector2.zero;
 
             var grid = boardRoot.GetComponent<GridLayoutGroup>();
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;

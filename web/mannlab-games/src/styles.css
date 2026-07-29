@@ -331,6 +331,10 @@ a {
     align-content: start;
   }
 
+  .app-shell.is-play-route .play-area {
+    order: -1;
+  }
+
   .hub-panel {
     display: grid;
     grid-template-columns: 1fr;
@@ -369,6 +373,11 @@ a {
     min-height: 540px;
   }
 
+  .app-shell.is-play-route .game-window {
+    height: calc(100dvh - 20px);
+    min-height: 0;
+  }
+
   .home-stage {
     align-self: start;
   }
@@ -400,5 +409,9 @@ a {
     border-radius: 0;
     border-left: 0;
     border-right: 0;
+  }
+
+  .app-shell.is-play-route .game-window {
+    height: 100dvh;
   }
 }
