@@ -26,17 +26,38 @@ const games = [
   },
 ];
 
+function createFeedbackUrl(game) {
+  const title = `[${game.title}] 피드백: `;
+  const body = [
+    `게임: ${game.title}`,
+    "",
+    "피드백:",
+    "",
+    "재현 방법:",
+    "",
+    "기기/브라우저:",
+  ].join("\n");
+
+  const params = new URLSearchParams({
+    title,
+    body,
+  });
+
+  return `https://github.com/mann-lab-apps/games/issues/new?${params.toString()}`;
+}
+
 function App() {
   const activeGame = games.find((game) => game.active) ?? games[0];
+  const feedbackUrl = createFeedbackUrl(activeGame);
 
   return (
     <main className="app-shell">
       <section className="hub-panel" aria-label="Mannlab Games">
-        <a className="brand-link" href="https://mannlab.app/">
+        <a className="brand-link" href="https://mannlab.app/" aria-label="만랩 본진으로 이동">
           <span className="brand-mark">M</span>
           <span>
             <strong>Mannlab Games</strong>
-            <small>만랩으로 들어오는 작은 게임들</small>
+            <small>만랩 본진에서 다른 작업 구경하기</small>
           </span>
         </a>
 
@@ -72,13 +93,22 @@ function App() {
 
       <section className="play-area" aria-label={`${activeGame.title} 플레이`}>
         <section className="game-window" aria-label={activeGame.title}>
-          <div className="window-bar" aria-hidden="true">
-            <div className="window-controls">
+          <div className="window-bar">
+            <div className="window-controls" aria-hidden="true">
               <span />
               <span />
               <span />
             </div>
             <strong>{activeGame.title}</strong>
+            <a
+              className="feedback-link"
+              href={feedbackUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`${activeGame.title} 피드백 보내기`}
+            >
+              피드백
+            </a>
           </div>
           <div className="game-viewport">
             <iframe
