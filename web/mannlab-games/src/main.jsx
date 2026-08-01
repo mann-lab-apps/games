@@ -1,5 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { initGoogleAnalytics, trackAnalyticsEvent } from "./analytics";
 import "./styles.css";
 
 const games = [
@@ -50,6 +51,8 @@ function createFeedbackUrl(game) {
   return `https://github.com/mann-lab-apps/games/issues/new?${params.toString()}`;
 }
 
+initGoogleAnalytics();
+
 function App() {
   const pathname = window.location.pathname.replace(/\/$/, "") || "/";
   const activeGame = games.find((game) => game.route === pathname);
@@ -81,32 +84,40 @@ function HubPanel({ activeGame, isPlayRoute }) {
         </span>
       </a>
 
-      <nav className="game-list" aria-label="게임 선택">
-        {games.map((game) => {
-          const isActive = isPlayRoute && game.id === activeGame.id;
+      {isPlayRoute ? (
+        <nav className="game-list" aria-label="게임 선택">
+          {games.map((game) => {
+            const isActive = game.id === activeGame.id;
 
-          return (
-            <a
-              key={game.title}
-              className={`game-choice${isActive ? " is-active" : ""}${game.available ? "" : " is-disabled"}`}
-              href={game.route}
-              aria-current={isActive ? "page" : undefined}
-              aria-disabled={game.available ? undefined : "true"}
-              onClick={(event) => {
-                if (!game.available) {
-                  event.preventDefault();
-                }
-              }}
-            >
-              <span>
-                <strong>{game.title}</strong>
-                <small>{game.description}</small>
-              </span>
-              <em>{game.status}</em>
-            </a>
-          );
-        })}
-      </nav>
+            return (
+              <a
+                key={game.title}
+                className={`game-choice${isActive ? " is-active" : ""}${game.available ? "" : " is-disabled"}`}
+                href={game.route}
+                aria-current={isActive ? "page" : undefined}
+                aria-disabled={game.available ? undefined : "true"}
+                onClick={(event) => {
+                  if (!game.available) {
+                    event.preventDefault();
+                    return;
+                  }
+
+                  trackAnalyticsEvent("select_game", {
+                    game_id: game.id,
+                    game_title: game.title,
+                  });
+                }}
+              >
+                <span>
+                  <strong>{game.title}</strong>
+                  <small>{game.description}</small>
+                </span>
+                <em>{game.status}</em>
+              </a>
+            );
+          })}
+        </nav>
+      ) : null}
 
       <div className="mannlab-card">
         <span>Mannlab</span>
@@ -135,7 +146,13 @@ function HomeStage() {
             onClick={(event) => {
               if (!game.available) {
                 event.preventDefault();
+                return;
               }
+
+              trackAnalyticsEvent("select_game", {
+                game_id: game.id,
+                game_title: game.title,
+              });
             }}
           >
             <span>{game.status}</span>
@@ -165,6 +182,12 @@ function GameStage({ game, feedbackUrl }) {
             target="_blank"
             rel="noreferrer"
             aria-label={`${game.title} 피드백 보내기`}
+            onClick={() => {
+              trackAnalyticsEvent("select_feedback", {
+                game_id: game.id,
+                game_title: game.title,
+              });
+            }}
           >
             피드백
           </a>
@@ -175,6 +198,12 @@ function GameStage({ game, feedbackUrl }) {
             className="game-frame"
             src={game.embedHref}
             allow="fullscreen; autoplay; gamepad"
+            onLoad={() => {
+              trackAnalyticsEvent("game_embed_loaded", {
+                game_id: game.id,
+                game_title: game.title,
+              });
+            }}
           />
         </div>
       </section>
