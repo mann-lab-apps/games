@@ -48,7 +48,9 @@ jobs:
       - name: Add SPA fallback
         run: |
           mkdir -p dist/10000
+          mkdir -p dist/privacy
           cp dist/index.html dist/10000/index.html
+          cp dist/index.html dist/privacy/index.html
           cp dist/index.html dist/404.html
 
       - name: Setup Pages

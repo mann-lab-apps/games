@@ -56,15 +56,23 @@ initGoogleAnalytics();
 function App() {
   const pathname = window.location.pathname.replace(/\/$/, "") || "/";
   const activeGame = games.find((game) => game.route === pathname);
+  const isPrivacyRoute = pathname === "/privacy";
   const isPlayRoute = Boolean(activeGame);
   const selectedGame = activeGame ?? games[0];
   const feedbackUrl = createFeedbackUrl(selectedGame);
+  const routeClassName = isPlayRoute
+    ? " is-play-route"
+    : isPrivacyRoute
+      ? " is-privacy-route"
+      : " is-home-route";
 
   return (
-    <main className={`app-shell${isPlayRoute ? " is-play-route" : " is-home-route"}`}>
+    <main className={`app-shell${routeClassName}`}>
       <HubPanel activeGame={selectedGame} isPlayRoute={isPlayRoute} />
 
-      {isPlayRoute ? (
+      {isPrivacyRoute ? (
+        <PrivacyStage />
+      ) : isPlayRoute ? (
         <GameStage game={selectedGame} feedbackUrl={feedbackUrl} />
       ) : (
         <HomeStage />
@@ -123,6 +131,7 @@ function HubPanel({ activeGame, isPlayRoute }) {
         <span>Mannlab</span>
         <strong>만랩의 다른 작업 구경하기</strong>
         <a href="https://mannlab.app/">만랩 본진</a>
+        <a className="privacy-link" href="/privacy">Privacy Policy</a>
       </div>
     </section>
   );
@@ -207,6 +216,57 @@ function GameStage({ game, feedbackUrl }) {
           />
         </div>
       </section>
+    </section>
+  );
+}
+
+function PrivacyStage() {
+  return (
+    <section className="privacy-stage" aria-label="Privacy Policy">
+      <article className="privacy-document">
+        <span>Mannlab Games</span>
+        <h1>Privacy Policy</h1>
+        <p className="privacy-updated">Last updated: August 1, 2026</p>
+
+        <section>
+          <h2>Overview</h2>
+          <p>
+            Mannlab Games publishes small games including Mannlab 10000. The iOS
+            app version of Mannlab 10000 does not require account creation and
+            does not collect personal data from players.
+          </p>
+        </section>
+
+        <section>
+          <h2>Data Collection</h2>
+          <p>
+            Mannlab 10000 stores gameplay state, such as score or progress,
+            locally on your device where needed. This information is not sent to
+            Mannlab.
+          </p>
+          <p>
+            The iOS app does not currently include third-party advertising SDKs,
+            third-party analytics SDKs, or tracking technologies.
+          </p>
+        </section>
+
+        <section>
+          <h2>Website Analytics</h2>
+          <p>
+            The Mannlab Games website may use Google Analytics to understand
+            aggregated visits to web pages. This website analytics setup is
+            separate from the iOS app build of Mannlab 10000.
+          </p>
+        </section>
+
+        <section>
+          <h2>Contact</h2>
+          <p>
+            For privacy questions, contact Mannlab through the support page at{" "}
+            <a href="https://games.mannlab.app/">https://games.mannlab.app/</a>.
+          </p>
+        </section>
+      </article>
     </section>
   );
 }
