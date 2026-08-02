@@ -38,7 +38,7 @@ namespace MannLab.Games.DopamineSwap
         private int round = 1;
         private int score;
         private int bestScore;
-        private int currentCardIndex;
+        private int currentCardScore;
         private float roundEndsAt;
         private Vector2 dragStartPosition;
         private Vector2 dragDelta;
@@ -74,7 +74,7 @@ namespace MannLab.Games.DopamineSwap
             UpdateTimer(remaining, currentRound.TimeLimitSeconds);
             if (remaining <= 0f)
             {
-                ChooseCard(currentCardIndex);
+                ChooseCurrentCard();
             }
         }
 
@@ -102,7 +102,7 @@ namespace MannLab.Games.DopamineSwap
             timerText.text = $"{currentRound.TimeLimitSeconds:0.0}s";
             UpdateTimer(currentRound.TimeLimitSeconds, currentRound.TimeLimitSeconds);
 
-            currentCardIndex = random.Next(0, DopamineRoundRules.CardCount);
+            currentCardScore = RandomCardScore();
             draggingCard = false;
             dragDelta = Vector2.zero;
             cardButton.interactable = true;
@@ -110,7 +110,7 @@ namespace MannLab.Games.DopamineSwap
             UpdateCurrentCardVisual();
         }
 
-        private void ChooseCard(int cardIndex)
+        private void ChooseCurrentCard()
         {
             if (!awaitingChoice || runEnded)
             {
@@ -121,12 +121,11 @@ namespace MannLab.Games.DopamineSwap
             PlayClip(selectClip);
             SetCardsInteractable(false);
             ResetCardDrag();
-            StartCoroutine(ResolveChoice(cardIndex));
+            StartCoroutine(ResolveChoice(currentCardScore));
         }
 
-        private IEnumerator ResolveChoice(int cardIndex)
+        private IEnumerator ResolveChoice(int selectedScore)
         {
-            var selectedScore = currentRound.PlayerCards[cardIndex];
             var won = selectedScore > currentRound.OpponentScore;
             opponentLabelText.text = "Opponent";
             opponentValueText.text = currentRound.OpponentScore.ToString();
@@ -230,19 +229,25 @@ namespace MannLab.Games.DopamineSwap
 
         private void SwapCurrentCard()
         {
-            if (DopamineRoundRules.CardCount > 1)
-            {
-                var nextCardIndex = currentCardIndex;
-                while (nextCardIndex == currentCardIndex)
-                {
-                    nextCardIndex = random.Next(0, DopamineRoundRules.CardCount);
-                }
-
-                currentCardIndex = nextCardIndex;
-            }
-
+            currentCardScore = RandomCardScoreExcept(currentCardScore);
             PlayClip(selectClip);
             UpdateCurrentCardVisual();
+        }
+
+        private int RandomCardScore()
+        {
+            return random.Next(DopamineRoundRules.MinScore, DopamineRoundRules.MaxScore + 1);
+        }
+
+        private int RandomCardScoreExcept(int excludedScore)
+        {
+            var nextScore = excludedScore;
+            while (nextScore == excludedScore)
+            {
+                nextScore = RandomCardScore();
+            }
+
+            return nextScore;
         }
 
         private void ApplyCardDragVisual(Vector2 delta)
@@ -258,7 +263,7 @@ namespace MannLab.Games.DopamineSwap
 
         private void UpdateCurrentCardVisual()
         {
-            cardScoreText.text = currentRound.PlayerCards[currentCardIndex].ToString();
+            cardScoreText.text = currentCardScore.ToString();
             cardImage.color = SketchPalette.TilePaper;
             ResetCardDrag();
         }

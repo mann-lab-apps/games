@@ -67,7 +67,6 @@ public static class VerifyDopamineSwapRules
                 return 1;
             }
 
-            var hasWinningCard = false;
             for (var i = 0; i < data.PlayerCards.Length; i++)
             {
                 var card = data.PlayerCards[i];
@@ -85,14 +84,6 @@ public static class VerifyDopamineSwapRules
                         return 1;
                     }
                 }
-
-                hasWinningCard |= card > data.OpponentScore;
-            }
-
-            if (!hasWinningCard)
-            {
-                Console.Error.WriteLine($"Round {round} has no winning card against {data.OpponentScore}.");
-                return 1;
             }
 
             if (!data.VisibleRange.Contains(data.OpponentScore))
