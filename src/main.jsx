@@ -14,6 +14,15 @@ const games = [
     available: true,
   },
   {
+    id: "drum-duel",
+    title: "Drum Duel",
+    status: "Prototype",
+    description: "4틱 리듬을 듣고 같은 박에 하이햇으로 답하는 리듬 게임",
+    route: "/drum-duel",
+    embedHref: "/games/drum-duel/",
+    available: true,
+  },
+  {
     id: "next-tile",
     title: "Next Tile",
     status: "Soon",
