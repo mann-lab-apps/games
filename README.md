@@ -32,6 +32,7 @@ Then open the generated directory from Unity Hub and let Unity import the projec
 ## Current Prototypes
 
 - `10000`: see `docs/10000-game-design.md` and `docs/10000-worklog.md`.
+- `dopamine-swap`: candidate card comparison game, see `docs/dopamine-swap-game-design.md`.
 - `drum-duel`: candidate/archive rhythm echo prototype, see `docs/drum-duel-game-design.md`.
 
 ## Baseline
