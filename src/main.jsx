@@ -23,6 +23,15 @@ const games = [
     available: true,
   },
   {
+    id: "dopamine-swap",
+    title: "Dopamine Swap",
+    status: "Prototype",
+    description: "제한 시간 안에 카드 하나를 골라 상대 점수를 넘기는 숫자 스왑 게임",
+    route: "/dopamine-swap",
+    embedHref: "/games/dopamine-swap/",
+    available: true,
+  },
+  {
     id: "next-tile",
     title: "Next Tile",
     status: "Soon",
