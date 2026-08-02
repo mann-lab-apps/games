@@ -18,6 +18,7 @@ Open this directory from Unity Hub. Unity may generate missing project settings 
 ```sh
 ../../scripts/verify-drum-duel-mvp.sh
 ../../scripts/verify-drum-duel-unity.sh
+../../scripts/verify-drum-duel-webgl.sh
 ```
 
 ## Concept
