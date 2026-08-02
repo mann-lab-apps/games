@@ -8,6 +8,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Generated artifacts
+artifacts/
+tmp/
+
 # Environment
 .env
 .env.*
