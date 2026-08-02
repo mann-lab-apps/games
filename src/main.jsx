@@ -28,7 +28,7 @@ const games = [
     status: "Prototype",
     description: "제한 시간 안에 카드 하나를 골라 상대 점수를 넘기는 숫자 스왑 게임",
     route: "/dopamine-swap",
-    embedHref: "/games/dopamine-swap/?v=340af5ec2c20",
+    embedHref: "/games/dopamine-swap/?v=c7c421dd1274",
     available: true,
   },
   {
