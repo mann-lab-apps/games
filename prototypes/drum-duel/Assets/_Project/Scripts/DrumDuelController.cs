@@ -9,7 +9,7 @@ namespace MannLab.Games.DrumDuel
     public sealed class DrumDuelController : MonoBehaviour
     {
         private const string BestScoreKey = "mannlab.drum_duel.best_stage";
-        private const float TimingWindowSeconds = 0.18f;
+        private const float TimingWindowSeconds = 0.14f;
         private const float StageSettleSeconds = 0.34f;
         private const float TickFlashSeconds = 0.12f;
         private const float PlayerInputTailSeconds = 0.2f;
@@ -19,7 +19,6 @@ namespace MannLab.Games.DrumDuel
         private readonly bool[] playerHits = new bool[RhythmPattern.TickCount];
 
         private AudioSource audioSource;
-        private AudioClip countInClip;
         private AudioClip computerHitClip;
         private AudioClip playerHitClip;
         private AudioClip failClip;
@@ -48,21 +47,12 @@ namespace MannLab.Games.DrumDuel
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
             audioSource.spatialBlend = 0f;
-            countInClip = CreatePercussionClip("Count Tick", 620f, 0.045f, 0.42f);
             computerHitClip = CreatePercussionClip("Computer Hat", 880f, 0.07f, 0.55f);
             playerHitClip = CreatePercussionClip("Player Hat", 1320f, 0.055f, 0.45f);
             failClip = CreatePercussionClip("Miss", 180f, 0.16f, 0.5f);
 
             BuildInterface();
             StartRun();
-        }
-
-        private void Update()
-        {
-            if (WasPrimaryTapStarted())
-            {
-                HandleTap();
-            }
         }
 
         private void StartRun()
@@ -82,8 +72,6 @@ namespace MannLab.Games.DrumDuel
             currentTickDuration = RhythmStageLibrary.TickDurationForStage(stage);
             ClearTickRows();
             UpdateHeader();
-
-            yield return PlayCountIn();
 
             phaseText.text = "Listen";
             patternText.text = currentPattern.ToPulseString();
@@ -125,39 +113,6 @@ namespace MannLab.Games.DrumDuel
             {
                 yield return ClearStage();
             }
-        }
-
-        private static bool WasPrimaryTapStarted()
-        {
-            if (Input.touchCount > 0)
-            {
-                for (var i = 0; i < Input.touchCount; i++)
-                {
-                    if (Input.GetTouch(i).phase == TouchPhase.Began)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
-            return Input.GetMouseButtonDown(0);
-        }
-
-        private IEnumerator PlayCountIn()
-        {
-            phaseText.text = "Ready";
-            patternText.text = "1 2 3 4";
-
-            for (var i = 0; i < RhythmPattern.TickCount; i++)
-            {
-                PulseTick(computerTickImages[i], false);
-                PlayClip(countInClip);
-                yield return new WaitForSeconds(currentTickDuration);
-            }
-
-            ClearTickRows();
         }
 
         private IEnumerator ClearStage()
@@ -262,7 +217,7 @@ namespace MannLab.Games.DrumDuel
             phaseText.text = reason;
             patternText.text = currentPattern.ToPulseString();
             resultTitleText.text = "Run End";
-            resultScoreText.text = $"Score {clearedStages}\nBest {bestStage}";
+            resultScoreText.text = $"Cleared {clearedStages}\nBest {bestStage}";
             resultPanel.SetActive(true);
         }
 
@@ -314,7 +269,7 @@ namespace MannLab.Games.DrumDuel
 
         private void UpdateHeader()
         {
-            stageText.text = $"Score {Mathf.Max(0, stage - 1)}";
+            stageText.text = $"Stage {stage}";
             bestText.text = $"Best {bestStage}";
             bpmText.text = $"{Mathf.RoundToInt(RhythmStageLibrary.BeatsPerMinuteForStage(stage))} BPM";
         }
@@ -383,7 +338,7 @@ namespace MannLab.Games.DrumDuel
             rect.offsetMin = new Vector2(36f, -130f);
             rect.offsetMax = new Vector2(-36f, -30f);
 
-            stageText = CreateText(header.transform, "Score 0", 46, TextAnchor.MiddleLeft);
+            stageText = CreateText(header.transform, "Stage 1", 46, TextAnchor.MiddleLeft);
             SetAnchor(stageText.GetComponent<RectTransform>(), 0f, 0f, 0.34f, 1f);
 
             bpmText = CreateText(header.transform, "80 BPM", 32, TextAnchor.MiddleCenter);
@@ -460,6 +415,7 @@ namespace MannLab.Games.DrumDuel
             rect.pivot = new Vector2(0.5f, 0f);
             rect.sizeDelta = new Vector2(760f, 320f);
             rect.anchoredPosition = new Vector2(0f, 78f);
+            tapPadButton.onClick.AddListener(HandleTap);
             tapPadImage = tapPadButton.GetComponent<Image>();
         }
 
@@ -480,7 +436,7 @@ namespace MannLab.Games.DrumDuel
             resultTitleText = CreateText(resultPanel.transform, "Run End", 54, TextAnchor.MiddleCenter);
             SetAnchor(resultTitleText.GetComponent<RectTransform>(), 0f, 0.62f, 1f, 0.92f, 30f, 0f, -30f, 0f);
 
-            resultScoreText = CreateText(resultPanel.transform, "Score 0\nBest 0", 38, TextAnchor.MiddleCenter);
+            resultScoreText = CreateText(resultPanel.transform, "Cleared 0\nBest 0", 38, TextAnchor.MiddleCenter);
             SetAnchor(resultScoreText.GetComponent<RectTransform>(), 0f, 0.32f, 1f, 0.62f, 30f, 0f, -30f, 0f);
 
             var restart = CreateSketchButton(resultPanel.transform, "Again", 36);
