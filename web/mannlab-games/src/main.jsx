@@ -244,27 +244,27 @@ function PrivacyStage() {
       <article className="privacy-document">
         <span>Mannlab Games</span>
         <h1>Privacy Policy</h1>
-        <p className="privacy-updated">Last updated: August 1, 2026</p>
+        <p className="privacy-updated">Last updated: August 2, 2026</p>
 
         <section>
           <h2>Overview</h2>
           <p>
-            Mannlab Games publishes small games including Mannlab 10000. The iOS
-            app version of Mannlab 10000 does not require account creation and
-            does not collect personal data from players.
+            Mannlab Games publishes small games including Mannlab 10000 and
+            Dopamine Swap. The mobile app versions do not require account
+            creation and do not collect personal data from players.
           </p>
         </section>
 
         <section>
           <h2>Data Collection</h2>
           <p>
-            Mannlab 10000 stores gameplay state, such as score or progress,
-            locally on your device where needed. This information is not sent to
-            Mannlab.
+            Mannlab Games apps may store gameplay state, such as score or
+            progress, locally on your device where needed. This information is
+            not sent to Mannlab.
           </p>
           <p>
-            The iOS app does not currently include third-party advertising SDKs,
-            third-party analytics SDKs, or tracking technologies.
+            The mobile apps do not currently include third-party advertising
+            SDKs, third-party analytics SDKs, or tracking technologies.
           </p>
         </section>
 
@@ -273,7 +273,7 @@ function PrivacyStage() {
           <p>
             The Mannlab Games website may use Google Analytics to understand
             aggregated visits to web pages. This website analytics setup is
-            separate from the iOS app build of Mannlab 10000.
+            separate from the mobile app builds.
           </p>
         </section>
 
