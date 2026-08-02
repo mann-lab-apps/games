@@ -1,7 +1,9 @@
 {
   "name": "MannLab.Games.DrumDuel",
   "rootNamespace": "MannLab.Games.DrumDuel",
-  "references": [],
+  "references": [
+    "MannLab.HyperCasual.Core"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

@@ -13,6 +13,13 @@ Unity rhythm memory prototype.
 
 Open this directory from Unity Hub. Unity may generate missing project settings on first import.
 
+## Local Verification
+
+```sh
+../../scripts/verify-drum-duel-mvp.sh
+../../scripts/verify-drum-duel-unity.sh
+```
+
 ## Concept
 
 `Drum Duel` is a provisional title for a rhythm echo game. The computer plays a short 4-tick rhythm, then the player gets 4 ticks to reproduce the timing with a single hi-hat style input.
