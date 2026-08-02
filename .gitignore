@@ -45,6 +45,8 @@ captures/
 !web/mannlab-games/public/games/10000/Build/**
 !web/mannlab-games/public/games/drum-duel/Build/
 !web/mannlab-games/public/games/drum-duel/Build/**
+!web/mannlab-games/public/games/dopamine-swap/Build/
+!web/mannlab-games/public/games/dopamine-swap/Build/**
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
 MemoryCaptures/
