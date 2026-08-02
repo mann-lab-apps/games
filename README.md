@@ -29,9 +29,10 @@ games/
 
 Then open the generated directory from Unity Hub and let Unity import the project.
 
-## Current Prototype
+## Current Prototypes
 
 - `10000`: see `docs/10000-game-design.md` and `docs/10000-worklog.md`.
+- `drum-duel`: provisional rhythm echo game, see `docs/drum-duel-game-design.md`.
 
 ## Baseline
 

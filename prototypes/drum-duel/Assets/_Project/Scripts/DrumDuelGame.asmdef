@@ -1,0 +1,14 @@
+{
+  "name": "MannLab.Games.DrumDuel",
+  "rootNamespace": "MannLab.Games.DrumDuel",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
