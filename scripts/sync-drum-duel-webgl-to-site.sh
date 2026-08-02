@@ -14,9 +14,17 @@ fi
 mkdir -p "$target_dir"
 rsync -a --delete "$source_dir/" "$target_dir/"
 
+for asset in data framework.js wasm; do
+  gz_asset="$target_dir/Build/drum-duel.$asset.gz"
+  if [[ -f "$gz_asset" ]]; then
+    gzip -dc "$gz_asset" > "$target_dir/Build/drum-duel.$asset"
+  fi
+done
+
+perl -pi -e 's/drum-duel\.data\.gz/drum-duel.data/g; s/drum-duel\.framework\.js\.gz/drum-duel.framework.js/g; s/drum-duel\.wasm\.gz/drum-duel.wasm/g' "$target_dir/index.html"
 perl -pi -e 's/canvas\.style\.width = "960px";/canvas.style.width = "100%";/g; s/canvas\.style\.height = "600px";/canvas.style.height = "100%";/g' "$target_dir/index.html"
 
-asset_version="$(shasum -a 256 "$target_dir/Build/drum-duel.wasm.gz" | awk '{ print substr($1, 1, 12) }')"
+asset_version="$(shasum -a 256 "$target_dir/Build/drum-duel.wasm" | awk '{ print substr($1, 1, 12) }')"
 ASSET_VERSION="$asset_version" TARGET_DIR="$target_dir" node <<'NODE'
 const fs = require("fs");
 const path = require("path");
@@ -35,9 +43,9 @@ html = html.replace(
       var loaderUrl = buildUrl + "/drum-duel.loader.js" + versionSuffix;`
 );
 html = html
-  .replace('dataUrl: buildUrl + "/drum-duel.data.gz"', 'dataUrl: buildUrl + "/drum-duel.data.gz" + versionSuffix')
-  .replace('frameworkUrl: buildUrl + "/drum-duel.framework.js.gz"', 'frameworkUrl: buildUrl + "/drum-duel.framework.js.gz" + versionSuffix')
-  .replace('codeUrl: buildUrl + "/drum-duel.wasm.gz"', 'codeUrl: buildUrl + "/drum-duel.wasm.gz" + versionSuffix');
+  .replace('dataUrl: buildUrl + "/drum-duel.data"', 'dataUrl: buildUrl + "/drum-duel.data" + versionSuffix')
+  .replace('frameworkUrl: buildUrl + "/drum-duel.framework.js"', 'frameworkUrl: buildUrl + "/drum-duel.framework.js" + versionSuffix')
+  .replace('codeUrl: buildUrl + "/drum-duel.wasm"', 'codeUrl: buildUrl + "/drum-duel.wasm" + versionSuffix');
 html = html.replace(
   "showBanner: unityShowBanner,",
   `showBanner: unityShowBanner,
@@ -121,5 +129,9 @@ const runtimeErrorCss = `
 `;
 fs.appendFileSync(stylePath, runtimeErrorCss);
 NODE
+
+rm -f "$target_dir/Build/drum-duel.data.gz" \
+  "$target_dir/Build/drum-duel.framework.js.gz" \
+  "$target_dir/Build/drum-duel.wasm.gz"
 
 echo "Synced WebGL site assets: $target_dir"
