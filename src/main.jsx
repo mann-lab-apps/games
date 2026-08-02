@@ -16,8 +16,8 @@ const games = [
   {
     id: "drum-duel",
     title: "Drum Duel",
-    status: "Prototype",
-    description: "4틱 리듬을 듣고 같은 박에 하이햇으로 답하는 리듬 게임",
+    status: "Candidate",
+    description: "4틱 리듬을 듣고 따라 치는 보관 후보 프로토타입",
     route: "/drum-duel",
     embedHref: "/games/drum-duel/",
     available: true,
