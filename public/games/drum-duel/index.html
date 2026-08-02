@@ -52,7 +52,7 @@
       }
 
       var buildUrl = "Build";
-      var assetVersion = "59d3ef31a0c0";
+      var assetVersion = "bf967a38e03c";
       var versionSuffix = "?v=" + assetVersion;
       var loaderUrl = buildUrl + "/drum-duel.loader.js" + versionSuffix;
       function showRuntimeError(message) {
@@ -66,9 +66,9 @@
 
       var config = {
         arguments: [],
-        dataUrl: buildUrl + "/drum-duel.data" + versionSuffix,
-        frameworkUrl: buildUrl + "/drum-duel.framework.js" + versionSuffix,
-        codeUrl: buildUrl + "/drum-duel.wasm" + versionSuffix,
+        dataUrl: buildUrl + "/drum-duel.data.gz" + versionSuffix,
+        frameworkUrl: buildUrl + "/drum-duel.framework.js.gz" + versionSuffix,
+        codeUrl: buildUrl + "/drum-duel.wasm.gz" + versionSuffix,
         streamingAssetsUrl: "StreamingAssets",
         companyName: "Mann Lab",
         productName: "Drum Duel",
