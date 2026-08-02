@@ -92,7 +92,15 @@ public static class VerifyDopamineSwapRules
                 return 1;
             }
 
-            if (data.RevealsOpponentScore != (round <= DopamineRoundRules.RevealedOpponentRounds))
+            var expectedRangeWidth = round <= 10 ? 1 : Math.Min(20, round - 9);
+            var actualRangeWidth = data.VisibleRange.Max - data.VisibleRange.Min + 1;
+            if (actualRangeWidth != expectedRangeWidth)
+            {
+                Console.Error.WriteLine($"Round {round} visible range width is {actualRangeWidth}, expected {expectedRangeWidth}.");
+                return 1;
+            }
+
+            if (data.RevealsOpponentScore != (round <= 10))
             {
                 Console.Error.WriteLine($"Round {round} reveal mode is wrong.");
                 return 1;

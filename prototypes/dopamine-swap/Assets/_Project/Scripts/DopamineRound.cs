@@ -20,6 +20,11 @@ namespace MannLab.Games.DopamineSwap
 
         public override string ToString()
         {
+            if (Min == Max)
+            {
+                return Min.ToString();
+            }
+
             return $"{Min}-{Max}";
         }
     }
@@ -51,8 +56,6 @@ namespace MannLab.Games.DopamineSwap
         public const int CardCount = 3;
         public const int MinScore = 1;
         public const int MaxScore = 100;
-        public const int RevealedOpponentRounds = 3;
-
         public static DopamineRound CreateRound(int round, Random rng)
         {
             if (round < 1)
@@ -68,11 +71,12 @@ namespace MannLab.Games.DopamineSwap
             var opponentBand = OpponentBandForRound(round);
             var opponentScore = rng.Next(opponentBand.Min, opponentBand.Max + 1);
             var cards = CreateCards(round, opponentScore, rng);
+            var visibleRange = VisibleRangeForRound(round, opponentScore);
             return new DopamineRound(
                 round,
                 opponentScore,
-                VisibleRangeForScore(opponentScore),
-                round <= RevealedOpponentRounds,
+                visibleRange,
+                visibleRange.Min == visibleRange.Max,
                 cards,
                 TimeLimitForRound(round));
         }
@@ -119,21 +123,36 @@ namespace MannLab.Games.DopamineSwap
 
         public static ScoreRange VisibleRangeForScore(int score)
         {
-            var min = Math.Max(MinScore, score - 10);
-            var max = Math.Min(MaxScore, score + 10);
-            if (max - min < 20)
+            return VisibleRangeWithWidth(score, 21);
+        }
+
+        public static ScoreRange VisibleRangeForRound(int round, int score)
+        {
+            var width = round <= 10 ? 1 : Math.Min(20, round - 9);
+            return VisibleRangeWithWidth(score, width);
+        }
+
+        private static ScoreRange VisibleRangeWithWidth(int score, int width)
+        {
+            width = Math.Max(1, Math.Min(MaxScore, width));
+            var below = (width - 1) / 2;
+            var above = width - 1 - below;
+            var min = score - below;
+            var max = score + above;
+
+            if (min < MinScore)
             {
-                if (min == MinScore)
-                {
-                    max = Math.Min(MaxScore, min + 20);
-                }
-                else if (max == MaxScore)
-                {
-                    min = Math.Max(MinScore, max - 20);
-                }
+                max += MinScore - min;
+                min = MinScore;
             }
 
-            return new ScoreRange(min, max);
+            if (max > MaxScore)
+            {
+                min -= max - MaxScore;
+                max = MaxScore;
+            }
+
+            return new ScoreRange(Math.Max(MinScore, min), Math.Min(MaxScore, max));
         }
 
         private static int[] CreateCards(int round, int opponentScore, Random rng)

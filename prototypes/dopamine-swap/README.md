@@ -13,13 +13,13 @@ Unity hyper-casual game project.
 
 Open this directory from Unity Hub. Unity may generate missing project settings on first import.
 
-The first playable MVP starts directly in portrait play:
+The playable prototype starts directly in portrait play:
 
-- Pick one of three 1-100 cards before the timer expires.
-- Win when the selected card is higher than the computer score.
-- Rounds 1-3 reveal the exact computer score.
-- Round 4 onward reveals a score range, then shows the exact score after selection.
-- Winning adds the selected card to Score; losing records the best local Score.
+- Swipe the single visible card to reroll a full-random 1-100 score.
+- The card visible when the timer reaches zero is compared automatically.
+- Win when the visible card is higher than the computer score.
+- Rounds 1-10 reveal the exact computer score; later rounds reveal a gradually widening score range.
+- Winning adds the visible card to Score; losing records the best local Score.
 
 ## Verification
 
