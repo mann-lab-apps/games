@@ -11,9 +11,15 @@ namespace MannLab.Games.DopamineSwap
     {
         private const string BestScoreKey = "mannlab.dopamine_swap.best_score";
         private const float RoundResultSeconds = 0.58f;
+        private const float SwipeSelectThreshold = 92f;
+        private const float SwipeCycleThreshold = 118f;
+        private const float CardDragLimit = 120f;
+        private const float SelectedCardScale = 1.08f;
+        private const float SideCardScale = 0.94f;
 
         private readonly Button[] cardButtons = new Button[DopamineRoundRules.CardCount];
         private readonly Image[] cardImages = new Image[DopamineRoundRules.CardCount];
+        private readonly RectTransform[] cardRects = new RectTransform[DopamineRoundRules.CardCount];
         private readonly Text[] cardScoreTexts = new Text[DopamineRoundRules.CardCount];
 
         private System.Random random;
@@ -36,7 +42,11 @@ namespace MannLab.Games.DopamineSwap
         private int round = 1;
         private int score;
         private int bestScore;
+        private int selectedCardIndex;
+        private int draggingCardIndex = -1;
         private float roundEndsAt;
+        private Vector2 dragStartPosition;
+        private Vector2 dragDelta;
         private bool awaitingChoice;
         private bool runEnded;
 
@@ -90,22 +100,25 @@ namespace MannLab.Games.DopamineSwap
             roundEndsAt = Time.time + currentRound.TimeLimitSeconds;
 
             UpdateHeader();
-            phaseText.text = "Pick Higher";
+            phaseText.text = "Swipe Card";
             opponentLabelText.text = currentRound.RevealsOpponentScore ? "Opponent" : "Opponent Range";
             opponentValueText.text = currentRound.OpponentPrompt;
             timerText.text = $"{currentRound.TimeLimitSeconds:0.0}s";
             UpdateTimer(currentRound.TimeLimitSeconds, currentRound.TimeLimitSeconds);
 
+            selectedCardIndex = 0;
+            draggingCardIndex = -1;
+            dragDelta = Vector2.zero;
             for (var i = 0; i < cardButtons.Length; i++)
             {
                 var scoreValue = currentRound.PlayerCards[i];
-                var buttonIndex = i;
                 cardScoreTexts[i].text = scoreValue.ToString();
                 cardImages[i].color = SketchPalette.TilePaper;
                 cardButtons[i].interactable = true;
                 cardButtons[i].onClick.RemoveAllListeners();
-                cardButtons[i].onClick.AddListener(() => ChooseCard(buttonIndex));
             }
+
+            UpdateCardSelectionVisuals();
         }
 
         private void ChooseCard(int cardIndex)
@@ -118,6 +131,7 @@ namespace MannLab.Games.DopamineSwap
             awaitingChoice = false;
             PlayClip(selectClip);
             SetCardsInteractable(false);
+            ResetCardDrag(cardIndex);
             StartCoroutine(ResolveChoice(cardIndex));
         }
 
@@ -177,6 +191,93 @@ namespace MannLab.Games.DopamineSwap
             resultTitleText.text = reason;
             resultScoreText.text = $"{selectedLine}Score {score}\nBest {bestScore}";
             resultPanel.SetActive(true);
+        }
+
+        private void BeginCardDrag(int cardIndex, BaseEventData data)
+        {
+            var pointerData = data as PointerEventData;
+            if (!awaitingChoice || runEnded || pointerData == null)
+            {
+                return;
+            }
+
+            selectedCardIndex = cardIndex;
+            draggingCardIndex = cardIndex;
+            dragStartPosition = pointerData.position;
+            dragDelta = Vector2.zero;
+            UpdateCardSelectionVisuals();
+        }
+
+        private void DragCard(int cardIndex, BaseEventData data)
+        {
+            var pointerData = data as PointerEventData;
+            if (!awaitingChoice || runEnded || draggingCardIndex != cardIndex || pointerData == null)
+            {
+                return;
+            }
+
+            dragDelta = pointerData.position - dragStartPosition;
+            ApplyCardDragVisual(cardIndex, dragDelta);
+        }
+
+        private void EndCardDrag(int cardIndex, BaseEventData data)
+        {
+            var pointerData = data as PointerEventData;
+            if (!awaitingChoice || runEnded || draggingCardIndex != cardIndex || pointerData == null)
+            {
+                return;
+            }
+
+            dragDelta = pointerData.position - dragStartPosition;
+            draggingCardIndex = -1;
+
+            if (dragDelta.y >= SwipeSelectThreshold && dragDelta.y > Mathf.Abs(dragDelta.x) * 0.75f)
+            {
+                ChooseCard(cardIndex);
+                return;
+            }
+
+            if (Mathf.Abs(dragDelta.x) >= SwipeCycleThreshold && Mathf.Abs(dragDelta.x) > Mathf.Abs(dragDelta.y))
+            {
+                selectedCardIndex = dragDelta.x < 0f
+                    ? Mathf.Min(DopamineRoundRules.CardCount - 1, selectedCardIndex + 1)
+                    : Mathf.Max(0, selectedCardIndex - 1);
+                PlayClip(selectClip);
+            }
+
+            dragDelta = Vector2.zero;
+            UpdateCardSelectionVisuals();
+        }
+
+        private void ApplyCardDragVisual(int cardIndex, Vector2 delta)
+        {
+            var rect = cardRects[cardIndex];
+            rect.anchoredPosition = new Vector2(
+                Mathf.Clamp(delta.x, -CardDragLimit, CardDragLimit),
+                Mathf.Clamp(delta.y, -CardDragLimit * 0.35f, CardDragLimit));
+            rect.localRotation = Quaternion.Euler(0f, 0f, Mathf.Clamp(-delta.x * 0.04f, -7f, 7f));
+
+            var lift = Mathf.Clamp01(delta.y / SwipeSelectThreshold);
+            cardImages[cardIndex].color = Color.Lerp(Color.Lerp(SketchPalette.TilePaper, SketchPalette.FocusBlue, 0.15f), SketchPalette.CorrectMarker, lift);
+        }
+
+        private void UpdateCardSelectionVisuals()
+        {
+            for (var i = 0; i < cardRects.Length; i++)
+            {
+                ResetCardDrag(i);
+                var selected = i == selectedCardIndex && awaitingChoice && !runEnded;
+                cardRects[i].localScale = Vector3.one * (selected ? SelectedCardScale : SideCardScale);
+                cardImages[i].color = selected
+                    ? Color.Lerp(SketchPalette.TilePaper, SketchPalette.FocusBlue, 0.16f)
+                    : SketchPalette.TilePaper;
+            }
+        }
+
+        private void ResetCardDrag(int cardIndex)
+        {
+            cardRects[cardIndex].anchoredPosition = Vector2.zero;
+            cardRects[cardIndex].localRotation = Quaternion.identity;
         }
 
         private void SetCardsInteractable(bool interactable)
@@ -295,40 +396,49 @@ namespace MannLab.Games.DopamineSwap
 
         private void CreateCardRow(Transform parent)
         {
-            var row = new GameObject("Card Row", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            var row = new GameObject("Swipe Card Row", typeof(RectTransform));
             row.transform.SetParent(parent, false);
             SetAnchor(row.GetComponent<RectTransform>(), 0f, 0.14f, 1f, 0.44f, 44f, 0f, -44f, 0f);
 
-            var layout = row.GetComponent<HorizontalLayoutGroup>();
-            layout.childAlignment = TextAnchor.MiddleCenter;
-            layout.childControlWidth = true;
-            layout.childControlHeight = true;
-            layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = true;
-            layout.spacing = 18f;
-
             for (var i = 0; i < cardButtons.Length; i++)
             {
-                var card = new GameObject($"Card {i + 1}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+                var card = new GameObject($"Card {i + 1}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(EventTrigger));
                 card.transform.SetParent(row.transform, false);
-                card.GetComponent<Image>().color = SketchPalette.TilePaper;
-                AddSketchOutline(card.transform);
+                var cardRect = card.GetComponent<RectTransform>();
+                SetAnchor(cardRect, i / 3f, 0f, (i + 1) / 3f, 1f, 8f, 0f, -8f, 0f);
 
-                var layoutElement = card.GetComponent<LayoutElement>();
-                layoutElement.preferredWidth = 300f;
-                layoutElement.preferredHeight = 420f;
+                var image = card.GetComponent<Image>();
+                image.color = SketchPalette.TilePaper;
+                AddSketchOutline(card.transform);
 
                 var button = card.GetComponent<Button>();
                 button.colors = SketchUiFactory.ButtonColors();
+                button.transition = Selectable.Transition.None;
+                ConfigureCardSwipe(card.GetComponent<EventTrigger>(), i);
 
                 var label = CreateText(card.transform, "100", 98, TextAnchor.MiddleCenter);
                 label.raycastTarget = false;
                 Stretch(label.GetComponent<RectTransform>(), new Vector2(12f, 12f), new Vector2(-12f, -12f));
 
                 cardButtons[i] = button;
-                cardImages[i] = card.GetComponent<Image>();
+                cardImages[i] = image;
+                cardRects[i] = cardRect;
                 cardScoreTexts[i] = label;
             }
+        }
+
+        private void ConfigureCardSwipe(EventTrigger trigger, int cardIndex)
+        {
+            trigger.triggers.Add(CreateEventTriggerEntry(EventTriggerType.BeginDrag, data => BeginCardDrag(cardIndex, data)));
+            trigger.triggers.Add(CreateEventTriggerEntry(EventTriggerType.Drag, data => DragCard(cardIndex, data)));
+            trigger.triggers.Add(CreateEventTriggerEntry(EventTriggerType.EndDrag, data => EndCardDrag(cardIndex, data)));
+        }
+
+        private static EventTrigger.Entry CreateEventTriggerEntry(EventTriggerType eventType, UnityEngine.Events.UnityAction<BaseEventData> callback)
+        {
+            var entry = new EventTrigger.Entry { eventID = eventType };
+            entry.callback.AddListener(callback);
+            return entry;
         }
 
         private void CreateTimer(Transform parent)
