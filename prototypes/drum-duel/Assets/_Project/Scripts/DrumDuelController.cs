@@ -19,6 +19,7 @@ namespace MannLab.Games.DrumDuel
         private readonly bool[] playerHits = new bool[RhythmPattern.TickCount];
 
         private AudioSource audioSource;
+        private AudioClip countInClip;
         private AudioClip computerHitClip;
         private AudioClip playerHitClip;
         private AudioClip failClip;
@@ -47,6 +48,7 @@ namespace MannLab.Games.DrumDuel
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
             audioSource.spatialBlend = 0f;
+            countInClip = CreatePercussionClip("Count Tick", 620f, 0.045f, 0.42f);
             computerHitClip = CreatePercussionClip("Computer Hat", 880f, 0.07f, 0.55f);
             playerHitClip = CreatePercussionClip("Player Hat", 1320f, 0.055f, 0.45f);
             failClip = CreatePercussionClip("Miss", 180f, 0.16f, 0.5f);
@@ -72,6 +74,8 @@ namespace MannLab.Games.DrumDuel
             currentTickDuration = RhythmStageLibrary.TickDurationForStage(stage);
             ClearTickRows();
             UpdateHeader();
+
+            yield return PlayCountIn();
 
             phaseText.text = "Listen";
             patternText.text = currentPattern.ToPulseString();
@@ -113,6 +117,21 @@ namespace MannLab.Games.DrumDuel
             {
                 yield return ClearStage();
             }
+        }
+
+        private IEnumerator PlayCountIn()
+        {
+            phaseText.text = "Ready";
+            patternText.text = "1 2 3 4";
+
+            for (var i = 0; i < RhythmPattern.TickCount; i++)
+            {
+                PulseTick(computerTickImages[i], false);
+                PlayClip(countInClip);
+                yield return new WaitForSeconds(currentTickDuration);
+            }
+
+            ClearTickRows();
         }
 
         private IEnumerator ClearStage()
