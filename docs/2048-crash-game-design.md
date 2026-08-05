@@ -61,9 +61,8 @@ Mann Lab Games 공통 손그림 스케치 스타일을 따른다.
 
 1. 실제 플레이 난이도 확인
 2. `2048` 명칭/상표 리스크 검토 후 공개 표시명 결정
-3. Firebase Analytics / Crashlytics 붙이기
-4. WebGL 빌드 후 Mannlab Games 허브 등록
-5. Android 내부 테스트 빌드 업로드
+3. Firebase Console 앱 등록, SDK import, 실기기 Crashlytics 확인
+4. Android 내부 테스트 빌드 업로드
 
 ## 초기 결정
 
@@ -72,3 +71,24 @@ Mann Lab Games 공통 손그림 스케치 스타일을 따른다.
 - Android package name: `com.mannlab.games.game2048crash`
 - C# namespace: `MannLab.Games.Game2048Crash`
 - 점수명: `Stage`
+
+## Firebase 계측
+
+코드는 Firebase SDK가 없어도 컴파일되는 `FirebaseTelemetry` 어댑터를 사용한다. SDK와 `Assets/google-services.json`이 추가되면 같은 호출이 Firebase Analytics/Crashlytics로 전달된다.
+
+이벤트/브레드크럼:
+
+- `app_open`: 앱 첫 실행
+- `run_start`: 새 런 시작
+- `special_crash`: 특수 블록 파괴
+- `run_end`: 게임 오버
+- `restart`: 결과 화면에서 재시작
+
+Crashlytics custom keys:
+
+- `game`
+- `stage`
+- `target_value`
+- `special_index`
+- `best_stage`
+- `game_over`

@@ -33,11 +33,12 @@ Implemented:
 - Special block stage progression by powers of two
 - Keyboard arrow and swipe input
 - Local best stage
+- Firebase/Crashlytics telemetry bridge with Unity-log fallback
 - Result panel
 
 Not implemented:
 
-- Firebase Analytics / Crashlytics SDKs
+- Firebase Console app registration, config file, and SDK package import
 - Ads
 - Online leaderboard
 - Store-ready naming/legal clearance
@@ -64,3 +65,9 @@ Unity import verification can be run after Unity Hub sign-in and license activat
 ## Release Notes
 
 Keep prototype learnings, build links, and store-readiness notes here.
+
+## Firebase Notes
+
+The runtime calls `FirebaseTelemetry` for `app_open`, `run_start`, `special_crash`, `run_end`, and `restart` breadcrumbs. It also forwards unhandled exceptions and Unity exception logs to Crashlytics when the Firebase Unity SDK is present.
+
+Until `FirebaseCrashlytics.unitypackage`, optional `FirebaseAnalytics.unitypackage`, and `Assets/google-services.json` are added, the same calls compile safely and write to Unity logs only.
