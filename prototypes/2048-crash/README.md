@@ -25,7 +25,8 @@ Implemented:
 
 - 4 x 4 2048-style slide controls
 - Static special block
-- Same-value crash rule
+- Same-value crash rule that destroys both blocks
+- Distinct special block color and stripe pattern
 - Connected stages on a single continuing board
 - Sliding tile motion
 - Special block crash and spawn motion
