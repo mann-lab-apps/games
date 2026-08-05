@@ -57,6 +57,7 @@ public static class VerifyCrash2048Rules
         VerifyStartState();
         VerifyStandardMerge();
         VerifySpecialCrash();
+        VerifyConnectedStageAfterCrash();
         VerifySpecialBlocksMismatchedTile();
         VerifyGameOverDetection();
 
@@ -128,6 +129,32 @@ public static class VerifyCrash2048Rules
         Require(board.SpecialValue == 4, "next special value should double");
         Require(board.GetValueAtIndex(0) == 2, "crashing tile should occupy the broken special cell");
         Require(board.SpecialIndex != 0, "next special block should be spawned elsewhere");
+    }
+
+    private static void VerifyConnectedStageAfterCrash()
+    {
+        var board = new Crash2048Board(41);
+        board.LoadForTests(
+            new[]
+            {
+                0, 2, 4, 0,
+                8, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0
+            },
+            0,
+            2,
+            0);
+
+        var result = board.Move(Crash2048Direction.Left);
+        Require(result.SpecialCrashed, "matching tile should crash special in continuity check");
+        Require(board.Stage == 1, "crash should advance to the next connected stage");
+        Require(board.GetValueAtIndex(0) == 2, "crashing tile should remain on the continuing board");
+        Require(board.GetValueAtIndex(1) == 4, "existing board tiles should remain after stage advance");
+        Require(board.GetValueAtIndex(4) == 8, "unrelated existing tiles should remain after stage advance");
+        Require(result.Motions.Length > 0, "move should expose tile motions for animation");
+        Require(result.SpawnedTileIndex >= 0, "connected stage move should spawn a normal tile");
+        Require(result.NewSpecialIndex >= 0, "connected stage move should spawn the next special block");
     }
 
     private static void VerifySpecialBlocksMismatchedTile()
