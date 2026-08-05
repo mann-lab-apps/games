@@ -127,7 +127,7 @@ public static class VerifyCrash2048Rules
         Require(result.SpecialCrashed, "matching tile should crash special block");
         Require(board.Stage == 1, "special crash should increment stage");
         Require(board.SpecialValue == 4, "next special value should double");
-        Require(board.GetValueAtIndex(0) == 2, "crashing tile should occupy the broken special cell");
+        Require(board.GetValueAtIndex(0) == 0, "crashing tile should be destroyed with the special block");
         Require(board.SpecialIndex != 0, "next special block should be spawned elsewhere");
     }
 
@@ -149,7 +149,7 @@ public static class VerifyCrash2048Rules
         var result = board.Move(Crash2048Direction.Left);
         Require(result.SpecialCrashed, "matching tile should crash special in continuity check");
         Require(board.Stage == 1, "crash should advance to the next connected stage");
-        Require(board.GetValueAtIndex(0) == 2, "crashing tile should remain on the continuing board");
+        Require(board.GetValueAtIndex(0) == 0, "crashing tile should not remain on the continuing board");
         Require(board.GetValueAtIndex(1) == 4, "existing board tiles should remain after stage advance");
         Require(board.GetValueAtIndex(4) == 8, "unrelated existing tiles should remain after stage advance");
         Require(result.Motions.Length > 0, "move should expose tile motions for animation");

@@ -17,6 +17,7 @@ namespace MannLab.Games.Game2048Crash
         private readonly Image[] cellHighlights = new Image[Crash2048Board.CellCount];
         private readonly Text[] cellLabels = new Text[Crash2048Board.CellCount];
         private readonly RectTransform[] cellRects = new RectTransform[Crash2048Board.CellCount];
+        private readonly GameObject[] specialPatternRoots = new GameObject[Crash2048Board.CellCount];
         private readonly Crash2048Board board = new Crash2048Board();
 
         private RectTransform overlayRoot;
@@ -134,6 +135,7 @@ namespace MannLab.Games.Game2048Crash
                 motionViews[i] = new TileMotionView(
                     view,
                     view.GetComponent<RectTransform>(),
+                    view.GetComponent<CanvasGroup>(),
                     view.GetComponentInChildren<Text>(),
                     CellPosition(motion.FromIndex),
                     CellPosition(motion.ToIndex),
@@ -307,6 +309,13 @@ namespace MannLab.Games.Game2048Crash
                         continue;
                     }
 
+                    if (view.Motion.CrashedSpecial)
+                    {
+                        view.Rect.localScale = Vector3.one * Mathf.Lerp(1f, 0.42f, progress);
+                        view.Group.alpha = 1f - progress;
+                        continue;
+                    }
+
                     view.Rect.localScale = Vector3.one * Mathf.Lerp(1f, 1.12f, punch);
                 }
 
@@ -396,12 +405,21 @@ namespace MannLab.Games.Game2048Crash
                 var label = cellLabels[i];
                 var background = cellBackgrounds[i];
                 cellHighlights[i].color = Color.clear;
+                specialPatternRoots[i].SetActive(false);
 
                 if (board.IsSpecialAtIndex(i))
                 {
+                    if (i == hiddenSpecialIndex)
+                    {
+                        label.text = string.Empty;
+                        background.color = TileColor(0);
+                        continue;
+                    }
+
                     label.text = i == hiddenSpecialIndex ? string.Empty : board.SpecialValue.ToString();
-                    label.color = Color.white;
+                    label.color = SpecialTextColor();
                     background.color = SpecialBlockColor();
+                    specialPatternRoots[i].SetActive(true);
                     continue;
                 }
 
@@ -551,6 +569,9 @@ namespace MannLab.Games.Game2048Crash
             var background = cell.GetComponent<Image>();
             background.color = TileColor(0);
 
+            var specialPattern = CreateSpecialPattern(cell.transform);
+            specialPattern.SetActive(false);
+
             var highlight = new GameObject("Crash Highlight", typeof(RectTransform), typeof(Image));
             highlight.transform.SetParent(cell.transform, false);
             Stretch(highlight.GetComponent<RectTransform>(), new Vector2(8f, 8f), new Vector2(-8f, -8f));
@@ -568,6 +589,7 @@ namespace MannLab.Games.Game2048Crash
             cellHighlights[index] = highlightImage;
             cellLabels[index] = label;
             cellRects[index] = cell.GetComponent<RectTransform>();
+            specialPatternRoots[index] = specialPattern;
         }
 
         private GameObject CreateTileOverlay(int index, int value, bool special)
@@ -583,14 +605,45 @@ namespace MannLab.Games.Game2048Crash
             rect.anchoredPosition = CellPosition(index);
 
             overlay.GetComponent<Image>().color = special ? SpecialBlockColor() : TileColor(value);
+            if (special)
+            {
+                CreateSpecialPattern(overlay.transform);
+            }
+
             AddSketchOutline(overlay.transform);
 
             var text = CreateText(overlay.transform, value.ToString(), 76, TextAnchor.MiddleCenter);
             text.raycastTarget = false;
-            text.color = special || value >= 128 ? Color.white : SketchPalette.Ink;
+            text.color = special ? SpecialTextColor() : value >= 128 ? Color.white : SketchPalette.Ink;
             Stretch(text.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
 
             return overlay;
+        }
+
+        private static GameObject CreateSpecialPattern(Transform parent)
+        {
+            var pattern = new GameObject("Special Stripe Pattern", typeof(RectTransform), typeof(RectMask2D));
+            pattern.transform.SetParent(parent, false);
+            Stretch(pattern.GetComponent<RectTransform>(), new Vector2(10f, 10f), new Vector2(-10f, -10f));
+
+            for (var i = 0; i < 7; i++)
+            {
+                var stripe = new GameObject($"Stripe {i}", typeof(RectTransform), typeof(Image));
+                stripe.transform.SetParent(pattern.transform, false);
+                var rect = stripe.GetComponent<RectTransform>();
+                rect.anchorMin = new Vector2(0.5f, 0.5f);
+                rect.anchorMax = new Vector2(0.5f, 0.5f);
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.sizeDelta = new Vector2(190f, 10f);
+                rect.anchoredPosition = new Vector2(-96f + i * 32f, 0f);
+                rect.localRotation = Quaternion.Euler(0f, 0f, -42f);
+
+                var image = stripe.GetComponent<Image>();
+                image.color = SpecialStripeColor();
+                image.raycastTarget = false;
+            }
+
+            return pattern;
         }
 
         private Vector2 CellPosition(int index)
@@ -743,7 +796,17 @@ namespace MannLab.Games.Game2048Crash
 
         private static Color SpecialBlockColor()
         {
-            return new Color32(184, 47, 64, 255);
+            return new Color32(45, 58, 92, 255);
+        }
+
+        private static Color SpecialStripeColor()
+        {
+            return new Color32(255, 214, 84, 115);
+        }
+
+        private static Color SpecialTextColor()
+        {
+            return new Color32(255, 244, 190, 255);
         }
 
         private static float Smooth(float value)
@@ -756,6 +819,7 @@ namespace MannLab.Games.Game2048Crash
             public TileMotionView(
                 GameObject gameObject,
                 RectTransform rect,
+                CanvasGroup group,
                 Text text,
                 Vector2 start,
                 Vector2 end,
@@ -763,6 +827,7 @@ namespace MannLab.Games.Game2048Crash
             {
                 GameObject = gameObject;
                 Rect = rect;
+                Group = group;
                 Text = text;
                 Start = start;
                 End = end;
@@ -772,6 +837,8 @@ namespace MannLab.Games.Game2048Crash
             public GameObject GameObject { get; }
 
             public RectTransform Rect { get; }
+
+            public CanvasGroup Group { get; }
 
             public Text Text { get; }
 

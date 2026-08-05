@@ -147,7 +147,7 @@ namespace MannLab.Games.Game2048Crash
             {
                 Stage++;
                 SpecialValue *= 2;
-                SpawnSpecialBlock();
+                SpawnSpecialBlock(previousSpecialIndex);
                 newSpecialIndex = SpecialIndex;
             }
 
@@ -221,13 +221,18 @@ namespace MannLab.Games.Game2048Crash
             return true;
         }
 
-        private bool SpawnSpecialBlock()
+        private bool SpawnSpecialBlock(int excludedIndex = -1)
         {
             var emptyIndices = GetEmptyIndices();
             if (emptyIndices.Count == 0)
             {
                 SpecialIndex = -1;
                 return false;
+            }
+
+            if (emptyIndices.Count > 1)
+            {
+                emptyIndices.Remove(excludedIndex);
             }
 
             SpecialIndex = emptyIndices[random.Next(emptyIndices.Count)];
@@ -259,6 +264,7 @@ namespace MannLab.Games.Game2048Crash
         {
             var movingTiles = new MovingTile[CellCount];
             var slotTiles = new MovingTile[CellCount];
+            var crashCells = new bool[CellCount];
             for (var i = 0; i < CellCount; i++)
             {
                 var value = targetCells[i];
@@ -301,14 +307,15 @@ namespace MannLab.Games.Game2048Crash
                             continue;
                         }
 
-                        targetCells[target] = value;
+                        targetCells[target] = 0;
                         targetCells[source] = 0;
+                        crashCells[target] = true;
                         var crashingTile = slotTiles[source];
-                        slotTiles[target] = crashingTile;
                         slotTiles[source] = null;
                         if (crashingTile != null)
                         {
                             crashingTile.FinalIndex = target;
+                            crashingTile.Value = 0;
                             crashingTile.CrashedSpecial = true;
                         }
 
@@ -318,6 +325,11 @@ namespace MannLab.Games.Game2048Crash
                         specialCrashed = true;
                         moved = true;
                         keepMoving = true;
+                        continue;
+                    }
+
+                    if (crashCells[target])
+                    {
                         continue;
                     }
 
@@ -389,7 +401,7 @@ namespace MannLab.Games.Game2048Crash
                     tile.StartIndex,
                     tile.FinalIndex,
                     tile.StartValue,
-                    tile.Value,
+                    tile.CrashedSpecial ? tile.StartValue : tile.Value,
                     tile.Merged,
                     tile.CrashedSpecial));
             }
