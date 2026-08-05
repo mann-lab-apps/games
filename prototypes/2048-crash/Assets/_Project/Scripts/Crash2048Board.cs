@@ -13,18 +13,68 @@ namespace MannLab.Games.Game2048Crash
 
     public readonly struct Crash2048MoveResult
     {
-        public Crash2048MoveResult(bool moved, bool specialCrashed, bool gameOver)
+        public Crash2048MoveResult(
+            bool moved,
+            bool specialCrashed,
+            bool gameOver,
+            Crash2048TileMotion[] motions = null,
+            int spawnedTileIndex = -1,
+            int spawnedTileValue = 0,
+            int previousSpecialIndex = -1,
+            int newSpecialIndex = -1)
         {
             Moved = moved;
             SpecialCrashed = specialCrashed;
             GameOver = gameOver;
+            Motions = motions ?? EmptyMotions;
+            SpawnedTileIndex = spawnedTileIndex;
+            SpawnedTileValue = spawnedTileValue;
+            PreviousSpecialIndex = previousSpecialIndex;
+            NewSpecialIndex = newSpecialIndex;
         }
+
+        private static readonly Crash2048TileMotion[] EmptyMotions = new Crash2048TileMotion[0];
 
         public bool Moved { get; }
 
         public bool SpecialCrashed { get; }
 
         public bool GameOver { get; }
+
+        public Crash2048TileMotion[] Motions { get; }
+
+        public int SpawnedTileIndex { get; }
+
+        public int SpawnedTileValue { get; }
+
+        public int PreviousSpecialIndex { get; }
+
+        public int NewSpecialIndex { get; }
+    }
+
+    public readonly struct Crash2048TileMotion
+    {
+        public Crash2048TileMotion(int fromIndex, int toIndex, int fromValue, int toValue, bool merged, bool crashedSpecial)
+        {
+            FromIndex = fromIndex;
+            ToIndex = toIndex;
+            FromValue = fromValue;
+            ToValue = toValue;
+            Merged = merged;
+            CrashedSpecial = crashedSpecial;
+        }
+
+        public int FromIndex { get; }
+
+        public int ToIndex { get; }
+
+        public int FromValue { get; }
+
+        public int ToValue { get; }
+
+        public bool Merged { get; }
+
+        public bool CrashedSpecial { get; }
     }
 
     public sealed class Crash2048Board
@@ -70,31 +120,48 @@ namespace MannLab.Games.Game2048Crash
             SpecialValue = 2;
             SpecialIndex = -1;
             SpawnSpecialBlock();
-            SpawnNormalTile();
-            SpawnNormalTile();
+            SpawnNormalTile(out _, out _);
+            SpawnNormalTile(out _, out _);
         }
 
         public Crash2048MoveResult Move(Crash2048Direction direction)
         {
+            var previousSpecialIndex = SpecialIndex;
             var specialIndex = SpecialIndex;
-            var moved = Slide(cells, ref specialIndex, SpecialValue, direction, out var specialCrashed);
+            var moved = Slide(
+                cells,
+                ref specialIndex,
+                SpecialValue,
+                direction,
+                out var specialCrashed,
+                out var motions);
             if (!moved)
             {
                 return new Crash2048MoveResult(false, false, IsGameOver());
             }
 
             SpecialIndex = specialIndex;
+            var newSpecialIndex = SpecialIndex;
 
             if (specialCrashed)
             {
                 Stage++;
                 SpecialValue *= 2;
                 SpawnSpecialBlock();
+                newSpecialIndex = SpecialIndex;
             }
 
-            SpawnNormalTile();
+            SpawnNormalTile(out var spawnedTileIndex, out var spawnedTileValue);
 
-            return new Crash2048MoveResult(true, specialCrashed, IsGameOver());
+            return new Crash2048MoveResult(
+                true,
+                specialCrashed,
+                IsGameOver(),
+                motions,
+                spawnedTileIndex,
+                spawnedTileValue,
+                previousSpecialIndex,
+                newSpecialIndex);
         }
 
         public bool IsGameOver()
@@ -109,7 +176,7 @@ namespace MannLab.Games.Game2048Crash
                 var copy = new int[CellCount];
                 Array.Copy(cells, copy, CellCount);
                 var specialIndex = SpecialIndex;
-                if (Slide(copy, ref specialIndex, SpecialValue, direction, out _))
+                if (Slide(copy, ref specialIndex, SpecialValue, direction, out _, out _))
                 {
                     return false;
                 }
@@ -136,8 +203,10 @@ namespace MannLab.Games.Game2048Crash
             }
         }
 
-        private bool SpawnNormalTile()
+        private bool SpawnNormalTile(out int spawnedTileIndex, out int spawnedTileValue)
         {
+            spawnedTileIndex = -1;
+            spawnedTileValue = 0;
             var emptyIndices = GetEmptyIndices();
             if (emptyIndices.Count == 0)
             {
@@ -145,7 +214,10 @@ namespace MannLab.Games.Game2048Crash
             }
 
             var index = emptyIndices[random.Next(emptyIndices.Count)];
-            cells[index] = random.NextDouble() < 0.9 ? 2 : 4;
+            var value = random.NextDouble() < 0.9 ? 2 : 4;
+            cells[index] = value;
+            spawnedTileIndex = index;
+            spawnedTileValue = value;
             return true;
         }
 
@@ -182,8 +254,24 @@ namespace MannLab.Games.Game2048Crash
             ref int specialIndex,
             int specialValue,
             Crash2048Direction direction,
-            out bool specialCrashed)
+            out bool specialCrashed,
+            out Crash2048TileMotion[] motions)
         {
+            var movingTiles = new MovingTile[CellCount];
+            var slotTiles = new MovingTile[CellCount];
+            for (var i = 0; i < CellCount; i++)
+            {
+                var value = targetCells[i];
+                if (value == 0)
+                {
+                    continue;
+                }
+
+                var tile = new MovingTile(i, value);
+                movingTiles[i] = tile;
+                slotTiles[i] = tile;
+            }
+
             var merged = new bool[CellCount];
             var moved = false;
             specialCrashed = false;
@@ -215,6 +303,15 @@ namespace MannLab.Games.Game2048Crash
 
                         targetCells[target] = value;
                         targetCells[source] = 0;
+                        var crashingTile = slotTiles[source];
+                        slotTiles[target] = crashingTile;
+                        slotTiles[source] = null;
+                        if (crashingTile != null)
+                        {
+                            crashingTile.FinalIndex = target;
+                            crashingTile.CrashedSpecial = true;
+                        }
+
                         merged[target] = true;
                         merged[source] = false;
                         specialIndex = -1;
@@ -228,6 +325,13 @@ namespace MannLab.Games.Game2048Crash
                     {
                         targetCells[target] = value;
                         targetCells[source] = 0;
+                        slotTiles[target] = slotTiles[source];
+                        slotTiles[source] = null;
+                        if (slotTiles[target] != null)
+                        {
+                            slotTiles[target].FinalIndex = target;
+                        }
+
                         merged[target] = merged[source];
                         merged[source] = false;
                         moved = true;
@@ -239,6 +343,21 @@ namespace MannLab.Games.Game2048Crash
                     {
                         targetCells[target] = value * 2;
                         targetCells[source] = 0;
+                        var targetTile = slotTiles[target];
+                        var sourceTile = slotTiles[source];
+                        slotTiles[source] = null;
+                        if (targetTile != null)
+                        {
+                            targetTile.Value = value * 2;
+                            targetTile.Merged = true;
+                        }
+
+                        if (sourceTile != null)
+                        {
+                            sourceTile.FinalIndex = target;
+                            sourceTile.Merged = true;
+                        }
+
                         merged[target] = true;
                         merged[source] = false;
                         moved = true;
@@ -247,7 +366,35 @@ namespace MannLab.Games.Game2048Crash
                 }
             }
 
+            motions = CreateMotions(movingTiles);
             return moved;
+        }
+
+        private static Crash2048TileMotion[] CreateMotions(MovingTile[] movingTiles)
+        {
+            var result = new List<Crash2048TileMotion>();
+            foreach (var tile in movingTiles)
+            {
+                if (tile == null)
+                {
+                    continue;
+                }
+
+                if (tile.StartIndex == tile.FinalIndex && tile.StartValue == tile.Value && !tile.Merged && !tile.CrashedSpecial)
+                {
+                    continue;
+                }
+
+                result.Add(new Crash2048TileMotion(
+                    tile.StartIndex,
+                    tile.FinalIndex,
+                    tile.StartValue,
+                    tile.Value,
+                    tile.Merged,
+                    tile.CrashedSpecial));
+            }
+
+            return result.ToArray();
         }
 
         private static IEnumerable<int> Traversal(Crash2048Direction direction)
@@ -315,6 +462,29 @@ namespace MannLab.Games.Game2048Crash
                 default:
                     return -1;
             }
+        }
+
+        private sealed class MovingTile
+        {
+            public MovingTile(int startIndex, int value)
+            {
+                StartIndex = startIndex;
+                FinalIndex = startIndex;
+                StartValue = value;
+                Value = value;
+            }
+
+            public int StartIndex { get; }
+
+            public int FinalIndex { get; set; }
+
+            public int StartValue { get; }
+
+            public int Value { get; set; }
+
+            public bool Merged { get; set; }
+
+            public bool CrashedSpecial { get; set; }
         }
     }
 }

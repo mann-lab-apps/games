@@ -26,6 +26,9 @@ Implemented:
 - 4 x 4 2048-style slide controls
 - Static special block
 - Same-value crash rule
+- Connected stages on a single continuing board
+- Sliding tile motion
+- Special block crash and spawn motion
 - Special block stage progression by powers of two
 - Keyboard arrow and swipe input
 - Local best stage

@@ -10,11 +10,16 @@ namespace MannLab.Games.Game2048Crash
     {
         private const string BestStageKey = "mannlab.2048_crash.best_stage";
         private const float SwipeThreshold = 72f;
+        private const float SlideAnimationSeconds = 0.16f;
+        private const float CrashAnimationSeconds = 0.2f;
+        private const float SpawnAnimationSeconds = 0.14f;
         private readonly Image[] cellBackgrounds = new Image[Crash2048Board.CellCount];
         private readonly Image[] cellHighlights = new Image[Crash2048Board.CellCount];
         private readonly Text[] cellLabels = new Text[Crash2048Board.CellCount];
+        private readonly RectTransform[] cellRects = new RectTransform[Crash2048Board.CellCount];
         private readonly Crash2048Board board = new Crash2048Board();
 
+        private RectTransform overlayRoot;
         private Text stageText;
         private Text targetText;
         private Text bestText;
@@ -82,6 +87,12 @@ namespace MannLab.Games.Game2048Crash
 
         private void TryMove(Crash2048Direction direction)
         {
+            if (inputLocked)
+            {
+                return;
+            }
+
+            var previousSpecialValue = board.SpecialValue;
             var result = board.Move(direction);
             if (!result.Moved)
             {
@@ -93,38 +104,96 @@ namespace MannLab.Games.Game2048Crash
                 return;
             }
 
+            StartCoroutine(AnimateMove(result, previousSpecialValue));
+        }
+
+        private IEnumerator AnimateMove(Crash2048MoveResult result, int previousSpecialValue)
+        {
+            inputLocked = true;
             UpdateHeader();
-            UpdateBoard();
+
+            var hiddenNormalIndices = new bool[Crash2048Board.CellCount];
+            foreach (var motion in result.Motions)
+            {
+                hiddenNormalIndices[motion.ToIndex] = true;
+            }
+
+            if (result.SpawnedTileIndex >= 0)
+            {
+                hiddenNormalIndices[result.SpawnedTileIndex] = true;
+            }
+
+            UpdateBoard(hiddenNormalIndices, result.SpecialCrashed ? result.NewSpecialIndex : -1);
+            Canvas.ForceUpdateCanvases();
+
+            var motionViews = new TileMotionView[result.Motions.Length];
+            for (var i = 0; i < result.Motions.Length; i++)
+            {
+                var motion = result.Motions[i];
+                var view = CreateTileOverlay(motion.FromIndex, motion.FromValue, false);
+                motionViews[i] = new TileMotionView(
+                    view,
+                    view.GetComponent<RectTransform>(),
+                    view.GetComponentInChildren<Text>(),
+                    CellPosition(motion.FromIndex),
+                    CellPosition(motion.ToIndex),
+                    motion);
+            }
+
+            GameObject crashOverlay = null;
+            RectTransform crashRect = null;
+            CanvasGroup crashGroup = null;
+            if (result.SpecialCrashed && result.PreviousSpecialIndex >= 0)
+            {
+                crashOverlay = CreateTileOverlay(result.PreviousSpecialIndex, previousSpecialValue, true);
+                crashRect = crashOverlay.GetComponent<RectTransform>();
+                crashGroup = crashOverlay.GetComponent<CanvasGroup>();
+            }
+
+            var elapsed = 0f;
+            while (elapsed < SlideAnimationSeconds)
+            {
+                elapsed += Time.deltaTime;
+                var progress = Smooth(Mathf.Clamp01(elapsed / SlideAnimationSeconds));
+                foreach (var view in motionViews)
+                {
+                    view.Rect.anchoredPosition = Vector2.Lerp(view.Start, view.End, progress);
+                }
+
+                yield return null;
+            }
+
+            foreach (var view in motionViews)
+            {
+                view.Rect.anchoredPosition = view.End;
+                view.Text.text = view.Motion.ToValue.ToString();
+            }
 
             if (result.SpecialCrashed)
             {
-                StartCoroutine(PlayCrashFeedback());
+                yield return AnimateCrash(result, crashRect, crashGroup, motionViews);
             }
 
+            foreach (var view in motionViews)
+            {
+                Destroy(view.GameObject);
+            }
+
+            if (crashOverlay != null)
+            {
+                Destroy(crashOverlay);
+            }
+
+            UpdateBoard(hiddenNormalIndices, result.SpecialCrashed ? result.NewSpecialIndex : -1);
+            yield return AnimateSpawns(result);
+
+            UpdateBoard();
+
+            inputLocked = false;
             if (result.GameOver)
             {
                 EndRun();
             }
-        }
-
-        private IEnumerator PlayCrashFeedback()
-        {
-            inputLocked = true;
-            for (var i = 0; i < cellHighlights.Length; i++)
-            {
-                cellHighlights[i].color = board.IsSpecialAtIndex(i)
-                    ? new Color(1f, 0.84f, 0.25f, 0.36f)
-                    : Color.clear;
-            }
-
-            yield return new WaitForSeconds(0.12f);
-
-            for (var i = 0; i < cellHighlights.Length; i++)
-            {
-                cellHighlights[i].color = Color.clear;
-            }
-
-            inputLocked = false;
         }
 
         private void EndRun()
@@ -207,7 +276,120 @@ namespace MannLab.Games.Game2048Crash
             bestText.text = $"Best {bestStage}";
         }
 
-        private void UpdateBoard()
+        private IEnumerator AnimateCrash(Crash2048MoveResult result, RectTransform crashRect, CanvasGroup crashGroup, TileMotionView[] motionViews)
+        {
+            if (result.PreviousSpecialIndex >= 0)
+            {
+                cellHighlights[result.PreviousSpecialIndex].color = new Color(1f, 0.84f, 0.25f, 0.42f);
+            }
+
+            var elapsed = 0f;
+            while (elapsed < CrashAnimationSeconds)
+            {
+                elapsed += Time.deltaTime;
+                var progress = Mathf.Clamp01(elapsed / CrashAnimationSeconds);
+                var punch = Mathf.Sin(progress * Mathf.PI);
+                if (crashRect != null)
+                {
+                    crashRect.localScale = Vector3.one * Mathf.Lerp(1f, 1.24f, punch);
+                    crashRect.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-7f, 8f, punch));
+                }
+
+                if (crashGroup != null)
+                {
+                    crashGroup.alpha = 1f - progress;
+                }
+
+                foreach (var view in motionViews)
+                {
+                    if (!view.Motion.CrashedSpecial && !view.Motion.Merged)
+                    {
+                        continue;
+                    }
+
+                    view.Rect.localScale = Vector3.one * Mathf.Lerp(1f, 1.12f, punch);
+                }
+
+                yield return null;
+            }
+
+            if (result.PreviousSpecialIndex >= 0)
+            {
+                cellHighlights[result.PreviousSpecialIndex].color = Color.clear;
+            }
+        }
+
+        private IEnumerator AnimateSpawns(Crash2048MoveResult result)
+        {
+            var spawnCount = 0;
+            if (result.SpawnedTileIndex >= 0)
+            {
+                spawnCount++;
+            }
+
+            if (result.SpecialCrashed && result.NewSpecialIndex >= 0)
+            {
+                spawnCount++;
+            }
+
+            if (spawnCount == 0)
+            {
+                yield break;
+            }
+
+            var spawnViews = new GameObject[spawnCount];
+            var spawnRects = new RectTransform[spawnCount];
+            var spawnGroups = new CanvasGroup[spawnCount];
+            var cursor = 0;
+
+            if (result.SpecialCrashed && result.NewSpecialIndex >= 0)
+            {
+                var special = CreateTileOverlay(result.NewSpecialIndex, board.SpecialValue, true);
+                spawnViews[cursor] = special;
+                spawnRects[cursor] = special.GetComponent<RectTransform>();
+                spawnGroups[cursor] = special.GetComponent<CanvasGroup>();
+                cursor++;
+            }
+
+            if (result.SpawnedTileIndex >= 0)
+            {
+                var tile = CreateTileOverlay(result.SpawnedTileIndex, result.SpawnedTileValue, false);
+                spawnViews[cursor] = tile;
+                spawnRects[cursor] = tile.GetComponent<RectTransform>();
+                spawnGroups[cursor] = tile.GetComponent<CanvasGroup>();
+            }
+
+            foreach (var rect in spawnRects)
+            {
+                rect.localScale = Vector3.one * 0.62f;
+            }
+
+            foreach (var group in spawnGroups)
+            {
+                group.alpha = 0f;
+            }
+
+            var elapsed = 0f;
+            while (elapsed < SpawnAnimationSeconds)
+            {
+                elapsed += Time.deltaTime;
+                var progress = Smooth(Mathf.Clamp01(elapsed / SpawnAnimationSeconds));
+                for (var i = 0; i < spawnRects.Length; i++)
+                {
+                    spawnRects[i].localScale = Vector3.one * Mathf.Lerp(0.62f, 1f, progress);
+                    spawnGroups[i].alpha = progress;
+                }
+
+                yield return null;
+            }
+
+            foreach (var view in spawnViews)
+            {
+                Destroy(view);
+            }
+        }
+
+        private void UpdateBoard(bool[] hiddenNormalIndices = null, int hiddenSpecialIndex = -1)
         {
             for (var i = 0; i < Crash2048Board.CellCount; i++)
             {
@@ -217,16 +399,17 @@ namespace MannLab.Games.Game2048Crash
 
                 if (board.IsSpecialAtIndex(i))
                 {
-                    label.text = board.SpecialValue.ToString();
+                    label.text = i == hiddenSpecialIndex ? string.Empty : board.SpecialValue.ToString();
                     label.color = Color.white;
                     background.color = SpecialBlockColor();
                     continue;
                 }
 
                 var value = board.GetValueAtIndex(i);
-                label.text = value == 0 ? string.Empty : value.ToString();
+                var hidden = hiddenNormalIndices != null && hiddenNormalIndices[i];
+                label.text = value == 0 || hidden ? string.Empty : value.ToString();
                 label.color = value >= 128 ? Color.white : SketchPalette.Ink;
-                background.color = TileColor(value);
+                background.color = hidden ? TileColor(0) : TileColor(value);
             }
         }
 
@@ -352,6 +535,12 @@ namespace MannLab.Games.Game2048Crash
             {
                 CreateCell(boardRoot.transform, i);
             }
+
+            var overlay = new GameObject("Tile Overlay", typeof(RectTransform));
+            overlay.transform.SetParent(boardArea.transform, false);
+            overlayRoot = overlay.GetComponent<RectTransform>();
+            Stretch(overlayRoot, Vector2.zero, Vector2.zero);
+            overlayRoot.SetAsLastSibling();
         }
 
         private void CreateCell(Transform parent, int index)
@@ -378,6 +567,45 @@ namespace MannLab.Games.Game2048Crash
             cellBackgrounds[index] = background;
             cellHighlights[index] = highlightImage;
             cellLabels[index] = label;
+            cellRects[index] = cell.GetComponent<RectTransform>();
+        }
+
+        private GameObject CreateTileOverlay(int index, int value, bool special)
+        {
+            var overlay = new GameObject($"Moving Tile {value}", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
+            overlay.transform.SetParent(overlayRoot, false);
+
+            var rect = overlay.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = CellSize(index);
+            rect.anchoredPosition = CellPosition(index);
+
+            overlay.GetComponent<Image>().color = special ? SpecialBlockColor() : TileColor(value);
+            AddSketchOutline(overlay.transform);
+
+            var text = CreateText(overlay.transform, value.ToString(), 76, TextAnchor.MiddleCenter);
+            text.raycastTarget = false;
+            text.color = special || value >= 128 ? Color.white : SketchPalette.Ink;
+            Stretch(text.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
+
+            return overlay;
+        }
+
+        private Vector2 CellPosition(int index)
+        {
+            var corners = new Vector3[4];
+            cellRects[index].GetWorldCorners(corners);
+            var center = (corners[0] + corners[2]) * 0.5f;
+            var screenPoint = RectTransformUtility.WorldToScreenPoint(null, center);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(overlayRoot, screenPoint, null, out var localPoint);
+            return localPoint;
+        }
+
+        private Vector2 CellSize(int index)
+        {
+            return cellRects[index].rect.size;
         }
 
         private void CreateResultPanel(Transform parent)
@@ -516,6 +744,42 @@ namespace MannLab.Games.Game2048Crash
         private static Color SpecialBlockColor()
         {
             return new Color32(184, 47, 64, 255);
+        }
+
+        private static float Smooth(float value)
+        {
+            return value * value * (3f - 2f * value);
+        }
+
+        private readonly struct TileMotionView
+        {
+            public TileMotionView(
+                GameObject gameObject,
+                RectTransform rect,
+                Text text,
+                Vector2 start,
+                Vector2 end,
+                Crash2048TileMotion motion)
+            {
+                GameObject = gameObject;
+                Rect = rect;
+                Text = text;
+                Start = start;
+                End = end;
+                Motion = motion;
+            }
+
+            public GameObject GameObject { get; }
+
+            public RectTransform Rect { get; }
+
+            public Text Text { get; }
+
+            public Vector2 Start { get; }
+
+            public Vector2 End { get; }
+
+            public Crash2048TileMotion Motion { get; }
         }
     }
 }
