@@ -17,7 +17,7 @@ namespace MannLab.Games.Game2048Crash
         private readonly Image[] cellHighlights = new Image[Crash2048Board.CellCount];
         private readonly Text[] cellLabels = new Text[Crash2048Board.CellCount];
         private readonly RectTransform[] cellRects = new RectTransform[Crash2048Board.CellCount];
-        private readonly GameObject[] specialPatternRoots = new GameObject[Crash2048Board.CellCount];
+        private readonly SketchHatchFillGraphic[] specialHatches = new SketchHatchFillGraphic[Crash2048Board.CellCount];
         private readonly Crash2048Board board = new Crash2048Board();
 
         private RectTransform overlayRoot;
@@ -405,7 +405,7 @@ namespace MannLab.Games.Game2048Crash
                 var label = cellLabels[i];
                 var background = cellBackgrounds[i];
                 cellHighlights[i].color = Color.clear;
-                specialPatternRoots[i].SetActive(false);
+                specialHatches[i].gameObject.SetActive(false);
 
                 if (board.IsSpecialAtIndex(i))
                 {
@@ -416,10 +416,10 @@ namespace MannLab.Games.Game2048Crash
                         continue;
                     }
 
-                    label.text = i == hiddenSpecialIndex ? string.Empty : board.SpecialValue.ToString();
-                    label.color = SpecialTextColor();
-                    background.color = SpecialBlockColor();
-                    specialPatternRoots[i].SetActive(true);
+                    label.text = board.SpecialValue.ToString();
+                    label.color = SketchPalette.Ink;
+                    background.color = SketchPalette.HatchPaper;
+                    specialHatches[i].gameObject.SetActive(true);
                     continue;
                 }
 
@@ -569,8 +569,8 @@ namespace MannLab.Games.Game2048Crash
             var background = cell.GetComponent<Image>();
             background.color = TileColor(0);
 
-            var specialPattern = CreateSpecialPattern(cell.transform);
-            specialPattern.SetActive(false);
+            var specialHatch = CreateSpecialHatch(cell.transform, index);
+            specialHatch.gameObject.SetActive(false);
 
             var highlight = new GameObject("Crash Highlight", typeof(RectTransform), typeof(Image));
             highlight.transform.SetParent(cell.transform, false);
@@ -589,7 +589,7 @@ namespace MannLab.Games.Game2048Crash
             cellHighlights[index] = highlightImage;
             cellLabels[index] = label;
             cellRects[index] = cell.GetComponent<RectTransform>();
-            specialPatternRoots[index] = specialPattern;
+            specialHatches[index] = specialHatch;
         }
 
         private GameObject CreateTileOverlay(int index, int value, bool special)
@@ -604,46 +604,39 @@ namespace MannLab.Games.Game2048Crash
             rect.sizeDelta = CellSize(index);
             rect.anchoredPosition = CellPosition(index);
 
-            overlay.GetComponent<Image>().color = special ? SpecialBlockColor() : TileColor(value);
+            overlay.GetComponent<Image>().color = special ? SketchPalette.HatchPaper : TileColor(value);
             if (special)
             {
-                CreateSpecialPattern(overlay.transform);
+                CreateSpecialHatch(overlay.transform, index + 37);
             }
 
             AddSketchOutline(overlay.transform);
 
             var text = CreateText(overlay.transform, value.ToString(), 76, TextAnchor.MiddleCenter);
             text.raycastTarget = false;
-            text.color = special ? SpecialTextColor() : value >= 128 ? Color.white : SketchPalette.Ink;
+            text.color = special ? SketchPalette.Ink : value >= 128 ? Color.white : SketchPalette.Ink;
             Stretch(text.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
 
             return overlay;
         }
 
-        private static GameObject CreateSpecialPattern(Transform parent)
+        private static SketchHatchFillGraphic CreateSpecialHatch(Transform parent, int seed)
         {
-            var pattern = new GameObject("Special Stripe Pattern", typeof(RectTransform), typeof(RectMask2D));
-            pattern.transform.SetParent(parent, false);
-            Stretch(pattern.GetComponent<RectTransform>(), new Vector2(10f, 10f), new Vector2(-10f, -10f));
+            var hatchObject = new GameObject("Sketch Hatch Fill", typeof(RectTransform), typeof(SketchHatchFillGraphic));
+            hatchObject.transform.SetParent(parent, false);
+            Stretch(hatchObject.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
 
-            for (var i = 0; i < 7; i++)
-            {
-                var stripe = new GameObject($"Stripe {i}", typeof(RectTransform), typeof(Image));
-                stripe.transform.SetParent(pattern.transform, false);
-                var rect = stripe.GetComponent<RectTransform>();
-                rect.anchorMin = new Vector2(0.5f, 0.5f);
-                rect.anchorMax = new Vector2(0.5f, 0.5f);
-                rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.sizeDelta = new Vector2(190f, 10f);
-                rect.anchoredPosition = new Vector2(-96f + i * 32f, 0f);
-                rect.localRotation = Quaternion.Euler(0f, 0f, -42f);
-
-                var image = stripe.GetComponent<Image>();
-                image.color = SpecialStripeColor();
-                image.raycastTarget = false;
-            }
-
-            return pattern;
+            var hatch = hatchObject.GetComponent<SketchHatchFillGraphic>();
+            hatch.BackgroundColor = SketchPalette.HatchPaper;
+            hatch.HatchColor = SketchPalette.HatchBlue;
+            hatch.Inset = 10f;
+            hatch.Spacing = 17f;
+            hatch.Thickness = 2.4f;
+            hatch.Jitter = 2.2f;
+            hatch.Strokes = 2;
+            hatch.Seed = seed * 17 + 23;
+            hatch.raycastTarget = false;
+            return hatch;
         }
 
         private Vector2 CellPosition(int index)
@@ -792,21 +785,6 @@ namespace MannLab.Games.Game2048Crash
                 default:
                     return new Color32(54, 67, 88, 255);
             }
-        }
-
-        private static Color SpecialBlockColor()
-        {
-            return new Color32(45, 58, 92, 255);
-        }
-
-        private static Color SpecialStripeColor()
-        {
-            return new Color32(255, 214, 84, 115);
-        }
-
-        private static Color SpecialTextColor()
-        {
-            return new Color32(255, 244, 190, 255);
         }
 
         private static float Smooth(float value)

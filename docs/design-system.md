@@ -21,6 +21,8 @@ Core colors:
 - Ink: `#282724`
 - Muted ink: `#66615A`
 - Warm shadow: `#E6DCC8`
+- Hatch paper: `#FFFEFA`
+- Hatch blue: `#85CBFF` at drawing transparency
 
 Feedback colors:
 
@@ -43,6 +45,7 @@ Surface roles:
 
 - Screen background: paper
 - Tiles and buttons: tile paper
+- Special/target tiles: hatch paper with blue sketch hatching
 - Result panel: tile paper with high opacity
 - Highlight marks: translucent marker layers above the tile
 - Separators and outlines: ink lines with slight jitter
@@ -101,6 +104,14 @@ Initial scale:
 - Correct state: green marker overlay
 - Wrong state: red marker flash or pen-like overlay
 
+### Hatched Target Tile
+
+- Fill: hatch paper
+- Hatch: light blue diagonal strokes clipped inside the tile
+- Outline: default sketch outline
+- Text: ink
+- Usage: fixed target, blocked, or crash-object states that must read differently from normal numbered tiles
+
 ### Button
 
 - Fill: tile paper
@@ -156,6 +167,7 @@ Initial shared code:
 - `SketchMetrics`: shared line, gap, and marker measurements
 - `SketchUiFactory`: reusable button color helpers
 - `SketchOutlineGraphic`: procedural rough rectangle outline
+- `SketchHatchFillGraphic`: procedural paper fill with clipped blue hatching
 
 Future shared candidates:
 

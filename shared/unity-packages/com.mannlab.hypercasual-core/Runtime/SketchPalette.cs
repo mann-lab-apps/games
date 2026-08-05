@@ -11,6 +11,8 @@ namespace MannLab.HyperCasual
         public static readonly Color WarmShadow = new Color32(230, 220, 200, 255);
         public static readonly Color WarmHighlight = new Color32(255, 250, 229, 255);
         public static readonly Color WarmPressed = new Color32(244, 235, 208, 255);
+        public static readonly Color HatchPaper = new Color32(255, 254, 250, 255);
+        public static readonly Color HatchBlue = new Color32(133, 203, 255, 155);
         public static readonly Color CorrectMarker = new Color32(94, 212, 129, 130);
         public static readonly Color WrongMarker = new Color32(230, 68, 64, 120);
         public static readonly Color WarningAmber = new Color32(238, 168, 64, 255);

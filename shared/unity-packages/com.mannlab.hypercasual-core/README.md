@@ -19,5 +19,6 @@ Included runtime helpers:
 - `SketchMetrics`: shared sketch line and spacing metrics
 - `SketchUiFactory`: small UI helper methods
 - `SketchOutlineGraphic`: procedural rough rectangle outline for Unity UI
+- `SketchHatchFillGraphic`: procedural paper fill with clipped blue hatching for target/blocked tiles
 
 Keep this package small. Code should move here when it defines the Mann Lab Games baseline or when at least two games need it.
