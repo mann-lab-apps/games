@@ -186,7 +186,13 @@ namespace MannLab.Games.Game2048Crash
                 Destroy(crashOverlay);
             }
 
-            UpdateBoard(hiddenNormalIndices, result.SpecialCrashed ? result.NewSpecialIndex : -1);
+            var hiddenSpawnIndex = new bool[Crash2048Board.CellCount];
+            if (result.SpawnedTileIndex >= 0)
+            {
+                hiddenSpawnIndex[result.SpawnedTileIndex] = true;
+            }
+
+            UpdateBoard(hiddenSpawnIndex, result.SpecialCrashed ? result.NewSpecialIndex : -1);
             yield return AnimateSpawns(result);
 
             UpdateBoard();

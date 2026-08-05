@@ -14,17 +14,21 @@ fi
 mkdir -p "$target_dir"
 rsync -a --delete "$source_dir/" "$target_dir/"
 
-for asset in data framework.js wasm; do
-  gz_asset="$target_dir/Build/2048-crash.$asset.gz"
-  if [[ -f "$gz_asset" ]]; then
-    gzip -dc "$gz_asset" > "$target_dir/Build/2048-crash.$asset"
-  fi
-done
-
-perl -pi -e 's/2048-crash\.data\.gz/2048-crash.data/g; s/2048-crash\.framework\.js\.gz/2048-crash.framework.js/g; s/2048-crash\.wasm\.gz/2048-crash.wasm/g' "$target_dir/index.html"
 perl -pi -e 's/canvas\.style\.width = "960px";/canvas.style.width = "100%";/g; s/canvas\.style\.height = "600px";/canvas.style.height = "100%";/g' "$target_dir/index.html"
 
-asset_version="$(shasum -a 256 "$target_dir/Build/2048-crash.wasm" | awk '{ print substr($1, 1, 12) }')"
+code_asset="$(find "$target_dir/Build" -maxdepth 1 -type f \( \
+  -name "2048-crash.wasm" -o \
+  -name "2048-crash.wasm.gz" -o \
+  -name "2048-crash.wasm.br" -o \
+  -name "2048-crash.wasm.unityweb" \
+\) | sort | head -1)"
+
+if [[ -z "$code_asset" ]]; then
+  echo "WebGL wasm asset not found in $target_dir/Build" >&2
+  exit 2
+fi
+
+asset_version="$(shasum -a 256 "$code_asset" | awk '{ print substr($1, 1, 12) }')"
 ASSET_VERSION="$asset_version" TARGET_DIR="$target_dir" node <<'NODE'
 const fs = require("fs");
 const path = require("path");
@@ -36,16 +40,16 @@ const stylePath = path.join(targetDir, "TemplateData", "style.css");
 
 let html = fs.readFileSync(indexPath, "utf8");
 html = html.replace(
-  'var buildUrl = "Build";\n      var loaderUrl = buildUrl + "/2048-crash.loader.js";',
+  /var buildUrl = "Build";\s+var loaderUrl = buildUrl \+ "\/2048-crash\.loader\.js";/,
   `var buildUrl = "Build";
       var assetVersion = "${assetVersion}";
       var versionSuffix = "?v=" + assetVersion;
       var loaderUrl = buildUrl + "/2048-crash.loader.js" + versionSuffix;`
 );
 html = html
-  .replace('dataUrl: buildUrl + "/2048-crash.data"', 'dataUrl: buildUrl + "/2048-crash.data" + versionSuffix')
-  .replace('frameworkUrl: buildUrl + "/2048-crash.framework.js"', 'frameworkUrl: buildUrl + "/2048-crash.framework.js" + versionSuffix')
-  .replace('codeUrl: buildUrl + "/2048-crash.wasm"', 'codeUrl: buildUrl + "/2048-crash.wasm" + versionSuffix');
+  .replace(/(dataUrl: buildUrl \+ "\/2048-crash\.data(?:\.(?:gz|br|unityweb))?")/, "$1 + versionSuffix")
+  .replace(/(frameworkUrl: buildUrl \+ "\/2048-crash\.framework\.js(?:\.(?:gz|br|unityweb))?")/, "$1 + versionSuffix")
+  .replace(/(codeUrl: buildUrl \+ "\/2048-crash\.wasm(?:\.(?:gz|br|unityweb))?")/, "$1 + versionSuffix");
 html = html.replace(
   "showBanner: unityShowBanner,",
   `showBanner: unityShowBanner,
@@ -129,9 +133,5 @@ const runtimeErrorCss = `
 `;
 fs.appendFileSync(stylePath, runtimeErrorCss);
 NODE
-
-rm -f "$target_dir/Build/2048-crash.data.gz" \
-  "$target_dir/Build/2048-crash.framework.js.gz" \
-  "$target_dir/Build/2048-crash.wasm.gz"
 
 echo "Synced WebGL site assets: $target_dir"

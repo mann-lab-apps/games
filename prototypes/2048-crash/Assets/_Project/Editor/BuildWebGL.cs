@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 
@@ -22,6 +23,7 @@ namespace MannLab.Games.Game2048Crash.EditorTools
             PlayerSettings.companyName = "Mann Lab";
             PlayerSettings.productName = "2048 Crash";
             PlayerSettings.bundleVersion = "0.1";
+            ConfigureWebGLCompression();
 
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
@@ -37,6 +39,25 @@ namespace MannLab.Games.Game2048Crash.EditorTools
             }
 
             PatchResponsiveTemplate();
+        }
+
+        private static void ConfigureWebGLCompression()
+        {
+            var webGlSettings = typeof(PlayerSettings).GetNestedType("WebGL", BindingFlags.Public | BindingFlags.NonPublic);
+            if (webGlSettings == null)
+            {
+                throw new InvalidOperationException("Unity PlayerSettings.WebGL API was not found.");
+            }
+
+            var compressionFormat = webGlSettings.GetProperty("compressionFormat", BindingFlags.Public | BindingFlags.Static);
+            var decompressionFallback = webGlSettings.GetProperty("decompressionFallback", BindingFlags.Public | BindingFlags.Static);
+            if (compressionFormat == null || decompressionFallback == null)
+            {
+                throw new InvalidOperationException("Unity WebGL compression settings API was not found.");
+            }
+
+            compressionFormat.SetValue(null, Enum.Parse(compressionFormat.PropertyType, "Gzip"));
+            decompressionFallback.SetValue(null, true);
         }
 
         private static void PatchResponsiveTemplate()
