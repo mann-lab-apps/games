@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using MannLab.HyperCasual;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -31,12 +32,16 @@ namespace MannLab.Games.Game2048Crash
         private bool gameOver;
         private bool inputLocked;
         private bool pointerActive;
+        private bool runStarted;
         private Vector2 pointerStart;
 
         private void Awake()
         {
             MobileRuntime.ApplyDefaults();
             bestStage = PlayerPrefs.GetInt(BestStageKey, 0);
+            FirebaseTelemetry.Initialize();
+            FirebaseTelemetry.SetContext("game", "2048-crash");
+            FirebaseTelemetry.LogEvent("app_open");
             BuildInterface();
             StartRun();
         }
@@ -78,11 +83,31 @@ namespace MannLab.Games.Game2048Crash
         private void StartRun()
         {
             StopAllCoroutines();
+            if (runStarted)
+            {
+                FirebaseTelemetry.LogEvent(
+                    "restart",
+                    new Dictionary<string, string>
+                    {
+                        { "stage", board.Stage.ToString() },
+                        { "best_stage", bestStage.ToString() }
+                    });
+            }
+
+            runStarted = true;
             gameOver = false;
             inputLocked = false;
             resultPanel.SetActive(false);
             board.StartNew();
             UpdateHeader();
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "run_start",
+                new Dictionary<string, string>
+                {
+                    { "target_value", board.SpecialValue.ToString() },
+                    { "best_stage", bestStage.ToString() }
+                });
             UpdateBoard();
         }
 
@@ -105,6 +130,19 @@ namespace MannLab.Games.Game2048Crash
                 return;
             }
 
+            if (result.SpecialCrashed)
+            {
+                FirebaseTelemetry.LogEvent(
+                    "special_crash",
+                    new Dictionary<string, string>
+                    {
+                        { "stage", board.Stage.ToString() },
+                        { "crashed_value", previousSpecialValue.ToString() },
+                        { "next_target_value", board.SpecialValue.ToString() }
+                    });
+            }
+
+            UpdateTelemetryContext();
             StartCoroutine(AnimateMove(result, previousSpecialValue));
         }
 
@@ -221,6 +259,15 @@ namespace MannLab.Games.Game2048Crash
             }
 
             UpdateHeader();
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "run_end",
+                new Dictionary<string, string>
+                {
+                    { "stage", board.Stage.ToString() },
+                    { "best_stage", bestStage.ToString() },
+                    { "target_value", board.SpecialValue.ToString() }
+                });
             resultTitleText.text = "Game Over";
             resultScoreText.text = $"Stage {board.Stage}\nBest {bestStage}";
             resultPanel.SetActive(true);
@@ -282,6 +329,15 @@ namespace MannLab.Games.Game2048Crash
             stageText.text = $"Stage {board.Stage}";
             targetText.text = $"Crash {board.SpecialValue}";
             bestText.text = $"Best {bestStage}";
+        }
+
+        private void UpdateTelemetryContext()
+        {
+            FirebaseTelemetry.SetContext("stage", board.Stage.ToString());
+            FirebaseTelemetry.SetContext("target_value", board.SpecialValue.ToString());
+            FirebaseTelemetry.SetContext("special_index", board.SpecialIndex.ToString());
+            FirebaseTelemetry.SetContext("best_stage", bestStage.ToString());
+            FirebaseTelemetry.SetContext("game_over", gameOver ? "true" : "false");
         }
 
         private IEnumerator AnimateCrash(Crash2048MoveResult result, RectTransform crashRect, CanvasGroup crashGroup, TileMotionView[] motionViews)

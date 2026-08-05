@@ -72,6 +72,7 @@ Unity Android 프로토타입에서 Firebase를 붙이는 최소 순서:
 1. Firebase Console에서 프로젝트를 만든다.
 2. Unity 앱을 추가하고 Android package ID를 등록한다.
    - `10000`: `com.mannlab.games.game10000`
+   - `2048 Crash`: `com.mannlab.games.game2048crash`
 3. `google-services.json`을 내려받아 Unity 프로젝트의 `Assets/` 아래에 넣는다.
 4. Firebase Unity SDK에서 아래 패키지를 import한다.
    - `FirebaseAnalytics.unitypackage`
@@ -95,6 +96,14 @@ Unity Android 프로토타입에서 Firebase를 붙이는 최소 순서:
 - `wrong_tap`: 오답 탭 시
 - `stage_clear`: 정답으로 스테이지를 넘길 때
 - `run_end`: 전체 제한 시간이 끝났을 때
+
+`2048 Crash` MVP 현재 구현 이벤트:
+
+- `app_open`: 앱 첫 실행 시
+- `run_start`: 새 런 시작 시
+- `special_crash`: 특수 블록을 깨뜨릴 때
+- `run_end`: 움직일 수 없어 런이 끝날 때
+- `restart`: 결과 화면에서 다시 시작할 때
 
 현재 구현은 Firebase SDK가 없어도 컴파일되며 Unity 로그에 이벤트를 남긴다. SDK와 `google-services.json`이 추가되면 같은 호출이 Firebase Analytics/Crashlytics로 전달된다.
 
