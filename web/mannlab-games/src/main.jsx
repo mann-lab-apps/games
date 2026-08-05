@@ -14,6 +14,15 @@ const games = [
     available: true,
   },
   {
+    id: "2048-crash",
+    title: "2048 Crash",
+    status: "Prototype",
+    description: "고정 특수 블록을 같은 숫자로 깨는 슬라이드 퍼즐",
+    route: "/2048-crash",
+    embedHref: "/games/2048-crash/",
+    available: true,
+  },
+  {
     id: "drum-duel",
     title: "Drum Duel",
     status: "Candidate",

@@ -43,6 +43,8 @@ captures/
 [Bb]uilds/
 !web/mannlab-games/public/games/10000/Build/
 !web/mannlab-games/public/games/10000/Build/**
+!web/mannlab-games/public/games/2048-crash/Build/
+!web/mannlab-games/public/games/2048-crash/Build/**
 !web/mannlab-games/public/games/drum-duel/Build/
 !web/mannlab-games/public/games/drum-duel/Build/**
 !web/mannlab-games/public/games/dopamine-swap/Build/
