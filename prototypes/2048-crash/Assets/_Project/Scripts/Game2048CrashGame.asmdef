@@ -1,0 +1,16 @@
+{
+  "name": "MannLab.Games.Game2048Crash",
+  "rootNamespace": "MannLab.Games.Game2048Crash",
+  "references": [
+    "MannLab.HyperCasual.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
