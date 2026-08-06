@@ -7,6 +7,7 @@ mono="$unity_root/Resources/Scripting/MonoBleedingEdge/bin/mono"
 csc="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/4.5/csc.exe"
 managed="$unity_root/Resources/Scripting/Managed"
 unity="$managed/UnityEngine"
+xcode_dll="$unity_root/PlaybackEngines/MacStandaloneSupport/UnityEditor.iOS.Extensions.Xcode.dll"
 mono_lib="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/unityjit-macos"
 ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.template.2d-cross-platform-2d-6.1.2/ScriptAssemblies/UnityEngine.UI.dll"
 project="$repo_root/prototypes/2048-crash"
@@ -37,6 +38,7 @@ editor_dll="$tmpdir/Game2048CrashEditor.dll"
   -r:"$mono_lib/Facades/netstandard.dll" \
   -r:"$managed/UnityEngine/UnityEditor.CoreModule.dll" \
   -r:"$managed/UnityEngine/UnityEditor.SceneViewModule.dll" \
+  -r:"$xcode_dll" \
   -r:"$unity/UnityEngine.CoreModule.dll" \
   -r:"$unity/UnityEngine.UIModule.dll" \
   -r:"$unity/UnityEngine.TextRenderingModule.dll" \

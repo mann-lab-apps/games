@@ -14,6 +14,11 @@ namespace MannLab.Games.Game2048Crash
         private const float SlideAnimationSeconds = 0.16f;
         private const float CrashAnimationSeconds = 0.2f;
         private const float SpawnAnimationSeconds = 0.14f;
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private const int CrashlyticsTestTapCount = 7;
+        private const float CrashlyticsTestTapWindowSeconds = 2.5f;
+        private const float CrashlyticsTestTapZoneSize = 220f;
+#endif
         private readonly Image[] cellBackgrounds = new Image[Crash2048Board.CellCount];
         private readonly Image[] cellHighlights = new Image[Crash2048Board.CellCount];
         private readonly Text[] cellLabels = new Text[Crash2048Board.CellCount];
@@ -34,6 +39,10 @@ namespace MannLab.Games.Game2048Crash
         private bool pointerActive;
         private bool runStarted;
         private Vector2 pointerStart;
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private int crashlyticsTestTapCount;
+        private float crashlyticsTestTapDeadline;
+#endif
 
         private void Awake()
         {
@@ -48,6 +57,13 @@ namespace MannLab.Games.Game2048Crash
 
         private void Update()
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (HandleCrashlyticsTestTrigger())
+            {
+                return;
+            }
+#endif
+
             if (gameOver || inputLocked)
             {
                 return;
@@ -79,6 +95,68 @@ namespace MannLab.Games.Game2048Crash
 
             ReadPointerSwipe();
         }
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private bool HandleCrashlyticsTestTrigger()
+        {
+            if (!TryReadCrashlyticsTestTap(out var position))
+            {
+                return false;
+            }
+
+            if (position.x > CrashlyticsTestTapZoneSize || position.y < Screen.height - CrashlyticsTestTapZoneSize)
+            {
+                return false;
+            }
+
+            if (Time.unscaledTime > crashlyticsTestTapDeadline)
+            {
+                crashlyticsTestTapCount = 0;
+            }
+
+            crashlyticsTestTapDeadline = Time.unscaledTime + CrashlyticsTestTapWindowSeconds;
+            crashlyticsTestTapCount++;
+
+            if (crashlyticsTestTapCount < CrashlyticsTestTapCount)
+            {
+                return true;
+            }
+
+            crashlyticsTestTapCount = 0;
+            FirebaseTelemetry.SetContext("crashlytics_test", "true");
+            FirebaseTelemetry.LogEvent(
+                "crashlytics_test_trigger",
+                new Dictionary<string, string>
+                {
+                    { "stage", board.Stage.ToString() },
+                    { "target_value", board.SpecialValue.ToString() }
+                });
+            FirebaseTelemetry.ForceCrashForTesting();
+            return true;
+        }
+
+        private static bool TryReadCrashlyticsTestTap(out Vector2 position)
+        {
+            if (Input.touchCount > 0)
+            {
+                var touch = Input.GetTouch(0);
+                if (touch.phase == TouchPhase.Began)
+                {
+                    position = touch.position;
+                    return true;
+                }
+            }
+
+            if (Input.GetMouseButtonDown(0))
+            {
+                position = Input.mousePosition;
+                return true;
+            }
+
+            position = Vector2.zero;
+            return false;
+        }
+#endif
 
         private void StartRun()
         {
