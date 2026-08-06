@@ -167,6 +167,7 @@ Unity Android 프로토타입에서 Firebase를 붙이는 최소 순서:
 
 - Android: `docs/android-release-baseline.md`
 - iOS: `docs/ios-release-baseline.md`
+- 공통 트러블슈팅: `docs/games-troubleshooting.md`
 
 ### 오늘 배포용 최소 체크리스트
 

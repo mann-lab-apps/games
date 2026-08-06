@@ -63,6 +63,15 @@ Mann Lab Games 공통 손그림 스케치 스타일을 따른다.
 2. `2048` 명칭/상표 리스크 검토 후 공개 표시명 결정
 3. Firebase Console 앱 등록, SDK import, 실기기 Crashlytics 확인
 4. Android 내부 테스트 빌드 업로드
+5. iOS TestFlight 업로드와 App Store 심사 준비
+
+## Android 배포 준비
+
+- 앱 아이콘: `prototypes/2048-crash/Assets/_Project/Art/AppStore/AppIcon-1024.png`
+- Android release builder: `MannLab.Games.Game2048Crash.EditorTools.BuildAndroidAab`
+- 기본 산출물: `prototypes/2048-crash/Builds/Android/2048-crash.aab`
+- 실기기 확인용 APK: `prototypes/2048-crash/Builds/Android/2048-crash.apk`
+- 로컬 서명 파일: `prototypes/2048-crash/Signing/` 아래에 두고 git에는 올리지 않는다.
 
 ## 초기 결정
 
@@ -74,7 +83,13 @@ Mann Lab Games 공통 손그림 스케치 스타일을 따른다.
 
 ## Firebase 계측
 
-코드는 Firebase SDK가 없어도 컴파일되는 `FirebaseTelemetry` 어댑터를 사용한다. SDK와 `Assets/google-services.json`이 추가되면 같은 호출이 Firebase Analytics/Crashlytics로 전달된다.
+코드는 Firebase SDK가 없어도 컴파일되는 `FirebaseTelemetry` 어댑터를 사용한다. Firebase Unity SDK와 플랫폼별 Firebase config 파일이 추가되면 같은 호출이 Firebase Analytics/Crashlytics로 전달된다.
+
+iOS Firebase 앱 설정은 `Assets/GoogleService-Info.plist`에 둔다. 현재 번들 ID는 `com.mannlab.games.game2048crash`이다.
+
+Firebase Unity SDK 13.14.0의 Analytics/Crashlytics 패키지를 사용한다.
+
+Crashlytics 확인용 개발 빌드는 좌상단을 2.5초 안에 7번 탭하면 강제 테스트 크래시를 발생시킨다. 이 트리거는 Unity Editor 또는 development build에서만 컴파일된다.
 
 이벤트/브레드크럼:
 
@@ -92,3 +107,11 @@ Crashlytics custom keys:
 - `special_index`
 - `best_stage`
 - `game_over`
+
+## App Store 출시 준비
+
+- 출시 준비 문서: `docs/2048-crash-app-store-prep.md`
+- 스크린샷 생성: `node scripts/generate-2048-crash-app-store-assets.mjs`
+- 제출 준비 검증: `./scripts/verify-2048-crash-app-store-readiness.sh`
+- iOS 릴리즈 Xcode 프로젝트 생성: `REQUIRE_APP_STORE_XCODE=1 ./scripts/verify-2048-crash-ios-readiness.sh`
+- 개인정보 처리방침 URL: `https://games.mannlab.app/privacy`

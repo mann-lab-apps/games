@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+project="$repo_root/prototypes/2048-crash"
+unity_editor="/Applications/Unity/Hub/Editor/6000.3.20f1/Unity.app/Contents/MacOS/Unity"
+unity_cli="${HOME}/.unity/bin/unity"
+ios_engine="/Applications/Unity/Hub/Editor/6000.3.20f1/PlaybackEngines/iOSSupport"
+mode="${1:-release}"
+build_log="/tmp/2048-crash-unity-ios-${mode}-build.log"
+missing=0
+
+case "$mode" in
+  release)
+    build_method="MannLab.Games.Game2048Crash.EditorTools.BuildIosXcode.BuildRelease"
+    output_path="$project/Builds/iOS/Xcode"
+    ;;
+  crashlytics-test)
+    build_method="MannLab.Games.Game2048Crash.EditorTools.BuildIosXcode.BuildCrashlyticsTest"
+    output_path="$project/Builds/iOS/CrashlyticsTestXcode"
+    ;;
+  *)
+    echo "Usage: $0 [release|crashlytics-test]" >&2
+    exit 64
+    ;;
+esac
+
+if [[ ! -x "$unity_editor" ]]; then
+  echo "Unity Editor not found: $unity_editor" >&2
+  missing=1
+fi
+
+if [[ ! -d "$ios_engine" ]]; then
+  echo "Unity iOS Build Support is not installed: $ios_engine" >&2
+  echo "Install it from Unity Hub > Installs > 6000.3.20f1 > Add modules > iOS Build Support." >&2
+  missing=1
+fi
+
+if [[ ! -x "$unity_cli" ]]; then
+  echo "Unity CLI not found: $unity_cli" >&2
+  missing=1
+else
+  license_state="$("$unity_cli" license --json 2>/dev/null || true)"
+  if ! python3 -c 'import json,sys; sys.exit(0 if len(json.load(sys.stdin)["data"]) > 0 else 1)' <<< "$license_state"; then
+    echo "No Unity Editor license found. Activate a license in Unity Hub before running this script." >&2
+    missing=1
+  fi
+fi
+
+if command -v xcodebuild >/dev/null 2>&1; then
+  xcode_version="$(xcodebuild -version | awk '/Xcode/ {print $2}')"
+  xcode_major="${xcode_version%%.*}"
+else
+  xcode_version=""
+  xcode_major=""
+fi
+
+if [[ "${REQUIRE_APP_STORE_XCODE:-0}" == "1" ]]; then
+  if [[ -z "$xcode_major" || "$xcode_major" -lt 26 ]]; then
+    echo "Xcode 26 or newer is required for App Store uploads after 2026-04-28. Current: ${xcode_version:-unknown}" >&2
+    missing=1
+  fi
+elif [[ -z "$xcode_major" || "$xcode_major" -lt 26 ]]; then
+  echo "Warning: Xcode 26 or newer is required for App Store uploads after 2026-04-28. Current: ${xcode_version:-unknown}" >&2
+  echo "Local unsigned iOS build checks can still run with the installed Xcode." >&2
+fi
+
+if [[ "$missing" -ne 0 ]]; then
+  exit 2
+fi
+
+"$unity_editor" \
+  -batchmode \
+  -quit \
+  -projectPath "$project" \
+  -executeMethod "$build_method" \
+  -logFile "$build_log"
+
+test -d "$output_path"
+
+echo "iOS build log: $build_log"
+echo "iOS $mode Xcode project verified: $output_path"

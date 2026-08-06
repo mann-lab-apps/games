@@ -1,0 +1,31 @@
+{
+  "project_info": {
+    "project_number": "576112424583",
+    "project_id": "crash-6508f",
+    "storage_bucket": "crash-6508f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:576112424583:ios:38a9207559a92220d66a22",
+        "android_client_info": {
+          "package_name": "com.mannlab.games.game2048crash"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyAuRtTKyn2nkESLjGrq2j4KmgslgpHD5I8"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 0
+        },
+        "appinvite_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

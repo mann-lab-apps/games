@@ -30,6 +30,7 @@ captures/
 *.apks
 *.keystore
 *.jks
+**/Signing/
 
 # IntelliJ / Android Studio
 .idea/
@@ -59,11 +60,19 @@ MemoryCaptures/
 *.booproj
 *.svd
 *.pdb
+*.pdb.meta
 *.mdb
 *.opendb
 *.VC.db
 sysinfo.txt
 *.utmp
+
+# Firebase Unity SDK desktop runtime binaries can exceed GitHub's 100 MB file limit.
+# Reimport the Firebase Unity SDK locally if desktop editor runtime support is needed.
+prototypes/*/Assets/Firebase/Plugins/x86_64/*.bundle
+prototypes/*/Assets/Firebase/Plugins/x86_64/*.bundle.meta
+prototypes/*/Assets/Firebase/Plugins/x86_64/*.so
+prototypes/*/Assets/Firebase/Plugins/x86_64/*.so.meta
 
 # Godot
 .godot/

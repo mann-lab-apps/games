@@ -34,6 +34,7 @@ References:
 - Stable bundle identifier: `com.mannlab.games.game10000`.
 - Versioning: increment `CFBundleShortVersionString` for releases and `CFBundleVersion` for every uploaded build.
 - Signing: automatic signing with the individual developer team is the default path.
+- For manually downloaded App Store profiles, install `.mobileprovision` files under `~/Library/MobileDevice/Provisioning Profiles/` and use `Product > Archive`, not device `Run`.
 
 ## Unity Build Settings
 
@@ -81,3 +82,7 @@ References:
 - Keep test ads enabled until release verification is complete.
 - Confirm ad content is appropriate for the app age rating.
 - Add SKAdNetwork IDs required by the selected ad network.
+
+## Troubleshooting
+
+See `docs/games-troubleshooting.md` for recurring signing, provisioning, Xcode warning, WebGL screenshot, Firebase, and GitHub Pages deployment issues.

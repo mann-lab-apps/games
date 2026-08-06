@@ -72,6 +72,24 @@ namespace MannLab.Games.Game2048Crash
             InvokeCrashlyticsLogException(exception);
         }
 
+        public static void ForceCrashForTesting()
+        {
+            Initialize();
+            LogCrashlyticsMessage("Crashlytics forced test crash requested.");
+
+            if (TryInvokeCrashlyticsCrash())
+            {
+                return;
+            }
+
+            if (TryForceUnityCrash())
+            {
+                return;
+            }
+
+            throw new InvalidOperationException("Crashlytics forced test crash fallback.");
+        }
+
         private static void InvokeAnalyticsLogEvent(string eventName)
         {
             if (analyticsType == null)
@@ -138,6 +156,69 @@ namespace MannLab.Games.Game2048Crash
                 null);
 
             InvokeFirebaseMethod(method, exception);
+        }
+
+        private static bool TryInvokeCrashlyticsCrash()
+        {
+            if (crashlyticsType == null)
+            {
+                return false;
+            }
+
+            var method = crashlyticsType.GetMethod(
+                "Crash",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                Type.EmptyTypes,
+                null);
+            if (method == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                method.Invoke(null, null);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Telemetry] Crashlytics test crash call failed: {exception.GetType().Name}");
+                return false;
+            }
+        }
+
+        private static bool TryForceUnityCrash()
+        {
+            var diagnosticsType = FindType("UnityEngine.Diagnostics.Utils");
+            var categoryType = FindType("UnityEngine.Diagnostics.ForcedCrashCategory");
+            if (diagnosticsType == null || categoryType == null)
+            {
+                return false;
+            }
+
+            var method = diagnosticsType.GetMethod(
+                "ForceCrash",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { categoryType },
+                null);
+            if (method == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                var category = Enum.Parse(categoryType, "Abort");
+                method.Invoke(null, new[] { category });
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Telemetry] Unity forced crash call failed: {exception.GetType().Name}");
+                return false;
+            }
         }
 
         private static void HandleUnhandledException(object sender, UnhandledExceptionEventArgs args)
