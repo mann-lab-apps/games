@@ -261,7 +261,7 @@ namespace MannLab.Games.FlyingBird
         {
             distanceText.text = $"{Mathf.FloorToInt(distance)} m";
             bestText.text = $"Best {Mathf.FloorToInt(bestDistance)} m";
-            energyText.text = $"Energy {Mathf.CeilToInt(energy)}";
+            energyText.text = "Stamina";
             modeText.text = stallSeconds > 0f ? "STALL" : IsFlapHeld() && energy > 0.5f ? "FLAP" : "GLIDE";
             statsText.text = $"Speed {speed:0.0}   Pitch {pitch:0} deg   Alt {Mathf.FloorToInt(altitude)}";
 
@@ -393,8 +393,10 @@ namespace MannLab.Games.FlyingBird
             bestText.color = SketchPalette.MutedInk;
             SetAnchor(bestText.GetComponent<RectTransform>(), 0.31f, 0f, 0.69f, 1f);
 
-            energyText = CreateText(header.transform, "Energy 100", 34, TextAnchor.MiddleRight);
-            SetAnchor(energyText.GetComponent<RectTransform>(), 0.68f, 0f, 1f, 1f);
+            energyText = CreateText(header.transform, "Stamina", 34, TextAnchor.MiddleRight);
+            SetAnchor(energyText.GetComponent<RectTransform>(), 0.66f, 0.44f, 1f, 1f);
+
+            energyFill = CreateAnchoredBar(header.transform, "Stamina Bar", 0.69f, 0.13f, 1f, 0.36f, SketchPalette.CorrectMarker);
         }
 
         private void CreateFlightStage(Transform parent)
@@ -524,9 +526,26 @@ namespace MannLab.Games.FlyingBird
             statsText.color = SketchPalette.MutedInk;
             SetAnchor(statsText.GetComponent<RectTransform>(), 0f, 0.38f, 1f, 0.56f);
 
-            energyFill = CreateBar(panel.transform, "Energy Bar", 0.08f, SketchPalette.CorrectMarker);
             speedFill = CreateBar(panel.transform, "Speed Bar", 0.22f, SketchPalette.HatchBlue);
-            pitchFill = CreateBar(panel.transform, "Pitch Bar", 0.02f, SketchPalette.WarningAmber);
+            pitchFill = CreateBar(panel.transform, "Pitch Bar", 0.06f, SketchPalette.WarningAmber);
+        }
+
+        private Image CreateAnchoredBar(Transform parent, string name, float minX, float minY, float maxX, float maxY, Color color)
+        {
+            var shell = new GameObject(name, typeof(RectTransform), typeof(Image));
+            shell.transform.SetParent(parent, false);
+            SetAnchor(shell.GetComponent<RectTransform>(), minX, minY, maxX, maxY);
+            shell.GetComponent<Image>().color = SketchPalette.TilePaper;
+            AddSketchOutline(shell.transform);
+
+            var fill = new GameObject("Fill", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            fill.transform.SetParent(shell.transform, false);
+            Stretch(fill.GetComponent<RectTransform>(), new Vector2(5f, 5f), new Vector2(-5f, -5f));
+            fill.color = color;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            return fill;
         }
 
         private Image CreateBar(Transform parent, string name, float centerY, Color color)
