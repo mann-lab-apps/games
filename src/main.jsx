@@ -42,10 +42,11 @@ const games = [
   },
   {
     id: "flying-bird",
-    title: "날개잔고",
+    title: "Wind Gull",
     status: "Prototype",
     description: "정해진 에너지로 날개짓과 활공을 전환해 더 멀리 나는 비행 게임",
-    route: "/flying-bird",
+    route: "/wind-gull",
+    aliases: ["/flying-bird"],
     embedHref: "/games/flying-bird/index.html",
     available: true,
   },
@@ -91,7 +92,9 @@ initGoogleAnalytics();
 
 function App() {
   const pathname = window.location.pathname.replace(/\/$/, "") || "/";
-  const activeGame = games.find((game) => game.route === pathname);
+  const activeGame = games.find(
+    (game) => game.route === pathname || game.aliases?.includes(pathname),
+  );
   const isPrivacyRoute = pathname === "/privacy";
   const isPlayRoute = Boolean(activeGame);
   const selectedGame = activeGame ?? games[0];
