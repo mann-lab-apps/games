@@ -1,0 +1,16 @@
+{
+  "name": "MannLab.Games.FlyingBird",
+  "rootNamespace": "MannLab.Games.FlyingBird",
+  "references": [
+    "MannLab.HyperCasual.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

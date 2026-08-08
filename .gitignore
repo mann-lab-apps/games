@@ -50,6 +50,8 @@ captures/
 !web/mannlab-games/public/games/drum-duel/Build/**
 !web/mannlab-games/public/games/dopamine-swap/Build/
 !web/mannlab-games/public/games/dopamine-swap/Build/**
+!web/mannlab-games/public/games/flying-bird/Build/
+!web/mannlab-games/public/games/flying-bird/Build/**
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
 MemoryCaptures/
