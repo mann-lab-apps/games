@@ -13,7 +13,7 @@ namespace MannLab.Games.FlyingBird
         private const float MaxDisplayAltitude = 105f;
         private const float StartingAltitude = 56f;
         private const float StartingSpeed = 16f;
-        private const float StartingEnergy = 150f;
+        private const float StartingEnergy = 300f;
         private const float MinGustDelaySeconds = 4.2f;
         private const float MaxGustDelaySeconds = 8.4f;
         private const float MinGustDurationSeconds = 2.6f;
