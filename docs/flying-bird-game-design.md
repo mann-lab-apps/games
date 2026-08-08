@@ -1,4 +1,4 @@
-# 날개잔고 게임 기획
+# Wind Gull 게임 기획
 
 ## 한 줄 설명
 
@@ -197,8 +197,8 @@ MVP 화면:
 ## 초기 결정
 
 - 초기 가제: `플라잉버드`
-- 현재 배포명 후보: `날개잔고`
-- 영문 가제: `Wing Balance`
+- 중간 후보: `날개잔고`, `도요새`
+- 현재 배포명: `Wind Gull`
 - Unity 프로젝트 slug: `flying-bird`
 - Android package name: `com.mannlab.games.flyingbird`
 - C# namespace: `MannLab.Games.FlyingBird`

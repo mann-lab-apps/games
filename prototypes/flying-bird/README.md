@@ -1,4 +1,4 @@
-# Wing Balance / 날개잔고
+# Wind Gull
 
 Energy-limited flap/glide distance game prototype.
 

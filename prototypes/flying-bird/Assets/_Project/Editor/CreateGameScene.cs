@@ -20,7 +20,7 @@ namespace MannLab.Games.FlyingBird.EditorTools
             camera.backgroundColor = new Color32(250, 247, 239, 255);
             camera.orthographic = true;
 
-            new GameObject("Flying Bird Game", typeof(FlyingBirdController));
+            new GameObject("Wind Gull Game", typeof(FlyingBirdController));
 
             Directory.CreateDirectory("Assets/_Project/Scenes");
             EditorSceneManager.SaveScene(scene, "Assets/_Project/Scenes/Game.unity");
@@ -31,7 +31,7 @@ namespace MannLab.Games.FlyingBird.EditorTools
             };
 
             PlayerSettings.companyName = "Mann Lab";
-            PlayerSettings.productName = "Wing Balance";
+            PlayerSettings.productName = "Wind Gull";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.mannlab.games.flyingbird");
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, "com.mannlab.games.flyingbird");
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;

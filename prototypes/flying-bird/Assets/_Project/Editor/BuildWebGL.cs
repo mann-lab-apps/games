@@ -22,7 +22,7 @@ namespace MannLab.Games.FlyingBird.EditorTools
             PlayerSettings.WebGL.decompressionFallback = false;
 
             PlayerSettings.companyName = "Mann Lab";
-            PlayerSettings.productName = "Wing Balance";
+            PlayerSettings.productName = "Wind Gull";
             PlayerSettings.bundleVersion = "0.1";
 
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
