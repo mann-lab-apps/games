@@ -37,6 +37,7 @@ namespace MannLab.Games.FlyingBird
         private Image birdBody;
         private RawImage birdBodySprite;
         private RawImage wingPairSprite;
+        private RawImage birdFrameSprite;
         private Image trailImage;
         private GameObject resultPanel;
         private Text resultTitleText;
@@ -45,6 +46,9 @@ namespace MannLab.Games.FlyingBird
         private Texture2D wingsGlideTexture;
         private Texture2D wingsUpTexture;
         private Texture2D wingsDownTexture;
+        private Texture2D frameGlideTexture;
+        private Texture2D frameUpTexture;
+        private Texture2D frameDownTexture;
 
         private float distance;
         private float bestDistance;
@@ -274,7 +278,12 @@ namespace MannLab.Games.FlyingBird
             birdRoot.localRotation = Quaternion.Euler(0f, 0f, pitch);
 
             var wingAngle = Mathf.Lerp(-8f, 28f, flapPulse);
-            if (wingPairSprite != null)
+            if (birdFrameSprite != null)
+            {
+                birdFrameSprite.texture = CurrentBirdFrameTexture();
+                birdFrameSprite.color = stallSeconds > 0f ? new Color(1f, 0.88f, 0.56f, 0.96f) : Color.white;
+            }
+            else if (wingPairSprite != null)
             {
                 wingPairSprite.texture = CurrentWingTexture();
                 wingPairSprite.color = stallSeconds > 0f ? new Color(1f, 0.84f, 0.42f, 0.96f) : Color.white;
@@ -293,6 +302,17 @@ namespace MannLab.Games.FlyingBird
             trailImage.color = wind.Kind == WindKind.Updraft
                 ? new Color(SketchPalette.CorrectMarker.r, SketchPalette.CorrectMarker.g, SketchPalette.CorrectMarker.b, 0.42f)
                 : new Color(SketchPalette.HatchBlue.r, SketchPalette.HatchBlue.g, SketchPalette.HatchBlue.b, 0.32f);
+        }
+
+        private Texture CurrentBirdFrameTexture()
+        {
+            if (!IsFlapHeld() || energy <= 0.5f)
+            {
+                return frameGlideTexture;
+            }
+
+            var flapFrame = Mathf.PingPong(Time.time * 10f, 1f);
+            return flapFrame < 0.5f ? frameUpTexture : frameDownTexture;
         }
 
         private Texture CurrentWingTexture()
@@ -401,6 +421,12 @@ namespace MannLab.Games.FlyingBird
             birdRoot.anchorMax = new Vector2(0.5f, 0.5f);
             birdRoot.sizeDelta = new Vector2(390f, 260f);
 
+            if (frameGlideTexture != null && frameUpTexture != null && frameDownTexture != null)
+            {
+                CreateFullFrameBird(birdRoot);
+                return;
+            }
+
             if (gullBodyTexture != null && wingsGlideTexture != null && wingsUpTexture != null && wingsDownTexture != null)
             {
                 CreateSpriteBird(birdRoot);
@@ -436,6 +462,14 @@ namespace MannLab.Games.FlyingBird
             wingsGlideTexture = Resources.Load<Texture2D>("wind-gull-wings-glide");
             wingsUpTexture = Resources.Load<Texture2D>("wind-gull-wings-up");
             wingsDownTexture = Resources.Load<Texture2D>("wind-gull-wings-down");
+            frameGlideTexture = Resources.Load<Texture2D>("wind-gull-frame-glide");
+            frameUpTexture = Resources.Load<Texture2D>("wind-gull-frame-up");
+            frameDownTexture = Resources.Load<Texture2D>("wind-gull-frame-down");
+        }
+
+        private void CreateFullFrameBird(Transform parent)
+        {
+            birdFrameSprite = CreateRawSprite(parent, "Bird Frame Sprite", frameGlideTexture, new Vector2(360f, 252f), Vector2.zero);
         }
 
         private void CreateSpriteBird(Transform parent)
