@@ -47,7 +47,7 @@ const games = [
     description: "정해진 에너지로 날개짓과 활공을 전환해 더 멀리 나는 비행 게임",
     route: "/wind-gull",
     aliases: ["/flying-bird"],
-    embedHref: "/games/flying-bird/index.html?v=b7807107a448",
+    embedHref: "/games/flying-bird/index.html?v=142441cf48ce",
     available: true,
   },
   {
@@ -284,10 +284,11 @@ function PrivacyStage() {
             local gameplay state is not sent to Mannlab.
           </p>
           <p>
-            2048 Crash may use Firebase Analytics to understand app launches
-            and gameplay interactions, and Firebase Crashlytics to diagnose
-            crashes and stability issues. This may include device identifiers,
-            product interaction data, crash data, and performance diagnostics.
+            2048 Crash and Wind Gull may use Firebase Analytics to understand
+            app launches and gameplay interactions, and Firebase Crashlytics to
+            diagnose crashes and stability issues. This may include device
+            identifiers, product interaction data, crash data, and performance
+            diagnostics.
           </p>
           <p>
             The mobile apps do not currently include third-party advertising

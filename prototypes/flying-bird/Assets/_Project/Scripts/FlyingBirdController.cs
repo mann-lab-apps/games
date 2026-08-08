@@ -14,6 +14,11 @@ namespace MannLab.Games.FlyingBird
         private const float StartingAltitude = 56f;
         private const float StartingSpeed = 16f;
         private const float StartingEnergy = 150f;
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private const int CrashlyticsTestTapCount = 7;
+        private const float CrashlyticsTestTapWindowSeconds = 2.5f;
+        private const float CrashlyticsTestTapZoneSize = 220f;
+#endif
 
         private readonly List<WindZone> windZones = new List<WindZone>();
 
@@ -55,11 +60,20 @@ namespace MannLab.Games.FlyingBird
         private float flapPulse;
         private float stallSeconds;
         private float lastUpdraftPingDistance;
+        private float telemetryContextSeconds;
+        private bool runStarted;
         private bool runEnded;
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private int crashlyticsTestTapCount;
+        private float crashlyticsTestTapDeadline;
+#endif
 
         private void Awake()
         {
             MobileRuntime.ApplyDefaults();
+            FirebaseTelemetry.Initialize();
+            FirebaseTelemetry.SetContext("game", "wind-gull");
+            FirebaseTelemetry.LogEvent("app_open");
             random = new System.Random(Environment.TickCount);
             bestDistance = PlayerPrefs.GetFloat(BestDistanceKey, 0f);
 
@@ -76,6 +90,13 @@ namespace MannLab.Games.FlyingBird
 
         private void Update()
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (HandleCrashlyticsTestTrigger())
+            {
+                return;
+            }
+#endif
+
             if (runEnded)
             {
                 if (Input.GetKeyDown(KeyCode.R))
@@ -87,11 +108,24 @@ namespace MannLab.Games.FlyingBird
             }
 
             SimulateFlight(Time.deltaTime);
+            UpdateTelemetryContextPeriodically(Time.deltaTime);
             UpdateInterface();
         }
 
         private void StartRun()
         {
+            if (runStarted)
+            {
+                FirebaseTelemetry.LogEvent(
+                    "restart",
+                    new Dictionary<string, string>
+                    {
+                        { "distance", Mathf.FloorToInt(distance).ToString() },
+                        { "best_distance", Mathf.FloorToInt(bestDistance).ToString() }
+                    });
+            }
+
+            runStarted = true;
             distance = 0f;
             altitude = StartingAltitude;
             speed = StartingSpeed;
@@ -105,6 +139,14 @@ namespace MannLab.Games.FlyingBird
             resultPanel.SetActive(false);
 
             GenerateWindMap();
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "run_start",
+                new Dictionary<string, string>
+                {
+                    { "best_distance", Mathf.FloorToInt(bestDistance).ToString() },
+                    { "starting_energy", Mathf.FloorToInt(StartingEnergy).ToString() }
+                });
             UpdateInterface();
         }
 
@@ -194,9 +236,107 @@ namespace MannLab.Games.FlyingBird
             }
 
             UpdateInterface();
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "run_end",
+                new Dictionary<string, string>
+                {
+                    { "distance", Mathf.FloorToInt(distance).ToString() },
+                    { "best_distance", Mathf.FloorToInt(bestDistance).ToString() },
+                    { "energy", Mathf.FloorToInt(energy).ToString() }
+                });
             resultTitleText.text = "Flight End";
             resultScoreText.text = $"{Mathf.FloorToInt(distance)} m\nBest {Mathf.FloorToInt(bestDistance)} m";
             resultPanel.SetActive(true);
+        }
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private bool HandleCrashlyticsTestTrigger()
+        {
+            if (!TryReadCrashlyticsTestTap(out var position))
+            {
+                return false;
+            }
+
+            if (position.x > CrashlyticsTestTapZoneSize || position.y < Screen.height - CrashlyticsTestTapZoneSize)
+            {
+                return false;
+            }
+
+            if (Time.unscaledTime > crashlyticsTestTapDeadline)
+            {
+                crashlyticsTestTapCount = 0;
+            }
+
+            crashlyticsTestTapDeadline = Time.unscaledTime + CrashlyticsTestTapWindowSeconds;
+            crashlyticsTestTapCount++;
+
+            if (crashlyticsTestTapCount < CrashlyticsTestTapCount)
+            {
+                return true;
+            }
+
+            crashlyticsTestTapCount = 0;
+            UpdateTelemetryContext();
+            FirebaseTelemetry.SetContext("crashlytics_test", "true");
+            FirebaseTelemetry.LogEvent(
+                "crashlytics_test_trigger",
+                new Dictionary<string, string>
+                {
+                    { "distance", Mathf.FloorToInt(distance).ToString() },
+                    { "altitude", Mathf.FloorToInt(altitude).ToString() },
+                    { "energy", Mathf.FloorToInt(energy).ToString() }
+                });
+            FirebaseTelemetry.ForceCrashForTesting();
+            return true;
+        }
+
+        private static bool TryReadCrashlyticsTestTap(out Vector2 position)
+        {
+            if (Input.touchCount > 0)
+            {
+                var touch = Input.GetTouch(0);
+                if (touch.phase == TouchPhase.Began)
+                {
+                    position = touch.position;
+                    return true;
+                }
+            }
+
+            if (Input.GetMouseButtonDown(0))
+            {
+                position = Input.mousePosition;
+                return true;
+            }
+
+            position = Vector2.zero;
+            return false;
+        }
+#endif
+
+        private void UpdateTelemetryContextPeriodically(float deltaTime)
+        {
+            telemetryContextSeconds -= deltaTime;
+            if (telemetryContextSeconds > 0f)
+            {
+                return;
+            }
+
+            telemetryContextSeconds = 1.25f;
+            UpdateTelemetryContext();
+        }
+
+        private void UpdateTelemetryContext()
+        {
+            var wind = WindAt(distance);
+            FirebaseTelemetry.SetContext("distance", Mathf.FloorToInt(distance).ToString());
+            FirebaseTelemetry.SetContext("best_distance", Mathf.FloorToInt(bestDistance).ToString());
+            FirebaseTelemetry.SetContext("altitude", Mathf.FloorToInt(altitude).ToString());
+            FirebaseTelemetry.SetContext("speed", Mathf.FloorToInt(speed).ToString());
+            FirebaseTelemetry.SetContext("energy", Mathf.FloorToInt(energy).ToString());
+            FirebaseTelemetry.SetContext("wind_kind", wind.Kind.ToString());
+            FirebaseTelemetry.SetContext("wind_strength", Mathf.RoundToInt(wind.Strength * 100f).ToString());
+            FirebaseTelemetry.SetContext("run_ended", runEnded ? "true" : "false");
         }
 
         private void GenerateWindMap()

@@ -29,14 +29,16 @@ asset_version="$(shasum -a 256 \
   "$target_dir/Build/flying-bird.framework.js" \
   "$target_dir/Build/flying-bird.loader.js" \
   "$target_dir/Build/flying-bird.wasm" | shasum -a 256 | awk '{ print substr($1, 1, 12) }')"
-ASSET_VERSION="$asset_version" TARGET_DIR="$target_dir" node <<'NODE'
+ASSET_VERSION="$asset_version" REPO_ROOT="$repo_root" TARGET_DIR="$target_dir" node <<'NODE'
 const fs = require("fs");
 const path = require("path");
 
 const targetDir = process.env.TARGET_DIR;
+const repoRoot = process.env.REPO_ROOT;
 const assetVersion = process.env.ASSET_VERSION;
 const indexPath = path.join(targetDir, "index.html");
 const stylePath = path.join(targetDir, "TemplateData", "style.css");
+const appSourcePath = path.join(repoRoot, "web", "mannlab-games", "src", "main.jsx");
 
 let html = fs.readFileSync(indexPath, "utf8");
 html = html.replace(
@@ -74,6 +76,13 @@ html = html.replace(
 );
 html = html.replace("alert(message);", "showRuntimeError(message);");
 fs.writeFileSync(indexPath, html);
+
+let appSource = fs.readFileSync(appSourcePath, "utf8");
+appSource = appSource.replace(
+  /embedHref: "\/games\/flying-bird\/index\.html(?:\?v=[a-f0-9]+)?"/,
+  `embedHref: "/games/flying-bird/index.html?v=${assetVersion}"`
+);
+fs.writeFileSync(appSourcePath, appSource);
 
 const runtimeErrorCss = `
 
