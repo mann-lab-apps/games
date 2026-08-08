@@ -33,8 +33,7 @@ namespace MannLab.Games.FlyingBird
         private RawImage birdBodySprite;
         private RawImage wingPairSprite;
         private RawImage birdFrameSprite;
-        private Image[] windIconPieces;
-        private Image[] windStreaks;
+        private WindIndicatorGraphic windIndicator;
         private GameObject resultPanel;
         private Text resultTitleText;
         private Text resultScoreText;
@@ -289,42 +288,6 @@ namespace MannLab.Games.FlyingBird
                 birdBody.color = stallSeconds > 0f ? SketchPalette.WarningAmber : SketchPalette.TilePaper;
             }
 
-            UpdateWindStreaks(wind);
-        }
-
-        private void UpdateWindStreaks(WindZone wind)
-        {
-            if (windStreaks == null)
-            {
-                return;
-            }
-
-            var activeColor = WindStreakColor(wind.Kind, 0.28f);
-            var calmColor = new Color(SketchPalette.HatchBlue.r, SketchPalette.HatchBlue.g, SketchPalette.HatchBlue.b, 0.15f);
-
-            for (var i = 0; i < windStreaks.Length; i++)
-            {
-                var streak = windStreaks[i];
-                if (streak != null)
-                {
-                    streak.color = wind.Kind == WindKind.Calm ? calmColor : activeColor;
-                }
-            }
-        }
-
-        private static Color WindStreakColor(WindKind kind, float alpha)
-        {
-            switch (kind)
-            {
-                case WindKind.Headwind:
-                    return WithAlpha(SketchPalette.WarningAmber, alpha);
-                case WindKind.Updraft:
-                    return WithAlpha(SketchPalette.CorrectMarker, alpha);
-                case WindKind.Tailwind:
-                    return WithAlpha(SketchPalette.FocusBlue, alpha);
-                default:
-                    return WithAlpha(SketchPalette.HatchBlue, alpha);
-            }
         }
 
         private void UpdateEnergyGauge()
@@ -342,37 +305,14 @@ namespace MannLab.Games.FlyingBird
 
         private void UpdateWindIcon(WindZone wind, WindZone nextWind)
         {
-            if (windIconPieces == null)
+            if (windIndicator == null)
             {
                 return;
             }
 
             var displayedKind = wind.Kind == WindKind.Calm ? nextWind.Kind : wind.Kind;
-            var alpha = wind.Kind == WindKind.Calm ? 0.45f : 0.9f;
-            var color = WithAlpha(SketchPalette.MutedInk, 0.34f);
-            switch (displayedKind)
-            {
-                case WindKind.Tailwind:
-                    color = WithAlpha(SketchPalette.FocusBlue, alpha);
-                    break;
-                case WindKind.Headwind:
-                    color = WithAlpha(SketchPalette.WarningAmber, alpha);
-                    break;
-                case WindKind.Updraft:
-                    color = WithAlpha(SketchPalette.CorrectMarker, alpha);
-                    break;
-            }
-
-            for (var i = 0; i < windIconPieces.Length; i++)
-            {
-                if (windIconPieces[i] != null)
-                {
-                    windIconPieces[i].enabled = displayedKind != WindKind.Calm;
-                    windIconPieces[i].color = color;
-                }
-            }
-
-            SetWindIconShape(displayedKind);
+            var displayedStrength = wind.Kind == WindKind.Calm ? nextWind.Strength * 0.55f : wind.Strength;
+            windIndicator.Configure(displayedKind, displayedStrength, wind.Kind == WindKind.Calm);
         }
 
         private Texture CurrentBirdFrameTexture()
@@ -475,7 +415,6 @@ namespace MannLab.Games.FlyingBird
             CreateClouds(stage.transform);
             CreateSeaBand(stage.transform);
             CreateShoreline(stage.transform);
-            CreateWindStreaks(stage.transform);
             CreateWindIcon(stage.transform);
 
             birdRoot = new GameObject("Bird", typeof(RectTransform)).GetComponent<RectTransform>();
@@ -635,99 +574,12 @@ namespace MannLab.Games.FlyingBird
             line.GetComponent<Image>().color = color;
         }
 
-        private void CreateWindStreaks(Transform parent)
-        {
-            windStreaks = new Image[8];
-            for (var i = 0; i < windStreaks.Length; i++)
-            {
-                var streak = new GameObject($"Wind Streak {i + 1}", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
-                streak.transform.SetParent(parent, false);
-                var y = 0.29f + i * 0.073f;
-                var width = 0.13f + i % 3 * 0.07f;
-                var x = 0.04f + i * 0.115f;
-                SetAnchor(streak.GetComponent<RectTransform>(), x, y, Mathf.Min(0.98f, x + width), y + 0.004f);
-                streak.color = new Color(SketchPalette.HatchBlue.r, SketchPalette.HatchBlue.g, SketchPalette.HatchBlue.b, 0.13f);
-            }
-        }
-
         private void CreateWindIcon(Transform parent)
         {
-            var root = new GameObject("Wind Icon", typeof(RectTransform)).GetComponent<RectTransform>();
-            root.transform.SetParent(parent, false);
-            SetAnchor(root, 0.80f, 0.75f, 0.98f, 0.95f);
-
-            windIconPieces = new Image[5];
-            for (var i = 0; i < windIconPieces.Length; i++)
-            {
-                windIconPieces[i] = CreateIconStroke(root, $"Wind Icon Stroke {i + 1}");
-            }
-        }
-
-        private static Image CreateIconStroke(Transform parent, string name)
-        {
-            var stroke = new GameObject(name, typeof(RectTransform), typeof(Image)).GetComponent<Image>();
-            stroke.transform.SetParent(parent, false);
-            stroke.color = SketchPalette.FocusBlue;
-            stroke.raycastTarget = false;
-            stroke.enabled = false;
-            return stroke;
-        }
-
-        private void SetWindIconShape(WindKind kind)
-        {
-            if (windIconPieces == null)
-            {
-                return;
-            }
-
-            for (var i = 0; i < windIconPieces.Length; i++)
-            {
-                if (windIconPieces[i] != null)
-                {
-                    windIconPieces[i].enabled = kind != WindKind.Calm;
-                }
-            }
-
-            switch (kind)
-            {
-                case WindKind.Tailwind:
-                    SetIconStroke(0, new Vector2(-8f, 0f), new Vector2(78f, 9f), 0f);
-                    SetIconStroke(1, new Vector2(34f, 15f), new Vector2(44f, 9f), -42f);
-                    SetIconStroke(2, new Vector2(34f, -15f), new Vector2(44f, 9f), 42f);
-                    SetIconStroke(3, new Vector2(-42f, 22f), new Vector2(58f, 6f), 0f);
-                    SetIconStroke(4, new Vector2(-50f, -22f), new Vector2(44f, 6f), 0f);
-                    break;
-                case WindKind.Headwind:
-                    SetIconStroke(0, new Vector2(8f, 0f), new Vector2(78f, 9f), 0f);
-                    SetIconStroke(1, new Vector2(-34f, 15f), new Vector2(44f, 9f), 42f);
-                    SetIconStroke(2, new Vector2(-34f, -15f), new Vector2(44f, 9f), -42f);
-                    SetIconStroke(3, new Vector2(42f, 22f), new Vector2(58f, 6f), 0f);
-                    SetIconStroke(4, new Vector2(50f, -22f), new Vector2(44f, 6f), 0f);
-                    break;
-                case WindKind.Updraft:
-                    SetIconStroke(0, new Vector2(0f, -10f), new Vector2(9f, 82f), 0f);
-                    SetIconStroke(1, new Vector2(-14f, 28f), new Vector2(42f, 9f), 42f);
-                    SetIconStroke(2, new Vector2(14f, 28f), new Vector2(42f, 9f), -42f);
-                    SetIconStroke(3, new Vector2(-38f, -18f), new Vector2(7f, 54f), 0f);
-                    SetIconStroke(4, new Vector2(38f, -26f), new Vector2(7f, 44f), 0f);
-                    break;
-            }
-        }
-
-        private void SetIconStroke(int index, Vector2 position, Vector2 size, float rotation)
-        {
-            if (windIconPieces == null || index < 0 || index >= windIconPieces.Length || windIconPieces[index] == null)
-            {
-                return;
-            }
-
-            var rect = windIconPieces[index].GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = size;
-            rect.anchoredPosition = position;
-            rect.localRotation = Quaternion.Euler(0f, 0f, rotation);
+            windIndicator = new GameObject("Wind Indicator", typeof(RectTransform), typeof(WindIndicatorGraphic)).GetComponent<WindIndicatorGraphic>();
+            windIndicator.transform.SetParent(parent, false);
+            windIndicator.raycastTarget = false;
+            SetAnchor(windIndicator.GetComponent<RectTransform>(), 0.78f, 0.735f, 0.985f, 0.965f);
         }
 
         private static SketchHatchFillGraphic CreateHatchPatch(
@@ -911,6 +763,225 @@ namespace MannLab.Games.FlyingBird
             var clip = AudioClip.Create(clipName, sampleCount, 1, sampleRate, false);
             clip.SetData(samples, 0);
             return clip;
+        }
+
+        private sealed class WindIndicatorGraphic : Graphic
+        {
+            private WindKind windKind = WindKind.Calm;
+            private float strength;
+            private bool preview;
+
+            public void Configure(WindKind kind, float windStrength, bool isPreview)
+            {
+                windKind = kind;
+                strength = Mathf.Clamp01((windStrength - 0.45f) / 1.05f);
+                preview = isPreview;
+                SetVerticesDirty();
+            }
+
+            protected override void OnPopulateMesh(VertexHelper vh)
+            {
+                vh.Clear();
+
+                var rect = GetPixelAdjustedRect();
+                var center = rect.center;
+                var size = Mathf.Min(rect.width, rect.height);
+                var radius = Mathf.Max(12f, size * 0.44f);
+                var iconColor = WindColor(windKind, preview ? 0.52f : 0.92f);
+                var inkColor = WithAlpha(SketchPalette.Ink, preview ? 0.38f : 0.72f);
+                var paperColor = new Color(SketchPalette.TilePaper.r, SketchPalette.TilePaper.g, SketchPalette.TilePaper.b, preview ? 0.62f : 0.86f);
+
+                AddEllipse(vh, center, new Vector2(radius, radius), paperColor);
+                AddEllipseOutline(vh, center, radius, inkColor, Mathf.Max(2f, radius * 0.035f));
+
+                switch (windKind)
+                {
+                    case WindKind.Tailwind:
+                        AddWindsock(vh, center, radius, 1f, iconColor, inkColor);
+                        break;
+                    case WindKind.Headwind:
+                        AddWindsock(vh, center, radius, -1f, iconColor, inkColor);
+                        break;
+                    case WindKind.Updraft:
+                        AddUpdraft(vh, center, radius, iconColor, inkColor);
+                        break;
+                    default:
+                        AddCalm(vh, center, radius, inkColor);
+                        break;
+                }
+
+                AddStrengthPips(vh, center, radius, iconColor);
+            }
+
+            private static Color WindColor(WindKind kind, float alpha)
+            {
+                switch (kind)
+                {
+                    case WindKind.Headwind:
+                        return WithAlpha(SketchPalette.WarningAmber, alpha);
+                    case WindKind.Updraft:
+                        return WithAlpha(SketchPalette.CorrectMarker, alpha);
+                    case WindKind.Tailwind:
+                        return WithAlpha(SketchPalette.FocusBlue, alpha);
+                    default:
+                        return WithAlpha(SketchPalette.MutedInk, alpha * 0.75f);
+                }
+            }
+
+            private static void AddWindsock(VertexHelper vh, Vector2 center, float radius, float direction, Color fillColor, Color lineColor)
+            {
+                var mastTop = center + new Vector2(-direction * radius * 0.44f, radius * 0.28f);
+                var mastBottom = center + new Vector2(-direction * radius * 0.44f, -radius * 0.28f);
+                var mouthTop = center + new Vector2(-direction * radius * 0.32f, radius * 0.22f);
+                var mouthBottom = center + new Vector2(-direction * radius * 0.32f, -radius * 0.10f);
+                var tipTop = center + new Vector2(direction * radius * 0.42f, radius * 0.10f);
+                var tipBottom = center + new Vector2(direction * radius * 0.34f, -radius * 0.22f);
+
+                AddLine(vh, mastTop, mastBottom, lineColor, radius * 0.055f);
+                AddPolygon(vh, new[] { mouthTop, tipTop, tipBottom, mouthBottom }, WithAlpha(fillColor, fillColor.a * 0.58f));
+                AddLine(vh, mouthTop, tipTop, lineColor, radius * 0.045f);
+                AddLine(vh, tipTop, tipBottom, lineColor, radius * 0.045f);
+                AddLine(vh, tipBottom, mouthBottom, lineColor, radius * 0.045f);
+                AddLine(vh, mouthTop, mouthBottom, lineColor, radius * 0.045f);
+                AddLine(vh, Vector2.Lerp(mouthTop, tipTop, 0.43f), Vector2.Lerp(mouthBottom, tipBottom, 0.43f), WithAlpha(lineColor, lineColor.a * 0.55f), radius * 0.03f);
+                AddLine(vh, center + new Vector2(-direction * radius * 0.62f, -radius * 0.35f), center + new Vector2(direction * radius * 0.52f, -radius * 0.35f), WithAlpha(lineColor, lineColor.a * 0.55f), radius * 0.032f);
+            }
+
+            private static void AddUpdraft(VertexHelper vh, Vector2 center, float radius, Color fillColor, Color lineColor)
+            {
+                var bottom = center + new Vector2(0f, -radius * 0.34f);
+                var top = center + new Vector2(0f, radius * 0.36f);
+                AddLine(vh, bottom, top, lineColor, radius * 0.06f);
+                AddLine(vh, top, top + new Vector2(-radius * 0.18f, -radius * 0.20f), lineColor, radius * 0.055f);
+                AddLine(vh, top, top + new Vector2(radius * 0.18f, -radius * 0.20f), lineColor, radius * 0.055f);
+                AddArc(vh, center + new Vector2(-radius * 0.19f, -radius * 0.04f), radius * 0.28f, 220f, 38f, fillColor, radius * 0.045f);
+                AddArc(vh, center + new Vector2(radius * 0.18f, radius * 0.05f), radius * 0.25f, 40f, 220f, fillColor, radius * 0.045f);
+            }
+
+            private static void AddCalm(VertexHelper vh, Vector2 center, float radius, Color lineColor)
+            {
+                AddEllipse(vh, center + new Vector2(-radius * 0.22f, radius * 0.03f), new Vector2(radius * 0.17f, radius * 0.12f), WithAlpha(lineColor, lineColor.a * 0.36f));
+                AddEllipse(vh, center + new Vector2(0f, radius * 0.10f), new Vector2(radius * 0.22f, radius * 0.15f), WithAlpha(lineColor, lineColor.a * 0.30f));
+                AddEllipse(vh, center + new Vector2(radius * 0.24f, radius * 0.01f), new Vector2(radius * 0.16f, radius * 0.11f), WithAlpha(lineColor, lineColor.a * 0.28f));
+            }
+
+            private void AddStrengthPips(VertexHelper vh, Vector2 center, float radius, Color activeColor)
+            {
+                var activeCount = windKind == WindKind.Calm ? 0 : Mathf.Clamp(Mathf.CeilToInt(strength * 3f), 1, 3);
+                var pipSize = new Vector2(radius * 0.16f, radius * 0.08f);
+                var y = center.y - radius * 0.58f;
+
+                for (var i = 0; i < 3; i++)
+                {
+                    var x = center.x + (i - 1) * radius * 0.24f;
+                    var color = i < activeCount ? WithAlpha(activeColor, Mathf.Min(1f, activeColor.a + 0.08f)) : WithAlpha(SketchPalette.MutedInk, 0.18f);
+                    AddQuad(vh, new Rect(x - pipSize.x * 0.5f, y - pipSize.y * 0.5f, pipSize.x, pipSize.y), color);
+                }
+            }
+
+            private static void AddEllipse(VertexHelper vh, Vector2 center, Vector2 radius, Color vertexColor)
+            {
+                const int segments = 36;
+                var centerIndex = vh.currentVertCount;
+                vh.AddVert(center, vertexColor, Vector2.zero);
+
+                for (var i = 0; i <= segments; i++)
+                {
+                    var angle = Mathf.PI * 2f * i / segments;
+                    var point = center + new Vector2(Mathf.Cos(angle) * radius.x, Mathf.Sin(angle) * radius.y);
+                    vh.AddVert(point, vertexColor, Vector2.zero);
+                }
+
+                for (var i = 1; i <= segments; i++)
+                {
+                    vh.AddTriangle(centerIndex, centerIndex + i, centerIndex + i + 1);
+                }
+            }
+
+            private static void AddEllipseOutline(VertexHelper vh, Vector2 center, float radius, Color vertexColor, float thickness)
+            {
+                const int segments = 48;
+                var previous = center + new Vector2(radius, 0f);
+
+                for (var i = 1; i <= segments; i++)
+                {
+                    var angle = Mathf.PI * 2f * i / segments;
+                    var next = center + new Vector2(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius);
+                    AddLine(vh, previous, next, vertexColor, thickness);
+                    previous = next;
+                }
+            }
+
+            private static void AddArc(VertexHelper vh, Vector2 center, float radius, float startDegrees, float endDegrees, Color vertexColor, float thickness)
+            {
+                const int segments = 12;
+                var previous = PointOnCircle(center, radius, startDegrees);
+
+                for (var i = 1; i <= segments; i++)
+                {
+                    var t = i / (float)segments;
+                    var angle = Mathf.LerpAngle(startDegrees, endDegrees, t);
+                    var next = PointOnCircle(center, radius, angle);
+                    AddLine(vh, previous, next, vertexColor, thickness);
+                    previous = next;
+                }
+            }
+
+            private static Vector2 PointOnCircle(Vector2 center, float radius, float degrees)
+            {
+                var radians = degrees * Mathf.Deg2Rad;
+                return center + new Vector2(Mathf.Cos(radians) * radius, Mathf.Sin(radians) * radius);
+            }
+
+            private static void AddPolygon(VertexHelper vh, Vector2[] points, Color vertexColor)
+            {
+                if (points == null || points.Length < 3)
+                {
+                    return;
+                }
+
+                var start = vh.currentVertCount;
+                for (var i = 0; i < points.Length; i++)
+                {
+                    vh.AddVert(points[i], vertexColor, Vector2.zero);
+                }
+
+                for (var i = 1; i < points.Length - 1; i++)
+                {
+                    vh.AddTriangle(start, start + i, start + i + 1);
+                }
+            }
+
+            private static void AddQuad(VertexHelper vh, Rect rect, Color vertexColor)
+            {
+                var index = vh.currentVertCount;
+                vh.AddVert(new Vector2(rect.xMin, rect.yMin), vertexColor, Vector2.zero);
+                vh.AddVert(new Vector2(rect.xMin, rect.yMax), vertexColor, Vector2.zero);
+                vh.AddVert(new Vector2(rect.xMax, rect.yMax), vertexColor, Vector2.zero);
+                vh.AddVert(new Vector2(rect.xMax, rect.yMin), vertexColor, Vector2.zero);
+                vh.AddTriangle(index, index + 1, index + 2);
+                vh.AddTriangle(index, index + 2, index + 3);
+            }
+
+            private static void AddLine(VertexHelper vh, Vector2 start, Vector2 end, Color vertexColor, float lineThickness)
+            {
+                var delta = end - start;
+                if (delta.sqrMagnitude <= Mathf.Epsilon)
+                {
+                    return;
+                }
+
+                var direction = delta.normalized;
+                var normal = new Vector2(-direction.y, direction.x) * (lineThickness * 0.5f);
+                var index = vh.currentVertCount;
+
+                vh.AddVert(start - normal, vertexColor, Vector2.zero);
+                vh.AddVert(start + normal, vertexColor, Vector2.zero);
+                vh.AddVert(end + normal, vertexColor, Vector2.zero);
+                vh.AddVert(end - normal, vertexColor, Vector2.zero);
+                vh.AddTriangle(index, index + 1, index + 2);
+                vh.AddTriangle(index, index + 2, index + 3);
+            }
         }
 
         private sealed class EllipseHatchGraphic : Graphic
