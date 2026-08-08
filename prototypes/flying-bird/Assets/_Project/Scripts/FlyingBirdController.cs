@@ -35,10 +35,16 @@ namespace MannLab.Games.FlyingBird
         private RectTransform leftWing;
         private RectTransform rightWing;
         private Image birdBody;
+        private RawImage birdBodySprite;
+        private RawImage wingPairSprite;
         private Image trailImage;
         private GameObject resultPanel;
         private Text resultTitleText;
         private Text resultScoreText;
+        private Texture2D gullBodyTexture;
+        private Texture2D wingsGlideTexture;
+        private Texture2D wingsUpTexture;
+        private Texture2D wingsDownTexture;
 
         private float distance;
         private float bestDistance;
@@ -268,12 +274,36 @@ namespace MannLab.Games.FlyingBird
             birdRoot.localRotation = Quaternion.Euler(0f, 0f, pitch);
 
             var wingAngle = Mathf.Lerp(-8f, 28f, flapPulse);
-            leftWing.localRotation = Quaternion.Euler(0f, 0f, wingAngle);
-            rightWing.localRotation = Quaternion.Euler(0f, 0f, -wingAngle);
-            birdBody.color = stallSeconds > 0f ? SketchPalette.WarningAmber : SketchPalette.TilePaper;
+            if (wingPairSprite != null)
+            {
+                wingPairSprite.texture = CurrentWingTexture();
+                wingPairSprite.color = stallSeconds > 0f ? new Color(1f, 0.84f, 0.42f, 0.96f) : Color.white;
+                if (birdBodySprite != null)
+                {
+                    birdBodySprite.color = stallSeconds > 0f ? new Color(1f, 0.88f, 0.56f, 0.96f) : Color.white;
+                }
+            }
+            else
+            {
+                leftWing.localRotation = Quaternion.Euler(0f, 0f, wingAngle);
+                rightWing.localRotation = Quaternion.Euler(0f, 0f, -wingAngle);
+                birdBody.color = stallSeconds > 0f ? SketchPalette.WarningAmber : SketchPalette.TilePaper;
+            }
+
             trailImage.color = wind.Kind == WindKind.Updraft
                 ? new Color(SketchPalette.CorrectMarker.r, SketchPalette.CorrectMarker.g, SketchPalette.CorrectMarker.b, 0.42f)
                 : new Color(SketchPalette.HatchBlue.r, SketchPalette.HatchBlue.g, SketchPalette.HatchBlue.b, 0.32f);
+        }
+
+        private Texture CurrentWingTexture()
+        {
+            if (!IsFlapHeld() || energy <= 0.5f)
+            {
+                return wingsGlideTexture;
+            }
+
+            var flapFrame = Mathf.PingPong(Time.time * 10f, 1f);
+            return flapFrame < 0.5f ? wingsUpTexture : wingsDownTexture;
         }
 
         private void PlayClip(AudioClip clip)
@@ -287,6 +317,7 @@ namespace MannLab.Games.FlyingBird
         private void BuildInterface()
         {
             EnsureEventSystem();
+            LoadBirdTextures();
 
             var canvas = CreateCanvas();
             CreateBackground(canvas.transform);
@@ -368,7 +399,13 @@ namespace MannLab.Games.FlyingBird
             birdRoot.transform.SetParent(stage.transform, false);
             birdRoot.anchorMin = new Vector2(0.5f, 0.5f);
             birdRoot.anchorMax = new Vector2(0.5f, 0.5f);
-            birdRoot.sizeDelta = new Vector2(190f, 122f);
+            birdRoot.sizeDelta = new Vector2(390f, 260f);
+
+            if (gullBodyTexture != null && wingsGlideTexture != null && wingsUpTexture != null && wingsDownTexture != null)
+            {
+                CreateSpriteBird(birdRoot);
+                return;
+            }
 
             birdBody = new GameObject("Body", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
             birdBody.transform.SetParent(birdRoot, false);
@@ -391,6 +428,38 @@ namespace MannLab.Games.FlyingBird
             beak.color = SketchPalette.WarningAmber;
             beak.alignment = TextAnchor.MiddleCenter;
             SetAnchor(beak.GetComponent<RectTransform>(), 0.78f, 0.22f, 1f, 0.78f);
+        }
+
+        private void LoadBirdTextures()
+        {
+            gullBodyTexture = Resources.Load<Texture2D>("wind-gull-body");
+            wingsGlideTexture = Resources.Load<Texture2D>("wind-gull-wings-glide");
+            wingsUpTexture = Resources.Load<Texture2D>("wind-gull-wings-up");
+            wingsDownTexture = Resources.Load<Texture2D>("wind-gull-wings-down");
+        }
+
+        private void CreateSpriteBird(Transform parent)
+        {
+            wingPairSprite = CreateRawSprite(parent, "Wing Pair", wingsGlideTexture, new Vector2(360f, 230f), new Vector2(-22f, 0f));
+            wingPairSprite.transform.SetAsFirstSibling();
+
+            birdBodySprite = CreateRawSprite(parent, "Body Sprite", gullBodyTexture, new Vector2(300f, 122f), new Vector2(-4f, 4f));
+        }
+
+        private static RawImage CreateRawSprite(Transform parent, string name, Texture texture, Vector2 size, Vector2 anchoredPosition)
+        {
+            var rawImage = new GameObject(name, typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+            rawImage.transform.SetParent(parent, false);
+            rawImage.texture = texture;
+            rawImage.color = Color.white;
+
+            var rect = rawImage.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = size;
+            rect.anchoredPosition = anchoredPosition;
+            return rawImage;
         }
 
         private RectTransform CreateWing(Transform parent, string name, Vector2 anchor, float rotation)
