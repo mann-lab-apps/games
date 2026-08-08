@@ -937,10 +937,10 @@ namespace MannLab.Games.FlyingBird
                 switch (windKind)
                 {
                     case WindKind.Tailwind:
-                        AddWindsock(vh, center, radius, 1f, iconColor, inkColor);
+                        AddDirectionalArrow(vh, center, radius, 1f, iconColor, inkColor);
                         break;
                     case WindKind.Headwind:
-                        AddWindsock(vh, center, radius, -1f, iconColor, inkColor);
+                        AddDirectionalArrow(vh, center, radius, -1f, iconColor, inkColor);
                         break;
                     case WindKind.Updraft:
                         AddUpdraft(vh, center, radius, iconColor, inkColor);
@@ -950,7 +950,7 @@ namespace MannLab.Games.FlyingBird
                         break;
                 }
 
-                AddStrengthPips(vh, center, radius, iconColor);
+                AddStrengthBars(vh, center, radius, iconColor);
             }
 
             private static Color WindColor(WindKind kind, float alpha)
@@ -968,34 +968,42 @@ namespace MannLab.Games.FlyingBird
                 }
             }
 
-            private static void AddWindsock(VertexHelper vh, Vector2 center, float radius, float direction, Color fillColor, Color lineColor)
+            private static void AddDirectionalArrow(VertexHelper vh, Vector2 center, float radius, float direction, Color fillColor, Color lineColor)
             {
-                var mastTop = center + new Vector2(-direction * radius * 0.44f, radius * 0.28f);
-                var mastBottom = center + new Vector2(-direction * radius * 0.44f, -radius * 0.28f);
-                var mouthTop = center + new Vector2(-direction * radius * 0.32f, radius * 0.22f);
-                var mouthBottom = center + new Vector2(-direction * radius * 0.32f, -radius * 0.10f);
-                var tipTop = center + new Vector2(direction * radius * 0.42f, radius * 0.10f);
-                var tipBottom = center + new Vector2(direction * radius * 0.34f, -radius * 0.22f);
+                var y = center.y + radius * 0.06f;
+                var tail = new Vector2(center.x - direction * radius * 0.44f, y);
+                var neck = new Vector2(center.x + direction * radius * 0.18f, y);
+                var tip = new Vector2(center.x + direction * radius * 0.48f, y);
+                var headTop = neck + new Vector2(0f, radius * 0.24f);
+                var headBottom = neck + new Vector2(0f, -radius * 0.24f);
 
-                AddLine(vh, mastTop, mastBottom, lineColor, radius * 0.055f);
-                AddPolygon(vh, new[] { mouthTop, tipTop, tipBottom, mouthBottom }, WithAlpha(fillColor, fillColor.a * 0.58f));
-                AddLine(vh, mouthTop, tipTop, lineColor, radius * 0.045f);
-                AddLine(vh, tipTop, tipBottom, lineColor, radius * 0.045f);
-                AddLine(vh, tipBottom, mouthBottom, lineColor, radius * 0.045f);
-                AddLine(vh, mouthTop, mouthBottom, lineColor, radius * 0.045f);
-                AddLine(vh, Vector2.Lerp(mouthTop, tipTop, 0.43f), Vector2.Lerp(mouthBottom, tipBottom, 0.43f), WithAlpha(lineColor, lineColor.a * 0.55f), radius * 0.03f);
-                AddLine(vh, center + new Vector2(-direction * radius * 0.62f, -radius * 0.35f), center + new Vector2(direction * radius * 0.52f, -radius * 0.35f), WithAlpha(lineColor, lineColor.a * 0.55f), radius * 0.032f);
+                AddLine(vh, tail, neck, lineColor, radius * 0.075f);
+                AddPolygon(vh, new[] { tip, headTop, headBottom }, WithAlpha(fillColor, fillColor.a * 0.72f));
+                AddLine(vh, tip, headTop, lineColor, radius * 0.045f);
+                AddLine(vh, tip, headBottom, lineColor, radius * 0.045f);
+                AddLine(vh, headTop, headBottom, lineColor, radius * 0.045f);
+
+                var gustColor = WithAlpha(lineColor, lineColor.a * 0.48f);
+                var behindX = center.x - direction * radius * 0.54f;
+                AddLine(vh, new Vector2(behindX, y + radius * 0.18f), new Vector2(behindX + direction * radius * 0.22f, y + radius * 0.18f), gustColor, radius * 0.032f);
+                AddLine(vh, new Vector2(behindX - direction * radius * 0.06f, y - radius * 0.18f), new Vector2(behindX + direction * radius * 0.18f, y - radius * 0.18f), gustColor, radius * 0.032f);
             }
 
             private static void AddUpdraft(VertexHelper vh, Vector2 center, float radius, Color fillColor, Color lineColor)
             {
-                var bottom = center + new Vector2(0f, -radius * 0.34f);
-                var top = center + new Vector2(0f, radius * 0.36f);
-                AddLine(vh, bottom, top, lineColor, radius * 0.06f);
-                AddLine(vh, top, top + new Vector2(-radius * 0.18f, -radius * 0.20f), lineColor, radius * 0.055f);
-                AddLine(vh, top, top + new Vector2(radius * 0.18f, -radius * 0.20f), lineColor, radius * 0.055f);
-                AddArc(vh, center + new Vector2(-radius * 0.19f, -radius * 0.04f), radius * 0.28f, 220f, 38f, fillColor, radius * 0.045f);
-                AddArc(vh, center + new Vector2(radius * 0.18f, radius * 0.05f), radius * 0.25f, 40f, 220f, fillColor, radius * 0.045f);
+                var bottom = center + new Vector2(0f, -radius * 0.35f);
+                var neck = center + new Vector2(0f, radius * 0.18f);
+                var tip = center + new Vector2(0f, radius * 0.48f);
+                var headLeft = neck + new Vector2(-radius * 0.24f, 0f);
+                var headRight = neck + new Vector2(radius * 0.24f, 0f);
+
+                AddLine(vh, bottom, neck, lineColor, radius * 0.075f);
+                AddPolygon(vh, new[] { tip, headLeft, headRight }, WithAlpha(fillColor, fillColor.a * 0.72f));
+                AddLine(vh, tip, headLeft, lineColor, radius * 0.045f);
+                AddLine(vh, tip, headRight, lineColor, radius * 0.045f);
+                AddLine(vh, headLeft, headRight, lineColor, radius * 0.045f);
+                AddArc(vh, center + new Vector2(-radius * 0.22f, -radius * 0.08f), radius * 0.22f, 230f, 30f, WithAlpha(fillColor, fillColor.a * 0.62f), radius * 0.04f);
+                AddArc(vh, center + new Vector2(radius * 0.23f, -radius * 0.02f), radius * 0.20f, 50f, 235f, WithAlpha(fillColor, fillColor.a * 0.62f), radius * 0.04f);
             }
 
             private static void AddCalm(VertexHelper vh, Vector2 center, float radius, Color lineColor)
@@ -1005,17 +1013,20 @@ namespace MannLab.Games.FlyingBird
                 AddEllipse(vh, center + new Vector2(radius * 0.24f, radius * 0.01f), new Vector2(radius * 0.16f, radius * 0.11f), WithAlpha(lineColor, lineColor.a * 0.28f));
             }
 
-            private void AddStrengthPips(VertexHelper vh, Vector2 center, float radius, Color activeColor)
+            private void AddStrengthBars(VertexHelper vh, Vector2 center, float radius, Color activeColor)
             {
                 var activeCount = windKind == WindKind.Calm ? 0 : Mathf.Clamp(Mathf.CeilToInt(strength * 3f), 1, 3);
-                var pipSize = new Vector2(radius * 0.16f, radius * 0.08f);
-                var y = center.y - radius * 0.58f;
+                var barWidth = radius * 0.13f;
+                var gap = radius * 0.08f;
+                var baseline = center.y - radius * 0.56f;
+                var startX = center.x - barWidth * 1.5f - gap;
 
                 for (var i = 0; i < 3; i++)
                 {
-                    var x = center.x + (i - 1) * radius * 0.24f;
+                    var height = radius * (0.10f + i * 0.08f);
+                    var x = startX + i * (barWidth + gap);
                     var color = i < activeCount ? WithAlpha(activeColor, Mathf.Min(1f, activeColor.a + 0.08f)) : WithAlpha(SketchPalette.MutedInk, 0.18f);
-                    AddQuad(vh, new Rect(x - pipSize.x * 0.5f, y - pipSize.y * 0.5f, pipSize.x, pipSize.y), color);
+                    AddQuad(vh, new Rect(x, baseline, barWidth, height), color);
                 }
             }
 
