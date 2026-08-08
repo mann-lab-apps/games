@@ -11,7 +11,7 @@ namespace MannLab.Games.FlyingBird
     {
         private const string BestDistanceKey = "mannlab.flying_bird.best_distance";
         private const float MaxDisplayAltitude = 170f;
-        private const float StartingAltitude = 56f;
+        private const float StartingAltitude = 88f;
         private const float StartingSpeed = 16f;
         private const float StartingEnergy = 300f;
         private const float MinGustDelaySeconds = 4.2f;
