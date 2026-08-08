@@ -13,7 +13,7 @@ namespace MannLab.Games.FlyingBird
         private const float MaxDisplayAltitude = 105f;
         private const float StartingAltitude = 56f;
         private const float StartingSpeed = 16f;
-        private const float StartingEnergy = 170f;
+        private const float StartingEnergy = 150f;
 
         private readonly List<WindZone> windZones = new List<WindZone>();
 
@@ -601,7 +601,7 @@ namespace MannLab.Games.FlyingBird
         private static void CreateCloud(Transform parent, string name, float x, float y, float width, float height, int seed)
         {
             var background = new Color32(255, 253, 247, 190);
-            var hatch = new Color32(133, 203, 255, 70);
+            var hatch = new Color32(255, 255, 255, 105);
 
             CreateEllipseHatch(parent, $"{name} Body", x, y, x + width, y + height, background, hatch, 18f, 2.1f, seed);
             CreateEllipseHatch(parent, $"{name} Lift", x + width * 0.16f, y + height * 0.28f, x + width * 0.58f, y + height * 1.16f, background, hatch, 16f, 2f, seed + 9);
@@ -611,7 +611,8 @@ namespace MannLab.Games.FlyingBird
         private static void CreateSeaBand(Transform parent)
         {
             CreateHatchPatch(parent, "Sea", 0f, 0f, 1f, 0.16f, new Color32(250, 247, 239, 0), new Color32(61, 135, 176, 125), 4f, 20f, 2.6f, 203);
-            CreateHatchPatch(parent, "Distant Water", 0f, 0.16f, 1f, 0.19f, new Color32(250, 247, 239, 0), new Color32(102, 97, 90, 70), 2f, 22f, 2f, 241);
+            CreateSolidLine(parent, "Horizon Line", 0.02f, 0.178f, 0.98f, 0.181f, new Color32(55, 51, 47, 150));
+            CreateSolidLine(parent, "Water Edge", 0.05f, 0.157f, 0.86f, 0.160f, new Color32(61, 135, 176, 130));
         }
 
         private static void CreateShoreline(Transform parent)
@@ -624,6 +625,14 @@ namespace MannLab.Games.FlyingBird
                 SetAnchor(wave.GetComponent<RectTransform>(), 0.05f + i * 0.08f, y, 0.52f + i * 0.11f, y + 0.008f);
                 wave.GetComponent<Image>().color = new Color32(255, 253, 247, 150);
             }
+        }
+
+        private static void CreateSolidLine(Transform parent, string name, float minX, float minY, float maxX, float maxY, Color color)
+        {
+            var line = new GameObject(name, typeof(RectTransform), typeof(Image));
+            line.transform.SetParent(parent, false);
+            SetAnchor(line.GetComponent<RectTransform>(), minX, minY, maxX, maxY);
+            line.GetComponent<Image>().color = color;
         }
 
         private void CreateWindStreaks(Transform parent)
