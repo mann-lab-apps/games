@@ -41,6 +41,15 @@ const games = [
     available: true,
   },
   {
+    id: "flying-bird",
+    title: "날개잔고",
+    status: "Prototype",
+    description: "정해진 에너지로 날개짓과 활공을 전환해 더 멀리 나는 비행 게임",
+    route: "/flying-bird",
+    embedHref: "/games/flying-bird/index.html",
+    available: true,
+  },
+  {
     id: "next-tile",
     title: "Next Tile",
     status: "Soon",
