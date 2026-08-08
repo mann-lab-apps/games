@@ -10,8 +10,7 @@ namespace MannLab.Games.FlyingBird
     public sealed class FlyingBirdController : MonoBehaviour
     {
         private const string BestDistanceKey = "mannlab.flying_bird.best_distance";
-        private const float MaxDisplayAltitude = 170f;
-        private const float StartingAltitude = 88f;
+        private const float StartingAltitude = 124f;
         private const float StartingSpeed = 16f;
         private const float StartingEnergy = 300f;
         private const float MinGustDelaySeconds = 4.2f;
@@ -467,8 +466,8 @@ namespace MannLab.Games.FlyingBird
             var nextWind = NextWind(distance);
             UpdateWindIcon(wind, nextWind);
 
-            var altitudeT = Mathf.Clamp01(altitude / MaxDisplayAltitude);
-            birdRoot.anchoredPosition = new Vector2(-320f, Mathf.Lerp(-340f, 520f, altitudeT));
+            var displayY = -340f + altitude * 5.1f;
+            birdRoot.anchoredPosition = new Vector2(-320f, displayY);
             birdRoot.localRotation = Quaternion.Euler(0f, 0f, pitch);
 
             var wingAngle = Mathf.Lerp(-8f, 28f, flapPulse);
