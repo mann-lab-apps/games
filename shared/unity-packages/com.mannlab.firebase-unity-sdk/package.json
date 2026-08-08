@@ -1,0 +1,10 @@
+{
+  "name": "com.mannlab.firebase-unity-sdk",
+  "version": "13.14.0",
+  "displayName": "MannLab Firebase Unity SDK",
+  "description": "Shared Firebase Unity SDK import for MannLab games. App-specific GoogleService files stay in each game project.",
+  "unity": "6000.0",
+  "author": {
+    "name": "MannLab"
+  }
+}

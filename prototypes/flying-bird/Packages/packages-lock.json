@@ -1,5 +1,11 @@
 {
   "dependencies": {
+    "com.mannlab.firebase-unity-sdk": {
+      "version": "file:../../../shared/unity-packages/com.mannlab.firebase-unity-sdk",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {}
+    },
     "com.mannlab.hypercasual-core": {
       "version": "file:../../../shared/unity-packages/com.mannlab.hypercasual-core",
       "depth": 0,

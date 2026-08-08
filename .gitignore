@@ -75,6 +75,10 @@ prototypes/*/Assets/Firebase/Plugins/x86_64/*.bundle
 prototypes/*/Assets/Firebase/Plugins/x86_64/*.bundle.meta
 prototypes/*/Assets/Firebase/Plugins/x86_64/*.so
 prototypes/*/Assets/Firebase/Plugins/x86_64/*.so.meta
+shared/unity-packages/com.mannlab.firebase-unity-sdk/Firebase/Plugins/x86_64/*.bundle
+shared/unity-packages/com.mannlab.firebase-unity-sdk/Firebase/Plugins/x86_64/*.bundle.meta
+shared/unity-packages/com.mannlab.firebase-unity-sdk/Firebase/Plugins/x86_64/*.so
+shared/unity-packages/com.mannlab.firebase-unity-sdk/Firebase/Plugins/x86_64/*.so.meta
 
 # Godot
 .godot/
