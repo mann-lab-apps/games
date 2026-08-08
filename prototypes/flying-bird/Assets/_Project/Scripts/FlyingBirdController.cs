@@ -27,10 +27,7 @@ namespace MannLab.Games.FlyingBird
         private Text energyText;
         private Text modeText;
         private Text windText;
-        private Text statsText;
         private Image energyFill;
-        private Image speedFill;
-        private Image pitchFill;
         private RectTransform birdRoot;
         private RectTransform leftWing;
         private RectTransform rightWing;
@@ -38,7 +35,7 @@ namespace MannLab.Games.FlyingBird
         private RawImage birdBodySprite;
         private RawImage wingPairSprite;
         private RawImage birdFrameSprite;
-        private Image trailImage;
+        private Image[] windStreaks;
         private GameObject resultPanel;
         private Text resultTitleText;
         private Text resultScoreText;
@@ -263,11 +260,7 @@ namespace MannLab.Games.FlyingBird
             bestText.text = $"Best {Mathf.FloorToInt(bestDistance)} m";
             energyText.text = "Stamina";
             modeText.text = stallSeconds > 0f ? "STALL" : IsFlapHeld() && energy > 0.5f ? "FLAP" : "GLIDE";
-            statsText.text = $"Speed {speed:0.0}   Pitch {pitch:0} deg   Alt {Mathf.FloorToInt(altitude)}";
-
             energyFill.fillAmount = energy / StartingEnergy;
-            speedFill.fillAmount = Mathf.InverseLerp(4f, 34f, speed);
-            pitchFill.fillAmount = Mathf.InverseLerp(-28f, 24f, pitch);
 
             var wind = WindAt(distance);
             var nextWind = NextWind(distance);
@@ -299,9 +292,25 @@ namespace MannLab.Games.FlyingBird
                 birdBody.color = stallSeconds > 0f ? SketchPalette.WarningAmber : SketchPalette.TilePaper;
             }
 
-            trailImage.color = wind.Kind == WindKind.Updraft
-                ? new Color(SketchPalette.CorrectMarker.r, SketchPalette.CorrectMarker.g, SketchPalette.CorrectMarker.b, 0.42f)
-                : new Color(SketchPalette.HatchBlue.r, SketchPalette.HatchBlue.g, SketchPalette.HatchBlue.b, 0.32f);
+            UpdateWindStreaks(wind);
+        }
+
+        private void UpdateWindStreaks(WindZone wind)
+        {
+            if (windStreaks == null)
+            {
+                return;
+            }
+
+            var activeColor = wind.Kind == WindKind.Updraft
+                ? new Color(SketchPalette.CorrectMarker.r, SketchPalette.CorrectMarker.g, SketchPalette.CorrectMarker.b, 0.30f)
+                : new Color(SketchPalette.HatchBlue.r, SketchPalette.HatchBlue.g, SketchPalette.HatchBlue.b, 0.25f);
+            var calmColor = new Color(SketchPalette.HatchBlue.r, SketchPalette.HatchBlue.g, SketchPalette.HatchBlue.b, 0.15f);
+
+            for (var i = 0; i < windStreaks.Length; i++)
+            {
+                windStreaks[i].color = wind.Kind == WindKind.Calm ? calmColor : activeColor;
+            }
         }
 
         private Texture CurrentBirdFrameTexture()
@@ -405,17 +414,13 @@ namespace MannLab.Games.FlyingBird
             stage.transform.SetParent(parent, false);
             SetAnchor(stage.GetComponent<RectTransform>(), 0f, 0.24f, 1f, 0.89f, 42f, 0f, -42f, 0f);
 
-            CreateLine(stage.transform, "Horizon", 0.72f, 3f, SketchPalette.WarmShadow);
-            CreateLine(stage.transform, "Ground", 0.12f, 7f, SketchPalette.Ink);
+            CreateSeaBand(stage.transform);
+            CreateShoreline(stage.transform);
+            CreateWindStreaks(stage.transform);
 
             windText = CreateText(stage.transform, "Next Calm", 36, TextAnchor.MiddleRight);
             windText.color = SketchPalette.MutedInk;
             SetAnchor(windText.GetComponent<RectTransform>(), 0.52f, 0.80f, 1f, 0.94f);
-
-            trailImage = new GameObject("Glide Trail", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
-            trailImage.transform.SetParent(stage.transform, false);
-            SetAnchor(trailImage.GetComponent<RectTransform>(), 0.10f, 0.43f, 0.40f, 0.46f);
-            trailImage.color = new Color(SketchPalette.HatchBlue.r, SketchPalette.HatchBlue.g, SketchPalette.HatchBlue.b, 0.32f);
 
             birdRoot = new GameObject("Bird", typeof(RectTransform)).GetComponent<RectTransform>();
             birdRoot.transform.SetParent(stage.transform, false);
@@ -520,14 +525,7 @@ namespace MannLab.Games.FlyingBird
             SetAnchor(panel.GetComponent<RectTransform>(), 0f, 0.02f, 1f, 0.24f, 42f, 24f, -42f, -8f);
 
             modeText = CreateText(panel.transform, "GLIDE", 66, TextAnchor.MiddleCenter);
-            SetAnchor(modeText.GetComponent<RectTransform>(), 0f, 0.56f, 1f, 1f);
-
-            statsText = CreateText(panel.transform, "Speed 0   Pitch 0 deg   Alt 0", 28, TextAnchor.MiddleCenter);
-            statsText.color = SketchPalette.MutedInk;
-            SetAnchor(statsText.GetComponent<RectTransform>(), 0f, 0.38f, 1f, 0.56f);
-
-            speedFill = CreateBar(panel.transform, "Speed Bar", 0.22f, SketchPalette.HatchBlue);
-            pitchFill = CreateBar(panel.transform, "Pitch Bar", 0.06f, SketchPalette.WarningAmber);
+            SetAnchor(modeText.GetComponent<RectTransform>(), 0f, 0.18f, 1f, 0.95f);
         }
 
         private Image CreateAnchoredBar(Transform parent, string name, float minX, float minY, float maxX, float maxY, Color color)
@@ -548,22 +546,43 @@ namespace MannLab.Games.FlyingBird
             return fill;
         }
 
-        private Image CreateBar(Transform parent, string name, float centerY, Color color)
+        private static void CreateSeaBand(Transform parent)
         {
-            var shell = new GameObject(name, typeof(RectTransform), typeof(Image));
-            shell.transform.SetParent(parent, false);
-            SetAnchor(shell.GetComponent<RectTransform>(), 0.08f, centerY, 0.92f, centerY + 0.08f);
-            shell.GetComponent<Image>().color = SketchPalette.TilePaper;
-            AddSketchOutline(shell.transform);
+            var sea = new GameObject("Sea", typeof(RectTransform), typeof(Image));
+            sea.transform.SetParent(parent, false);
+            SetAnchor(sea.GetComponent<RectTransform>(), 0f, 0f, 1f, 0.16f);
+            sea.GetComponent<Image>().color = new Color32(194, 230, 246, 255);
 
-            var fill = new GameObject("Fill", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
-            fill.transform.SetParent(shell.transform, false);
-            Stretch(fill.GetComponent<RectTransform>(), new Vector2(6f, 6f), new Vector2(-6f, -6f));
-            fill.color = color;
-            fill.type = Image.Type.Filled;
-            fill.fillMethod = Image.FillMethod.Horizontal;
-            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
-            return fill;
+            var distantWater = new GameObject("Distant Water", typeof(RectTransform), typeof(Image));
+            distantWater.transform.SetParent(parent, false);
+            SetAnchor(distantWater.GetComponent<RectTransform>(), 0f, 0.16f, 1f, 0.18f);
+            distantWater.GetComponent<Image>().color = new Color32(224, 214, 190, 255);
+        }
+
+        private static void CreateShoreline(Transform parent)
+        {
+            for (var i = 0; i < 4; i++)
+            {
+                var wave = new GameObject($"Wave {i + 1}", typeof(RectTransform), typeof(Image));
+                wave.transform.SetParent(parent, false);
+                var y = 0.055f + i * 0.026f;
+                SetAnchor(wave.GetComponent<RectTransform>(), 0.05f + i * 0.08f, y, 0.52f + i * 0.11f, y + 0.008f);
+                wave.GetComponent<Image>().color = new Color32(255, 253, 247, 150);
+            }
+        }
+
+        private void CreateWindStreaks(Transform parent)
+        {
+            windStreaks = new Image[5];
+            for (var i = 0; i < windStreaks.Length; i++)
+            {
+                var streak = new GameObject($"Wind Streak {i + 1}", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+                streak.transform.SetParent(parent, false);
+                var y = 0.33f + i * 0.095f;
+                var width = 0.18f + i * 0.035f;
+                SetAnchor(streak.GetComponent<RectTransform>(), 0.08f + i * 0.12f, y, 0.08f + i * 0.12f + width, y + 0.006f);
+                streak.color = new Color(SketchPalette.HatchBlue.r, SketchPalette.HatchBlue.g, SketchPalette.HatchBlue.b, 0.15f);
+            }
         }
 
         private void CreateResultPanel(Transform parent)
@@ -612,14 +631,6 @@ namespace MannLab.Games.FlyingBird
             Stretch(text.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
 
             return button;
-        }
-
-        private static void CreateLine(Transform parent, string name, float anchorY, float height, Color color)
-        {
-            var line = new GameObject(name, typeof(RectTransform), typeof(Image));
-            line.transform.SetParent(parent, false);
-            SetAnchor(line.GetComponent<RectTransform>(), 0f, anchorY, 1f, anchorY, 0f, -height * 0.5f, 0f, height * 0.5f);
-            line.GetComponent<Image>().color = color;
         }
 
         private static Text CreateText(Transform parent, string value, int size, TextAnchor alignment)
