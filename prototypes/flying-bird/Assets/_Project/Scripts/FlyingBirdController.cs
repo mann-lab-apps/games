@@ -354,21 +354,15 @@ namespace MannLab.Games.FlyingBird
         {
             windZones.Clear();
 
-            var cursor = 95f;
-            AddWindZone(cursor, 90f, WindKind.Tailwind, 0.85f);
-            cursor += 168f;
-            AddWindZone(cursor, 95f, WindKind.Updraft, 0.82f);
-            cursor += 156f;
+            var cursor = RandomRange(28f, 82f);
 
             while (cursor < 3600f)
             {
-                cursor += random.Next(44, 96);
-                var roll = random.NextDouble();
-                var kind = roll < 0.34 ? WindKind.Updraft : roll < 0.67 ? WindKind.Tailwind : WindKind.Headwind;
-                var length = random.Next(62, 142);
+                var kind = RandomWindKind();
+                var length = RandomRange(58f, 144f);
                 var strength = 0.65f + (float)random.NextDouble() * 0.62f + Mathf.Clamp01(cursor / 1800f) * 0.18f;
                 AddWindZone(cursor, length, kind, strength);
-                cursor += length;
+                cursor += length + RandomRange(42f, 98f);
             }
         }
 
