@@ -32,8 +32,8 @@ namespace MannLab.Games.FlyingBird.EditorTools
 
             PlayerSettings.companyName = "Mann Lab";
             PlayerSettings.productName = "Wind Gull";
-            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.mannlab.games.flyingbird");
-            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, "com.mannlab.games.flyingbird");
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.mannlab.games.windgull");
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, "com.mannlab.games.windgull");
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.Android.bundleVersionCode = 1;
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);

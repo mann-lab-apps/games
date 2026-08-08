@@ -167,8 +167,8 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Android: com.mannlab.games.flyingbird
-    iPhone: com.mannlab.games.flyingbird
+    Android: com.mannlab.games.windgull
+    iPhone: com.mannlab.games.windgull
   buildNumber:
     Standalone: 0
     VisionOS: 0
