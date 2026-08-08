@@ -47,7 +47,7 @@ const games = [
     description: "정해진 에너지로 날개짓과 활공을 전환해 더 멀리 나는 비행 게임",
     route: "/wind-gull",
     aliases: ["/flying-bird"],
-    embedHref: "/games/flying-bird/index.html?v=fa4c7b4228bc",
+    embedHref: "/games/flying-bird/index.html?v=b7807107a448",
     available: true,
   },
   {
