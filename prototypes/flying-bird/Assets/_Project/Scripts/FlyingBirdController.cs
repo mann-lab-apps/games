@@ -14,6 +14,10 @@ namespace MannLab.Games.FlyingBird
         private const float StartingAltitude = 56f;
         private const float StartingSpeed = 16f;
         private const float StartingEnergy = 150f;
+        private const float MinGustDelaySeconds = 4.2f;
+        private const float MaxGustDelaySeconds = 8.4f;
+        private const float MinGustDurationSeconds = 2.6f;
+        private const float MaxGustDurationSeconds = 5.2f;
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
         private const int CrashlyticsTestTapCount = 7;
         private const float CrashlyticsTestTapWindowSeconds = 2.5f;
@@ -61,6 +65,9 @@ namespace MannLab.Games.FlyingBird
         private float stallSeconds;
         private float lastUpdraftPingDistance;
         private float telemetryContextSeconds;
+        private float activeGustSeconds;
+        private float nextGustSeconds;
+        private WindZone activeGust;
         private bool runStarted;
         private bool runEnded;
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
@@ -136,6 +143,9 @@ namespace MannLab.Games.FlyingBird
             stallSeconds = 0f;
             lastUpdraftPingDistance = -1000f;
             runEnded = false;
+            activeGust = WindZone.Calm;
+            activeGustSeconds = 0f;
+            nextGustSeconds = RandomRange(MinGustDelaySeconds, MaxGustDelaySeconds);
             resultPanel.SetActive(false);
 
             GenerateWindMap();
@@ -152,6 +162,7 @@ namespace MannLab.Games.FlyingBird
 
         private void SimulateFlight(float deltaTime)
         {
+            UpdateRandomWind(deltaTime);
             var flapping = IsFlapHeld() && energy > 0.5f;
             var wind = WindAt(distance);
             var windInfluence = flapping ? 0.48f : 1f;
@@ -366,7 +377,62 @@ namespace MannLab.Games.FlyingBird
             windZones.Add(new WindZone(start, start + length, kind, strength));
         }
 
+        private void UpdateRandomWind(float deltaTime)
+        {
+            if (activeGust.Kind != WindKind.Calm)
+            {
+                activeGustSeconds -= deltaTime;
+                if (activeGustSeconds <= 0f)
+                {
+                    activeGust = WindZone.Calm;
+                }
+            }
+
+            nextGustSeconds -= deltaTime;
+            if (nextGustSeconds > 0f)
+            {
+                return;
+            }
+
+            var kind = RandomWindKind();
+            var strength = RandomRange(0.62f, 1.24f) + Mathf.Clamp01(distance / 2200f) * 0.16f;
+            activeGustSeconds = RandomRange(MinGustDurationSeconds, MaxGustDurationSeconds);
+            activeGust = new WindZone(distance, distance + Mathf.Max(24f, speed * activeGustSeconds), kind, strength);
+            nextGustSeconds = activeGustSeconds + RandomRange(MinGustDelaySeconds, MaxGustDelaySeconds);
+
+            FirebaseTelemetry.LogEvent(
+                "wind_gust",
+                new Dictionary<string, string>
+                {
+                    { "wind_kind", kind.ToString() },
+                    { "wind_strength", Mathf.RoundToInt(strength * 100f).ToString() },
+                    { "distance", Mathf.FloorToInt(distance).ToString() }
+                });
+        }
+
+        private WindKind RandomWindKind()
+        {
+            var roll = random.NextDouble();
+            if (roll < 0.34)
+            {
+                return WindKind.Updraft;
+            }
+
+            return roll < 0.68 ? WindKind.Tailwind : WindKind.Headwind;
+        }
+
+        private float RandomRange(float min, float max)
+        {
+            return min + (float)random.NextDouble() * (max - min);
+        }
+
         private WindZone WindAt(float atDistance)
+        {
+            var gustActive = activeGust.Kind != WindKind.Calm && activeGustSeconds > 0f;
+            return gustActive ? activeGust : BaseWindAt(atDistance);
+        }
+
+        private WindZone BaseWindAt(float atDistance)
         {
             for (var i = 0; i < windZones.Count; i++)
             {
@@ -381,6 +447,11 @@ namespace MannLab.Games.FlyingBird
 
         private WindZone NextWind(float atDistance)
         {
+            if (activeGust.Kind != WindKind.Calm && activeGustSeconds > 0f)
+            {
+                return activeGust;
+            }
+
             for (var i = 0; i < windZones.Count; i++)
             {
                 if (windZones[i].End >= atDistance)
