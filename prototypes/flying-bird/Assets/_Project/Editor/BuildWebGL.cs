@@ -20,6 +20,8 @@ namespace MannLab.Games.FlyingBird.EditorTools
             EditorUserBuildSettings.allowDebugging = false;
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
             PlayerSettings.WebGL.decompressionFallback = false;
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
+            PlayerSettings.WebGL.debugSymbols = false;
 
             PlayerSettings.companyName = "Mann Lab";
             PlayerSettings.productName = "Wind Gull";

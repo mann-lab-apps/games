@@ -24,7 +24,11 @@ done
 perl -pi -e 's/flying-bird\.data\.gz/flying-bird.data/g; s/flying-bird\.framework\.js\.gz/flying-bird.framework.js/g; s/flying-bird\.wasm\.gz/flying-bird.wasm/g' "$target_dir/index.html"
 perl -pi -e 's/canvas\.style\.width = "960px";/canvas.style.width = "100%";/g; s/canvas\.style\.height = "600px";/canvas.style.height = "100%";/g' "$target_dir/index.html"
 
-asset_version="$(shasum -a 256 "$target_dir/Build/flying-bird.wasm" | awk '{ print substr($1, 1, 12) }')"
+asset_version="$(shasum -a 256 \
+  "$target_dir/Build/flying-bird.data" \
+  "$target_dir/Build/flying-bird.framework.js" \
+  "$target_dir/Build/flying-bird.loader.js" \
+  "$target_dir/Build/flying-bird.wasm" | shasum -a 256 | awk '{ print substr($1, 1, 12) }')"
 ASSET_VERSION="$asset_version" TARGET_DIR="$target_dir" node <<'NODE'
 const fs = require("fs");
 const path = require("path");

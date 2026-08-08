@@ -309,7 +309,11 @@ namespace MannLab.Games.FlyingBird
 
             for (var i = 0; i < windStreaks.Length; i++)
             {
-                windStreaks[i].color = wind.Kind == WindKind.Calm ? calmColor : activeColor;
+                var streak = windStreaks[i];
+                if (streak != null)
+                {
+                    streak.color = wind.Kind == WindKind.Calm ? calmColor : activeColor;
+                }
             }
         }
 
