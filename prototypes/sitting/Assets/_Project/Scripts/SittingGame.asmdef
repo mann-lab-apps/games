@@ -1,0 +1,16 @@
+{
+  "name": "MannLab.Games.Sitting",
+  "rootNamespace": "MannLab.Games.Sitting",
+  "references": [
+    "MannLab.HyperCasual.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
