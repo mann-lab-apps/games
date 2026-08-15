@@ -9,8 +9,10 @@ managed="$unity_root/Resources/Scripting/Managed"
 unity="$managed/UnityEngine"
 mono_lib="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/unityjit-macos"
 ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.template.2d-cross-platform-2d-6.1.2/ScriptAssemblies/UnityEngine.UI.dll"
+ios_xcode="/Applications/Unity/Hub/Editor/6000.3.20f1/PlaybackEngines/iOSSupport/UnityEditor.iOS.Extensions.Xcode.dll"
 project="$repo_root/prototypes/10000"
 shared_runtime="$repo_root/shared/unity-packages/com.mannlab.hypercasual-core/Runtime"
+firebase_plugins="$repo_root/shared/unity-packages/com.mannlab.firebase-unity-sdk/Firebase/Plugins"
 tmpdir="$(mktemp -d)"
 
 runtime_dll="$tmpdir/Game10000Runtime.dll"
@@ -27,6 +29,11 @@ editor_dll="$tmpdir/Game10000Editor.dll"
   -r:"$unity/UnityEngine.InputLegacyModule.dll" \
   -r:"$unity/UnityEngine.IMGUIModule.dll" \
   -r:"$ugui" \
+  -r:"$firebase_plugins/Firebase.App.dll" \
+  -r:"$firebase_plugins/Firebase.Analytics.dll" \
+  -r:"$firebase_plugins/Firebase.Crashlytics.dll" \
+  -r:"$firebase_plugins/Firebase.Platform.dll" \
+  -r:"$firebase_plugins/Firebase.TaskExtension.dll" \
   "$shared_runtime"/*.cs \
   "$project"/Assets/_Project/Scripts/*.cs
 
@@ -43,6 +50,7 @@ editor_dll="$tmpdir/Game10000Editor.dll"
   -r:"$unity/UnityEngine.InputLegacyModule.dll" \
   -r:"$unity/UnityEngine.IMGUIModule.dll" \
   -r:"$ugui" \
+  -r:"$ios_xcode" \
   -r:"$runtime_dll" \
   "$project"/Assets/_Project/Editor/*.cs
 

@@ -71,20 +71,59 @@ Swipe through random cards before the timer hits zero. Win the round if your fin
 
 card,random,swipe,casual,arcade,score,timer,risk,quick,number
 
-## Review Notes
+## App Review Information
 
-No login or demo account is required.
+Paste the following into the App Review Information `Notes` field in App Store Connect. Replace the bracketed recording field if a new review video is captured.
+
+```txt
+Dopamine Swap - App Review Information
+
+1. Screen recording
+Screen recording link: [ADD REVIEW-ACCESSIBLE LINK]
+
+The recording was captured on a physical device running the latest available operating system at test time. It begins with launching Dopamine Swap from the device home screen and shows the normal gameplay flow: the start of a round, swiping the visible card to reroll its number, waiting for the timer to reach zero, automatic comparison against the opponent score, continuing to the next round after a win, and tapping Again after a failed round/restart.
+
+The app has no account registration, login, account deletion, paid content, in-app purchases, subscriptions, user-generated content, reporting/blocking flows, camera access, microphone access, location access, contacts access, or App Tracking Transparency prompt.
+
+2. Devices and operating systems tested
+- [ADD DEVICE MODEL], [ADD OS VERSION]
+
+3. App functions and target audience
+Dopamine Swap is a quick card-swapping score game for casual arcade and card-game players who want short, replayable sessions. Each round shows one visible card and an opponent score. The player swipes the card to reroll a random number from 1 to 100 before the timer reaches zero. When time runs out, the visible card is automatically locked in and compared against the opponent score. A higher card wins the round and adds to the player's score; a lower or tied card ends the run. The app provides a compact risk-and-timing game loop with local best-score tracking and no account requirement.
+
+4. Setup and access instructions
+No login or demo account is required. No sample files are required.
 
 How to test:
-
 1. Launch the app.
 2. Swipe the visible card up or down to reroll the number.
 3. Wait for the timer to reach zero.
 4. The visible card is automatically compared against the opponent score.
 5. If the card is higher, the next round starts. If it is lower or tied, the run ends.
-6. Tap `Again` to restart.
+6. Tap Again to restart.
 
-The app does not include ads, in-app purchases, user accounts, user-generated content, chat, location access, camera access, microphone access, or external gameplay services.
+5. External services, tools, or platforms
+The submitted mobile build does not use external services, authentication services, payment processors, ad networks, AI services, analytics SDKs, crash reporting SDKs, online leaderboards, remote content providers, or external gameplay services. Gameplay runs locally on device, and the best score is stored locally on device.
+
+6. Regional differences
+The app functions consistently across all regions. There are no region-specific features, content, pricing, services, or restrictions in the submitted build.
+
+7. Regulated industry or protected third-party material
+The app does not operate in a highly regulated industry and does not include protected third-party material requiring additional authorization. It is an original casual card-score game implementation.
+```
+
+### Screen Recording Checklist
+
+Use a physical iPhone or iPad with the latest available OS before resubmission.
+
+1. Start recording before tapping the app icon.
+2. Launch `Dopamine Swap`.
+3. Show the initial score, round, opponent score/range, card, and timer.
+4. Swipe the card several times to show rerolls.
+5. Let the timer reach zero and show the comparison result.
+6. Show either the next round after a win or the result screen after a loss.
+7. Tap `Again` to restart if the run ends.
+8. Upload the video to a review-accessible link and paste it into the Notes field above.
 
 ## Privacy And Data Safety Draft
 

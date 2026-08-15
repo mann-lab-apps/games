@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using MannLab.HyperCasual;
@@ -12,6 +13,13 @@ namespace MannLab.Games.Game10000
         private const string BestScoreKey = "mannlab.10000.best_cleared_stages";
         private const float WrongTapPenalty = 0.5f;
         private const float RunTimeLimit = 60f;
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private const string CrashlyticsTestArgument = "--mannlab-force-crashlytics-test";
+        private const string CrashlyticsTestEnvironmentVariable = "MANNLAB_FORCE_CRASHLYTICS_TEST";
+        private const int CrashlyticsTestTapCount = 7;
+        private const float CrashlyticsTestTapWindowSeconds = 2.5f;
+        private const float CrashlyticsTestTapZoneSize = 220f;
+#endif
         private readonly List<Button> cellButtons = new List<Button>();
         private readonly List<Image> cellBackgrounds = new List<Image>();
         private readonly List<Image> cellHighlights = new List<Image>();
@@ -36,20 +44,39 @@ namespace MannLab.Games.Game10000
         private bool acceptingInput;
         private bool gameOver;
         private bool timerRunning;
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private int crashlyticsTestTapCount;
+        private float crashlyticsTestTapDeadline;
+#endif
 
         private void Awake()
         {
             MobileRuntime.ApplyDefaults();
             bestClearedStages = PlayerPrefs.GetInt(BestScoreKey, 0);
             FirebaseTelemetry.Initialize();
+            FirebaseTelemetry.SetContext("game", "10000");
             FirebaseTelemetry.LogEvent("app_open");
 
             BuildInterface();
             StartRun();
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (ShouldForceCrashlyticsTestOnLaunch())
+            {
+                StartCoroutine(ForceCrashlyticsTestAfterStartup());
+            }
+#endif
         }
 
         private void Update()
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (HandleCrashlyticsTestTrigger())
+            {
+                return;
+            }
+#endif
+
             if (gameOver || !timerRunning)
             {
                 return;
@@ -86,6 +113,7 @@ namespace MannLab.Games.Game10000
             stageText.text = $"Score {Mathf.Max(0, stage - 1)}";
             bestText.text = $"Best {bestClearedStages}";
             UpdateTimer();
+            UpdateTelemetryContext();
 
             for (var i = 0; i < cellButtons.Count; i++)
             {
@@ -240,7 +268,126 @@ namespace MannLab.Games.Game10000
                     { "cleared_stages", clearedStages.ToString() },
                     { "best_cleared_stages", bestClearedStages.ToString() }
                 });
+            UpdateTelemetryContext();
             resultPanel.SetActive(true);
+        }
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private IEnumerator ForceCrashlyticsTestAfterStartup()
+        {
+            yield return null;
+
+            var deadline = Time.realtimeSinceStartup + 8f;
+            while (!FirebaseTelemetry.IsReady && Time.realtimeSinceStartup < deadline)
+            {
+                yield return null;
+            }
+
+            TriggerCrashlyticsTest("launch_flag");
+        }
+
+        private bool HandleCrashlyticsTestTrigger()
+        {
+            if (!TryReadCrashlyticsTestTap(out var position))
+            {
+                return false;
+            }
+
+            if (position.x > CrashlyticsTestTapZoneSize || position.y < Screen.height - CrashlyticsTestTapZoneSize)
+            {
+                return false;
+            }
+
+            if (Time.unscaledTime > crashlyticsTestTapDeadline)
+            {
+                crashlyticsTestTapCount = 0;
+            }
+
+            crashlyticsTestTapDeadline = Time.unscaledTime + CrashlyticsTestTapWindowSeconds;
+            crashlyticsTestTapCount++;
+
+            if (crashlyticsTestTapCount < CrashlyticsTestTapCount)
+            {
+                return true;
+            }
+
+            crashlyticsTestTapCount = 0;
+            TriggerCrashlyticsTest("hidden_tap");
+            return true;
+        }
+
+        private void TriggerCrashlyticsTest(string trigger)
+        {
+            UpdateTelemetryContext();
+            FirebaseTelemetry.SetContext("crashlytics_test", trigger);
+            FirebaseTelemetry.LogEvent(
+                "crashlytics_test_trigger",
+                new Dictionary<string, string>
+                {
+                    { "trigger", trigger },
+                    { "stage", stage.ToString() },
+                    { "remaining_time", Mathf.CeilToInt(Mathf.Max(0f, remainingTime)).ToString() },
+                    { "best_cleared_stages", bestClearedStages.ToString() }
+                });
+            FirebaseTelemetry.ForceCrashForTesting();
+        }
+
+        private static bool TryReadCrashlyticsTestTap(out Vector2 position)
+        {
+            if (Input.touchCount > 0)
+            {
+                var touch = Input.GetTouch(0);
+                if (touch.phase == TouchPhase.Began)
+                {
+                    position = touch.position;
+                    return true;
+                }
+            }
+
+            if (Input.GetMouseButtonDown(0))
+            {
+                position = Input.mousePosition;
+                return true;
+            }
+
+            position = Vector2.zero;
+            return false;
+        }
+
+        private static bool ShouldForceCrashlyticsTestOnLaunch()
+        {
+            if (IsTruthy(Environment.GetEnvironmentVariable(CrashlyticsTestEnvironmentVariable)))
+            {
+                return true;
+            }
+
+            foreach (var argument in Environment.GetCommandLineArgs())
+            {
+                if (string.Equals(argument, CrashlyticsTestArgument, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsTruthy(string value)
+        {
+            return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
+        }
+#endif
+
+        private void UpdateTelemetryContext()
+        {
+            FirebaseTelemetry.SetContext("stage", stage.ToString());
+            FirebaseTelemetry.SetContext("cleared_stages", Mathf.Max(0, stage - 1).ToString());
+            FirebaseTelemetry.SetContext("best_cleared_stages", bestClearedStages.ToString());
+            FirebaseTelemetry.SetContext("remaining_time", Mathf.CeilToInt(Mathf.Max(0f, remainingTime)).ToString());
+            FirebaseTelemetry.SetContext("timer_running", timerRunning ? "true" : "false");
+            FirebaseTelemetry.SetContext("game_over", gameOver ? "true" : "false");
         }
 
         private void RevealTargets(Color color)

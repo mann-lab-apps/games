@@ -63,20 +63,63 @@ Features:
 
 2048,crash,number,puzzle,merge,slide,tile,stage,logic,casual
 
-## Review Notes
+## App Review Information
 
-No login or demo account is required.
+Paste the following into the App Review Information `Notes` field in App Store Connect. Replace the bracketed device and recording fields with the actual physical-device smoke-test details for the submitted build.
+
+```txt
+2048 Crash - App Review Information
+
+1. Screen recording
+Screen recording link: [ADD REVIEW-ACCESSIBLE LINK]
+
+The recording was captured on a physical device running the latest available operating system at test time. It begins with launching 2048 Crash from the device home screen and shows the normal gameplay flow: the starting board, swiping regular tiles, merging tiles, creating a tile that matches the fixed crash block, swiping the matching tile into the crash block, advancing Stage, and tapping Again after game over/restart.
+
+The app has no account registration, login, account deletion, paid content, in-app purchases, subscriptions, user-generated content, reporting/blocking flows, camera access, microphone access, location access, contacts access, or App Tracking Transparency prompt.
+
+2. Devices and operating systems tested
+- [ADD DEVICE MODEL], [ADD OS VERSION]
+- [ADD DEVICE MODEL], [ADD OS VERSION]
+
+3. App functions and target audience
+2048 Crash is a simple sliding-number puzzle game for casual puzzle players. The player swipes a 4 x 4 board to slide and merge numbered tiles. A special crash block stays fixed in place; when a regular tile with the same number collides with it, both blocks break, Stage increases, and a new crash block appears. The app solves the need for a short, focused puzzle experience by turning the familiar merge-tile mechanic into a clear target-based challenge with quick replay sessions and local best-stage tracking.
+
+4. Setup and access instructions
+No login or demo account is required. No sample files are required.
 
 How to test:
-
 1. Launch the app.
 2. Swipe in any direction to move regular tiles.
 3. Merge regular tiles until one matches the fixed special block value.
 4. Swipe the matching regular tile into the special block.
 5. The regular tile and special block break together, Stage increases, and the next special block appears.
-6. Continue until there are no valid moves, then tap `Again` to restart.
+6. Continue until there are no valid moves, then tap Again to restart.
 
-The release build does not include the development-only Crashlytics forced crash trigger. The app does not include ads, in-app purchases, user accounts, user-generated content, chat, location access, camera access, microphone access, or external gameplay services.
+5. External services, tools, or platforms
+The app uses Firebase Analytics for gameplay event analytics and Firebase Crashlytics for crash diagnostics. Gameplay itself runs locally on the device. Best stage and gameplay progress are stored locally on device. The app does not use authentication services, payment processors, ad networks, AI services, external gameplay services, online leaderboards, or remote content providers.
+
+6. Regional differences
+The app functions consistently across all regions. There are no region-specific features, content, pricing, services, or restrictions in the submitted build.
+
+7. Regulated industry or protected third-party material
+The app does not operate in a highly regulated industry and does not include protected third-party material requiring additional authorization. It is an original casual puzzle game implementation.
+
+Additional notes
+The submitted release build does not include the development-only Crashlytics forced crash trigger. This trigger is compiled only for Unity Editor or development builds and is not present in App Store/TestFlight release builds.
+```
+
+### Screen Recording Checklist
+
+Use a physical iPhone or iPad with the latest available OS before resubmission.
+
+1. Start recording before tapping the app icon.
+2. Launch `2048 Crash`.
+3. Show the initial board and header values.
+4. Swipe several times to show tile movement and merging.
+5. Crash a regular tile into the fixed special block with the same value.
+6. Show the Stage increment and next special block.
+7. Reach or force a game over if practical, then tap `Again`.
+8. Upload the video to a review-accessible link and paste it into the Notes field above.
 
 ## App Privacy Draft
 

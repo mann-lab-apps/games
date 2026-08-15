@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using Firebase;
+using Firebase.Analytics;
+using Firebase.Crashlytics;
+using Firebase.Extensions;
 using UnityEngine;
 
 namespace MannLab.Games.Game10000
@@ -10,8 +14,15 @@ namespace MannLab.Games.Game10000
         private static readonly Dictionary<string, string> EmptyParameters = new Dictionary<string, string>();
         private static bool initialized;
         private static bool firebaseAvailable;
+        private static bool dependencyCheckStarted;
+        private static bool firebaseReady;
+        private static bool handlingLogMessage;
         private static Type analyticsType;
         private static Type crashlyticsType;
+        private static readonly List<PendingEvent> PendingEvents = new List<PendingEvent>();
+        private static readonly Dictionary<string, string> PendingContext = new Dictionary<string, string>();
+
+        public static bool IsReady => firebaseReady;
 
         public static void Initialize()
         {
@@ -30,8 +41,8 @@ namespace MannLab.Games.Game10000
 
             if (firebaseAvailable)
             {
-                LogCrashlyticsMessage("Firebase telemetry initialized.");
                 Debug.Log("[Telemetry] Firebase Analytics/Crashlytics SDK detected.");
+                StartFirebaseDependencyCheck();
                 return;
             }
 
@@ -52,10 +63,28 @@ namespace MannLab.Games.Game10000
                 ? $"[Telemetry] {eventName}"
                 : $"[Telemetry] {eventName} {parameterText}");
 
+            if (firebaseAvailable && !firebaseReady)
+            {
+                PendingEvents.Add(new PendingEvent(eventName, parameters));
+                return;
+            }
+
             InvokeAnalyticsLogEvent(eventName);
             LogCrashlyticsMessage(string.IsNullOrEmpty(parameterText)
                 ? eventName
                 : $"{eventName} {parameterText}");
+        }
+
+        public static void SetContext(string key, string value)
+        {
+            Initialize();
+            if (firebaseAvailable && !firebaseReady)
+            {
+                PendingContext[key] = value ?? string.Empty;
+                return;
+            }
+
+            SetCrashlyticsCustomKey(key, value);
         }
 
         public static void LogException(Exception exception)
@@ -63,6 +92,97 @@ namespace MannLab.Games.Game10000
             Initialize();
             Debug.LogException(exception);
             InvokeCrashlyticsLogException(exception);
+        }
+
+        public static void ForceCrashForTesting()
+        {
+            Initialize();
+            FlushPendingTelemetry();
+            LogCrashlyticsMessage("Crashlytics forced test crash requested.");
+
+            if (TryInvokeCrashlyticsCrash())
+            {
+                return;
+            }
+
+            if (TryForceUnityCrash())
+            {
+                return;
+            }
+
+            throw new InvalidOperationException("Crashlytics forced test crash fallback.");
+        }
+
+        private static void StartFirebaseDependencyCheck()
+        {
+            if (dependencyCheckStarted)
+            {
+                return;
+            }
+
+            dependencyCheckStarted = true;
+
+            try
+            {
+                FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
+                {
+                    if (task.IsCanceled)
+                    {
+                        Debug.LogWarning("[Telemetry] Firebase dependency check was canceled.");
+                        return;
+                    }
+
+                    if (task.IsFaulted)
+                    {
+                        Debug.LogWarning($"[Telemetry] Firebase dependency check failed: {task.Exception?.GetBaseException().Message}");
+                        return;
+                    }
+
+                    if (task.Result != DependencyStatus.Available)
+                    {
+                        Debug.LogWarning($"[Telemetry] Firebase dependencies are unavailable: {task.Result}");
+                        return;
+                    }
+
+                    _ = FirebaseApp.DefaultInstance;
+                    FirebaseAnalytics.SetAnalyticsCollectionEnabled(true);
+                    Crashlytics.ReportUncaughtExceptionsAsFatal = true;
+                    firebaseReady = true;
+                    LogCrashlyticsMessage("Firebase telemetry initialized.");
+                    FlushPendingTelemetry();
+                    Debug.Log("[Telemetry] Firebase dependencies available.");
+                });
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Telemetry] Firebase dependency check could not start: {exception.GetType().Name}");
+            }
+        }
+
+        private static void FlushPendingTelemetry()
+        {
+            if (!firebaseReady)
+            {
+                return;
+            }
+
+            foreach (var pair in PendingContext)
+            {
+                SetCrashlyticsCustomKey(pair.Key, pair.Value);
+            }
+
+            PendingContext.Clear();
+
+            foreach (var pendingEvent in PendingEvents)
+            {
+                InvokeAnalyticsLogEvent(pendingEvent.Name);
+                var parameterText = FormatParameters(pendingEvent.Parameters);
+                LogCrashlyticsMessage(string.IsNullOrEmpty(parameterText)
+                    ? pendingEvent.Name
+                    : $"{pendingEvent.Name} {parameterText}");
+            }
+
+            PendingEvents.Clear();
         }
 
         private static void InvokeAnalyticsLogEvent(string eventName)
@@ -79,7 +199,7 @@ namespace MannLab.Games.Game10000
                 new[] { typeof(string) },
                 null);
 
-            method?.Invoke(null, new object[] { eventName });
+            InvokeFirebaseMethod(method, eventName);
         }
 
         private static void LogCrashlyticsMessage(string message)
@@ -96,7 +216,24 @@ namespace MannLab.Games.Game10000
                 new[] { typeof(string) },
                 null);
 
-            method?.Invoke(null, new object[] { message });
+            InvokeFirebaseMethod(method, message);
+        }
+
+        private static void SetCrashlyticsCustomKey(string key, string value)
+        {
+            if (crashlyticsType == null)
+            {
+                return;
+            }
+
+            var method = crashlyticsType.GetMethod(
+                "SetCustomKey",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { typeof(string), typeof(string) },
+                null);
+
+            InvokeFirebaseMethod(method, key, value ?? string.Empty);
         }
 
         private static void InvokeCrashlyticsLogException(Exception exception)
@@ -113,7 +250,79 @@ namespace MannLab.Games.Game10000
                 new[] { typeof(Exception) },
                 null);
 
-            method?.Invoke(null, new object[] { exception });
+            InvokeFirebaseMethod(method, exception);
+        }
+
+        private static bool TryInvokeCrashlyticsCrash()
+        {
+            if (crashlyticsType == null)
+            {
+                return false;
+            }
+
+            var method = crashlyticsType.GetMethod(
+                "Crash",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                Type.EmptyTypes,
+                null);
+            if (method == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                method.Invoke(null, null);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Telemetry] Crashlytics test crash call failed: {exception.GetType().Name}");
+                return false;
+            }
+        }
+
+        private static bool TryForceUnityCrash()
+        {
+            var diagnosticsType = FindType("UnityEngine.Diagnostics.Utils");
+            var categoryType = FindType("UnityEngine.Diagnostics.ForcedCrashCategory");
+            if (diagnosticsType == null || categoryType == null)
+            {
+                return false;
+            }
+
+            var method = diagnosticsType.GetMethod(
+                "ForceCrash",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { categoryType },
+                null);
+            if (method == null)
+            {
+                return false;
+            }
+
+            foreach (var categoryName in new[] { "FatalError", "MonoAbort", "AccessViolation" })
+            {
+                try
+                {
+                    var category = Enum.Parse(categoryType, categoryName);
+                    method.Invoke(null, new[] { category });
+                    return true;
+                }
+                catch (ArgumentException)
+                {
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogWarning($"[Telemetry] Unity forced crash call failed: {exception.GetType().Name}");
+                    return false;
+                }
+            }
+
+            Debug.LogWarning("[Telemetry] Unity forced crash category was not found.");
+            return false;
         }
 
         private static void HandleUnhandledException(object sender, UnhandledExceptionEventArgs args)
@@ -126,12 +335,37 @@ namespace MannLab.Games.Game10000
 
         private static void HandleLogMessageReceived(string condition, string stackTrace, LogType type)
         {
-            if (type != LogType.Exception)
+            if (handlingLogMessage || type != LogType.Exception)
             {
                 return;
             }
 
-            LogCrashlyticsMessage($"{condition}\n{stackTrace}");
+            try
+            {
+                handlingLogMessage = true;
+                LogCrashlyticsMessage($"{condition}\n{stackTrace}");
+            }
+            finally
+            {
+                handlingLogMessage = false;
+            }
+        }
+
+        private static void InvokeFirebaseMethod(MethodInfo method, params object[] args)
+        {
+            if (method == null)
+            {
+                return;
+            }
+
+            try
+            {
+                method.Invoke(null, args);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Telemetry] Firebase call failed: {exception.GetType().Name}");
+            }
         }
 
         private static Type FindType(string typeName)
@@ -168,6 +402,20 @@ namespace MannLab.Games.Game10000
             }
 
             return string.Join(", ", parts);
+        }
+
+        private readonly struct PendingEvent
+        {
+            public PendingEvent(string name, IDictionary<string, string> parameters)
+            {
+                Name = name;
+                Parameters = parameters == null
+                    ? new Dictionary<string, string>()
+                    : new Dictionary<string, string>(parameters);
+            }
+
+            public string Name { get; }
+            public Dictionary<string, string> Parameters { get; }
         }
     }
 }
