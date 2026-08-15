@@ -204,3 +204,58 @@ MVP 화면:
 - C# namespace: `MannLab.Games.FlyingBird`
 - 핵심 규칙: 정해진 에너지로 날개짓과 활공을 전환하며 최대 거리를 노린다.
 - Score: 최종 비행 거리
+
+## App Review Information
+
+Paste the following into the App Review Information `Notes` field in App Store Connect. Replace the bracketed recording field if a new review video is captured.
+
+```txt
+Wind Gull - App Review Information
+
+1. Screen recording
+Screen recording link: [ADD REVIEW-ACCESSIBLE LINK]
+
+The recording was captured on a physical device running the latest available operating system at test time. It begins with launching Wind Gull from the device home screen and shows the normal gameplay flow: starting a run, pressing/holding the screen to flap, releasing to glide, using energy while flapping, reading wind zones, gaining distance, ending a run when the bird reaches the ground or stalls, and tapping Again to restart.
+
+The app has no account registration, login, account deletion, paid content, in-app purchases, subscriptions, user-generated content, reporting/blocking flows, camera access, microphone access, location access, contacts access, or App Tracking Transparency prompt.
+
+2. Devices and operating systems tested
+- [ADD DEVICE MODEL], [ADD OS VERSION]
+
+3. App functions and target audience
+Wind Gull is a casual one-touch flight distance game for players who enjoy short arcade runs and light physics-based timing. The player controls a gull by holding the screen to flap and releasing to glide. Flapping spends limited energy but helps recover altitude, speed, and pitch. Gliding saves energy but is more affected by wind, altitude, speed, and pitch. The goal is to read wind conditions, manage energy, avoid stalling or hitting the ground, and fly as far as possible. The app provides a compact flight challenge with quick retries and local best-distance tracking.
+
+4. Setup and access instructions
+No login or demo account is required. No sample files are required.
+
+How to test:
+1. Launch the app.
+2. Press and hold the screen to flap and gain altitude.
+3. Release the screen to glide and conserve energy.
+4. Watch the distance, best distance, and energy indicators.
+5. Continue switching between flap and glide while reading wind zones.
+6. When the bird reaches the ground or loses too much speed, the run ends.
+7. Tap Again to restart.
+
+5. External services, tools, or platforms
+The app uses Firebase Analytics for gameplay event analytics and Firebase Crashlytics for crash diagnostics. Gameplay itself runs locally on the device. Best distance and gameplay progress are stored locally on device. The app does not use authentication services, payment processors, ad networks, AI services, external gameplay services, online leaderboards, or remote content providers.
+
+6. Regional differences
+The app functions consistently across all regions. There are no region-specific features, content, pricing, services, or restrictions in the submitted build.
+
+7. Regulated industry or protected third-party material
+The app does not operate in a highly regulated industry and does not include protected third-party material requiring additional authorization. It is an original casual flight game implementation.
+```
+
+### Screen Recording Checklist
+
+Use a physical iPhone or iPad with the latest available OS before resubmission.
+
+1. Start recording before tapping the app icon.
+2. Launch `Wind Gull`.
+3. Show the distance, best distance, and energy indicators.
+4. Hold the screen to flap.
+5. Release to glide.
+6. Show wind zones affecting the run if visible.
+7. Show the run ending and tap `Again` to restart.
+8. Upload the video to a review-accessible link and paste it into the Notes field above.

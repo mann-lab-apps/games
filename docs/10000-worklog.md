@@ -157,3 +157,20 @@
 - Changed: Added `web/mannlab-games` as a lightweight Vite site that embeds the `10000` WebGL build.
 - Changed: Added `scripts/sync-10000-webgl-to-site.sh` to copy Unity WebGL output into the site.
 - Changed: The site copy expands Unity `.gz` build artifacts to plain `.data`, `.framework.js`, and `.wasm` files so static hosting does not depend on custom gzip headers.
+
+## 2026-08-15 Crashlytics integration prep
+
+- Tracking: GitHub issue `#20`.
+- Decision: Add Crashlytics before ads so runtime diagnostics are available before monetization changes.
+- Changed: Connected `10000` to the shared MannLab Firebase Unity SDK package.
+- Changed: Upgraded `FirebaseTelemetry` with Crashlytics custom keys, guarded Firebase reflection calls, log recursion protection, and forced test crash support.
+- Changed: Added a development-only hidden Crashlytics test trigger: tap the upper-left corner 7 times within 2.5 seconds.
+- Changed: Added iOS and Android development build entry points for Crashlytics smoke testing.
+- Changed: Added the iOS Firebase config for `com.mannlab.games.game10000` and generated Firebase editor/desktop config assets.
+- Verified: `./scripts/verify-10000-mvp.sh` passes with Firebase SDK references included in the compile check.
+- Verified: `./scripts/verify-10000-firebase-readiness.sh` passes for iOS, with Android config intentionally deferred.
+- Verified: iOS simulator Xcode build succeeds and the Crashlytics run script reports `Validation succeeded`.
+- Verified: Runtime logs show Firebase Crashlytics 12.16.0, Firebase dependencies available, and telemetry events reaching the SDK.
+- Verified: Firebase Console detected the iOS app and the dSYM warning cleared after symbol processing.
+- Deferred: Ads are intentionally postponed until gameplay metrics justify adding monetization.
+- Deferred: Android Firebase config remains out of scope until Android release work resumes.

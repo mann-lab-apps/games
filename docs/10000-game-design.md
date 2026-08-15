@@ -185,9 +185,40 @@ Mann Lab Games 공통 비주얼 기준인 손그림 스케치 스타일을 따�
 
 MVP가 플레이 가능해지기 전에는 분석 SDK와 광고 SDK를 붙이지 않는다. 먼저 게임이 다시 하고 싶은지 확인한다.
 
-## 분석 이벤트 후보
+## Firebase 계측
 
-SDK는 아직 붙이지 않는다. MVP 플레이 검증 뒤 아래 이벤트를 기준으로 Firebase Analytics / GA4 적용을 검토한다.
+현재 구현은 Firebase Unity SDK 패키지를 프로젝트에 연결하고, SDK가 없어도 컴파일되는 `FirebaseTelemetry` 어댑터를 통해 이벤트와 Crashlytics context를 기록한다. Firebase Console에서 앱을 등록하고 플랫폼별 config 파일을 추가하면 같은 호출이 Firebase Analytics/Crashlytics로 전달된다.
+
+필요한 Firebase 앱 등록:
+
+- iOS bundle ID: `com.mannlab.games.game10000`
+- Android package name: `com.mannlab.games.game10000`
+
+필요한 config 파일 위치:
+
+- iOS: `prototypes/10000/Assets/GoogleService-Info.plist`
+- Android: `prototypes/10000/Assets/Plugins/Android/google-services.json`
+- Desktop/editor fallback: `prototypes/10000/Assets/StreamingAssets/google-services-desktop.json`
+
+Crashlytics 확인용 development build는 좌상단을 2.5초 안에 7번 탭하면 강제 테스트 크래시를 발생시킨다. CLI 검증 시에는 `--mannlab-force-crashlytics-test` launch argument 또는 `MANNLAB_FORCE_CRASHLYTICS_TEST=1` 환경변수를 주면 앱 시작 직후 테스트 크래시가 발생한다. 이 트리거는 Unity Editor 또는 development build에서만 컴파일되며, App Store/TestFlight/Google Play release build에는 포함되지 않는다.
+
+Development build 진입점:
+
+```sh
+/Applications/Unity/Hub/Editor/6000.3.20f1/Unity.app/Contents/MacOS/Unity \
+  -batchmode \
+  -quit \
+  -projectPath prototypes/10000 \
+  -executeMethod MannLab.Games.Game10000.EditorTools.BuildIosXcode.BuildCrashlyticsTest
+
+/Applications/Unity/Hub/Editor/6000.3.20f1/Unity.app/Contents/MacOS/Unity \
+  -batchmode \
+  -quit \
+  -projectPath prototypes/10000 \
+  -executeMethod MannLab.Games.Game10000.EditorTools.BuildAndroidAab.BuildCrashlyticsTestApk
+```
+
+이벤트:
 
 | 이벤트 | 발생 조건 | 주요 파라미터 | 알고 싶은 것 |
 | --- | --- | --- | --- |
@@ -197,6 +228,17 @@ SDK는 아직 붙이지 않는다. MVP 플레이 검증 뒤 아래 이벤트를 
 | `run_end` | 시간 종료 | `cleared_stages`, `failed_stage`, `run_duration`, `wrong_taps` | 평균 도달 지점과 런 길이는 적절한가 |
 | `restart` | 결과 화면에서 다시하기 | `previous_cleared_stages`, `best_cleared_stages` | 한 판이 다음 판으로 이어지는가 |
 | `app_open` | 앱 실행 | `best_cleared_stages` | 재방문이 있는가 |
+
+Crashlytics custom keys:
+
+- `game`
+- `stage`
+- `cleared_stages`
+- `best_cleared_stages`
+- `remaining_time`
+- `timer_running`
+- `game_over`
+- `crashlytics_test`
 
 ## 성공 기준
 

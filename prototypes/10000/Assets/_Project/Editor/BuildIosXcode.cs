@@ -12,18 +12,40 @@ namespace MannLab.Games.Game10000.EditorTools
     {
         private const string ScenePath = "Assets/_Project/Scenes/Game.unity";
         private const string OutputPath = "Builds/iOS/Xcode";
+        private const string CrashlyticsTestOutputPath = "Builds/iOS/CrashlyticsTestXcode";
+        private const string CrashlyticsSimulatorTestOutputPath = "Builds/iOS/CrashlyticsSimulatorTestXcode";
         private const string BundleIdentifier = "com.mannlab.games.game10000";
         private const string AppleTeamIdEnv = "MANNLAB_APPLE_TEAM_ID";
         private const string AppIconPath = "Assets/_Project/Art/AppStore/AppIcon-1024.png";
 
         public static void Build()
         {
+            BuildRelease();
+        }
+
+        public static void BuildRelease()
+        {
+            BuildIos(OutputPath, false, iOSSdkVersion.DeviceSDK);
+        }
+
+        public static void BuildCrashlyticsTest()
+        {
+            BuildIos(CrashlyticsTestOutputPath, true, iOSSdkVersion.DeviceSDK);
+        }
+
+        public static void BuildCrashlyticsSimulatorTest()
+        {
+            BuildIos(CrashlyticsSimulatorTestOutputPath, true, iOSSdkVersion.SimulatorSDK);
+        }
+
+        private static void BuildIos(string outputPath, bool developmentBuild, iOSSdkVersion sdkVersion)
+        {
             CreateGameScene.Create();
-            Directory.CreateDirectory(OutputPath);
+            Directory.CreateDirectory(outputPath);
 
             EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.iOS, BuildTarget.iOS);
-            EditorUserBuildSettings.development = false;
-            EditorUserBuildSettings.allowDebugging = false;
+            EditorUserBuildSettings.development = developmentBuild;
+            EditorUserBuildSettings.allowDebugging = developmentBuild;
 
             PlayerSettings.companyName = "Mann Lab";
             PlayerSettings.productName = "10000";
@@ -32,6 +54,7 @@ namespace MannLab.Games.Game10000.EditorTools
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
             PlayerSettings.iOS.buildNumber = "1";
             PlayerSettings.iOS.targetOSVersionString = "15.0";
+            PlayerSettings.iOS.sdkVersion = sdkVersion;
 
             ApplyAppIcon();
             ApplySigningHint();
@@ -39,9 +62,9 @@ namespace MannLab.Games.Game10000.EditorTools
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
-                locationPathName = OutputPath,
+                locationPathName = outputPath,
                 target = BuildTarget.iOS,
-                options = BuildOptions.None
+                options = developmentBuild ? BuildOptions.Development | BuildOptions.AllowDebugging : BuildOptions.None
             });
 
             if (report.summary.result != BuildResult.Succeeded)
@@ -49,9 +72,12 @@ namespace MannLab.Games.Game10000.EditorTools
                 throw new InvalidOperationException($"iOS Xcode project build failed: {report.summary.result}");
             }
 
-            AddMarketingIconToXcodeProject();
-            AddSimpleLaunchScreensToXcodeProject();
-            ConfigureArchiveSigning();
+            AddMarketingIconToXcodeProject(outputPath);
+            AddSimpleLaunchScreensToXcodeProject(outputPath);
+            if (sdkVersion == iOSSdkVersion.DeviceSDK)
+            {
+                ConfigureArchiveSigning(outputPath);
+            }
         }
 
         private static void ApplySigningHint()
@@ -96,11 +122,11 @@ namespace MannLab.Games.Game10000.EditorTools
             PlayerSettings.SetIcons(NamedBuildTarget.iOS, icons, IconKind.Application);
         }
 
-        private static void AddMarketingIconToXcodeProject()
+        private static void AddMarketingIconToXcodeProject(string outputPath)
         {
             const string marketingIconFile = "Icon-AppStore-1024.png";
             var appIconSetPath = Path.Combine(
-                OutputPath,
+                outputPath,
                 "Unity-iPhone",
                 "Images.xcassets",
                 "AppIcon.appiconset");
@@ -163,10 +189,10 @@ namespace MannLab.Games.Game10000.EditorTools
 ");
         }
 
-        private static void AddSimpleLaunchScreensToXcodeProject()
+        private static void AddSimpleLaunchScreensToXcodeProject(string outputPath)
         {
-            WriteSimpleLaunchScreen(Path.Combine(OutputPath, "LaunchScreen-iPhone.storyboard"));
-            WriteSimpleLaunchScreen(Path.Combine(OutputPath, "LaunchScreen-iPad.storyboard"));
+            WriteSimpleLaunchScreen(Path.Combine(outputPath, "LaunchScreen-iPhone.storyboard"));
+            WriteSimpleLaunchScreen(Path.Combine(outputPath, "LaunchScreen-iPad.storyboard"));
         }
 
         private static void WriteSimpleLaunchScreen(string path)
@@ -198,9 +224,9 @@ namespace MannLab.Games.Game10000.EditorTools
 ");
         }
 
-        private static void ConfigureArchiveSigning()
+        private static void ConfigureArchiveSigning(string outputPath)
         {
-            var projectPath = PBXProject.GetPBXProjectPath(OutputPath);
+            var projectPath = PBXProject.GetPBXProjectPath(outputPath);
             var project = new PBXProject();
             project.ReadFromFile(projectPath);
 

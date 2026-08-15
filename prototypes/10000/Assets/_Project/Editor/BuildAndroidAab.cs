@@ -10,6 +10,7 @@ namespace MannLab.Games.Game10000.EditorTools
         private const string ScenePath = "Assets/_Project/Scenes/Game.unity";
         private const string AabOutputPath = "Builds/Android/10000.aab";
         private const string ApkOutputPath = "Builds/Android/10000.apk";
+        private const string CrashlyticsTestApkOutputPath = "Builds/Android/10000-crashlytics-test.apk";
         private const string KeystorePathEnv = "MANNLAB_10000_ANDROID_KEYSTORE_PATH";
         private const string KeystorePassEnv = "MANNLAB_10000_ANDROID_KEYSTORE_PASS";
         private const string KeyAliasNameEnv = "MANNLAB_10000_ANDROID_KEYALIAS_NAME";
@@ -22,30 +23,36 @@ namespace MannLab.Games.Game10000.EditorTools
 
         public static void BuildAab()
         {
-            BuildAndroid(AabOutputPath, true);
+            BuildAndroid(AabOutputPath, true, false);
         }
 
         public static void BuildApk()
         {
-            BuildAndroid(ApkOutputPath, false);
+            BuildAndroid(ApkOutputPath, false, false);
         }
 
-        private static void BuildAndroid(string outputPath, bool buildAppBundle)
+        public static void BuildCrashlyticsTestApk()
+        {
+            BuildAndroid(CrashlyticsTestApkOutputPath, false, true);
+        }
+
+        private static void BuildAndroid(string outputPath, bool buildAppBundle, bool developmentBuild)
         {
             CreateGameScene.Create();
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
 
             EditorUserBuildSettings.buildAppBundle = buildAppBundle;
             EditorUserBuildSettings.androidBuildSystem = AndroidBuildSystem.Gradle;
-            EditorUserBuildSettings.development = false;
-            ApplyReleaseSigning();
+            EditorUserBuildSettings.development = developmentBuild;
+            EditorUserBuildSettings.allowDebugging = developmentBuild;
+            ApplyReleaseSigning(developmentBuild);
 
             var options = new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
                 locationPathName = outputPath,
                 target = BuildTarget.Android,
-                options = BuildOptions.None
+                options = developmentBuild ? BuildOptions.Development | BuildOptions.AllowDebugging : BuildOptions.None
             };
 
             var report = BuildPipeline.BuildPlayer(options);
@@ -55,7 +62,7 @@ namespace MannLab.Games.Game10000.EditorTools
             }
         }
 
-        private static void ApplyReleaseSigning()
+        private static void ApplyReleaseSigning(bool developmentBuild)
         {
             var keystorePath = Environment.GetEnvironmentVariable(KeystorePathEnv);
             var keystorePass = Environment.GetEnvironmentVariable(KeystorePassEnv);
@@ -67,6 +74,12 @@ namespace MannLab.Games.Game10000.EditorTools
                 || string.IsNullOrWhiteSpace(keyAliasName)
                 || string.IsNullOrWhiteSpace(keyAliasPass))
             {
+                if (developmentBuild)
+                {
+                    PlayerSettings.Android.useCustomKeystore = false;
+                    return;
+                }
+
                 throw new InvalidOperationException(
                     $"Release signing environment variables are required: {KeystorePathEnv}, {KeystorePassEnv}, {KeyAliasNameEnv}, {KeyAliasPassEnv}");
             }

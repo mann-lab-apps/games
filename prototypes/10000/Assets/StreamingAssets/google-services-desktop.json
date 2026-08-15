@@ -1,0 +1,31 @@
+{
+  "project_info": {
+    "project_number": "793650892758",
+    "project_id": "project-2431245645493512766",
+    "storage_bucket": "project-2431245645493512766.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:793650892758:ios:c35bbd8c29da554eec1e77",
+        "android_client_info": {
+          "package_name": "com.mannlab.games.game10000"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8ULgtaf9a_gV0Mc9DPr5BlEuSi9Qf5bE"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 0
+        },
+        "appinvite_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
