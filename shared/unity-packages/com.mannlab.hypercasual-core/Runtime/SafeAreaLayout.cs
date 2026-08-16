@@ -51,6 +51,11 @@ namespace MannLab.HyperCasual
             }
 
             var safeArea = Screen.safeArea;
+            if (safeArea.width <= 1f || safeArea.height <= 1f)
+            {
+                safeArea = new Rect(0f, 0f, screenWidth, screenHeight);
+            }
+
             var screenSize = new Vector2Int(screenWidth, screenHeight);
             if (safeArea == lastSafeArea && screenSize == lastScreenSize)
             {
