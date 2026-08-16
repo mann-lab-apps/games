@@ -53,6 +53,7 @@ jobs:
           mkdir -p dist/dopamine-swap
           mkdir -p dist/flying-bird
           mkdir -p dist/wind-gull
+          mkdir -p dist/sitting
           mkdir -p dist/privacy
           cp dist/index.html dist/10000/index.html
           cp dist/index.html dist/2048-crash/index.html
@@ -60,6 +61,7 @@ jobs:
           cp dist/index.html dist/dopamine-swap/index.html
           cp dist/index.html dist/flying-bird/index.html
           cp dist/index.html dist/wind-gull/index.html
+          cp dist/index.html dist/sitting/index.html
           cp dist/index.html dist/privacy/index.html
           cp dist/index.html dist/404.html
 
