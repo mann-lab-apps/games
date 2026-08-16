@@ -25,9 +25,9 @@ namespace MannLab.Games.Sitting
         public const float SittingRecoveryPerSecond = 36f;
         public const float VisitorWarningSeconds = 0.45f;
         public const float VisitorPassingSeconds = 0.78f;
-        public const float MinVisitorGapSeconds = 0.70f;
-        public const float MaxVisitorGapSeconds = 2.20f;
-        public const int CustomerClearScore = 100;
+        public const float MinVisitorGapSeconds = 0.80f;
+        public const float MaxVisitorGapSeconds = 2.40f;
+        public const double CustomerChance = 0.66d;
         public const float ResultDelaySeconds = 0.42f;
 
         public static float TickHealth(float health, bool sitting, float deltaSeconds)
@@ -36,9 +36,14 @@ namespace MannLab.Games.Sitting
             return Clamp(health + rate * Math.Max(0f, deltaSeconds), 0f, MaxHealth);
         }
 
+        public static bool ShouldCatch(bool sitting, VisitorPhase phase, bool isCustomer)
+        {
+            return sitting && isCustomer && phase == VisitorPhase.Passing;
+        }
+
         public static bool ShouldCatch(bool sitting, VisitorPhase phase)
         {
-            return sitting && phase == VisitorPhase.Passing;
+            return ShouldCatch(sitting, phase, true);
         }
 
         public static bool IsExhausted(float health)

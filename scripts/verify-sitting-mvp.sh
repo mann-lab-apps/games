@@ -76,6 +76,12 @@ public static class VerifySittingRules
             return 1;
         }
 
+        if (SittingBalance.ShouldCatch(true, VisitorPhase.Passing, false))
+        {
+            Console.Error.WriteLine("Sitting during harmless passer should not catch the player.");
+            return 1;
+        }
+
         if (SittingBalance.ShouldCatch(false, VisitorPhase.Passing)
             || SittingBalance.ShouldCatch(true, VisitorPhase.Warning)
             || SittingBalance.ShouldCatch(true, VisitorPhase.Empty))
