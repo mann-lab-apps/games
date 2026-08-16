@@ -56,7 +56,7 @@ const games = [
     status: "Prototype",
     description: "사람이 지나가지 않을 때 몰래 앉아 체력을 회복하는 눈치 게임",
     route: "/sitting",
-    embedHref: "/games/sitting/?v=e8f2d4ebfb95",
+    embedHref: "/games/sitting/?v=6e3c993dae9a",
     available: true,
   },
   {

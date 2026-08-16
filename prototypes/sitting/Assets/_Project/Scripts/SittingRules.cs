@@ -21,12 +21,13 @@ namespace MannLab.Games.Sitting
     public readonly struct SittingBalance
     {
         public const float MaxHealth = 100f;
-        public const float StandingDrainPerSecond = 8.5f;
-        public const float SittingRecoveryPerSecond = 18f;
-        public const float VisitorWarningSeconds = 0.62f;
-        public const float VisitorPassingSeconds = 0.96f;
-        public const float MinVisitorGapSeconds = 1.25f;
-        public const float MaxVisitorGapSeconds = 3.45f;
+        public const float StandingDrainPerSecond = 18f;
+        public const float SittingRecoveryPerSecond = 36f;
+        public const float VisitorWarningSeconds = 0.45f;
+        public const float VisitorPassingSeconds = 0.78f;
+        public const float MinVisitorGapSeconds = 0.70f;
+        public const float MaxVisitorGapSeconds = 2.20f;
+        public const int CustomerClearScore = 100;
         public const float ResultDelaySeconds = 0.42f;
 
         public static float TickHealth(float health, bool sitting, float deltaSeconds)

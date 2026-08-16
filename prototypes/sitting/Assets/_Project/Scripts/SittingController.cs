@@ -9,19 +9,19 @@ namespace MannLab.Games.Sitting
 {
     public sealed class SittingController : MonoBehaviour
     {
-        private const string BestSecondsKey = "mannlab.sitting.best_seconds";
-        private static readonly Color DeskTopColor = new Color32(183, 120, 72, 255);
-        private static readonly Color DeskFrontColor = new Color32(226, 170, 94, 255);
-        private static readonly Color DeskLegColor = new Color32(106, 70, 49, 255);
-        private static readonly Color MonitorColor = new Color32(132, 205, 218, 255);
-        private static readonly Color ChairColor = new Color32(75, 128, 185, 255);
-        private static readonly Color PlayerShirtColor = new Color32(83, 153, 196, 255);
-        private static readonly Color PlayerPantsColor = new Color32(78, 84, 96, 255);
-        private static readonly Color SkinColor = new Color32(247, 183, 126, 255);
-        private static readonly Color VisitorColor = new Color32(217, 74, 67, 255);
-        private static readonly Color VisitorGlowColor = new Color32(255, 214, 93, 255);
-        private static readonly Color HealthGoodColor = new Color32(75, 178, 99, 255);
-        private static readonly Color HealthLowColor = new Color32(236, 143, 49, 255);
+        private const string BestScoreKey = "mannlab.sitting.best_score";
+        private static readonly Color DeskTopColor = new Color32(194, 132, 72, 255);
+        private static readonly Color DeskFrontColor = new Color32(239, 188, 107, 255);
+        private static readonly Color DeskLegColor = new Color32(122, 78, 49, 255);
+        private static readonly Color MonitorColor = new Color32(107, 194, 215, 255);
+        private static readonly Color ChairColor = new Color32(63, 134, 190, 255);
+        private static readonly Color PlayerShirtColor = new Color32(54, 143, 205, 255);
+        private static readonly Color PlayerPantsColor = new Color32(74, 83, 101, 255);
+        private static readonly Color SkinColor = new Color32(248, 189, 132, 255);
+        private static readonly Color VisitorColor = new Color32(196, 79, 117, 255);
+        private static readonly Color VisitorGlowColor = new Color32(255, 226, 92, 255);
+        private static readonly Color HealthGoodColor = new Color32(47, 183, 97, 255);
+        private static readonly Color HealthLowColor = new Color32(238, 96, 56, 255);
 
         private readonly System.Random random = new System.Random(Environment.TickCount);
         private AudioSource audioSource;
@@ -32,7 +32,9 @@ namespace MannLab.Games.Sitting
         private Text bestText;
         private Text statusText;
         private Text riskText;
+        private Text healthText;
         private Image healthFill;
+        private RectTransform healthFillRect;
         private RectTransform characterRoot;
         private RectTransform characterBody;
         private RectTransform characterHead;
@@ -46,7 +48,9 @@ namespace MannLab.Games.Sitting
         private VisitorPhase visitorPhase;
         private float health;
         private float runSeconds;
-        private float bestSeconds;
+        private int score;
+        private int bestScore;
+        private int clearedCustomers;
         private float nextVisitorAt;
         private float visitorPhaseEndsAt;
         private float resultAt;
@@ -63,7 +67,7 @@ namespace MannLab.Games.Sitting
             sitClip = CreateToneClip("Sit", 420f, 0.045f, 0.25f);
             caughtClip = CreateToneClip("Caught", 920f, 0.12f, 0.42f);
             exhaustedClip = CreateToneClip("Exhausted", 150f, 0.20f, 0.45f);
-            bestSeconds = PlayerPrefs.GetFloat(BestSecondsKey, 0f);
+            bestScore = PlayerPrefs.GetInt(BestScoreKey, 0);
 
             BuildInterface();
             StartRun();
@@ -122,6 +126,8 @@ namespace MannLab.Games.Sitting
             visitorPhase = VisitorPhase.Empty;
             health = SittingBalance.MaxHealth;
             runSeconds = 0f;
+            score = 0;
+            clearedCustomers = 0;
             wasSitting = false;
             visualPulse = 0f;
             nextVisitorAt = Time.time + SittingBalance.NextVisitorGap(random);
@@ -164,9 +170,9 @@ namespace MannLab.Games.Sitting
             }
 
             var progress = 1f - Mathf.Clamp01((visitorPhaseEndsAt - Time.time) / SittingBalance.VisitorPassingSeconds);
-            visitorRoot.anchorMin = new Vector2(-0.20f + progress * 1.40f, 0.52f);
-            visitorRoot.anchorMax = new Vector2(0.04f + progress * 1.40f, 0.88f);
-            visitorImage.color = WithAlpha(VisitorGlowColor, 0.24f);
+            visitorRoot.anchorMin = new Vector2(-0.12f + progress * 1.24f, 0.50f);
+            visitorRoot.anchorMax = new Vector2(0.08f + progress * 1.24f, 0.90f);
+            visitorImage.color = WithAlpha(VisitorGlowColor, 0.30f);
 
             if (Time.time < visitorPhaseEndsAt)
             {
@@ -175,6 +181,8 @@ namespace MannLab.Games.Sitting
 
             visitorRoot.gameObject.SetActive(false);
             visitorPhase = VisitorPhase.Empty;
+            score += SittingBalance.CustomerClearScore;
+            clearedCustomers++;
             nextVisitorAt = Time.time + SittingBalance.NextVisitorGap(random);
         }
 
@@ -186,10 +194,10 @@ namespace MannLab.Games.Sitting
             visitorRoot.gameObject.SetActive(finalState == SittingGameState.Caught);
             PlayClip(finalState == SittingGameState.Caught ? caughtClip : exhaustedClip);
 
-            if (runSeconds > bestSeconds)
+            if (score > bestScore)
             {
-                bestSeconds = runSeconds;
-                PlayerPrefs.SetFloat(BestSecondsKey, bestSeconds);
+                bestScore = score;
+                PlayerPrefs.SetInt(BestScoreKey, bestScore);
                 PlayerPrefs.Save();
             }
 
@@ -208,7 +216,7 @@ namespace MannLab.Games.Sitting
                 characterHead.localScale = Vector3.one * 1.14f;
                 statusText.text = "Caught";
                 statusText.color = SketchPalette.WrongMarker;
-                riskText.text = "Boss spotted you";
+                riskText.text = "Customer saw you";
                 riskText.color = SketchPalette.WrongMarker;
                 return;
             }
@@ -225,17 +233,20 @@ namespace MannLab.Games.Sitting
         private void ShowResult()
         {
             state = SittingGameState.GameOver;
-            resultTitleText.text = lastEndState == SittingGameState.Exhausted ? "Collapsed" : "Caught Sitting";
-            resultScoreText.text = $"Time {FormatTime(runSeconds)}\nBest {FormatTime(bestSeconds)}";
+            resultTitleText.text = lastEndState == SittingGameState.Exhausted ? "Collapsed" : "Customer Saw You";
+            resultScoreText.text = $"Score {score}\nBest {bestScore}\nCustomers {clearedCustomers}";
             resultPanel.SetActive(true);
         }
 
         private void UpdateHud()
         {
-            timeText.text = $"Time {FormatTime(runSeconds)}";
-            bestText.text = $"Best {FormatTime(bestSeconds)}";
-            healthFill.fillAmount = Mathf.Clamp01(health / SittingBalance.MaxHealth);
+            timeText.text = $"Score {score}  {FormatTime(runSeconds)}";
+            bestText.text = $"Best {bestScore}";
+            var healthRatio = Mathf.Clamp01(health / SittingBalance.MaxHealth);
+            healthFill.fillAmount = healthRatio;
             healthFill.color = health < 28f ? HealthLowColor : HealthGoodColor;
+            healthFillRect.localScale = new Vector3(1f + Mathf.Sin(Time.time * 16f) * (health < 28f ? 0.04f : 0.015f), 1f, 1f);
+            healthText.text = $"ENERGY {Mathf.RoundToInt(health)}%";
 
             if (state == SittingGameState.Sitting)
             {
@@ -251,11 +262,11 @@ namespace MannLab.Games.Sitting
             switch (visitorPhase)
             {
                 case VisitorPhase.Warning:
-                    riskText.text = "Footsteps";
+                    riskText.text = "Customer!";
                     riskText.color = SketchPalette.WarningAmber;
                     break;
                 case VisitorPhase.Passing:
-                    riskText.text = "Passing";
+                    riskText.text = "Do not sit";
                     riskText.color = SketchPalette.WrongMarker;
                     break;
                 default:
@@ -267,11 +278,11 @@ namespace MannLab.Games.Sitting
 
         private void UpdateCharacterVisual(bool sitting)
         {
-            var targetY = sitting ? -154f : -78f;
+            var targetY = sitting ? -92f : -28f;
             characterRoot.anchoredPosition = Vector2.Lerp(characterRoot.anchoredPosition, new Vector2(0f, targetY), 0.25f);
             characterBody.localRotation = Quaternion.Lerp(characterBody.localRotation, Quaternion.Euler(0f, 0f, sitting ? -2f : 0f), 0.2f);
             characterHead.localScale = Vector3.Lerp(characterHead.localScale, Vector3.one * (sitting ? 0.98f : 1f), 0.2f);
-            chairSeat.anchoredPosition = Vector2.Lerp(chairSeat.anchoredPosition, new Vector2(0f, sitting ? -192f : -214f), 0.2f);
+            chairSeat.anchoredPosition = Vector2.Lerp(chairSeat.anchoredPosition, new Vector2(0f, sitting ? -128f : -160f), 0.2f);
         }
 
         private bool IsPressingPlayArea()
@@ -342,47 +353,47 @@ namespace MannLab.Games.Sitting
         {
             var stage = new GameObject("Office Stage", typeof(RectTransform));
             stage.transform.SetParent(parent, false);
-            SetAnchor(stage.GetComponent<RectTransform>(), 0f, 0.11f, 1f, 0.83f, 44f, 0f, -44f, 0f);
+            SetAnchor(stage.GetComponent<RectTransform>(), 0f, 0.10f, 1f, 0.82f, 56f, 0f, -56f, 0f);
 
             var wallLine = CreatePanel(stage.transform, "Desk Back Line", SketchPalette.Ink);
-            SetAnchor(wallLine.GetComponent<RectTransform>(), 0.04f, 0.64f, 0.96f, 0.655f);
+            SetAnchor(wallLine.GetComponent<RectTransform>(), 0.06f, 0.67f, 0.94f, 0.678f);
 
             var window = CreatePanel(stage.transform, "Office Window", WithAlpha(MonitorColor, 0.24f));
-            SetAnchor(window.GetComponent<RectTransform>(), 0.08f, 0.68f, 0.30f, 0.91f);
+            SetAnchor(window.GetComponent<RectTransform>(), 0.08f, 0.71f, 0.30f, 0.91f);
             AddSketchOutline(window.transform);
 
             var plant = CreatePanel(stage.transform, "Desk Plant", new Color32(106, 159, 92, 255));
-            SetAnchor(plant.GetComponent<RectTransform>(), 0.73f, 0.66f, 0.80f, 0.78f);
+            SetAnchor(plant.GetComponent<RectTransform>(), 0.73f, 0.64f, 0.80f, 0.76f);
             AddSketchOutline(plant.transform);
 
             var desk = CreatePanel(stage.transform, "Desk Front", DeskFrontColor);
-            SetAnchor(desk.GetComponent<RectTransform>(), 0.13f, 0.40f, 0.87f, 0.61f);
+            SetAnchor(desk.GetComponent<RectTransform>(), 0.15f, 0.44f, 0.85f, 0.58f);
             AddSketchOutline(desk.transform);
 
             var deskTop = CreatePanel(stage.transform, "Desk Top", DeskTopColor);
-            SetAnchor(deskTop.GetComponent<RectTransform>(), 0.09f, 0.58f, 0.91f, 0.65f);
+            SetAnchor(deskTop.GetComponent<RectTransform>(), 0.11f, 0.57f, 0.89f, 0.63f);
             AddSketchOutline(deskTop.transform);
 
             var monitor = CreatePanel(stage.transform, "Monitor", MonitorColor);
-            SetAnchor(monitor.GetComponent<RectTransform>(), 0.38f, 0.59f, 0.62f, 0.76f);
+            SetAnchor(monitor.GetComponent<RectTransform>(), 0.39f, 0.60f, 0.61f, 0.75f);
             AddSketchOutline(monitor.transform);
 
             var keyboard = CreatePanel(stage.transform, "Keyboard", SketchPalette.WarmHighlight);
-            SetAnchor(keyboard.GetComponent<RectTransform>(), 0.37f, 0.50f, 0.63f, 0.54f);
+            SetAnchor(keyboard.GetComponent<RectTransform>(), 0.38f, 0.49f, 0.62f, 0.53f);
             AddSketchOutline(keyboard.transform);
 
             var deskLegLeft = CreatePanel(stage.transform, "Desk Leg Left", DeskLegColor);
-            SetAnchor(deskLegLeft.GetComponent<RectTransform>(), 0.22f, 0.25f, 0.26f, 0.40f);
+            SetAnchor(deskLegLeft.GetComponent<RectTransform>(), 0.24f, 0.31f, 0.27f, 0.44f);
 
             var deskLegRight = CreatePanel(stage.transform, "Desk Leg Right", DeskLegColor);
-            SetAnchor(deskLegRight.GetComponent<RectTransform>(), 0.74f, 0.25f, 0.78f, 0.40f);
+            SetAnchor(deskLegRight.GetComponent<RectTransform>(), 0.73f, 0.31f, 0.76f, 0.44f);
 
             chairSeat = CreatePanel(stage.transform, "Chair Seat", ChairColor).GetComponent<RectTransform>();
-            chairSeat.anchorMin = new Vector2(0.5f, 0.23f);
-            chairSeat.anchorMax = new Vector2(0.5f, 0.23f);
+            chairSeat.anchorMin = new Vector2(0.5f, 0.20f);
+            chairSeat.anchorMax = new Vector2(0.5f, 0.20f);
             chairSeat.pivot = new Vector2(0.5f, 0.5f);
-            chairSeat.sizeDelta = new Vector2(360f, 112f);
-            chairSeat.anchoredPosition = new Vector2(0f, -214f);
+            chairSeat.sizeDelta = new Vector2(300f, 92f);
+            chairSeat.anchoredPosition = new Vector2(0f, -160f);
             AddSketchOutline(chairSeat.transform);
 
             CreateCharacter(stage.transform);
@@ -394,22 +405,22 @@ namespace MannLab.Games.Sitting
             var root = new GameObject("Player Back", typeof(RectTransform));
             root.transform.SetParent(parent, false);
             characterRoot = root.GetComponent<RectTransform>();
-            characterRoot.anchorMin = new Vector2(0.5f, 0.28f);
-            characterRoot.anchorMax = new Vector2(0.5f, 0.28f);
+            characterRoot.anchorMin = new Vector2(0.5f, 0.23f);
+            characterRoot.anchorMax = new Vector2(0.5f, 0.23f);
             characterRoot.pivot = new Vector2(0.5f, 0f);
-            characterRoot.sizeDelta = new Vector2(320f, 520f);
+            characterRoot.sizeDelta = new Vector2(250f, 420f);
 
             var legs = CreatePanel(root.transform, "Legs", PlayerPantsColor);
-            SetAnchor(legs.GetComponent<RectTransform>(), 0.30f, 0.00f, 0.70f, 0.32f);
+            SetAnchor(legs.GetComponent<RectTransform>(), 0.32f, 0.00f, 0.68f, 0.30f);
             AddSketchOutline(legs.transform);
 
             var body = CreatePanel(root.transform, "Body", PlayerShirtColor);
             characterBody = body.GetComponent<RectTransform>();
-            SetAnchor(characterBody, 0.20f, 0.26f, 0.80f, 0.73f);
+            SetAnchor(characterBody, 0.22f, 0.26f, 0.78f, 0.72f);
             AddSketchOutline(body.transform);
 
             var neck = CreatePanel(root.transform, "Neck", SkinColor);
-            SetAnchor(neck.GetComponent<RectTransform>(), 0.44f, 0.69f, 0.56f, 0.80f);
+            SetAnchor(neck.GetComponent<RectTransform>(), 0.44f, 0.68f, 0.56f, 0.79f);
             AddSketchOutline(neck.transform);
 
             var head = CreatePanel(root.transform, "Head", SkinColor);
@@ -417,11 +428,11 @@ namespace MannLab.Games.Sitting
             characterHead.anchorMin = new Vector2(0.5f, 0.78f);
             characterHead.anchorMax = new Vector2(0.5f, 0.78f);
             characterHead.pivot = new Vector2(0.5f, 0.5f);
-            characterHead.sizeDelta = new Vector2(126f, 126f);
+            characterHead.sizeDelta = new Vector2(110f, 110f);
             AddSketchOutline(head.transform);
 
             var hair = CreatePanel(root.transform, "Hair", SketchPalette.Ink);
-            SetAnchor(hair.GetComponent<RectTransform>(), 0.29f, 0.84f, 0.71f, 0.94f);
+            SetAnchor(hair.GetComponent<RectTransform>(), 0.29f, 0.84f, 0.71f, 0.93f);
         }
 
         private void CreateVisitor(Transform parent)
@@ -432,19 +443,23 @@ namespace MannLab.Games.Sitting
             visitorImage = visitor.GetComponent<Image>();
             visitorImage.color = WithAlpha(VisitorGlowColor, 0.24f);
 
-            var head = CreatePanel(visitor.transform, "Visitor Head", VisitorColor);
+            var head = CreatePanel(visitor.transform, "Customer Head", SkinColor);
             SetAnchor(head.GetComponent<RectTransform>(), 0.32f, 0.67f, 0.68f, 0.98f);
             AddSketchOutline(head.transform);
 
-            var torso = CreatePanel(visitor.transform, "Visitor Body", VisitorColor);
+            var torso = CreatePanel(visitor.transform, "Customer Body", VisitorColor);
             SetAnchor(torso.GetComponent<RectTransform>(), 0.18f, 0.18f, 0.82f, 0.70f);
             AddSketchOutline(torso.transform);
 
-            var badge = CreatePanel(visitor.transform, "Visitor Badge", SketchPalette.WarmHighlight);
+            var bag = CreatePanel(visitor.transform, "Customer Bag", VisitorGlowColor);
+            SetAnchor(bag.GetComponent<RectTransform>(), 0.00f, 0.30f, 0.24f, 0.58f);
+            AddSketchOutline(bag.transform);
+
+            var badge = CreatePanel(visitor.transform, "Customer Badge", SketchPalette.WarmHighlight);
             SetAnchor(badge.GetComponent<RectTransform>(), 0.58f, 0.48f, 0.75f, 0.60f);
             AddSketchOutline(badge.transform);
 
-            var legs = CreatePanel(visitor.transform, "Visitor Legs", DeskLegColor);
+            var legs = CreatePanel(visitor.transform, "Customer Legs", DeskLegColor);
             SetAnchor(legs.GetComponent<RectTransform>(), 0.30f, 0.00f, 0.70f, 0.24f);
             AddSketchOutline(legs.transform);
             visitor.SetActive(false);
@@ -456,29 +471,35 @@ namespace MannLab.Games.Sitting
             header.transform.SetParent(parent, false);
             SetAnchor(header.GetComponent<RectTransform>(), 0f, 0.84f, 1f, 1f, 42f, -28f, -42f, -20f);
 
-            timeText = CreateText(header.transform, "Time 0:00", 42, TextAnchor.MiddleLeft);
-            SetAnchor(timeText.GetComponent<RectTransform>(), 0f, 0.52f, 0.54f, 1f);
+            timeText = CreateText(header.transform, "Time 0:00", 38, TextAnchor.MiddleLeft);
+            SetAnchor(timeText.GetComponent<RectTransform>(), 0f, 0.58f, 0.36f, 1f);
 
-            bestText = CreateText(header.transform, "Best 0:00", 30, TextAnchor.MiddleRight);
+            bestText = CreateText(header.transform, "Best 0", 32, TextAnchor.MiddleRight);
             bestText.color = SketchPalette.MutedInk;
-            SetAnchor(bestText.GetComponent<RectTransform>(), 0.54f, 0.52f, 1f, 1f);
+            SetAnchor(bestText.GetComponent<RectTransform>(), 0.64f, 0.58f, 1f, 1f);
 
-            statusText = CreateText(header.transform, "Standing", 34, TextAnchor.MiddleLeft);
-            SetAnchor(statusText.GetComponent<RectTransform>(), 0f, 0.06f, 0.42f, 0.48f);
+            statusText = CreateText(header.transform, "Standing", 36, TextAnchor.MiddleLeft);
+            SetAnchor(statusText.GetComponent<RectTransform>(), 0f, 0.05f, 0.30f, 0.50f);
 
-            riskText = CreateText(header.transform, "Clear", 34, TextAnchor.MiddleRight);
-            SetAnchor(riskText.GetComponent<RectTransform>(), 0.58f, 0.06f, 1f, 0.48f);
+            riskText = CreateText(header.transform, "Clear", 36, TextAnchor.MiddleRight);
+            SetAnchor(riskText.GetComponent<RectTransform>(), 0.70f, 0.05f, 1f, 0.50f);
 
             var track = CreatePanel(header.transform, "Health Track", SketchPalette.TilePaper);
-            SetAnchor(track.GetComponent<RectTransform>(), 0.24f, 0.14f, 0.76f, 0.40f);
+            SetAnchor(track.GetComponent<RectTransform>(), 0.31f, 0.10f, 0.69f, 0.52f);
             AddSketchOutline(track.transform);
 
-            var fill = CreatePanel(track.transform, "Health Fill", SketchPalette.CorrectMarker);
-            Stretch(fill.GetComponent<RectTransform>(), new Vector2(6f, 6f), new Vector2(-6f, -6f));
+            var fill = CreatePanel(track.transform, "Health Fill", HealthGoodColor);
+            healthFillRect = fill.GetComponent<RectTransform>();
+            Stretch(healthFillRect, new Vector2(8f, 8f), new Vector2(-8f, -8f));
             healthFill = fill.GetComponent<Image>();
             healthFill.type = Image.Type.Filled;
             healthFill.fillMethod = Image.FillMethod.Horizontal;
             healthFill.fillOrigin = 0;
+
+            healthText = CreateText(track.transform, "ENERGY 100%", 28, TextAnchor.MiddleCenter);
+            healthText.raycastTarget = false;
+            healthText.color = SketchPalette.Ink;
+            Stretch(healthText.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
         }
 
         private void CreateResultPanel(Transform parent)
@@ -559,13 +580,10 @@ namespace MannLab.Games.Sitting
 
         private static void AddSketchOutline(Transform target)
         {
-            var outlineObject = new GameObject("Sketch Outline", typeof(RectTransform), typeof(Image));
-            outlineObject.transform.SetParent(target, false);
-            Stretch(outlineObject.GetComponent<RectTransform>(), new Vector2(-4f, -4f), new Vector2(4f, 4f));
-            var outlineGraphic = outlineObject.GetComponent<Image>();
-            outlineGraphic.color = SketchPalette.Ink;
-            outlineGraphic.raycastTarget = false;
-            outlineObject.transform.SetAsFirstSibling();
+            var outline = target.gameObject.GetComponent<Outline>() ?? target.gameObject.AddComponent<Outline>();
+            outline.effectColor = SketchPalette.Ink;
+            outline.effectDistance = new Vector2(4f, -4f);
+            outline.useGraphicAlpha = false;
         }
 
         private static void Stretch(RectTransform rect, Vector2 offsetMin, Vector2 offsetMax)
