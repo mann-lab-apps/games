@@ -555,8 +555,8 @@ namespace MannLab.Games.FlyingBird
             LoadBirdTextures();
 
             var canvas = CreateCanvas();
-            var safeAreaRoot = SketchUiFactory.CreateSafeAreaRoot(canvas.transform);
             CreateBackground(canvas.transform);
+            var safeAreaRoot = SketchUiFactory.CreateSafeAreaRoot(canvas.transform);
             CreateHeader(safeAreaRoot);
             CreateFlightStage(safeAreaRoot);
             CreateResultPanel(safeAreaRoot);

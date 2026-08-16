@@ -422,8 +422,8 @@ namespace MannLab.Games.Game10000
             EnsureEventSystem();
 
             var canvas = CreateCanvas();
-            var safeAreaRoot = SketchUiFactory.CreateSafeAreaRoot(canvas.transform);
             CreateBackground(canvas.transform);
+            var safeAreaRoot = SketchUiFactory.CreateSafeAreaRoot(canvas.transform);
             CreateHeader(safeAreaRoot);
             CreateTimer(safeAreaRoot);
             CreateBoard(safeAreaRoot);
