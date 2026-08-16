@@ -576,11 +576,12 @@ namespace MannLab.Games.Game2048Crash
             EnsureEventSystem();
 
             var canvas = CreateCanvas();
+            var safeAreaRoot = SketchUiFactory.CreateSafeAreaRoot(canvas.transform);
             CreateBackground(canvas.transform);
-            CreateTitle(canvas.transform);
-            CreateHeader(canvas.transform);
-            CreateBoard(canvas.transform);
-            CreateResultPanel(canvas.transform);
+            CreateTitle(safeAreaRoot);
+            CreateHeader(safeAreaRoot);
+            CreateBoard(safeAreaRoot);
+            CreateResultPanel(safeAreaRoot);
         }
 
         private static void EnsureEventSystem()

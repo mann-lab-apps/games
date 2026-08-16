@@ -71,6 +71,44 @@ html = html.replace(
 html = html.replace("alert(message);", "showRuntimeError(message);");
 fs.writeFileSync(indexPath, html);
 
+const webShellCss = `
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #f8f5eb;
+}
+
+#unity-container,
+#unity-container.unity-desktop,
+#unity-container.unity-mobile {
+  position: absolute;
+  inset: 0;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
+}
+
+#unity-canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  background: #f8f5eb;
+}
+
+#unity-footer {
+  display: none !important;
+}
+
+#unity-loading-bar {
+  z-index: 2;
+}
+`;
+
 const runtimeErrorCss = `
 
 #unity-warning.runtime-error {
@@ -127,7 +165,7 @@ const runtimeErrorCss = `
   cursor: pointer;
 }
 `;
-fs.appendFileSync(stylePath, runtimeErrorCss);
+fs.appendFileSync(stylePath, webShellCss + runtimeErrorCss);
 NODE
 
 rm -f "$target_dir/Build/sitting.data.gz" \

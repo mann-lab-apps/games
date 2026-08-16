@@ -287,11 +287,12 @@ namespace MannLab.Games.DrumDuel
             EnsureEventSystem();
 
             var canvas = CreateCanvas();
+            var safeAreaRoot = SketchUiFactory.CreateSafeAreaRoot(canvas.transform);
             CreateBackground(canvas.transform);
-            CreateHeader(canvas.transform);
-            CreateRhythmPanel(canvas.transform);
-            CreateTapPad(canvas.transform);
-            CreateResultPanel(canvas.transform);
+            CreateHeader(safeAreaRoot);
+            CreateRhythmPanel(safeAreaRoot);
+            CreateTapPad(safeAreaRoot);
+            CreateResultPanel(safeAreaRoot);
         }
 
         private static void EnsureEventSystem()

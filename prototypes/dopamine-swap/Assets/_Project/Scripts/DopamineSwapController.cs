@@ -310,12 +310,13 @@ namespace MannLab.Games.DopamineSwap
             EnsureEventSystem();
 
             var canvas = CreateCanvas();
+            var safeAreaRoot = SketchUiFactory.CreateSafeAreaRoot(canvas.transform);
             CreateBackground(canvas.transform);
-            CreateHeader(canvas.transform);
-            CreateOpponentPanel(canvas.transform);
-            CreateCardRow(canvas.transform);
-            CreateTimer(canvas.transform);
-            CreateResultPanel(canvas.transform);
+            CreateHeader(safeAreaRoot);
+            CreateOpponentPanel(safeAreaRoot);
+            CreateCardRow(safeAreaRoot);
+            CreateTimer(safeAreaRoot);
+            CreateResultPanel(safeAreaRoot);
         }
 
         private static void EnsureEventSystem()

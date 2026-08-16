@@ -36,6 +36,7 @@ For Android-oriented projects:
 - Use portrait orientation unless the game concept needs landscape.
 - Prefer deterministic 60 FPS prototypes before adding visual polish.
 - Keep scenes small: `Boot`, `Game`, and `Result` is enough for most first passes.
+- Keep decorative backgrounds on the full `Canvas`, but place HUD, buttons, boards, and result panels under `SketchUiFactory.CreateSafeAreaRoot(...)` so iOS notches and home indicators do not cover gameplay UI.
 
 ## Packages
 

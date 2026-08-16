@@ -10,6 +10,18 @@ namespace MannLab.Games.Sitting
     public sealed class SittingController : MonoBehaviour
     {
         private const string BestSecondsKey = "mannlab.sitting.best_seconds";
+        private static readonly Color DeskTopColor = new Color32(183, 120, 72, 255);
+        private static readonly Color DeskFrontColor = new Color32(226, 170, 94, 255);
+        private static readonly Color DeskLegColor = new Color32(106, 70, 49, 255);
+        private static readonly Color MonitorColor = new Color32(132, 205, 218, 255);
+        private static readonly Color ChairColor = new Color32(75, 128, 185, 255);
+        private static readonly Color PlayerShirtColor = new Color32(83, 153, 196, 255);
+        private static readonly Color PlayerPantsColor = new Color32(78, 84, 96, 255);
+        private static readonly Color SkinColor = new Color32(247, 183, 126, 255);
+        private static readonly Color VisitorColor = new Color32(217, 74, 67, 255);
+        private static readonly Color VisitorGlowColor = new Color32(255, 214, 93, 255);
+        private static readonly Color HealthGoodColor = new Color32(75, 178, 99, 255);
+        private static readonly Color HealthLowColor = new Color32(236, 143, 49, 255);
 
         private readonly System.Random random = new System.Random(Environment.TickCount);
         private AudioSource audioSource;
@@ -152,9 +164,9 @@ namespace MannLab.Games.Sitting
             }
 
             var progress = 1f - Mathf.Clamp01((visitorPhaseEndsAt - Time.time) / SittingBalance.VisitorPassingSeconds);
-            visitorRoot.anchorMin = new Vector2(-0.22f + progress * 1.44f, 0.57f);
-            visitorRoot.anchorMax = new Vector2(-0.02f + progress * 1.44f, 0.84f);
-            visitorImage.color = WithAlpha(SketchPalette.Ink, 0.72f);
+            visitorRoot.anchorMin = new Vector2(-0.20f + progress * 1.40f, 0.52f);
+            visitorRoot.anchorMax = new Vector2(0.04f + progress * 1.40f, 0.88f);
+            visitorImage.color = WithAlpha(VisitorGlowColor, 0.24f);
 
             if (Time.time < visitorPhaseEndsAt)
             {
@@ -223,7 +235,7 @@ namespace MannLab.Games.Sitting
             timeText.text = $"Time {FormatTime(runSeconds)}";
             bestText.text = $"Best {FormatTime(bestSeconds)}";
             healthFill.fillAmount = Mathf.Clamp01(health / SittingBalance.MaxHealth);
-            healthFill.color = health < 28f ? SketchPalette.WarningAmber : SketchPalette.CorrectMarker;
+            healthFill.color = health < 28f ? HealthLowColor : HealthGoodColor;
 
             if (state == SittingGameState.Sitting)
             {
@@ -282,10 +294,11 @@ namespace MannLab.Games.Sitting
         {
             EnsureEventSystem();
             var canvas = CreateCanvas();
+            var safeAreaRoot = SketchUiFactory.CreateSafeAreaRoot(canvas.transform);
             CreateBackground(canvas.transform);
-            CreateOfficeScene(canvas.transform);
-            CreateHeader(canvas.transform);
-            CreateResultPanel(canvas.transform);
+            CreateOfficeScene(safeAreaRoot);
+            CreateHeader(safeAreaRoot);
+            CreateResultPanel(safeAreaRoot);
         }
 
         private static void EnsureEventSystem()
@@ -334,25 +347,41 @@ namespace MannLab.Games.Sitting
             var wallLine = CreatePanel(stage.transform, "Desk Back Line", SketchPalette.Ink);
             SetAnchor(wallLine.GetComponent<RectTransform>(), 0.04f, 0.64f, 0.96f, 0.655f);
 
-            var desk = CreatePanel(stage.transform, "Desk", SketchPalette.TilePaper);
-            SetAnchor(desk.GetComponent<RectTransform>(), 0.16f, 0.47f, 0.84f, 0.66f);
+            var window = CreatePanel(stage.transform, "Office Window", WithAlpha(MonitorColor, 0.24f));
+            SetAnchor(window.GetComponent<RectTransform>(), 0.08f, 0.68f, 0.30f, 0.91f);
+            AddSketchOutline(window.transform);
+
+            var plant = CreatePanel(stage.transform, "Desk Plant", new Color32(106, 159, 92, 255));
+            SetAnchor(plant.GetComponent<RectTransform>(), 0.73f, 0.66f, 0.80f, 0.78f);
+            AddSketchOutline(plant.transform);
+
+            var desk = CreatePanel(stage.transform, "Desk Front", DeskFrontColor);
+            SetAnchor(desk.GetComponent<RectTransform>(), 0.13f, 0.40f, 0.87f, 0.61f);
             AddSketchOutline(desk.transform);
 
-            var monitor = CreatePanel(stage.transform, "Monitor", WithAlpha(SketchPalette.FocusBlue, 0.25f));
+            var deskTop = CreatePanel(stage.transform, "Desk Top", DeskTopColor);
+            SetAnchor(deskTop.GetComponent<RectTransform>(), 0.09f, 0.58f, 0.91f, 0.65f);
+            AddSketchOutline(deskTop.transform);
+
+            var monitor = CreatePanel(stage.transform, "Monitor", MonitorColor);
             SetAnchor(monitor.GetComponent<RectTransform>(), 0.38f, 0.59f, 0.62f, 0.76f);
             AddSketchOutline(monitor.transform);
 
-            var deskLegLeft = CreatePanel(stage.transform, "Desk Leg Left", SketchPalette.Ink);
-            SetAnchor(deskLegLeft.GetComponent<RectTransform>(), 0.22f, 0.29f, 0.25f, 0.47f);
+            var keyboard = CreatePanel(stage.transform, "Keyboard", SketchPalette.WarmHighlight);
+            SetAnchor(keyboard.GetComponent<RectTransform>(), 0.37f, 0.50f, 0.63f, 0.54f);
+            AddSketchOutline(keyboard.transform);
 
-            var deskLegRight = CreatePanel(stage.transform, "Desk Leg Right", SketchPalette.Ink);
-            SetAnchor(deskLegRight.GetComponent<RectTransform>(), 0.75f, 0.29f, 0.78f, 0.47f);
+            var deskLegLeft = CreatePanel(stage.transform, "Desk Leg Left", DeskLegColor);
+            SetAnchor(deskLegLeft.GetComponent<RectTransform>(), 0.22f, 0.25f, 0.26f, 0.40f);
 
-            chairSeat = CreatePanel(stage.transform, "Chair Seat", SketchPalette.WarmPressed).GetComponent<RectTransform>();
+            var deskLegRight = CreatePanel(stage.transform, "Desk Leg Right", DeskLegColor);
+            SetAnchor(deskLegRight.GetComponent<RectTransform>(), 0.74f, 0.25f, 0.78f, 0.40f);
+
+            chairSeat = CreatePanel(stage.transform, "Chair Seat", ChairColor).GetComponent<RectTransform>();
             chairSeat.anchorMin = new Vector2(0.5f, 0.23f);
             chairSeat.anchorMax = new Vector2(0.5f, 0.23f);
             chairSeat.pivot = new Vector2(0.5f, 0.5f);
-            chairSeat.sizeDelta = new Vector2(330f, 102f);
+            chairSeat.sizeDelta = new Vector2(360f, 112f);
             chairSeat.anchoredPosition = new Vector2(0f, -214f);
             AddSketchOutline(chairSeat.transform);
 
@@ -370,15 +399,20 @@ namespace MannLab.Games.Sitting
             characterRoot.pivot = new Vector2(0.5f, 0f);
             characterRoot.sizeDelta = new Vector2(320f, 520f);
 
-            var legs = CreatePanel(root.transform, "Legs", SketchPalette.Ink);
+            var legs = CreatePanel(root.transform, "Legs", PlayerPantsColor);
             SetAnchor(legs.GetComponent<RectTransform>(), 0.30f, 0.00f, 0.70f, 0.32f);
+            AddSketchOutline(legs.transform);
 
-            var body = CreatePanel(root.transform, "Body", SketchPalette.TilePaper);
+            var body = CreatePanel(root.transform, "Body", PlayerShirtColor);
             characterBody = body.GetComponent<RectTransform>();
             SetAnchor(characterBody, 0.20f, 0.26f, 0.80f, 0.73f);
             AddSketchOutline(body.transform);
 
-            var head = CreatePanel(root.transform, "Head", SketchPalette.WarningAmber);
+            var neck = CreatePanel(root.transform, "Neck", SkinColor);
+            SetAnchor(neck.GetComponent<RectTransform>(), 0.44f, 0.69f, 0.56f, 0.80f);
+            AddSketchOutline(neck.transform);
+
+            var head = CreatePanel(root.transform, "Head", SkinColor);
             characterHead = head.GetComponent<RectTransform>();
             characterHead.anchorMin = new Vector2(0.5f, 0.78f);
             characterHead.anchorMax = new Vector2(0.5f, 0.78f);
@@ -387,7 +421,7 @@ namespace MannLab.Games.Sitting
             AddSketchOutline(head.transform);
 
             var hair = CreatePanel(root.transform, "Hair", SketchPalette.Ink);
-            SetAnchor(hair.GetComponent<RectTransform>(), 0.32f, 0.82f, 0.68f, 0.91f);
+            SetAnchor(hair.GetComponent<RectTransform>(), 0.29f, 0.84f, 0.71f, 0.94f);
         }
 
         private void CreateVisitor(Transform parent)
@@ -396,17 +430,23 @@ namespace MannLab.Games.Sitting
             visitor.transform.SetParent(parent, false);
             visitorRoot = visitor.GetComponent<RectTransform>();
             visitorImage = visitor.GetComponent<Image>();
-            visitorImage.color = WithAlpha(SketchPalette.Ink, 0.72f);
-            AddSketchOutline(visitor.transform);
+            visitorImage.color = WithAlpha(VisitorGlowColor, 0.24f);
 
-            var head = CreatePanel(visitor.transform, "Visitor Head", SketchPalette.Ink);
+            var head = CreatePanel(visitor.transform, "Visitor Head", VisitorColor);
             SetAnchor(head.GetComponent<RectTransform>(), 0.32f, 0.67f, 0.68f, 0.98f);
+            AddSketchOutline(head.transform);
 
-            var torso = CreatePanel(visitor.transform, "Visitor Body", SketchPalette.Ink);
+            var torso = CreatePanel(visitor.transform, "Visitor Body", VisitorColor);
             SetAnchor(torso.GetComponent<RectTransform>(), 0.18f, 0.18f, 0.82f, 0.70f);
+            AddSketchOutline(torso.transform);
 
-            var legs = CreatePanel(visitor.transform, "Visitor Legs", SketchPalette.Ink);
+            var badge = CreatePanel(visitor.transform, "Visitor Badge", SketchPalette.WarmHighlight);
+            SetAnchor(badge.GetComponent<RectTransform>(), 0.58f, 0.48f, 0.75f, 0.60f);
+            AddSketchOutline(badge.transform);
+
+            var legs = CreatePanel(visitor.transform, "Visitor Legs", DeskLegColor);
             SetAnchor(legs.GetComponent<RectTransform>(), 0.30f, 0.00f, 0.70f, 0.24f);
+            AddSketchOutline(legs.transform);
             visitor.SetActive(false);
         }
 

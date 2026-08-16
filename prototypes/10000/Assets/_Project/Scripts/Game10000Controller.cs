@@ -422,12 +422,13 @@ namespace MannLab.Games.Game10000
             EnsureEventSystem();
 
             var canvas = CreateCanvas();
+            var safeAreaRoot = SketchUiFactory.CreateSafeAreaRoot(canvas.transform);
             CreateBackground(canvas.transform);
-            CreateHeader(canvas.transform);
-            CreateTimer(canvas.transform);
-            CreateBoard(canvas.transform);
-            CreateIntroPanel(canvas.transform);
-            CreateResultPanel(canvas.transform);
+            CreateHeader(safeAreaRoot);
+            CreateTimer(safeAreaRoot);
+            CreateBoard(safeAreaRoot);
+            CreateIntroPanel(safeAreaRoot);
+            CreateResultPanel(safeAreaRoot);
         }
 
         private static void EnsureEventSystem()
