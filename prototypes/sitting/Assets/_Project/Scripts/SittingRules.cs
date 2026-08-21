@@ -22,7 +22,7 @@ namespace MannLab.Games.Sitting
     {
         public const float MaxHealth = 100f;
         public const float StandingDrainPerSecond = 18f;
-        public const float SittingRecoveryPerSecond = 36f;
+        public const float SittingRecoveryPerSecond = 22f;
         public const float VisitorWarningSeconds = 0.45f;
         public const float VisitorPassingSeconds = 0.78f;
         public const float MinVisitorGapSeconds = 0.80f;

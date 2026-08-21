@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import math
+import random
 import struct
 import zlib
 from pathlib import Path
@@ -29,6 +30,7 @@ BEIGE: Color = (232, 201, 154, 255)
 YELLOW: Color = (255, 218, 82, 255)
 WOOD: Color = (214, 148, 65, 255)
 WOOD_DARK: Color = (124, 79, 47, 255)
+LINE_NOISE = random.Random(7428)
 
 
 def canvas(width: int, height: int, color: Color = (0, 0, 0, 0)) -> list[list[Color]]:
@@ -88,6 +90,78 @@ def line(img: list[list[Color]], x1: int, y1: int, x2: int, y2: int, color: Colo
             py = y1 + t * dy
             if math.hypot(x - px, y - py) <= radius:
                 put(img, x, y, color)
+
+
+def jitter(value: int, amount: int) -> int:
+    return value + LINE_NOISE.randint(-amount, amount)
+
+
+def sketch_line(
+    img: list[list[Color]],
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
+    color: Color = INK,
+    width: int = 5,
+    passes: int = 2,
+    wobble: int = 7,
+) -> None:
+    for _ in range(passes):
+        segments = 5
+        points = []
+        for i in range(segments + 1):
+            t = i / segments
+            x = int(x1 + (x2 - x1) * t)
+            y = int(y1 + (y2 - y1) * t)
+            if i not in (0, segments):
+                x = jitter(x, wobble)
+                y = jitter(y, wobble)
+            points.append((x, y))
+        for (ax, ay), (bx, by) in zip(points, points[1:]):
+            line(img, ax, ay, bx, by, color, width)
+
+
+def sketch_polygon(
+    img: list[list[Color]],
+    points: list[tuple[int, int]],
+    fill: Color,
+    width: int = 6,
+    wobble: int = 8,
+) -> None:
+    loose = [(jitter(x, wobble), jitter(y, wobble)) for x, y in points]
+    polygon(img, loose, (fill[0], fill[1], fill[2], 185))
+    for _ in range(2):
+        warped = [(jitter(x, wobble), jitter(y, wobble)) for x, y in points]
+        for i, (x1, y1) in enumerate(warped):
+            x2, y2 = warped[(i + 1) % len(warped)]
+            sketch_line(img, x1, y1, x2, y2, INK, width, 1, wobble)
+
+
+def sketch_rect(img: list[list[Color]], x: int, y: int, w: int, h: int, fill: Color, width: int = 6) -> None:
+    sketch_polygon(img, [(x, y), (x + w, y), (x + w, y + h), (x, y + h)], fill, width)
+
+
+def sketch_ellipse(
+    img: list[list[Color]],
+    cx: int,
+    cy: int,
+    rx: int,
+    ry: int,
+    fill: Color,
+    width: int = 6,
+) -> None:
+    ellipse(img, cx, cy, rx, ry, (fill[0], fill[1], fill[2], 175))
+    steps = 22
+    for _ in range(2):
+        prev = None
+        for i in range(steps + 1):
+            angle = math.tau * i / steps
+            x = jitter(int(cx + math.cos(angle) * rx), 5)
+            y = jitter(int(cy + math.sin(angle) * ry), 5)
+            if prev is not None:
+                sketch_line(img, prev[0], prev[1], x, y, INK, width, 1, 4)
+            prev = (x, y)
 
 
 def polygon(img: list[list[Color]], points: list[tuple[int, int]], color: Color) -> None:
@@ -157,69 +231,63 @@ def save_png(img: list[list[Color]], path: Path) -> None:
 
 def employee() -> list[list[Color]]:
     img = canvas(420, 620)
-    line(img, 155, 315, 105, 425, SKIN, 34)
-    line(img, 265, 315, 315, 425, SKIN, 34)
-    outline_rect(img, 138, 244, 144, 190, BLUE, 10)
-    outline_ellipse(img, 210, 165, 76, 86, SKIN, 10)
-    ellipse(img, 210, 125, 84, 54, HAIR)
-    line(img, 170, 370, 166, 555, PANTS, 50)
-    line(img, 250, 370, 254, 555, PANTS, 50)
-    outline_rect(img, 122, 548, 86, 38, (55, 59, 63, 255), 8)
-    outline_rect(img, 214, 548, 86, 38, (55, 59, 63, 255), 8)
-    line(img, 180, 295, 238, 294, (95, 183, 232, 255), 8)
+    sketch_ellipse(img, 210, 144, 62, 70, SKIN, 7)
+    sketch_polygon(img, [(145, 118), (176, 82), (238, 76), (282, 118), (268, 148), (150, 150)], HAIR, 6, 12)
+    sketch_polygon(img, [(142, 242), (278, 238), (290, 404), (132, 412)], BLUE, 7, 11)
+    sketch_line(img, 142, 292, 98, 382, SKIN, 18, 2, 11)
+    sketch_line(img, 278, 292, 322, 382, SKIN, 18, 2, 11)
+    sketch_line(img, 176, 392, 168, 540, PANTS, 28, 2, 10)
+    sketch_line(img, 246, 392, 256, 540, PANTS, 28, 2, 10)
+    sketch_line(img, 124, 550, 198, 550, INK, 9, 2, 9)
+    sketch_line(img, 224, 550, 300, 550, INK, 9, 2, 9)
+    sketch_line(img, 160, 274, 260, 274, (116, 190, 226, 170), 5, 1, 8)
     return img
 
 
 def customer() -> list[list[Color]]:
     img = canvas(460, 620)
-    line(img, 173, 338, 116, 476, BEIGE, 44)
-    line(img, 247, 338, 334, 484, BEIGE, 44)
-    outline_rect(img, 166, 244, 150, 150, PINK, 10)
-    outline_ellipse(img, 240, 160, 66, 72, SKIN, 10)
-    ellipse(img, 215, 122, 80, 54, (133, 79, 46, 255))
-    line(img, 178, 286, 108, 360, SKIN, 32)
-    line(img, 290, 292, 355, 346, SKIN, 30)
-    outline_rect(img, 62, 356, 76, 84, YELLOW, 8)
-    line(img, 90, 354, 116, 318, INK, 6)
-    outline_rect(img, 76, 486, 94, 42, (248, 248, 238, 255), 8)
-    outline_rect(img, 304, 492, 94, 42, (248, 248, 238, 255), 8)
+    sketch_ellipse(img, 238, 142, 54, 62, SKIN, 7)
+    sketch_polygon(img, [(172, 116), (218, 78), (286, 94), (302, 136), (250, 154), (182, 150)], (118, 74, 47, 255), 6, 13)
+    sketch_polygon(img, [(164, 240), (302, 240), (308, 392), (156, 392)], PINK, 7, 12)
+    sketch_line(img, 172, 292, 112, 352, SKIN, 17, 2, 12)
+    sketch_line(img, 294, 294, 354, 350, SKIN, 17, 2, 12)
+    sketch_line(img, 182, 388, 128, 510, BEIGE, 25, 2, 13)
+    sketch_line(img, 266, 388, 330, 510, BEIGE, 25, 2, 13)
+    sketch_rect(img, 74, 352, 68, 82, YELLOW, 6)
+    sketch_line(img, 98, 352, 126, 314, INK, 5, 1, 6)
+    sketch_line(img, 82, 520, 168, 520, INK, 8, 2, 8)
+    sketch_line(img, 292, 520, 380, 520, INK, 8, 2, 8)
     return img
 
 
 def desk() -> list[list[Color]]:
     img = canvas(920, 430)
-    outline_polygon(img, [(120, 70), (800, 70), (875, 235), (45, 235)], (242, 195, 111, 255), 10)
-    outline_rect(img, 72, 220, 776, 82, WOOD, 10)
-    outline_rect(img, 280, 245, 360, 42, (255, 234, 172, 255), 7)
-    outline_rect(img, 355, 72, 145, 98, TEAL, 8)
-    outline_rect(img, 530, 122, 128, 42, (70, 80, 88, 255), 7)
-    outline_ellipse(img, 705, 150, 22, 16, (82, 96, 106, 255), 6)
-    outline_rect(img, 720, 88, 48, 64, (116, 164, 80, 255), 7)
-    line(img, 744, 88, 725, 56, (116, 164, 80, 255), 12)
-    line(img, 746, 88, 770, 58, (116, 164, 80, 255), 12)
-    line(img, 145, 292, 145, 402, WOOD_DARK, 30)
-    line(img, 775, 292, 775, 402, WOOD_DARK, 30)
-    line(img, 130, 78, 790, 78, (255, 224, 147, 255), 8)
+    sketch_polygon(img, [(122, 86), (790, 82), (870, 224), (54, 226)], (240, 196, 114, 255), 7, 15)
+    sketch_polygon(img, [(80, 216), (842, 216), (828, 292), (90, 292)], WOOD, 7, 12)
+    sketch_rect(img, 335, 236, 252, 32, (255, 236, 180, 255), 5)
+    sketch_rect(img, 356, 88, 138, 92, TEAL, 6)
+    sketch_rect(img, 548, 124, 112, 42, (68, 75, 80, 255), 5)
+    sketch_rect(img, 706, 108, 46, 62, (116, 164, 80, 255), 5)
+    sketch_line(img, 728, 104, 708, 72, (116, 164, 80, 255), 8, 1, 8)
+    sketch_line(img, 732, 104, 762, 76, (116, 164, 80, 255), 8, 1, 8)
+    sketch_line(img, 150, 288, 150, 400, WOOD_DARK, 18, 2, 8)
+    sketch_line(img, 770, 288, 770, 400, WOOD_DARK, 18, 2, 8)
+    sketch_line(img, 132, 92, 780, 88, (255, 226, 154, 210), 5, 1, 12)
     return img
 
 
 def lobby() -> list[list[Color]]:
     img = canvas(1080, 1920, WALL)
     rect(img, 0, 780, 1080, 1140, FLOOR)
-    rect(img, 0, 560, 1080, 220, (235, 230, 215, 255))
-    rect(img, 0, 520, 1080, 24, INK)
-    outline_rect(img, 420, 180, 240, 340, (227, 214, 175, 255), 8)
-    outline_rect(img, 470, 330, 140, 190, (119, 155, 136, 255), 8)
-    outline_rect(img, 100, 250, 185, 150, (229, 222, 192, 255), 7)
-    outline_rect(img, 805, 250, 175, 150, (185, 210, 182, 255), 7)
-    outline_ellipse(img, 170, 330, 28, 38, (141, 171, 123, 255), 6)
-    line(img, 54, 1000, 230, 920, (161, 122, 68, 255), 16)
-    line(img, 1026, 1000, 850, 920, (161, 122, 68, 255), 16)
-    line(img, 150, 780, 930, 780, (214, 198, 166, 255), 4)
-    for x in range(0, 1080, 180):
-        line(img, x, 780, x + 70, 1920, (218, 207, 185, 170), 3)
-    for y in range(900, 1920, 170):
-        line(img, 0, y, 1080, y, (218, 207, 185, 170), 3)
+    rect(img, 0, 560, 1080, 220, (235, 230, 215, 165))
+    sketch_line(img, 0, 542, 1080, 542, INK, 5, 1, 12)
+    sketch_rect(img, 424, 184, 232, 330, (228, 216, 180, 255), 6)
+    sketch_rect(img, 472, 334, 132, 178, (124, 158, 136, 255), 5)
+    sketch_rect(img, 110, 266, 170, 132, (232, 224, 192, 255), 5)
+    sketch_rect(img, 814, 266, 158, 132, (188, 212, 184, 255), 5)
+    sketch_line(img, 154, 780, 930, 780, (214, 198, 166, 255), 4, 1, 10)
+    sketch_line(img, 64, 1012, 226, 930, (161, 122, 68, 255), 8, 1, 12)
+    sketch_line(img, 1016, 1012, 856, 930, (161, 122, 68, 255), 8, 1, 12)
     return img
 
 

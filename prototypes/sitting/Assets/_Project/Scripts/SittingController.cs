@@ -21,6 +21,7 @@ namespace MannLab.Games.Sitting
         private static readonly Color VisitorColor = new Color32(196, 79, 117, 255);
         private static readonly Color VisitorGlowColor = new Color32(255, 226, 92, 255);
         private static readonly Color HealthGoodColor = new Color32(47, 183, 97, 255);
+        private static readonly Color HealthWarnColor = new Color32(238, 181, 56, 255);
         private static readonly Color HealthLowColor = new Color32(238, 96, 56, 255);
 
         private readonly System.Random random = new System.Random(Environment.TickCount);
@@ -30,11 +31,7 @@ namespace MannLab.Games.Sitting
         private AudioClip exhaustedClip;
         private Text timeText;
         private Text bestText;
-        private Text statusText;
-        private Text riskText;
-        private Text healthText;
         private Image healthFill;
-        private RectTransform healthFillRect;
         private RectTransform characterRoot;
         private RectTransform characterBody;
         private RectTransform characterHead;
@@ -246,20 +243,12 @@ namespace MannLab.Games.Sitting
                 characterRoot.anchoredPosition = new Vector2(shake, -80f);
                 characterBody.localRotation = Quaternion.Euler(0f, 0f, -8f + Mathf.Sin(visualPulse * 0.8f) * 7f);
                 characterHead.localScale = Vector3.one * 1.14f;
-                statusText.text = "Caught";
-                statusText.color = SketchPalette.WrongMarker;
-                riskText.text = "Customer saw you";
-                riskText.color = SketchPalette.WrongMarker;
                 return;
             }
 
             characterRoot.anchoredPosition = new Vector2(0f, -190f);
             characterBody.localRotation = Quaternion.Euler(0f, 0f, 12f);
             characterHead.localScale = Vector3.one * 0.94f;
-            statusText.text = "Exhausted";
-            statusText.color = SketchPalette.WarningAmber;
-            riskText.text = "Stamina empty";
-            riskText.color = SketchPalette.WarningAmber;
         }
 
         private void ShowResult()
@@ -276,36 +265,11 @@ namespace MannLab.Games.Sitting
             bestText.text = $"Best {FormatTime(bestSeconds)}";
             var healthRatio = Mathf.Clamp01(health / SittingBalance.MaxHealth);
             healthFill.fillAmount = healthRatio;
-            healthFill.color = health < 28f ? HealthLowColor : HealthGoodColor;
-            healthFillRect.localScale = new Vector3(1f + Mathf.Sin(Time.time * 16f) * (health < 28f ? 0.04f : 0.015f), 1f, 1f);
-            healthText.text = $"ENERGY {Mathf.RoundToInt(health)}%";
-
-            if (state == SittingGameState.Sitting)
-            {
-                statusText.text = "Sitting";
-                statusText.color = SketchPalette.FocusBlue;
-            }
-            else if (state == SittingGameState.Standing)
-            {
-                statusText.text = "Standing";
-                statusText.color = SketchPalette.Ink;
-            }
-
-            switch (visitorPhase)
-            {
-                case VisitorPhase.Warning:
-                    riskText.text = "Customer!";
-                    riskText.color = SketchPalette.WarningAmber;
-                    break;
-                case VisitorPhase.Passing:
-                    riskText.text = "Passing";
-                    riskText.color = SketchPalette.WarningAmber;
-                    break;
-                default:
-                    riskText.text = "Clear";
-                    riskText.color = SketchPalette.MutedInk;
-                    break;
-            }
+            healthFill.color = healthRatio < 0.28f
+                ? HealthLowColor
+                : healthRatio < 0.58f
+                    ? HealthWarnColor
+                    : HealthGoodColor;
         }
 
         private void UpdateCharacterVisual(bool sitting)
@@ -544,28 +508,16 @@ namespace MannLab.Games.Sitting
             bestText.color = SketchPalette.MutedInk;
             SetAnchor(bestText.GetComponent<RectTransform>(), 0.64f, 0.58f, 1f, 1f);
 
-            statusText = CreateText(header.transform, "Standing", 36, TextAnchor.MiddleLeft);
-            SetAnchor(statusText.GetComponent<RectTransform>(), 0f, 0.05f, 0.30f, 0.50f);
-
-            riskText = CreateText(header.transform, "Clear", 36, TextAnchor.MiddleRight);
-            SetAnchor(riskText.GetComponent<RectTransform>(), 0.70f, 0.05f, 1f, 0.50f);
-
             var track = CreatePanel(header.transform, "Health Track", SketchPalette.TilePaper);
-            SetAnchor(track.GetComponent<RectTransform>(), 0.31f, 0.10f, 0.69f, 0.52f);
+            SetAnchor(track.GetComponent<RectTransform>(), 0.26f, 0.10f, 0.74f, 0.52f);
             AddSketchOutline(track.transform);
 
             var fill = CreatePanel(track.transform, "Health Fill", HealthGoodColor);
-            healthFillRect = fill.GetComponent<RectTransform>();
-            Stretch(healthFillRect, new Vector2(8f, 8f), new Vector2(-8f, -8f));
+            Stretch(fill.GetComponent<RectTransform>(), new Vector2(8f, 8f), new Vector2(-8f, -8f));
             healthFill = fill.GetComponent<Image>();
             healthFill.type = Image.Type.Filled;
             healthFill.fillMethod = Image.FillMethod.Horizontal;
             healthFill.fillOrigin = 0;
-
-            healthText = CreateText(track.transform, "ENERGY 100%", 28, TextAnchor.MiddleCenter);
-            healthText.raycastTarget = false;
-            healthText.color = SketchPalette.Ink;
-            Stretch(healthText.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
         }
 
         private void CreateResultPanel(Transform parent)
