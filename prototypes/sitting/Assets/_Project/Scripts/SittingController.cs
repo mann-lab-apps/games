@@ -23,6 +23,10 @@ namespace MannLab.Games.Sitting
         private static readonly Color HealthGoodColor = new Color32(47, 183, 97, 255);
         private static readonly Color HealthWarnColor = new Color32(238, 181, 56, 255);
         private static readonly Color HealthLowColor = new Color32(238, 96, 56, 255);
+        private static readonly Rect EmployeeStandingUv = new Rect(0f, 0.5f, 0.5f, 0.5f);
+        private static readonly Rect EmployeeSittingUv = new Rect(0.5f, 0.5f, 0.5f, 0.5f);
+        private static readonly Rect EmployeeCaughtUv = new Rect(0f, 0f, 0.5f, 0.5f);
+        private static readonly Rect EmployeeExhaustedUv = new Rect(0.5f, 0f, 0.5f, 0.5f);
 
         private readonly System.Random random = new System.Random(Environment.TickCount);
         private AudioSource audioSource;
@@ -32,10 +36,12 @@ namespace MannLab.Games.Sitting
         private Text timeText;
         private Text bestText;
         private Image healthFill;
+        private RectTransform healthFillRect;
         private RectTransform characterRoot;
         private RectTransform characterBody;
         private RectTransform characterHead;
         private RectTransform chairSeat;
+        private RawImage employeeArt;
         private RectTransform visitorRoot;
         private Image visitorImage;
         private RawImage passerArt;
@@ -43,9 +49,14 @@ namespace MannLab.Games.Sitting
         private Text resultTitleText;
         private Text resultScoreText;
         private Texture2D employeeTexture;
+        private Texture2D employeePoseTexture;
         private Texture2D customerTexture;
+        private Texture2D customerWalkTexture;
+        private Texture2D phonePasserTexture;
         private Texture2D deskTexture;
         private Texture2D lobbyTexture;
+        private Texture2D stoolTexture;
+        private bool usingGeneratedLobby;
         private SittingGameState state;
         private VisitorPhase visitorPhase;
         private float health;
@@ -143,10 +154,25 @@ namespace MannLab.Games.Sitting
 
         private void LoadArtAssets()
         {
+            employeePoseTexture = Resources.Load<Texture2D>("Sitting/employee_poses_clean");
             employeeTexture = Resources.Load<Texture2D>("Sitting/employee");
-            customerTexture = Resources.Load<Texture2D>("Sitting/customer");
-            deskTexture = Resources.Load<Texture2D>("Sitting/desk");
-            lobbyTexture = Resources.Load<Texture2D>("Sitting/lobby");
+            customerWalkTexture = LoadFirstTexture(
+                "Sitting/customer_walk_sheet_v3",
+                "Sitting/customer_male_walk_sheet",
+                "Sitting/customer");
+            phonePasserTexture = LoadFirstTexture(
+                "Sitting/phone_passer_female_walk_sheet",
+                "Sitting/phone_passer_walk_sheet_v2",
+                "Sitting/phone_passer_walk_sheet_v1");
+            customerTexture = customerWalkTexture ?? Resources.Load<Texture2D>("Sitting/customer");
+            deskTexture = LoadFirstTexture("Sitting/service_desk_doodle", "Sitting/desk");
+            stoolTexture = Resources.Load<Texture2D>("Sitting/stool_doodle");
+
+            var generatedLobby = LoadFirstTexture(
+                "Sitting/lobby_background_doodle_v2",
+                "Sitting/lobby_background_doodle_v1");
+            lobbyTexture = generatedLobby ?? Resources.Load<Texture2D>("Sitting/lobby");
+            usingGeneratedLobby = generatedLobby != null;
         }
 
         private void UpdateVisitor()
@@ -186,6 +212,7 @@ namespace MannLab.Games.Sitting
             visitorRoot.anchorMin = new Vector2(-0.14f + progress * 1.28f, 0.55f);
             visitorRoot.anchorMax = new Vector2(0.08f + progress * 1.28f, 0.86f);
             visitorImage.color = WithAlpha(currentPasserIsCustomer ? VisitorGlowColor : MonitorColor, 0.22f);
+            SetPasserFrame(Mathf.FloorToInt(progress * 6f));
 
             if (Time.time < visitorPhaseEndsAt)
             {
@@ -209,10 +236,11 @@ namespace MannLab.Games.Sitting
                 return;
             }
 
-            passerArt.texture = customerTexture;
-            passerArt.color = currentPasserIsCustomer
-                ? Color.white
-                : new Color(0.58f, 0.92f, 1f, 0.92f);
+            passerArt.texture = currentPasserIsCustomer || phonePasserTexture == null
+                ? customerTexture
+                : phonePasserTexture;
+            passerArt.color = Color.white;
+            SetPasserFrame(0);
         }
 
         private void EndRun(SittingGameState finalState)
@@ -239,6 +267,7 @@ namespace MannLab.Games.Sitting
             visualPulse += Time.deltaTime * 18f;
             if (state == SittingGameState.Caught)
             {
+                SetEmployeePose(EmployeeCaughtUv);
                 var shake = Mathf.Sin(visualPulse) * 24f;
                 characterRoot.anchoredPosition = new Vector2(shake, -80f);
                 characterBody.localRotation = Quaternion.Euler(0f, 0f, -8f + Mathf.Sin(visualPulse * 0.8f) * 7f);
@@ -246,6 +275,7 @@ namespace MannLab.Games.Sitting
                 return;
             }
 
+            SetEmployeePose(EmployeeExhaustedUv);
             characterRoot.anchoredPosition = new Vector2(0f, -190f);
             characterBody.localRotation = Quaternion.Euler(0f, 0f, 12f);
             characterHead.localScale = Vector3.one * 0.94f;
@@ -264,7 +294,7 @@ namespace MannLab.Games.Sitting
             timeText.text = $"Time {FormatTime(runSeconds)}";
             bestText.text = $"Best {FormatTime(bestSeconds)}";
             var healthRatio = Mathf.Clamp01(health / SittingBalance.MaxHealth);
-            healthFill.fillAmount = healthRatio;
+            healthFillRect.localScale = new Vector3(healthRatio, 1f, 1f);
             healthFill.color = healthRatio < 0.28f
                 ? HealthLowColor
                 : healthRatio < 0.58f
@@ -274,6 +304,7 @@ namespace MannLab.Games.Sitting
 
         private void UpdateCharacterVisual(bool sitting)
         {
+            SetEmployeePose(sitting ? EmployeeSittingUv : EmployeeStandingUv);
             var targetY = sitting ? -92f : -28f;
             characterRoot.anchoredPosition = Vector2.Lerp(characterRoot.anchoredPosition, new Vector2(0f, targetY), 0.25f);
             characterBody.localRotation = Quaternion.Lerp(characterBody.localRotation, Quaternion.Euler(0f, 0f, sitting ? -2f : 0f), 0.2f);
@@ -358,23 +389,26 @@ namespace MannLab.Games.Sitting
             stage.transform.SetParent(parent, false);
             SetAnchor(stage.GetComponent<RectTransform>(), 0f, 0.10f, 1f, 0.82f, 56f, 0f, -56f, 0f);
 
-            var wallLine = CreatePanel(stage.transform, "Desk Back Line", SketchPalette.Ink);
-            SetAnchor(wallLine.GetComponent<RectTransform>(), 0.06f, 0.67f, 0.94f, 0.678f);
+            if (!usingGeneratedLobby)
+            {
+                var wallLine = CreatePanel(stage.transform, "Desk Back Line", SketchPalette.Ink);
+                SetAnchor(wallLine.GetComponent<RectTransform>(), 0.06f, 0.67f, 0.94f, 0.678f);
 
-            var window = CreatePanel(stage.transform, "Office Window", WithAlpha(MonitorColor, 0.24f));
-            SetAnchor(window.GetComponent<RectTransform>(), 0.08f, 0.71f, 0.30f, 0.91f);
-            AddSketchOutline(window.transform);
+                var window = CreatePanel(stage.transform, "Office Window", WithAlpha(MonitorColor, 0.24f));
+                SetAnchor(window.GetComponent<RectTransform>(), 0.08f, 0.71f, 0.30f, 0.91f);
+                AddSketchOutline(window.transform);
 
-            var plant = CreatePanel(stage.transform, "Desk Plant", new Color32(106, 159, 92, 255));
-            SetAnchor(plant.GetComponent<RectTransform>(), 0.73f, 0.64f, 0.80f, 0.76f);
-            AddSketchOutline(plant.transform);
+                var plant = CreatePanel(stage.transform, "Desk Plant", new Color32(106, 159, 92, 255));
+                SetAnchor(plant.GetComponent<RectTransform>(), 0.73f, 0.64f, 0.80f, 0.76f);
+                AddSketchOutline(plant.transform);
+            }
 
             CreateVisitor(stage.transform);
 
             if (deskTexture != null)
             {
                 var deskArt = CreateRawImage(stage.transform, "Desk Art", deskTexture, Color.white);
-                SetAnchor(deskArt.GetComponent<RectTransform>(), 0.06f, 0.33f, 0.94f, 0.65f);
+                SetAnchor(deskArt.GetComponent<RectTransform>(), 0.02f, 0.31f, 0.98f, 0.66f);
             }
             else
             {
@@ -401,13 +435,26 @@ namespace MannLab.Games.Sitting
                 SetAnchor(deskLegRight.GetComponent<RectTransform>(), 0.73f, 0.31f, 0.76f, 0.44f);
             }
 
-            chairSeat = CreatePanel(stage.transform, "Chair Seat", ChairColor).GetComponent<RectTransform>();
-            chairSeat.anchorMin = new Vector2(0.5f, 0.20f);
-            chairSeat.anchorMax = new Vector2(0.5f, 0.20f);
-            chairSeat.pivot = new Vector2(0.5f, 0.5f);
-            chairSeat.sizeDelta = new Vector2(300f, 92f);
-            chairSeat.anchoredPosition = new Vector2(0f, -160f);
-            AddSketchOutline(chairSeat.transform);
+            if (stoolTexture != null)
+            {
+                var stool = CreateRawImage(stage.transform, "Stool Art", stoolTexture, Color.white);
+                chairSeat = stool.GetComponent<RectTransform>();
+                chairSeat.anchorMin = new Vector2(0.5f, 0.20f);
+                chairSeat.anchorMax = new Vector2(0.5f, 0.20f);
+                chairSeat.pivot = new Vector2(0.5f, 0.5f);
+                chairSeat.sizeDelta = new Vector2(290f, 300f);
+                chairSeat.anchoredPosition = new Vector2(0f, -160f);
+            }
+            else
+            {
+                chairSeat = CreatePanel(stage.transform, "Chair Seat", ChairColor).GetComponent<RectTransform>();
+                chairSeat.anchorMin = new Vector2(0.5f, 0.20f);
+                chairSeat.anchorMax = new Vector2(0.5f, 0.20f);
+                chairSeat.pivot = new Vector2(0.5f, 0.5f);
+                chairSeat.sizeDelta = new Vector2(300f, 92f);
+                chairSeat.anchoredPosition = new Vector2(0f, -160f);
+                AddSketchOutline(chairSeat.transform);
+            }
 
             CreateCharacter(stage.transform);
         }
@@ -422,9 +469,20 @@ namespace MannLab.Games.Sitting
             characterRoot.pivot = new Vector2(0.5f, 0f);
             characterRoot.sizeDelta = new Vector2(250f, 420f);
 
+            if (employeePoseTexture != null)
+            {
+                employeeArt = CreateRawImage(root.transform, "Employee Pose Art", employeePoseTexture, Color.white).GetComponent<RawImage>();
+                var artRect = employeeArt.GetComponent<RectTransform>();
+                Stretch(artRect, Vector2.zero, Vector2.zero);
+                SetEmployeePose(EmployeeStandingUv);
+                characterBody = artRect;
+                characterHead = artRect;
+                return;
+            }
+
             if (employeeTexture != null)
             {
-                var employeeArt = CreateRawImage(root.transform, "Employee Art", employeeTexture, Color.white);
+                employeeArt = CreateRawImage(root.transform, "Employee Art", employeeTexture, Color.white).GetComponent<RawImage>();
                 var artRect = employeeArt.GetComponent<RectTransform>();
                 Stretch(artRect, Vector2.zero, Vector2.zero);
                 characterBody = artRect;
@@ -513,11 +571,10 @@ namespace MannLab.Games.Sitting
             AddSketchOutline(track.transform);
 
             var fill = CreatePanel(track.transform, "Health Fill", HealthGoodColor);
-            Stretch(fill.GetComponent<RectTransform>(), new Vector2(8f, 8f), new Vector2(-8f, -8f));
+            healthFillRect = fill.GetComponent<RectTransform>();
+            Stretch(healthFillRect, new Vector2(8f, 8f), new Vector2(-8f, -8f));
+            healthFillRect.pivot = new Vector2(0f, 0.5f);
             healthFill = fill.GetComponent<Image>();
-            healthFill.type = Image.Type.Filled;
-            healthFill.fillMethod = Image.FillMethod.Horizontal;
-            healthFill.fillOrigin = 0;
         }
 
         private void CreateResultPanel(Transform parent)
@@ -566,6 +623,47 @@ namespace MannLab.Games.Sitting
             image.texture = texture;
             image.color = color;
             return imageObject;
+        }
+
+        private static Texture2D LoadFirstTexture(params string[] resourcePaths)
+        {
+            foreach (var resourcePath in resourcePaths)
+            {
+                var texture = Resources.Load<Texture2D>(resourcePath);
+                if (texture != null)
+                {
+                    return texture;
+                }
+            }
+
+            return null;
+        }
+
+        private void SetEmployeePose(Rect uvRect)
+        {
+            if (employeeArt != null && employeePoseTexture != null)
+            {
+                employeeArt.uvRect = uvRect;
+            }
+        }
+
+        private void SetPasserFrame(int frameIndex)
+        {
+            if (passerArt == null || passerArt.texture == null)
+            {
+                return;
+            }
+
+            if (passerArt.texture.width != 1536 || passerArt.texture.height != 1024)
+            {
+                passerArt.uvRect = new Rect(0f, 0f, 1f, 1f);
+                return;
+            }
+
+            var frame = Mathf.Abs(frameIndex) % 6;
+            var column = frame % 3;
+            var rowFromTop = frame / 3;
+            passerArt.uvRect = new Rect(column / 3f, rowFromTop == 0 ? 0.5f : 0f, 1f / 3f, 0.5f);
         }
 
         private Button CreateSketchButton(Transform parent, string label, int fontSize)

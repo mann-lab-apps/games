@@ -2,13 +2,13 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-unity_root="/Applications/Unity/Hub/Editor/6000.3.20f1/Unity.app/Contents"
+unity_root="/Applications/Unity/Hub/Editor/6000.3.22f1/Unity.app/Contents"
 mono="$unity_root/Resources/Scripting/MonoBleedingEdge/bin/mono"
 csc="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/4.5/csc.exe"
 managed="$unity_root/Resources/Scripting/Managed"
 unity="$managed/UnityEngine"
 mono_lib="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/unityjit-macos"
-ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.template.2d-cross-platform-2d-6.1.2/ScriptAssemblies/UnityEngine.UI.dll"
+ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.template.2d-cross-platform-2d-6.1.6/ScriptAssemblies/UnityEngine.UI.dll"
 project="$repo_root/prototypes/sitting"
 shared_runtime="$repo_root/shared/unity-packages/com.mannlab.hypercasual-core/Runtime"
 tmpdir="$(mktemp -d)"
