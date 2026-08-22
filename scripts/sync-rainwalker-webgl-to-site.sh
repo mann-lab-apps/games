@@ -24,7 +24,15 @@ done
 perl -pi -e 's/rainwalker\.data\.gz/rainwalker.data/g; s/rainwalker\.framework\.js\.gz/rainwalker.framework.js/g; s/rainwalker\.wasm\.gz/rainwalker.wasm/g' "$target_dir/index.html"
 perl -pi -e 's/canvas\.style\.width = "960px";/canvas.style.width = "100%";/g; s/canvas\.style\.height = "600px";/canvas.style.height = "100%";/g' "$target_dir/index.html"
 
-asset_version="$(shasum -a 256 "$target_dir/Build/rainwalker.wasm" | awk '{ print substr($1, 1, 12) }')"
+asset_version="$(
+  shasum -a 256 \
+    "$target_dir/Build/rainwalker.data" \
+    "$target_dir/Build/rainwalker.framework.js" \
+    "$target_dir/Build/rainwalker.wasm" \
+    "$target_dir/Build/rainwalker.loader.js" |
+    shasum -a 256 |
+    awk '{ print substr($1, 1, 12) }'
+)"
 ASSET_VERSION="$asset_version" TARGET_DIR="$target_dir" node <<'NODE'
 const fs = require("fs");
 const path = require("path");
