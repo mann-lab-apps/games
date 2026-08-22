@@ -65,7 +65,7 @@ const games = [
     status: "Prototype",
     description: "사선으로 쏟아지는 비를 낙서 우산 각도로 막으며 걷는 방어 게임",
     route: "/rainwalker",
-    embedHref: "/games/rainwalker/?v=8b8d2de44cac",
+    embedHref: "/games/rainwalker/?v=ad13c73e82d2",
     available: true,
   },
   {
