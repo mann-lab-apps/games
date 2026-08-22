@@ -1,8 +1,8 @@
 using System;
 
-namespace MannLab.Games.Sitting
+namespace MannLab.Games.Standing
 {
-    public enum SittingGameState
+    public enum StandingGameState
     {
         Standing,
         Sitting,
@@ -18,7 +18,7 @@ namespace MannLab.Games.Sitting
         Passing
     }
 
-    public readonly struct SittingBalance
+    public readonly struct StandingBalance
     {
         public const float MaxHealth = 100f;
         public const float StandingDrainPerSecond = 18f;

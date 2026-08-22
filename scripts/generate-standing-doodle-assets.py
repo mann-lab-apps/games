@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate lightweight transparent doodle PNG assets for the Sitting prototype."""
+"""Generate lightweight transparent doodle PNG assets for the Standing prototype."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ Color = tuple[int, int, int, int]
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DIR = ROOT / "prototypes/sitting/Assets/Resources/Sitting"
+OUT_DIR = ROOT / "prototypes/standing/Assets/Resources/Standing"
 
 INK: Color = (38, 36, 32, 255)
 PAPER: Color = (250, 247, 239, 255)

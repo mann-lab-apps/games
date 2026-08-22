@@ -2,12 +2,12 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source_dir="$repo_root/prototypes/sitting/Builds/WebGL/sitting"
-target_dir="$repo_root/web/mannlab-games/public/games/sitting"
+source_dir="$repo_root/prototypes/standing/Builds/WebGL/standing"
+target_dir="$repo_root/web/mannlab-games/public/games/standing"
 
 if [[ ! -f "$source_dir/index.html" ]]; then
   echo "WebGL build not found: $source_dir/index.html" >&2
-  echo "Run ./scripts/verify-sitting-webgl.sh first." >&2
+  echo "Run ./scripts/verify-standing-webgl.sh first." >&2
   exit 2
 fi
 
@@ -15,16 +15,16 @@ mkdir -p "$target_dir"
 rsync -a --delete "$source_dir/" "$target_dir/"
 
 for asset in data framework.js wasm; do
-  gz_asset="$target_dir/Build/sitting.$asset.gz"
+  gz_asset="$target_dir/Build/standing.$asset.gz"
   if [[ -f "$gz_asset" ]]; then
-    gzip -dc "$gz_asset" > "$target_dir/Build/sitting.$asset"
+    gzip -dc "$gz_asset" > "$target_dir/Build/standing.$asset"
   fi
 done
 
-perl -pi -e 's/sitting\.data\.gz/sitting.data/g; s/sitting\.framework\.js\.gz/sitting.framework.js/g; s/sitting\.wasm\.gz/sitting.wasm/g' "$target_dir/index.html"
+perl -pi -e 's/standing\.data\.gz/standing.data/g; s/standing\.framework\.js\.gz/standing.framework.js/g; s/standing\.wasm\.gz/standing.wasm/g' "$target_dir/index.html"
 perl -pi -e 's/canvas\.style\.width = "960px";/canvas.style.width = "100%";/g; s/canvas\.style\.height = "600px";/canvas.style.height = "100%";/g' "$target_dir/index.html"
 
-asset_version="$(shasum -a 256 "$target_dir/Build/sitting.wasm" | awk '{ print substr($1, 1, 12) }')"
+asset_version="$(shasum -a 256 "$target_dir/Build/standing.wasm" | awk '{ print substr($1, 1, 12) }')"
 ASSET_VERSION="$asset_version" TARGET_DIR="$target_dir" node <<'NODE'
 const fs = require("fs");
 const path = require("path");
@@ -33,19 +33,20 @@ const targetDir = process.env.TARGET_DIR;
 const assetVersion = process.env.ASSET_VERSION;
 const indexPath = path.join(targetDir, "index.html");
 const stylePath = path.join(targetDir, "TemplateData", "style.css");
+const hubPath = path.join(targetDir, "..", "..", "..", "src", "main.jsx");
 
 let html = fs.readFileSync(indexPath, "utf8");
 html = html.replace(
-  'var buildUrl = "Build";\n      var loaderUrl = buildUrl + "/sitting.loader.js";',
+  'var buildUrl = "Build";\n      var loaderUrl = buildUrl + "/standing.loader.js";',
   `var buildUrl = "Build";
       var assetVersion = "${assetVersion}";
       var versionSuffix = "?v=" + assetVersion;
-      var loaderUrl = buildUrl + "/sitting.loader.js" + versionSuffix;`
+      var loaderUrl = buildUrl + "/standing.loader.js" + versionSuffix;`
 );
 html = html
-  .replace('dataUrl: buildUrl + "/sitting.data"', 'dataUrl: buildUrl + "/sitting.data" + versionSuffix')
-  .replace('frameworkUrl: buildUrl + "/sitting.framework.js"', 'frameworkUrl: buildUrl + "/sitting.framework.js" + versionSuffix')
-  .replace('codeUrl: buildUrl + "/sitting.wasm"', 'codeUrl: buildUrl + "/sitting.wasm" + versionSuffix');
+  .replace('dataUrl: buildUrl + "/standing.data"', 'dataUrl: buildUrl + "/standing.data" + versionSuffix')
+  .replace('frameworkUrl: buildUrl + "/standing.framework.js"', 'frameworkUrl: buildUrl + "/standing.framework.js" + versionSuffix')
+  .replace('codeUrl: buildUrl + "/standing.wasm"', 'codeUrl: buildUrl + "/standing.wasm" + versionSuffix');
 html = html.replace(
   "showBanner: unityShowBanner,",
   `showBanner: unityShowBanner,
@@ -61,7 +62,7 @@ html = html.replace(
         document.querySelector("#unity-loading-bar").style.display = "none";
         var warning = document.querySelector("#unity-warning");
         warning.className = "runtime-error";
-        warning.innerHTML = \`<strong>게임을 실행하지 못했어요</strong><span>\${message}</span><small>WebGL이 꺼져 있거나 현재 브라우저 창에서 그래픽 가속을 사용할 수 없을 때 발생합니다. 새 창에서 다시 열거나 브라우저의 그래픽 가속/WebGL 설정을 확인해 주세요.</small><div><button type="button" id="retry-game">다시 시도</button><a href="." target="_blank" rel="noreferrer">새 창에서 열기</a><a href="https://github.com/mann-lab-apps/games/issues/new?title=%5BSitting%5D%20%ED%94%BC%EB%93%9C%EB%B0%B1%3A%20WebGL%20%EC%8B%A4%ED%96%89%20%EC%98%A4%EB%A5%98" target="_blank" rel="noreferrer">피드백</a></div>\`;
+        warning.innerHTML = \`<strong>게임을 실행하지 못했어요</strong><span>\${message}</span><small>WebGL이 꺼져 있거나 현재 브라우저 창에서 그래픽 가속을 사용할 수 없을 때 발생합니다. 새 창에서 다시 열거나 브라우저의 그래픽 가속/WebGL 설정을 확인해 주세요.</small><div><button type="button" id="retry-game">다시 시도</button><a href="." target="_blank" rel="noreferrer">새 창에서 열기</a><a href="https://github.com/mann-lab-apps/games/issues/new?title=%5BStanding%5D%20%ED%94%BC%EB%93%9C%EB%B0%B1%3A%20WebGL%20%EC%8B%A4%ED%96%89%20%EC%98%A4%EB%A5%98" target="_blank" rel="noreferrer">피드백</a></div>\`;
         warning.style.display = "grid";
         document.querySelector("#retry-game").onclick = function () { window.location.reload(); };
       }
@@ -70,6 +71,13 @@ html = html.replace(
 );
 html = html.replace("alert(message);", "showRuntimeError(message);");
 fs.writeFileSync(indexPath, html);
+
+let hub = fs.readFileSync(hubPath, "utf8");
+hub = hub.replace(
+  /embedHref: "\/games\/standing\/\?v=[0-9a-f]+"/,
+  `embedHref: "/games/standing/?v=${assetVersion}"`
+);
+fs.writeFileSync(hubPath, hub);
 
 const webShellCss = `
 
@@ -168,8 +176,8 @@ const runtimeErrorCss = `
 fs.appendFileSync(stylePath, webShellCss + runtimeErrorCss);
 NODE
 
-rm -f "$target_dir/Build/sitting.data.gz" \
-  "$target_dir/Build/sitting.framework.js.gz" \
-  "$target_dir/Build/sitting.wasm.gz"
+rm -f "$target_dir/Build/standing.data.gz" \
+  "$target_dir/Build/standing.framework.js.gz" \
+  "$target_dir/Build/standing.wasm.gz"
 
 echo "Synced WebGL site assets: $target_dir"

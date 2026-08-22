@@ -9,12 +9,12 @@ managed="$unity_root/Resources/Scripting/Managed"
 unity="$managed/UnityEngine"
 mono_lib="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/unityjit-macos"
 ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.template.2d-cross-platform-2d-6.1.6/ScriptAssemblies/UnityEngine.UI.dll"
-project="$repo_root/prototypes/sitting"
+project="$repo_root/prototypes/standing"
 shared_runtime="$repo_root/shared/unity-packages/com.mannlab.hypercasual-core/Runtime"
 tmpdir="$(mktemp -d)"
 
-runtime_dll="$tmpdir/SittingRuntime.dll"
-editor_dll="$tmpdir/SittingEditor.dll"
+runtime_dll="$tmpdir/StandingRuntime.dll"
+editor_dll="$tmpdir/StandingEditor.dll"
 
 "$mono" "$csc" -target:library -nologo -nostdlib -out:"$runtime_dll" \
   -r:"$mono_lib/mscorlib.dll" \
@@ -48,49 +48,49 @@ editor_dll="$tmpdir/SittingEditor.dll"
   -r:"$runtime_dll" \
   "$project"/Assets/_Project/Editor/*.cs
 
-cat > "$tmpdir/VerifySittingRules.cs" <<'CS'
+cat > "$tmpdir/VerifyStandingRules.cs" <<'CS'
 using System;
-using MannLab.Games.Sitting;
+using MannLab.Games.Standing;
 
-public static class VerifySittingRules
+public static class VerifyStandingRules
 {
     public static int Main()
     {
-        var standing = SittingBalance.TickHealth(100f, false, 2f);
+        var standing = StandingBalance.TickHealth(100f, false, 2f);
         if (standing >= 100f || standing <= 0f)
         {
             Console.Error.WriteLine($"Standing drain was unexpected: {standing}.");
             return 1;
         }
 
-        var sitting = SittingBalance.TickHealth(40f, true, 1.5f);
-        if (sitting <= 40f || sitting > SittingBalance.MaxHealth)
+        var sitting = StandingBalance.TickHealth(40f, true, 1.5f);
+        if (sitting <= 40f || sitting > StandingBalance.MaxHealth)
         {
             Console.Error.WriteLine($"Sitting recovery was unexpected: {sitting}.");
             return 1;
         }
 
-        if (!SittingBalance.ShouldCatch(true, VisitorPhase.Passing))
+        if (!StandingBalance.ShouldCatch(true, VisitorPhase.Passing))
         {
             Console.Error.WriteLine("Sitting during visitor passing should catch the player.");
             return 1;
         }
 
-        if (SittingBalance.ShouldCatch(true, VisitorPhase.Passing, false))
+        if (StandingBalance.ShouldCatch(true, VisitorPhase.Passing, false))
         {
             Console.Error.WriteLine("Sitting during harmless passer should not catch the player.");
             return 1;
         }
 
-        if (SittingBalance.ShouldCatch(false, VisitorPhase.Passing)
-            || SittingBalance.ShouldCatch(true, VisitorPhase.Warning)
-            || SittingBalance.ShouldCatch(true, VisitorPhase.Empty))
+        if (StandingBalance.ShouldCatch(false, VisitorPhase.Passing)
+            || StandingBalance.ShouldCatch(true, VisitorPhase.Warning)
+            || StandingBalance.ShouldCatch(true, VisitorPhase.Empty))
         {
             Console.Error.WriteLine("Catch condition was too broad.");
             return 1;
         }
 
-        if (!SittingBalance.IsExhausted(0f) || SittingBalance.IsExhausted(0.1f))
+        if (!StandingBalance.IsExhausted(0f) || StandingBalance.IsExhausted(0.1f))
         {
             Console.Error.WriteLine("Exhaustion threshold was wrong.");
             return 1;
@@ -99,28 +99,28 @@ public static class VerifySittingRules
         var rng = new Random(1820);
         for (var i = 0; i < 100; i++)
         {
-            var gap = SittingBalance.NextVisitorGap(rng);
-            if (gap < SittingBalance.MinVisitorGapSeconds || gap > SittingBalance.MaxVisitorGapSeconds)
+            var gap = StandingBalance.NextVisitorGap(rng);
+            if (gap < StandingBalance.MinVisitorGapSeconds || gap > StandingBalance.MaxVisitorGapSeconds)
             {
                 Console.Error.WriteLine($"Visitor gap out of range: {gap}.");
                 return 1;
             }
         }
 
-        Console.WriteLine("Sitting rules verified.");
+        Console.WriteLine("Standing rules verified.");
         return 0;
     }
 }
 CS
 
-"$mono" "$csc" -nologo -nostdlib -out:"$tmpdir/VerifySittingRules.exe" \
+"$mono" "$csc" -nologo -nostdlib -out:"$tmpdir/VerifyStandingRules.exe" \
   -r:"$mono_lib/mscorlib.dll" \
   -r:"$mono_lib/System.dll" \
   -r:"$mono_lib/System.Core.dll" \
   -r:"$mono_lib/Facades/netstandard.dll" \
   -r:"$runtime_dll" \
-  "$tmpdir/VerifySittingRules.cs"
+  "$tmpdir/VerifyStandingRules.cs"
 
-"$mono" "$tmpdir/VerifySittingRules.exe"
+"$mono" "$tmpdir/VerifyStandingRules.exe"
 
-echo "Sitting MVP compile verification passed."
+echo "Standing MVP compile verification passed."

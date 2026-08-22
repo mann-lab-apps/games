@@ -5,11 +5,11 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-namespace MannLab.Games.Sitting
+namespace MannLab.Games.Standing
 {
-    public sealed class SittingController : MonoBehaviour
+    public sealed class StandingController : MonoBehaviour
     {
-        private const string BestSecondsKey = "mannlab.sitting.best_seconds";
+        private const string BestSecondsKey = "mannlab.standing.best_seconds";
         private static readonly Color DeskTopColor = new Color32(194, 132, 72, 255);
         private static readonly Color DeskFrontColor = new Color32(239, 188, 107, 255);
         private static readonly Color DeskLegColor = new Color32(122, 78, 49, 255);
@@ -57,7 +57,7 @@ namespace MannLab.Games.Sitting
         private Texture2D lobbyTexture;
         private Texture2D stoolTexture;
         private bool usingGeneratedLobby;
-        private SittingGameState state;
+        private StandingGameState state;
         private VisitorPhase visitorPhase;
         private float health;
         private float runSeconds;
@@ -69,7 +69,7 @@ namespace MannLab.Games.Sitting
         private float visualPulse;
         private bool wasSitting;
         private bool currentPasserIsCustomer;
-        private SittingGameState lastEndState;
+        private StandingGameState lastEndState;
 
         private void Awake()
         {
@@ -89,12 +89,12 @@ namespace MannLab.Games.Sitting
 
         private void Update()
         {
-            if (state == SittingGameState.GameOver)
+            if (state == StandingGameState.GameOver)
             {
                 return;
             }
 
-            if (state == SittingGameState.Caught || state == SittingGameState.Exhausted)
+            if (state == StandingGameState.Caught || state == StandingGameState.Exhausted)
             {
                 AnimateFailState();
                 if (Time.time >= resultAt)
@@ -106,7 +106,7 @@ namespace MannLab.Games.Sitting
             }
 
             var sittingInput = IsPressingPlayArea();
-            state = sittingInput ? SittingGameState.Sitting : SittingGameState.Standing;
+            state = sittingInput ? StandingGameState.Sitting : StandingGameState.Standing;
             if (sittingInput && !wasSitting)
             {
                 PlayClip(sitClip);
@@ -114,18 +114,18 @@ namespace MannLab.Games.Sitting
 
             wasSitting = sittingInput;
             runSeconds += Time.deltaTime;
-            health = SittingBalance.TickHealth(health, sittingInput, Time.deltaTime);
+            health = StandingBalance.TickHealth(health, sittingInput, Time.deltaTime);
             UpdateVisitor();
 
-            if (SittingBalance.ShouldCatch(sittingInput, visitorPhase, currentPasserIsCustomer))
+            if (StandingBalance.ShouldCatch(sittingInput, visitorPhase, currentPasserIsCustomer))
             {
-                EndRun(SittingGameState.Caught);
+                EndRun(StandingGameState.Caught);
                 return;
             }
 
-            if (SittingBalance.IsExhausted(health))
+            if (StandingBalance.IsExhausted(health))
             {
-                EndRun(SittingGameState.Exhausted);
+                EndRun(StandingGameState.Exhausted);
                 return;
             }
 
@@ -136,15 +136,15 @@ namespace MannLab.Games.Sitting
         private void StartRun()
         {
             StopAllCoroutines();
-            state = SittingGameState.Standing;
+            state = StandingGameState.Standing;
             visitorPhase = VisitorPhase.Empty;
-            health = SittingBalance.MaxHealth;
+            health = StandingBalance.MaxHealth;
             runSeconds = 0f;
             clearedCustomers = 0;
             currentPasserIsCustomer = false;
             wasSitting = false;
             visualPulse = 0f;
-            nextVisitorAt = Time.time + SittingBalance.NextVisitorGap(random);
+            nextVisitorAt = Time.time + StandingBalance.NextVisitorGap(random);
             visitorPhaseEndsAt = 0f;
             resultPanel.SetActive(false);
             visitorRoot.gameObject.SetActive(false);
@@ -154,24 +154,24 @@ namespace MannLab.Games.Sitting
 
         private void LoadArtAssets()
         {
-            employeePoseTexture = Resources.Load<Texture2D>("Sitting/employee_poses_clean");
-            employeeTexture = Resources.Load<Texture2D>("Sitting/employee");
+            employeePoseTexture = Resources.Load<Texture2D>("Standing/employee_poses_clean");
+            employeeTexture = Resources.Load<Texture2D>("Standing/employee");
             customerWalkTexture = LoadFirstTexture(
-                "Sitting/customer_walk_sheet_v3",
-                "Sitting/customer_male_walk_sheet",
-                "Sitting/customer");
+                "Standing/customer_walk_sheet_v3",
+                "Standing/customer_male_walk_sheet",
+                "Standing/customer");
             phonePasserTexture = LoadFirstTexture(
-                "Sitting/phone_passer_female_walk_sheet",
-                "Sitting/phone_passer_walk_sheet_v2",
-                "Sitting/phone_passer_walk_sheet_v1");
-            customerTexture = customerWalkTexture ?? Resources.Load<Texture2D>("Sitting/customer");
-            deskTexture = LoadFirstTexture("Sitting/service_desk_doodle", "Sitting/desk");
-            stoolTexture = Resources.Load<Texture2D>("Sitting/stool_doodle");
+                "Standing/phone_passer_female_walk_sheet",
+                "Standing/phone_passer_walk_sheet_v2",
+                "Standing/phone_passer_walk_sheet_v1");
+            customerTexture = customerWalkTexture ?? Resources.Load<Texture2D>("Standing/customer");
+            deskTexture = LoadFirstTexture("Standing/service_desk_doodle", "Standing/desk");
+            stoolTexture = Resources.Load<Texture2D>("Standing/stool_doodle");
 
             var generatedLobby = LoadFirstTexture(
-                "Sitting/lobby_background_doodle_v2",
-                "Sitting/lobby_background_doodle_v1");
-            lobbyTexture = generatedLobby ?? Resources.Load<Texture2D>("Sitting/lobby");
+                "Standing/lobby_background_doodle_v2",
+                "Standing/lobby_background_doodle_v1");
+            lobbyTexture = generatedLobby ?? Resources.Load<Texture2D>("Standing/lobby");
             usingGeneratedLobby = generatedLobby != null;
         }
 
@@ -185,8 +185,8 @@ namespace MannLab.Games.Sitting
                 }
 
                 visitorPhase = VisitorPhase.Warning;
-                currentPasserIsCustomer = random.NextDouble() < SittingBalance.CustomerChance;
-                visitorPhaseEndsAt = Time.time + SittingBalance.VisitorWarningSeconds;
+                currentPasserIsCustomer = random.NextDouble() < StandingBalance.CustomerChance;
+                visitorPhaseEndsAt = Time.time + StandingBalance.VisitorWarningSeconds;
                 return;
             }
 
@@ -198,7 +198,7 @@ namespace MannLab.Games.Sitting
                 }
 
                 visitorPhase = VisitorPhase.Passing;
-                visitorPhaseEndsAt = Time.time + SittingBalance.VisitorPassingSeconds;
+                visitorPhaseEndsAt = Time.time + StandingBalance.VisitorPassingSeconds;
                 UpdatePasserArt();
                 visitorRoot.gameObject.SetActive(true);
             }
@@ -208,7 +208,7 @@ namespace MannLab.Games.Sitting
                 return;
             }
 
-            var progress = 1f - Mathf.Clamp01((visitorPhaseEndsAt - Time.time) / SittingBalance.VisitorPassingSeconds);
+            var progress = 1f - Mathf.Clamp01((visitorPhaseEndsAt - Time.time) / StandingBalance.VisitorPassingSeconds);
             visitorRoot.anchorMin = new Vector2(-0.14f + progress * 1.28f, 0.55f);
             visitorRoot.anchorMax = new Vector2(0.08f + progress * 1.28f, 0.86f);
             visitorImage.color = WithAlpha(currentPasserIsCustomer ? VisitorGlowColor : MonitorColor, 0.22f);
@@ -226,7 +226,7 @@ namespace MannLab.Games.Sitting
                 clearedCustomers++;
             }
 
-            nextVisitorAt = Time.time + SittingBalance.NextVisitorGap(random);
+            nextVisitorAt = Time.time + StandingBalance.NextVisitorGap(random);
         }
 
         private void UpdatePasserArt()
@@ -243,13 +243,13 @@ namespace MannLab.Games.Sitting
             SetPasserFrame(0);
         }
 
-        private void EndRun(SittingGameState finalState)
+        private void EndRun(StandingGameState finalState)
         {
             state = finalState;
             lastEndState = finalState;
-            resultAt = Time.time + SittingBalance.ResultDelaySeconds;
-            visitorRoot.gameObject.SetActive(finalState == SittingGameState.Caught);
-            PlayClip(finalState == SittingGameState.Caught ? caughtClip : exhaustedClip);
+            resultAt = Time.time + StandingBalance.ResultDelaySeconds;
+            visitorRoot.gameObject.SetActive(finalState == StandingGameState.Caught);
+            PlayClip(finalState == StandingGameState.Caught ? caughtClip : exhaustedClip);
 
             if (runSeconds > bestSeconds)
             {
@@ -265,7 +265,7 @@ namespace MannLab.Games.Sitting
         private void AnimateFailState()
         {
             visualPulse += Time.deltaTime * 18f;
-            if (state == SittingGameState.Caught)
+            if (state == StandingGameState.Caught)
             {
                 SetEmployeePose(EmployeeCaughtUv);
                 var shake = Mathf.Sin(visualPulse) * 24f;
@@ -283,8 +283,8 @@ namespace MannLab.Games.Sitting
 
         private void ShowResult()
         {
-            state = SittingGameState.GameOver;
-            resultTitleText.text = lastEndState == SittingGameState.Exhausted ? "Collapsed" : "Customer Saw You";
+            state = StandingGameState.GameOver;
+            resultTitleText.text = lastEndState == StandingGameState.Exhausted ? "Collapsed" : "Customer Saw You";
             resultScoreText.text = $"Time {FormatTime(runSeconds)}\nBest {FormatTime(bestSeconds)}\nCustomers {clearedCustomers}";
             resultPanel.SetActive(true);
         }
@@ -293,7 +293,7 @@ namespace MannLab.Games.Sitting
         {
             timeText.text = $"Time {FormatTime(runSeconds)}";
             bestText.text = $"Best {FormatTime(bestSeconds)}";
-            var healthRatio = Mathf.Clamp01(health / SittingBalance.MaxHealth);
+            var healthRatio = Mathf.Clamp01(health / StandingBalance.MaxHealth);
             healthFillRect.localScale = new Vector3(healthRatio, 1f, 1f);
             healthFill.color = healthRatio < 0.28f
                 ? HealthLowColor

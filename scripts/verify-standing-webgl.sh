@@ -2,12 +2,12 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-project="$repo_root/prototypes/sitting"
+project="$repo_root/prototypes/standing"
 unity_editor="/Applications/Unity/Hub/Editor/6000.3.22f1/Unity.app/Contents/MacOS/Unity"
 unity_cli="${HOME}/.unity/bin/unity"
 webgl_engine="/Applications/Unity/Hub/Editor/6000.3.22f1/PlaybackEngines/WebGLSupport"
-build_log="/tmp/sitting-unity-webgl-build.log"
-build_output="$project/Builds/WebGL/sitting"
+build_log="/tmp/standing-unity-webgl-build.log"
+build_output="$project/Builds/WebGL/standing"
 missing=0
 
 if [[ ! -x "$unity_editor" ]]; then
@@ -44,7 +44,7 @@ fi
   -batchmode \
   -quit \
   -projectPath "$project" \
-  -executeMethod MannLab.Games.Sitting.EditorTools.BuildWebGL.Build \
+  -executeMethod MannLab.Games.Standing.EditorTools.BuildWebGL.Build \
   -logFile "$build_log"
 
 test -f "$build_output/index.html"

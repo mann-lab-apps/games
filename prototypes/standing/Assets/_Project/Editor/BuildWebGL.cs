@@ -4,12 +4,12 @@ using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-namespace MannLab.Games.Sitting.EditorTools
+namespace MannLab.Games.Standing.EditorTools
 {
     public static class BuildWebGL
     {
         private const string ScenePath = "Assets/_Project/Scenes/Game.unity";
-        private const string OutputPath = "Builds/WebGL/sitting";
+        private const string OutputPath = "Builds/WebGL/standing";
 
         public static void Build()
         {

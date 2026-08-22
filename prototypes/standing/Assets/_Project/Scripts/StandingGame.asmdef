@@ -1,6 +1,6 @@
 {
-  "name": "MannLab.Games.Sitting",
-  "rootNamespace": "MannLab.Games.Sitting",
+  "name": "MannLab.Games.Standing",
+  "rootNamespace": "MannLab.Games.Standing",
   "references": [
     "MannLab.HyperCasual.Core"
   ],

@@ -1,6 +1,6 @@
-# Sitting
+# Standing
 
-Sitting is a one-touch hyper-casual stealth-rest prototype.
+Standing is a one-touch hyper-casual stealth-rest prototype.
 
 ## Core Loop
 

@@ -1,13 +1,13 @@
-# Sitting
+# Standing
 
 One-touch stealth-rest hyper-casual prototype.
 
 ## Project
 
-- Unity editor: 6000.3.20f1
+- Unity editor: 6000.3.22f1
 - Primary prototype platform: mobile portrait
-- Package name: com.mannlab.games.sitting
-- Namespace: MannLab.Games.Sitting
+- Package name: com.mannlab.games.standing
+- Namespace: MannLab.Games.Standing
 
 ## Core Loop
 
@@ -23,17 +23,17 @@ One-touch stealth-rest hyper-casual prototype.
 Generate the scene from Unity:
 
 ```sh
-/Applications/Unity/Hub/Editor/6000.3.20f1/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.3.22f1/Unity.app/Contents/MacOS/Unity \
   -batchmode \
   -quit \
-  -projectPath prototypes/sitting \
-  -executeMethod MannLab.Games.Sitting.EditorTools.CreateGameScene.Create
+  -projectPath prototypes/standing \
+  -executeMethod MannLab.Games.Standing.EditorTools.CreateGameScene.Create
 ```
 
 Run the lightweight local verification:
 
 ```sh
-./scripts/verify-sitting-mvp.sh
+./scripts/verify-standing-mvp.sh
 ```
 
 ## Deferred

@@ -51,12 +51,13 @@ const games = [
     available: true,
   },
   {
-    id: "sitting",
+    id: "standing",
     title: "Standing!",
     status: "Prototype",
     description: "고객과 통행자를 구분하며 몰래 앉아 버티는 눈치 게임",
-    route: "/sitting",
-    embedHref: "/games/sitting/?v=61f5811b0316",
+    route: "/standing",
+    aliases: ["/sitting"],
+    embedHref: "/games/standing/?v=4154f43ebde2",
     available: true,
   },
   {

@@ -1,11 +1,11 @@
 using System.IO;
-using MannLab.Games.Sitting;
+using MannLab.Games.Standing;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-namespace MannLab.Games.Sitting.EditorTools
+namespace MannLab.Games.Standing.EditorTools
 {
     public static class CreateGameScene
     {
@@ -20,7 +20,7 @@ namespace MannLab.Games.Sitting.EditorTools
             camera.backgroundColor = new Color32(250, 247, 239, 255);
             camera.orthographic = true;
 
-            new GameObject("Sitting Game", typeof(SittingController));
+            new GameObject("Standing Game", typeof(StandingController));
 
             Directory.CreateDirectory("Assets/_Project/Scenes");
             EditorSceneManager.SaveScene(scene, "Assets/_Project/Scenes/Game.unity");
@@ -31,9 +31,9 @@ namespace MannLab.Games.Sitting.EditorTools
             };
 
             PlayerSettings.companyName = "Mann Lab";
-            PlayerSettings.productName = "Sitting";
-            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.mannlab.games.sitting");
-            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, "com.mannlab.games.sitting");
+            PlayerSettings.productName = "Standing";
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.mannlab.games.standing");
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, "com.mannlab.games.standing");
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.Android.bundleVersionCode = 1;
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
