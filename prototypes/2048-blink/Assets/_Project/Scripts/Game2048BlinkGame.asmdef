@@ -1,0 +1,16 @@
+{
+  "name": "MannLab.Games.Game2048Blink",
+  "rootNamespace": "MannLab.Games.Game2048Blink",
+  "references": [
+    "MannLab.HyperCasual.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -23,6 +23,15 @@ const games = [
     available: true,
   },
   {
+    id: "2048-blink",
+    title: "2048 Blink",
+    status: "Prototype",
+    description: "한 줄과 한 칸이 번갈아 가려지는 기억형 2048 퍼즐",
+    route: "/2048-blink",
+    embedHref: "/games/2048-blink/index.html?v=e40d955c2ca1",
+    available: true,
+  },
+  {
     id: "drum-duel",
     title: "Drum Duel",
     status: "Candidate",
