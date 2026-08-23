@@ -46,7 +46,8 @@ editor_dll="$tmpdir/StandingEditor.dll"
   -r:"$unity/UnityEngine.IMGUIModule.dll" \
   -r:"$ugui" \
   -r:"$runtime_dll" \
-  "$project"/Assets/_Project/Editor/*.cs
+  "$project"/Assets/_Project/Editor/CreateGameScene.cs \
+  "$project"/Assets/_Project/Editor/BuildWebGL.cs
 
 cat > "$tmpdir/VerifyStandingRules.cs" <<'CS'
 using System;

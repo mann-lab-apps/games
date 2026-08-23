@@ -36,6 +36,12 @@ Run the lightweight local verification:
 ./scripts/verify-standing-mvp.sh
 ```
 
+Build the iOS Xcode project:
+
+```sh
+./scripts/verify-standing-ios-readiness.sh
+```
+
 ## Deferred
 
-Ads, Firebase, Crashlytics, app icons, screenshots, and store metadata are intentionally deferred until the game loop proves worth continuing.
+Ads, Firebase, Crashlytics, screenshots, and store metadata are intentionally deferred until the game loop proves worth continuing.
