@@ -48,6 +48,7 @@ jobs:
       - name: Add SPA fallback
         run: |
           mkdir -p dist/10000
+          mkdir -p dist/2048-blink
           mkdir -p dist/2048-crash
           mkdir -p dist/drum-duel
           mkdir -p dist/dopamine-swap
@@ -58,6 +59,7 @@ jobs:
           mkdir -p dist/rainwalker
           mkdir -p dist/privacy
           cp dist/index.html dist/10000/index.html
+          cp dist/index.html dist/2048-blink/index.html
           cp dist/index.html dist/2048-crash/index.html
           cp dist/index.html dist/drum-duel/index.html
           cp dist/index.html dist/dopamine-swap/index.html
