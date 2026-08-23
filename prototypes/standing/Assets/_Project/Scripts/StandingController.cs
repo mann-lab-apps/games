@@ -33,8 +33,8 @@ namespace MannLab.Games.Standing
         private const float PasserStartX = -0.28f;
         private const float PasserTravelX = 1.32f;
         private const float PasserWidth = 0.24f;
-        private const float DetectionCarpetLeftX = 0.02f;
-        private const float DetectionCarpetRightX = 0.98f;
+        private const float DetectionCarpetLeftX = 0.14f;
+        private const float DetectionCarpetRightX = 0.86f;
         private const float DetectionCarpetBottomY = 0.60f;
         private const float DetectionCarpetTopY = 0.78f;
         private const int EmployeeStandingPose = 0;
