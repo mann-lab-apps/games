@@ -23,8 +23,8 @@ namespace MannLab.Games.Standing
         public const float MaxHealth = 100f;
         public const float StandingDrainPerSecond = 18f;
         public const float SittingRecoveryPerSecond = 22f;
-        public const float VisitorDetectionStartProgress = 0.40f;
-        public const float VisitorDetectionEndProgress = 0.64f;
+        public const float VisitorDetectionStartProgress = 0.16f;
+        public const float VisitorDetectionEndProgress = 0.84f;
         public const float VisitorDetectionProgress = VisitorDetectionStartProgress;
         public const float MinVisitorWalkSpeed = 0.28f;
         public const float MaxVisitorWalkSpeed = 0.42f;

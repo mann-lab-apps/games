@@ -14,7 +14,6 @@ namespace MannLab.Games.Standing
         private static readonly Color DeskFrontColor = new Color32(239, 188, 107, 255);
         private static readonly Color DeskLegColor = new Color32(122, 78, 49, 255);
         private static readonly Color MonitorColor = new Color32(107, 194, 215, 255);
-        private static readonly Color ChairColor = new Color32(63, 134, 190, 255);
         private static readonly Color PlayerShirtColor = new Color32(54, 143, 205, 255);
         private static readonly Color PlayerPantsColor = new Color32(74, 83, 101, 255);
         private static readonly Color SkinColor = new Color32(248, 189, 132, 255);
@@ -22,7 +21,6 @@ namespace MannLab.Games.Standing
         private static readonly Color HealthGoodColor = new Color32(47, 183, 97, 255);
         private static readonly Color HealthWarnColor = new Color32(238, 181, 56, 255);
         private static readonly Color HealthLowColor = new Color32(238, 96, 56, 255);
-        private static readonly Color DiscoveryFloorColor = new Color32(255, 214, 132, 255);
         private static readonly Color[] PasserTints =
         {
             Color.white,
@@ -36,6 +34,7 @@ namespace MannLab.Games.Standing
         private const float PasserTravelX = 1.32f;
         private const float PasserWidth = 0.24f;
         private const int EmployeeStandingPose = 0;
+        private const int EmployeeSittingPose = 1;
         private const int EmployeeCaughtPose = 2;
         private const int EmployeeExhaustedPose = 3;
 
@@ -51,7 +50,6 @@ namespace MannLab.Games.Standing
         private RectTransform characterRoot;
         private RectTransform characterBody;
         private RectTransform characterHead;
-        private RectTransform chairSeat;
         private Image employeeArt;
         private RectTransform visitorRoot;
         private Image visitorImage;
@@ -70,7 +68,6 @@ namespace MannLab.Games.Standing
         private Texture2D phonePasserTexture;
         private Texture2D deskTexture;
         private Texture2D lobbyTexture;
-        private Texture2D stoolTexture;
         private bool usingGeneratedLobby;
         private StandingGameState state;
         private VisitorPhase visitorPhase;
@@ -197,9 +194,9 @@ namespace MannLab.Games.Standing
             customerFallbackSprite = CreateFullSprite(customerTexture);
             phonePasserFallbackSprite = CreateFullSprite(phonePasserTexture);
             deskTexture = LoadFirstTexture("Standing/service_desk_doodle", "Standing/desk");
-            stoolTexture = Resources.Load<Texture2D>("Standing/stool_doodle");
 
             var generatedLobby = LoadFirstTexture(
+                "Standing/lobby_background_doodle_v3",
                 "Standing/lobby_background_doodle_v2",
                 "Standing/lobby_background_doodle_v1");
             lobbyTexture = generatedLobby ?? Resources.Load<Texture2D>("Standing/lobby");
@@ -366,12 +363,11 @@ namespace MannLab.Games.Standing
 
         private void UpdateCharacterVisual(bool sitting)
         {
-            SetEmployeePose(EmployeeStandingPose);
-            var targetY = sitting ? -126f : -28f;
+            SetEmployeePose(sitting ? EmployeeSittingPose : EmployeeStandingPose);
+            var targetY = sitting ? -92f : -28f;
             characterRoot.anchoredPosition = Vector2.Lerp(characterRoot.anchoredPosition, new Vector2(0f, targetY), 0.25f);
-            characterBody.localRotation = Quaternion.Lerp(characterBody.localRotation, Quaternion.Euler(0f, 0f, sitting ? -3f : 0f), 0.2f);
-            characterHead.localScale = Vector3.Lerp(characterHead.localScale, new Vector3(sitting ? 0.94f : 1f, sitting ? 0.90f : 1f, 1f), 0.2f);
-            chairSeat.anchoredPosition = Vector2.Lerp(chairSeat.anchoredPosition, new Vector2(0f, -160f), 0.2f);
+            characterBody.localRotation = Quaternion.Lerp(characterBody.localRotation, Quaternion.Euler(0f, 0f, sitting ? -2f : 0f), 0.2f);
+            characterHead.localScale = Vector3.Lerp(characterHead.localScale, Vector3.one * (sitting ? 0.98f : 1f), 0.2f);
         }
 
         private bool IsPressingPlayArea()
@@ -465,7 +461,6 @@ namespace MannLab.Games.Standing
                 AddSketchOutline(plant.transform);
             }
 
-            CreateDiscoveryFloorWash(stage.transform);
             CreateVisitor(stage.transform);
 
             if (deskTexture != null)
@@ -498,41 +493,7 @@ namespace MannLab.Games.Standing
                 SetAnchor(deskLegRight.GetComponent<RectTransform>(), 0.73f, 0.31f, 0.76f, 0.44f);
             }
 
-            if (stoolTexture != null)
-            {
-                var stool = CreateRawImage(stage.transform, "Stool Art", stoolTexture, Color.white);
-                chairSeat = stool.GetComponent<RectTransform>();
-                chairSeat.anchorMin = new Vector2(0.5f, 0.20f);
-                chairSeat.anchorMax = new Vector2(0.5f, 0.20f);
-                chairSeat.pivot = new Vector2(0.5f, 0.5f);
-                chairSeat.sizeDelta = new Vector2(290f, 300f);
-                chairSeat.anchoredPosition = new Vector2(0f, -160f);
-            }
-            else
-            {
-                chairSeat = CreatePanel(stage.transform, "Chair Seat", ChairColor).GetComponent<RectTransform>();
-                chairSeat.anchorMin = new Vector2(0.5f, 0.20f);
-                chairSeat.anchorMax = new Vector2(0.5f, 0.20f);
-                chairSeat.pivot = new Vector2(0.5f, 0.5f);
-                chairSeat.sizeDelta = new Vector2(300f, 92f);
-                chairSeat.anchoredPosition = new Vector2(0f, -160f);
-                AddSketchOutline(chairSeat.transform);
-            }
-
             CreateCharacter(stage.transform);
-            chairSeat.SetAsLastSibling();
-        }
-
-        private void CreateDiscoveryFloorWash(Transform parent)
-        {
-            var startX = PasserStartX
-                + StandingBalance.VisitorDetectionStartProgress * PasserTravelX
-                + PasserWidth * 0.5f;
-            var endX = PasserStartX
-                + StandingBalance.VisitorDetectionEndProgress * PasserTravelX
-                + PasserWidth * 0.5f;
-            var floor = CreatePanel(parent, "Discovery Floor Wash", WithAlpha(DiscoveryFloorColor, 0.24f));
-            SetAnchor(floor.GetComponent<RectTransform>(), startX, 0.49f, endX, 0.80f);
         }
 
         private void CreateCharacter(Transform parent)
