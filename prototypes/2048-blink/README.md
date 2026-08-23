@@ -32,11 +32,12 @@ Implemented:
 - Result panel
 - iOS app icon asset
 - iOS Xcode build script
+- Tile slide and merge animation
+- Short full-board reveal before the Gray Cross changes
+- New Gray Cross curtain animation after every valid move
 
 Not implemented:
 
-- Tile slide animation
-- Short full-board reveal before the Gray Cross changes
 - Firebase/Crashlytics telemetry
 - Ads
 - Online leaderboard

@@ -119,7 +119,7 @@ async function waitForGame(client) {
     lastStatus = result.result?.value;
     if (lastStatus?.failed) throw new Error(`WebGL page failed: ${lastStatus.warningText}`);
     if (lastStatus?.ready) {
-      await delay(8000);
+      await delay(15000);
       return;
     }
     await delay(500);

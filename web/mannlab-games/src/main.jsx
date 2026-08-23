@@ -28,7 +28,7 @@ const games = [
     status: "Prototype",
     description: "한 줄과 한 칸이 번갈아 가려지는 기억형 2048 퍼즐",
     route: "/2048-blink",
-    embedHref: "/games/2048-blink/index.html?v=e40d955c2ca1",
+    embedHref: "/games/2048-blink/index.html?v=29d2d17b0292",
     available: true,
   },
   {
