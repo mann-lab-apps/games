@@ -106,11 +106,11 @@ public static class VerifyStandingRules
                 return 1;
             }
 
-            var passingSeconds = StandingBalance.NextVisitorPassingSeconds(rng);
-            if (passingSeconds < StandingBalance.MinVisitorPassingSeconds
-                || passingSeconds > StandingBalance.MaxVisitorPassingSeconds)
+            var walkSpeed = StandingBalance.NextVisitorWalkSpeed(rng);
+            if (walkSpeed < StandingBalance.MinVisitorWalkSpeed
+                || walkSpeed > StandingBalance.MaxVisitorWalkSpeed)
             {
-                Console.Error.WriteLine($"Visitor passing duration out of range: {passingSeconds}.");
+                Console.Error.WriteLine($"Visitor walk speed out of range: {walkSpeed}.");
                 return 1;
             }
         }
