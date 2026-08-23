@@ -57,7 +57,7 @@ const games = [
     description: "고객과 통행자를 구분하며 몰래 앉아 버티는 눈치 게임",
     route: "/standing",
     aliases: ["/sitting"],
-    embedHref: "/games/standing/?v=36a98d4df4d2",
+    embedHref: "/games/standing/?v=f5e0ae4859d3",
     available: true,
   },
   {

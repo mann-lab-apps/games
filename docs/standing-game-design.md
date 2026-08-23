@@ -8,7 +8,8 @@ Standing is a one-touch hyper-casual stealth-rest prototype.
 - Standing drains stamina over time.
 - Holding the screen makes the character sit and recover stamina.
 - Each passer keeps an individual readable walking speed.
-- Warm floor tiles mark the counter area where a customer can discover the employee.
+- A soft warm floor wash marks the central counter area where a customer can discover the employee.
+- Passers enter from either side one at a time, with varied clothing tint so phone use matters more than shirt color.
 - If a visitor passes while the character is sitting, the character is caught and the run ends.
 - If stamina reaches zero, the character collapses and the run ends.
 - The score is survival time.

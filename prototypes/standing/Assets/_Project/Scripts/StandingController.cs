@@ -22,9 +22,20 @@ namespace MannLab.Games.Standing
         private static readonly Color HealthGoodColor = new Color32(47, 183, 97, 255);
         private static readonly Color HealthWarnColor = new Color32(238, 181, 56, 255);
         private static readonly Color HealthLowColor = new Color32(238, 96, 56, 255);
-        private static readonly Color DiscoveryTileColor = new Color32(255, 202, 112, 255);
+        private static readonly Color DiscoveryFloorColor = new Color32(255, 214, 132, 255);
+        private static readonly Color[] PasserTints =
+        {
+            Color.white,
+            new Color32(220, 242, 255, 255),
+            new Color32(255, 230, 219, 255),
+            new Color32(226, 246, 224, 255),
+            new Color32(238, 228, 255, 255)
+        };
+
+        private const float PasserStartX = -0.28f;
+        private const float PasserTravelX = 1.32f;
+        private const float PasserWidth = 0.24f;
         private const int EmployeeStandingPose = 0;
-        private const int EmployeeSittingPose = 1;
         private const int EmployeeCaughtPose = 2;
         private const int EmployeeExhaustedPose = 3;
 
@@ -74,6 +85,8 @@ namespace MannLab.Games.Standing
         private float resultAt;
         private float visualPulse;
         private int currentPasserFrameOffset;
+        private int currentPasserDirection;
+        private Color currentPasserTint;
         private bool wasSitting;
         private bool currentPasserIsCustomer;
         private StandingGameState lastEndState;
@@ -154,6 +167,8 @@ namespace MannLab.Games.Standing
             currentPasserProgress = 0f;
             currentPasserWalkSpeed = StandingBalance.MinVisitorWalkSpeed;
             currentPasserFrameOffset = 0;
+            currentPasserDirection = 1;
+            currentPasserTint = Color.white;
             nextVisitorAt = Time.time + StandingBalance.NextVisitorGap(random);
             resultPanel.SetActive(false);
             visitorRoot.gameObject.SetActive(false);
@@ -205,6 +220,8 @@ namespace MannLab.Games.Standing
                 currentPasserWalkSpeed = StandingBalance.NextVisitorWalkSpeed(random);
                 currentPasserProgress = 0f;
                 currentPasserFrameOffset = random.Next(0, 6);
+                currentPasserDirection = random.Next(0, 2) == 0 ? 1 : -1;
+                currentPasserTint = PasserTints[random.Next(PasserTints.Length)];
                 passerStartedAt = Time.time;
                 UpdatePasserArt();
                 PositionPasser(0f);
@@ -214,27 +231,27 @@ namespace MannLab.Games.Standing
 
             if (visitorPhase == VisitorPhase.Warning)
             {
-                currentPasserProgress = Mathf.Min(
-                    StandingBalance.VisitorDetectionProgress,
-                    currentPasserProgress + currentPasserWalkSpeed * Time.deltaTime);
+                currentPasserProgress = Mathf.Clamp01(currentPasserProgress + currentPasserWalkSpeed * Time.deltaTime);
                 PositionPasser(currentPasserProgress);
                 UpdatePasserWalkFrame();
-                if (currentPasserProgress < StandingBalance.VisitorDetectionProgress)
+                visitorPhase = StandingBalance.IsVisitorInDetectionZone(currentPasserProgress)
+                    ? VisitorPhase.Passing
+                    : VisitorPhase.Warning;
+                if (currentPasserProgress < 1f)
                 {
                     return;
                 }
-
-                visitorPhase = VisitorPhase.Passing;
             }
 
-            if (visitorPhase != VisitorPhase.Passing)
+            if (visitorPhase == VisitorPhase.Passing)
             {
-                return;
+                currentPasserProgress = Mathf.Clamp01(currentPasserProgress + currentPasserWalkSpeed * Time.deltaTime);
+                PositionPasser(currentPasserProgress);
+                UpdatePasserWalkFrame();
+                visitorPhase = StandingBalance.IsVisitorInDetectionZone(currentPasserProgress)
+                    ? VisitorPhase.Passing
+                    : VisitorPhase.Warning;
             }
-
-            currentPasserProgress += currentPasserWalkSpeed * Time.deltaTime;
-            PositionPasser(currentPasserProgress);
-            UpdatePasserWalkFrame();
 
             if (currentPasserProgress < 1f)
             {
@@ -261,15 +278,19 @@ namespace MannLab.Games.Standing
             passerArt.sprite = currentPasserIsCustomer || phonePasserFrames == null
                 ? customerFallbackSprite
                 : phonePasserFallbackSprite;
-            passerArt.color = Color.white;
+            passerArt.color = currentPasserTint;
+            passerArt.GetComponent<RectTransform>().localScale = new Vector3(currentPasserDirection, 1f, 1f);
             SetPasserFrame(0);
         }
 
         private void PositionPasser(float progress)
         {
-            var x = -0.24f + Mathf.Clamp01(progress) * 1.32f;
+            var travel = Mathf.Clamp01(progress) * PasserTravelX;
+            var x = currentPasserDirection > 0
+                ? PasserStartX + travel
+                : PasserStartX + PasserTravelX - travel;
             visitorRoot.anchorMin = new Vector2(x, 0.48f);
-            visitorRoot.anchorMax = new Vector2(x + 0.24f, 0.82f);
+            visitorRoot.anchorMax = new Vector2(x + PasserWidth, 0.82f);
             visitorRoot.offsetMin = Vector2.zero;
             visitorRoot.offsetMax = Vector2.zero;
         }
@@ -331,7 +352,11 @@ namespace MannLab.Games.Standing
             timeText.text = $"Time {FormatTime(runSeconds)}";
             bestText.text = $"Best {FormatTime(bestSeconds)}";
             var healthRatio = Mathf.Clamp01(health / StandingBalance.MaxHealth);
-            healthFillRect.localScale = new Vector3(healthRatio, 1f, 1f);
+            healthFillRect.anchorMin = Vector2.zero;
+            healthFillRect.anchorMax = new Vector2(healthRatio, 1f);
+            healthFillRect.offsetMin = Vector2.zero;
+            healthFillRect.offsetMax = Vector2.zero;
+            healthFillRect.localScale = Vector3.one;
             healthFill.color = healthRatio < 0.28f
                 ? HealthLowColor
                 : healthRatio < 0.58f
@@ -341,12 +366,12 @@ namespace MannLab.Games.Standing
 
         private void UpdateCharacterVisual(bool sitting)
         {
-            SetEmployeePose(sitting ? EmployeeSittingPose : EmployeeStandingPose);
-            var targetY = sitting ? -92f : -28f;
+            SetEmployeePose(EmployeeStandingPose);
+            var targetY = sitting ? -126f : -28f;
             characterRoot.anchoredPosition = Vector2.Lerp(characterRoot.anchoredPosition, new Vector2(0f, targetY), 0.25f);
-            characterBody.localRotation = Quaternion.Lerp(characterBody.localRotation, Quaternion.Euler(0f, 0f, sitting ? -2f : 0f), 0.2f);
-            characterHead.localScale = Vector3.Lerp(characterHead.localScale, Vector3.one * (sitting ? 0.98f : 1f), 0.2f);
-            chairSeat.anchoredPosition = Vector2.Lerp(chairSeat.anchoredPosition, new Vector2(0f, sitting ? -128f : -160f), 0.2f);
+            characterBody.localRotation = Quaternion.Lerp(characterBody.localRotation, Quaternion.Euler(0f, 0f, sitting ? -3f : 0f), 0.2f);
+            characterHead.localScale = Vector3.Lerp(characterHead.localScale, new Vector3(sitting ? 0.94f : 1f, sitting ? 0.90f : 1f, 1f), 0.2f);
+            chairSeat.anchoredPosition = Vector2.Lerp(chairSeat.anchoredPosition, new Vector2(0f, -160f), 0.2f);
         }
 
         private bool IsPressingPlayArea()
@@ -440,7 +465,7 @@ namespace MannLab.Games.Standing
                 AddSketchOutline(plant.transform);
             }
 
-            CreateDiscoveryFloorTiles(stage.transform);
+            CreateDiscoveryFloorWash(stage.transform);
             CreateVisitor(stage.transform);
 
             if (deskTexture != null)
@@ -495,26 +520,19 @@ namespace MannLab.Games.Standing
             }
 
             CreateCharacter(stage.transform);
+            chairSeat.SetAsLastSibling();
         }
 
-        private void CreateDiscoveryFloorTiles(Transform parent)
+        private void CreateDiscoveryFloorWash(Transform parent)
         {
-            var startX = -0.24f + StandingBalance.VisitorDetectionProgress * 1.32f;
-            var tiles = CreatePanel(parent, "Discovery Floor Tiles", WithAlpha(DiscoveryTileColor, 0.34f));
-            SetAnchor(tiles.GetComponent<RectTransform>(), startX, 0.48f, 1.04f, 0.82f);
-
-            var topLine = CreatePanel(tiles.transform, "Discovery Tile Top", WithAlpha(SketchPalette.Ink, 0.22f));
-            SetAnchor(topLine.GetComponent<RectTransform>(), 0f, 0.98f, 1f, 1f);
-
-            var bottomLine = CreatePanel(tiles.transform, "Discovery Tile Bottom", WithAlpha(SketchPalette.Ink, 0.18f));
-            SetAnchor(bottomLine.GetComponent<RectTransform>(), 0f, 0f, 1f, 0.018f);
-
-            for (var i = 1; i < 4; i++)
-            {
-                var seam = CreatePanel(tiles.transform, $"Discovery Tile Seam {i}", WithAlpha(SketchPalette.Ink, 0.12f));
-                var x = i / 4f;
-                SetAnchor(seam.GetComponent<RectTransform>(), x, 0f, x + 0.006f, 1f);
-            }
+            var startX = PasserStartX
+                + StandingBalance.VisitorDetectionStartProgress * PasserTravelX
+                + PasserWidth * 0.5f;
+            var endX = PasserStartX
+                + StandingBalance.VisitorDetectionEndProgress * PasserTravelX
+                + PasserWidth * 0.5f;
+            var floor = CreatePanel(parent, "Discovery Floor Wash", WithAlpha(DiscoveryFloorColor, 0.24f));
+            SetAnchor(floor.GetComponent<RectTransform>(), startX, 0.49f, endX, 0.80f);
         }
 
         private void CreateCharacter(Transform parent)
@@ -622,7 +640,7 @@ namespace MannLab.Games.Standing
 
             var fill = CreatePanel(track.transform, "Health Fill", HealthGoodColor);
             healthFillRect = fill.GetComponent<RectTransform>();
-            Stretch(healthFillRect, new Vector2(8f, 8f), new Vector2(-8f, -8f));
+            Stretch(healthFillRect, Vector2.zero, Vector2.zero);
             healthFillRect.pivot = new Vector2(0f, 0.5f);
             healthFill = fill.GetComponent<Image>();
         }

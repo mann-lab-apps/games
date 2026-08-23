@@ -96,6 +96,16 @@ public static class VerifyStandingRules
             return 1;
         }
 
+        if (StandingBalance.VisitorDetectionStartProgress >= StandingBalance.VisitorDetectionEndProgress
+            || StandingBalance.IsVisitorInDetectionZone(StandingBalance.VisitorDetectionStartProgress - 0.01f)
+            || !StandingBalance.IsVisitorInDetectionZone(
+                (StandingBalance.VisitorDetectionStartProgress + StandingBalance.VisitorDetectionEndProgress) * 0.5f)
+            || StandingBalance.IsVisitorInDetectionZone(StandingBalance.VisitorDetectionEndProgress + 0.01f))
+        {
+            Console.Error.WriteLine("Visitor detection zone was not centered or bounded.");
+            return 1;
+        }
+
         var rng = new Random(1820);
         for (var i = 0; i < 100; i++)
         {
