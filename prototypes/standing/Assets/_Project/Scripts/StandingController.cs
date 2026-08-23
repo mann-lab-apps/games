@@ -22,6 +22,7 @@ namespace MannLab.Games.Standing
         private static readonly Color HealthGoodColor = new Color32(47, 183, 97, 255);
         private static readonly Color HealthWarnColor = new Color32(238, 181, 56, 255);
         private static readonly Color HealthLowColor = new Color32(238, 96, 56, 255);
+        private static readonly Color DiscoveryTileColor = new Color32(255, 202, 112, 255);
         private const int EmployeeStandingPose = 0;
         private const int EmployeeSittingPose = 1;
         private const int EmployeeCaughtPose = 2;
@@ -163,6 +164,7 @@ namespace MannLab.Games.Standing
         private void LoadArtAssets()
         {
             employeePoseTexture = LoadFirstTexture(
+                "Standing/employee_poses_v2",
                 "Standing/employee_poses_clean",
                 "Standing/employee_poses_sheet");
             customerWalkTexture = LoadFirstTexture(
@@ -438,6 +440,7 @@ namespace MannLab.Games.Standing
                 AddSketchOutline(plant.transform);
             }
 
+            CreateDiscoveryFloorTiles(stage.transform);
             CreateVisitor(stage.transform);
 
             if (deskTexture != null)
@@ -492,6 +495,26 @@ namespace MannLab.Games.Standing
             }
 
             CreateCharacter(stage.transform);
+        }
+
+        private void CreateDiscoveryFloorTiles(Transform parent)
+        {
+            var startX = -0.24f + StandingBalance.VisitorDetectionProgress * 1.32f;
+            var tiles = CreatePanel(parent, "Discovery Floor Tiles", WithAlpha(DiscoveryTileColor, 0.34f));
+            SetAnchor(tiles.GetComponent<RectTransform>(), startX, 0.48f, 1.04f, 0.82f);
+
+            var topLine = CreatePanel(tiles.transform, "Discovery Tile Top", WithAlpha(SketchPalette.Ink, 0.22f));
+            SetAnchor(topLine.GetComponent<RectTransform>(), 0f, 0.98f, 1f, 1f);
+
+            var bottomLine = CreatePanel(tiles.transform, "Discovery Tile Bottom", WithAlpha(SketchPalette.Ink, 0.18f));
+            SetAnchor(bottomLine.GetComponent<RectTransform>(), 0f, 0f, 1f, 0.018f);
+
+            for (var i = 1; i < 4; i++)
+            {
+                var seam = CreatePanel(tiles.transform, $"Discovery Tile Seam {i}", WithAlpha(SketchPalette.Ink, 0.12f));
+                var x = i / 4f;
+                SetAnchor(seam.GetComponent<RectTransform>(), x, 0f, x + 0.006f, 1f);
+            }
         }
 
         private void CreateCharacter(Transform parent)
