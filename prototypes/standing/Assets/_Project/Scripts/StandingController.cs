@@ -22,6 +22,10 @@ namespace MannLab.Games.Standing
         private static readonly Color HealthGoodColor = new Color32(47, 183, 97, 255);
         private static readonly Color HealthWarnColor = new Color32(238, 181, 56, 255);
         private static readonly Color HealthLowColor = new Color32(238, 96, 56, 255);
+        private const int EmployeeStandingPose = 0;
+        private const int EmployeeSittingPose = 1;
+        private const int EmployeeCaughtPose = 2;
+        private const int EmployeeExhaustedPose = 3;
 
         private readonly System.Random random = new System.Random(Environment.TickCount);
         private AudioSource audioSource;
@@ -36,9 +40,11 @@ namespace MannLab.Games.Standing
         private RectTransform characterBody;
         private RectTransform characterHead;
         private RectTransform chairSeat;
+        private Image employeeArt;
         private RectTransform visitorRoot;
         private Image visitorImage;
         private Image passerArt;
+        private Sprite[] employeePoseSprites;
         private Sprite[] customerWalkFrames;
         private Sprite[] phonePasserFrames;
         private Sprite customerFallbackSprite;
@@ -47,6 +53,7 @@ namespace MannLab.Games.Standing
         private Text resultTitleText;
         private Text resultScoreText;
         private Texture2D customerTexture;
+        private Texture2D employeePoseTexture;
         private Texture2D customerWalkTexture;
         private Texture2D phonePasserTexture;
         private Texture2D deskTexture;
@@ -155,10 +162,14 @@ namespace MannLab.Games.Standing
 
         private void LoadArtAssets()
         {
+            employeePoseTexture = LoadFirstTexture(
+                "Standing/employee_poses_clean",
+                "Standing/employee_poses_sheet");
             customerWalkTexture = LoadFirstTexture(
                 "Standing/customer_walk_sheet_v3",
                 "Standing/customer_male_walk_sheet",
                 "Standing/customer");
+            employeePoseSprites = CreateGridFrames(employeePoseTexture, 2, 2);
             phonePasserTexture = LoadFirstTexture(
                 "Standing/phone_passer_female_walk_sheet",
                 "Standing/phone_passer_walk_sheet_v2",
@@ -255,8 +266,8 @@ namespace MannLab.Games.Standing
         private void PositionPasser(float progress)
         {
             var x = -0.24f + Mathf.Clamp01(progress) * 1.32f;
-            visitorRoot.anchorMin = new Vector2(x, 0.50f);
-            visitorRoot.anchorMax = new Vector2(x + 0.18f, 0.77f);
+            visitorRoot.anchorMin = new Vector2(x, 0.48f);
+            visitorRoot.anchorMax = new Vector2(x + 0.24f, 0.82f);
             visitorRoot.offsetMin = Vector2.zero;
             visitorRoot.offsetMax = Vector2.zero;
         }
@@ -291,6 +302,7 @@ namespace MannLab.Games.Standing
             visualPulse += Time.deltaTime * 18f;
             if (state == StandingGameState.Caught)
             {
+                SetEmployeePose(EmployeeCaughtPose);
                 var shake = Mathf.Sin(visualPulse) * 24f;
                 characterRoot.anchoredPosition = new Vector2(shake, -80f);
                 characterBody.localRotation = Quaternion.Euler(0f, 0f, -8f + Mathf.Sin(visualPulse * 0.8f) * 7f);
@@ -298,6 +310,7 @@ namespace MannLab.Games.Standing
                 return;
             }
 
+            SetEmployeePose(EmployeeExhaustedPose);
             characterRoot.anchoredPosition = new Vector2(0f, -190f);
             characterBody.localRotation = Quaternion.Euler(0f, 0f, 12f);
             characterHead.localScale = Vector3.one * 0.94f;
@@ -326,6 +339,7 @@ namespace MannLab.Games.Standing
 
         private void UpdateCharacterVisual(bool sitting)
         {
+            SetEmployeePose(sitting ? EmployeeSittingPose : EmployeeStandingPose);
             var targetY = sitting ? -92f : -28f;
             characterRoot.anchoredPosition = Vector2.Lerp(characterRoot.anchoredPosition, new Vector2(0f, targetY), 0.25f);
             characterBody.localRotation = Quaternion.Lerp(characterBody.localRotation, Quaternion.Euler(0f, 0f, sitting ? -2f : 0f), 0.2f);
@@ -424,7 +438,6 @@ namespace MannLab.Games.Standing
                 AddSketchOutline(plant.transform);
             }
 
-            CreateDetectionZone(stage.transform);
             CreateVisitor(stage.transform);
 
             if (deskTexture != null)
@@ -491,6 +504,18 @@ namespace MannLab.Games.Standing
             characterRoot.pivot = new Vector2(0.5f, 0f);
             characterRoot.sizeDelta = new Vector2(250f, 420f);
 
+            if (employeePoseSprites != null && employeePoseSprites.Length >= 4)
+            {
+                characterRoot.sizeDelta = new Vector2(315f, 470f);
+                employeeArt = CreateSpriteImage(root.transform, "Employee Pose Art", employeePoseSprites[EmployeeStandingPose], Color.white).GetComponent<Image>();
+                var artRect = employeeArt.GetComponent<RectTransform>();
+                Stretch(artRect, Vector2.zero, Vector2.zero);
+                characterBody = artRect;
+                characterHead = artRect;
+                SetEmployeePose(EmployeeStandingPose);
+                return;
+            }
+
             var legs = CreatePanel(root.transform, "Legs", PlayerPantsColor);
             SetAnchor(legs.GetComponent<RectTransform>(), 0.32f, 0.00f, 0.68f, 0.30f);
             AddSketchOutline(legs.transform);
@@ -514,14 +539,6 @@ namespace MannLab.Games.Standing
 
             var hair = CreatePanel(root.transform, "Hair", SketchPalette.Ink);
             SetAnchor(hair.GetComponent<RectTransform>(), 0.29f, 0.84f, 0.71f, 0.93f);
-        }
-
-        private void CreateDetectionZone(Transform parent)
-        {
-            var detectX = -0.24f + StandingBalance.VisitorDetectionProgress * 1.32f;
-            var line = CreatePanel(parent, "Customer Sight Line", WithAlpha(HealthLowColor, 0.72f));
-            SetAnchor(line.GetComponent<RectTransform>(), detectX, 0.49f, detectX + 0.006f, 0.82f);
-            AddSketchOutline(line.transform);
         }
 
         private void CreateVisitor(Transform parent)
@@ -677,6 +694,16 @@ namespace MannLab.Games.Standing
             passerArt.sprite = frames[Mathf.Abs(frameIndex) % frames.Length];
         }
 
+        private void SetEmployeePose(int poseIndex)
+        {
+            if (employeeArt == null || employeePoseSprites == null || employeePoseSprites.Length == 0)
+            {
+                return;
+            }
+
+            employeeArt.sprite = employeePoseSprites[Mathf.Clamp(poseIndex, 0, employeePoseSprites.Length - 1)];
+        }
+
         private static Sprite CreateFullSprite(Texture2D texture)
         {
             if (texture == null)
@@ -693,19 +720,24 @@ namespace MannLab.Games.Standing
 
         private static Sprite[] CreateWalkFrames(Texture2D texture)
         {
-            if (texture == null || texture.width < 3 || texture.height < 2)
+            return CreateGridFrames(texture, 3, 2);
+        }
+
+        private static Sprite[] CreateGridFrames(Texture2D texture, int columns, int rows)
+        {
+            if (texture == null || columns <= 0 || rows <= 0 || texture.width < columns || texture.height < rows)
             {
                 return null;
             }
 
-            var frameWidth = texture.width / 3f;
-            var frameHeight = texture.height / 2f;
-            var frames = new Sprite[6];
+            var frameWidth = texture.width / (float)columns;
+            var frameHeight = texture.height / (float)rows;
+            var frames = new Sprite[columns * rows];
             for (var frame = 0; frame < frames.Length; frame++)
             {
-                var column = frame % 3;
-                var rowFromTop = frame / 3;
-                var y = rowFromTop == 0 ? frameHeight : 0f;
+                var column = frame % columns;
+                var rowFromTop = frame / columns;
+                var y = (rows - rowFromTop - 1) * frameHeight;
                 frames[frame] = Sprite.Create(
                     texture,
                     new Rect(column * frameWidth, y, frameWidth, frameHeight),
