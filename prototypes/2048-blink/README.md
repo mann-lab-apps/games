@@ -33,8 +33,8 @@ Implemented:
 - iOS app icon asset
 - iOS Xcode build script
 - Tile slide and merge animation
-- Short full-board reveal before the Gray Cross changes
-- New Gray Cross curtain animation after every valid move
+- Continuity-first Gray Cross transition after every valid move
+- Hidden-tile motion that preserves covered values during movement
 
 Not implemented:
 

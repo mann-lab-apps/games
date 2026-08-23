@@ -12,11 +12,10 @@ namespace MannLab.Games.Game2048Blink
         private const string BestTileKey = "mannlab.2048_blink.best_tile";
         private const string BestScoreKey = "mannlab.2048_blink.best_score";
         private const float SwipeThreshold = 72f;
-        private const float RevealDuration = 0.08f;
         private const float SlideDuration = 0.16f;
         private const float SettleDuration = 0.08f;
         private const float SpawnPopDuration = 0.12f;
-        private const float CurtainDuration = 0.16f;
+        private const float CurtainDuration = 0.22f;
 
         private readonly Image[] cellBackgrounds = new Image[Blink2048Board.CellCount];
         private readonly Image[] grayOverlays = new Image[Blink2048Board.CellCount];
@@ -228,18 +227,17 @@ namespace MannLab.Games.Game2048Blink
         {
             isAnimating = true;
             SyncAnimationLayerToBoard();
-            UpdateBoardFromValues(beforeValues, showCurtains: false);
-            yield return FadeCurrentCurtainsOut(beforeValues, beforeHidden);
+            UpdateBoardFromValues(beforeValues, beforeHidden);
 
-            var ghosts = CreateMotionGhosts(motions);
-            UpdateBoardFromValues(new int[Blink2048Board.CellCount], showCurtains: false);
+            var ghosts = CreateMotionGhosts(motions, beforeHidden);
+            UpdateBoardFromValues(new int[Blink2048Board.CellCount], beforeHidden);
             yield return SlideGhosts(ghosts);
             DestroyGhosts(ghosts);
 
             UpdateHeader();
-            UpdateBoard(result.SpawnedTileIndex, showCurtains: false);
-            yield return PopSpawnedTile(result.SpawnedTileIndex);
-            yield return AnimateNewCurtains(result.SpawnedTileIndex);
+            UpdateBoardFromValues(CaptureBoardValues(), beforeHidden);
+            yield return PopSpawnedTile(result.SpawnedTileIndex, beforeHidden);
+            yield return AnimateCurtainTransition(beforeHidden, result.SpawnedTileIndex);
 
             UpdateBoard(result.SpawnedTileIndex, showCurtains: true);
             isAnimating = false;
@@ -272,12 +270,12 @@ namespace MannLab.Games.Game2048Blink
             return result;
         }
 
-        private void UpdateBoardFromValues(int[] values, bool showCurtains)
+        private void UpdateBoardFromValues(int[] values, bool[] hiddenMask)
         {
             for (var i = 0; i < Blink2048Board.CellCount; i++)
             {
                 var value = values[i];
-                var hidden = showCurtains && board.IsHiddenIndex(i);
+                var hidden = IsHiddenInMask(hiddenMask, i);
                 cellBackgrounds[i].color = hidden && value == 0 ? HiddenEmptyColor() : TileColor(value);
                 cellLabels[i].text = value == 0 || hidden ? string.Empty : value.ToString();
                 cellLabels[i].color = LabelColor(value, 1f);
@@ -287,45 +285,12 @@ namespace MannLab.Games.Game2048Blink
             }
         }
 
-        private IEnumerator FadeCurrentCurtainsOut(int[] beforeValues, bool[] beforeHidden)
-        {
-            var overlays = new List<Image>();
-            for (var i = 0; i < Blink2048Board.CellCount; i++)
-            {
-                if (!beforeHidden[i] || beforeValues[i] <= 0)
-                {
-                    continue;
-                }
-
-                var overlay = grayOverlays[i];
-                overlay.gameObject.SetActive(true);
-                overlay.color = new Color(0.12f, 0.13f, 0.14f, 0.88f);
-                overlays.Add(overlay);
-            }
-
-            for (var elapsed = 0f; elapsed < RevealDuration; elapsed += Time.deltaTime)
-            {
-                var alpha = Mathf.Lerp(0.88f, 0f, Smooth01(elapsed / RevealDuration));
-                foreach (var overlay in overlays)
-                {
-                    overlay.color = new Color(0.12f, 0.13f, 0.14f, alpha);
-                }
-
-                yield return null;
-            }
-
-            foreach (var overlay in overlays)
-            {
-                overlay.gameObject.SetActive(false);
-            }
-        }
-
-        private List<TileGhost> CreateMotionGhosts(List<TileMotion> motions)
+        private List<TileGhost> CreateMotionGhosts(List<TileMotion> motions, bool[] beforeHidden)
         {
             var ghosts = new List<TileGhost>(motions.Count);
             foreach (var motion in motions)
             {
-                var tile = CreateTileVisual(animationLayerRect, motion.SourceValue);
+                var tile = CreateTileVisual(animationLayerRect, motion.SourceValue, IsHiddenInMask(beforeHidden, motion.SourceIndex));
                 var rect = tile.GetComponent<RectTransform>();
                 rect.sizeDelta = CellSize();
                 rect.anchoredPosition = CellPosition(motion.SourceIndex);
@@ -380,9 +345,9 @@ namespace MannLab.Games.Game2048Blink
             }
         }
 
-        private IEnumerator PopSpawnedTile(int spawnedTileIndex)
+        private IEnumerator PopSpawnedTile(int spawnedTileIndex, bool[] hiddenMask)
         {
-            if (spawnedTileIndex < 0)
+            if (spawnedTileIndex < 0 || IsHiddenInMask(hiddenMask, spawnedTileIndex))
             {
                 yield break;
             }
@@ -404,27 +369,40 @@ namespace MannLab.Games.Game2048Blink
             target.localScale = Vector3.one;
         }
 
-        private IEnumerator AnimateNewCurtains(int spawnedTileIndex)
+        private IEnumerator AnimateCurtainTransition(bool[] beforeHidden, int spawnedTileIndex)
         {
+            var afterHidden = CaptureHiddenCells();
             for (var i = 0; i < Blink2048Board.CellCount; i++)
             {
                 var value = board.GetValueAtIndex(i);
-                var hidden = board.IsHiddenIndex(i);
+                var wasHidden = IsHiddenInMask(beforeHidden, i);
+                var nowHidden = IsHiddenInMask(afterHidden, i);
                 var overlay = grayOverlays[i];
                 var label = cellLabels[i];
 
-                if (hidden && value > 0)
+                if (nowHidden && value > 0)
                 {
                     overlay.gameObject.SetActive(true);
-                    overlay.transform.localScale = new Vector3(1f, 0.08f, 1f);
-                    overlay.color = new Color(0.12f, 0.13f, 0.14f, 0f);
+                    overlay.transform.localScale = Vector3.one;
+                    overlay.color = new Color(0.12f, 0.13f, 0.14f, wasHidden ? CurtainAlpha(i == spawnedTileIndex) : 0f);
                 }
-                else
+                else if (wasHidden && value > 0)
+                {
+                    overlay.gameObject.SetActive(true);
+                    overlay.transform.localScale = Vector3.one;
+                    overlay.color = new Color(0.12f, 0.13f, 0.14f, CurtainAlpha(false));
+                }
+                else if (value <= 0)
+                {
+                    overlay.gameObject.SetActive(false);
+                }
+                else if (!wasHidden)
                 {
                     overlay.gameObject.SetActive(false);
                 }
 
-                label.color = LabelColor(value, 1f);
+                label.text = value == 0 || wasHidden ? string.Empty : value.ToString();
+                label.color = LabelColor(value, wasHidden && !nowHidden ? 0f : 1f);
             }
 
             for (var elapsed = 0f; elapsed < CurtainDuration; elapsed += Time.deltaTime)
@@ -432,22 +410,33 @@ namespace MannLab.Games.Game2048Blink
                 var t = Smooth01(elapsed / CurtainDuration);
                 for (var i = 0; i < Blink2048Board.CellCount; i++)
                 {
-                    if (!board.IsHiddenIndex(i))
+                    var value = board.GetValueAtIndex(i);
+                    var wasHidden = IsHiddenInMask(beforeHidden, i);
+                    var nowHidden = IsHiddenInMask(afterHidden, i);
+                    if (wasHidden == nowHidden)
                     {
                         continue;
                     }
 
-                    var value = board.GetValueAtIndex(i);
                     if (value == 0)
                     {
-                        cellBackgrounds[i].color = Color.Lerp(TileColor(0), HiddenEmptyColor(), t);
+                        cellBackgrounds[i].color = nowHidden
+                            ? Color.Lerp(TileColor(0), HiddenEmptyColor(), t)
+                            : Color.Lerp(HiddenEmptyColor(), TileColor(0), t);
                         continue;
                     }
 
-                    var alpha = Mathf.Lerp(0f, i == spawnedTileIndex ? 0.82f : 0.88f, t);
-                    grayOverlays[i].color = new Color(0.12f, 0.13f, 0.14f, alpha);
-                    grayOverlays[i].transform.localScale = new Vector3(1f, Mathf.Lerp(0.08f, 1f, t), 1f);
-                    cellLabels[i].color = LabelColor(value, 1f - t);
+                    if (nowHidden)
+                    {
+                        var alpha = Mathf.Lerp(0f, CurtainAlpha(i == spawnedTileIndex), t);
+                        grayOverlays[i].color = new Color(0.12f, 0.13f, 0.14f, alpha);
+                        cellLabels[i].color = LabelColor(value, 1f - t);
+                        continue;
+                    }
+
+                    grayOverlays[i].color = new Color(0.12f, 0.13f, 0.14f, Mathf.Lerp(CurtainAlpha(false), 0f, t));
+                    cellLabels[i].text = value.ToString();
+                    cellLabels[i].color = LabelColor(value, t);
                 }
 
                 yield return null;
@@ -689,17 +678,20 @@ namespace MannLab.Games.Game2048Blink
             grayOverlays[index] = grayImage;
         }
 
-        private static GameObject CreateTileVisual(Transform parent, int value)
+        private static GameObject CreateTileVisual(Transform parent, int value, bool hidden)
         {
             var tile = new GameObject($"Moving Tile {value}", typeof(RectTransform), typeof(Image));
             tile.transform.SetParent(parent, false);
-            tile.GetComponent<Image>().color = TileColor(value);
+            tile.GetComponent<Image>().color = hidden ? new Color(0.12f, 0.13f, 0.14f, CurtainAlpha(false)) : TileColor(value);
             AddSketchOutline(tile.transform);
 
-            var label = CreateText(tile.transform, value.ToString(), 76, TextAnchor.MiddleCenter);
-            label.raycastTarget = false;
-            label.color = LabelColor(value, 1f);
-            Stretch(label.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
+            if (!hidden)
+            {
+                var label = CreateText(tile.transform, value.ToString(), 76, TextAnchor.MiddleCenter);
+                label.raycastTarget = false;
+                label.color = LabelColor(value, 1f);
+                Stretch(label.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
+            }
 
             return tile;
         }
@@ -825,6 +817,16 @@ namespace MannLab.Games.Game2048Blink
         private static Color HiddenEmptyColor()
         {
             return new Color32(204, 207, 205, 255);
+        }
+
+        private static float CurtainAlpha(bool isSpawnedTile)
+        {
+            return isSpawnedTile ? 0.82f : 0.88f;
+        }
+
+        private static bool IsHiddenInMask(bool[] hiddenMask, int index)
+        {
+            return hiddenMask != null && index >= 0 && index < hiddenMask.Length && hiddenMask[index];
         }
 
         private static Color LabelColor(int value, float alpha)
