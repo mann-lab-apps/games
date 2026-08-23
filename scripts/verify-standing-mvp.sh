@@ -123,6 +123,17 @@ public static class VerifyStandingRules
                 Console.Error.WriteLine($"Visitor walk speed out of range: {walkSpeed}.");
                 return 1;
             }
+
+            var lateWalkSpeed = StandingBalance.NextVisitorWalkSpeed(rng, 120f);
+            var maxLateWalkSpeed = StandingBalance.MaxVisitorWalkSpeed
+                + StandingBalance.MaxVisitorRampBonus
+                + StandingBalance.MaxVisitorHurryBonus;
+            if (lateWalkSpeed < StandingBalance.MinVisitorWalkSpeed
+                || lateWalkSpeed > maxLateWalkSpeed)
+            {
+                Console.Error.WriteLine($"Late visitor walk speed out of range: {lateWalkSpeed}.");
+                return 1;
+            }
         }
 
         Console.WriteLine("Standing rules verified.");

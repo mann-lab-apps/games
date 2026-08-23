@@ -219,7 +219,7 @@ namespace MannLab.Games.Standing
 
                 visitorPhase = VisitorPhase.Warning;
                 currentPasserIsCustomer = random.NextDouble() < StandingBalance.CustomerChance;
-                currentPasserWalkSpeed = StandingBalance.NextVisitorWalkSpeed(random);
+                currentPasserWalkSpeed = StandingBalance.NextVisitorWalkSpeed(random, runSeconds);
                 currentPasserProgress = 0f;
                 currentPasserFrameOffset = random.Next(0, 6);
                 currentPasserDirection = random.Next(0, 2) == 0 ? 1 : -1;
@@ -351,7 +351,7 @@ namespace MannLab.Games.Standing
         {
             state = StandingGameState.GameOver;
             resultTitleText.text = lastEndState == StandingGameState.Exhausted ? "Collapsed" : "Customer Saw You";
-            resultScoreText.text = $"Time {FormatTime(runSeconds)}\nBest {FormatTime(bestSeconds)}\nCustomers {clearedCustomers}";
+            resultScoreText.text = $"Time {FormatTime(runSeconds)}\nBest {FormatTime(bestSeconds)}";
             resultPanel.SetActive(true);
         }
 

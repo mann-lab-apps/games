@@ -8,6 +8,7 @@ Standing is a one-touch hyper-casual stealth-rest prototype.
 - Standing drains stamina over time.
 - Holding the screen makes the character sit and recover stamina.
 - Each passer keeps an individual readable walking speed.
+- The average passer speed ramps up during long runs, with occasional faster passers after the early game.
 - A wide warm carpet runner sits on the customer walking lane behind the desk and marks the area where a customer can discover the employee.
 - Passers enter from either side one at a time, with varied clothing tint so phone use matters more than shirt color.
 - If a visitor passes while the character is sitting, the character is caught and the run ends.
