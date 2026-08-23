@@ -96,13 +96,13 @@ public static class VerifyStandingRules
             return 1;
         }
 
-        if (StandingBalance.VisitorDetectionStartProgress >= StandingBalance.VisitorDetectionEndProgress
-            || StandingBalance.IsVisitorInDetectionZone(StandingBalance.VisitorDetectionStartProgress - 0.01f)
+        if (StandingBalance.VisitorDetectionLeftX >= StandingBalance.VisitorDetectionRightX
+            || StandingBalance.IsVisitorInDetectionZone(StandingBalance.VisitorDetectionLeftX - 0.01f)
             || !StandingBalance.IsVisitorInDetectionZone(
-                (StandingBalance.VisitorDetectionStartProgress + StandingBalance.VisitorDetectionEndProgress) * 0.5f)
-            || StandingBalance.IsVisitorInDetectionZone(StandingBalance.VisitorDetectionEndProgress + 0.01f))
+                (StandingBalance.VisitorDetectionLeftX + StandingBalance.VisitorDetectionRightX) * 0.5f)
+            || StandingBalance.IsVisitorInDetectionZone(StandingBalance.VisitorDetectionRightX + 0.01f))
         {
-            Console.Error.WriteLine("Visitor detection zone was not centered or bounded.");
+            Console.Error.WriteLine("Visitor detection zone was not aligned to the carpet bounds.");
             return 1;
         }
 

@@ -33,6 +33,10 @@ namespace MannLab.Games.Standing
         private const float PasserStartX = -0.28f;
         private const float PasserTravelX = 1.32f;
         private const float PasserWidth = 0.24f;
+        private const float DetectionCarpetLeftX = 0.02f;
+        private const float DetectionCarpetRightX = 0.98f;
+        private const float DetectionCarpetBottomY = 0.60f;
+        private const float DetectionCarpetTopY = 0.78f;
         private const int EmployeeStandingPose = 0;
         private const int EmployeeSittingPose = 1;
         private const int EmployeeCaughtPose = 2;
@@ -67,6 +71,7 @@ namespace MannLab.Games.Standing
         private Texture2D customerWalkTexture;
         private Texture2D phonePasserTexture;
         private Texture2D deskTexture;
+        private Texture2D carpetTexture;
         private Texture2D lobbyTexture;
         private bool usingGeneratedLobby;
         private StandingGameState state;
@@ -194,9 +199,9 @@ namespace MannLab.Games.Standing
             customerFallbackSprite = CreateFullSprite(customerTexture);
             phonePasserFallbackSprite = CreateFullSprite(phonePasserTexture);
             deskTexture = LoadFirstTexture("Standing/service_desk_doodle", "Standing/desk");
+            carpetTexture = Resources.Load<Texture2D>("Standing/detection_carpet_runner");
 
             var generatedLobby = LoadFirstTexture(
-                "Standing/lobby_background_doodle_v3",
                 "Standing/lobby_background_doodle_v2",
                 "Standing/lobby_background_doodle_v1");
             lobbyTexture = generatedLobby ?? Resources.Load<Texture2D>("Standing/lobby");
@@ -231,7 +236,7 @@ namespace MannLab.Games.Standing
                 currentPasserProgress = Mathf.Clamp01(currentPasserProgress + currentPasserWalkSpeed * Time.deltaTime);
                 PositionPasser(currentPasserProgress);
                 UpdatePasserWalkFrame();
-                visitorPhase = StandingBalance.IsVisitorInDetectionZone(currentPasserProgress)
+                visitorPhase = IsCurrentPasserOnCarpet()
                     ? VisitorPhase.Passing
                     : VisitorPhase.Warning;
                 if (currentPasserProgress < 1f)
@@ -245,7 +250,7 @@ namespace MannLab.Games.Standing
                 currentPasserProgress = Mathf.Clamp01(currentPasserProgress + currentPasserWalkSpeed * Time.deltaTime);
                 PositionPasser(currentPasserProgress);
                 UpdatePasserWalkFrame();
-                visitorPhase = StandingBalance.IsVisitorInDetectionZone(currentPasserProgress)
+                visitorPhase = IsCurrentPasserOnCarpet()
                     ? VisitorPhase.Passing
                     : VisitorPhase.Warning;
             }
@@ -290,6 +295,12 @@ namespace MannLab.Games.Standing
             visitorRoot.anchorMax = new Vector2(x + PasserWidth, 0.82f);
             visitorRoot.offsetMin = Vector2.zero;
             visitorRoot.offsetMax = Vector2.zero;
+        }
+
+        private bool IsCurrentPasserOnCarpet()
+        {
+            var centerX = visitorRoot.anchorMin.x + PasserWidth * 0.5f;
+            return StandingBalance.IsVisitorInDetectionZone(centerX);
         }
 
         private void UpdatePasserWalkFrame()
@@ -461,6 +472,7 @@ namespace MannLab.Games.Standing
                 AddSketchOutline(plant.transform);
             }
 
+            CreateDetectionCarpet(stage.transform);
             CreateVisitor(stage.transform);
 
             if (deskTexture != null)
@@ -494,6 +506,23 @@ namespace MannLab.Games.Standing
             }
 
             CreateCharacter(stage.transform);
+        }
+
+        private void CreateDetectionCarpet(Transform parent)
+        {
+            if (carpetTexture == null)
+            {
+                return;
+            }
+
+            var carpet = CreateRawImage(parent, "Detection Carpet Runner", carpetTexture, Color.white);
+            carpet.GetComponent<RawImage>().raycastTarget = false;
+            SetAnchor(
+                carpet.GetComponent<RectTransform>(),
+                DetectionCarpetLeftX,
+                DetectionCarpetBottomY,
+                DetectionCarpetRightX,
+                DetectionCarpetTopY);
         }
 
         private void CreateCharacter(Transform parent)

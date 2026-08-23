@@ -23,9 +23,8 @@ namespace MannLab.Games.Standing
         public const float MaxHealth = 100f;
         public const float StandingDrainPerSecond = 18f;
         public const float SittingRecoveryPerSecond = 22f;
-        public const float VisitorDetectionStartProgress = 0.16f;
-        public const float VisitorDetectionEndProgress = 0.84f;
-        public const float VisitorDetectionProgress = VisitorDetectionStartProgress;
+        public const float VisitorDetectionLeftX = 0.10f;
+        public const float VisitorDetectionRightX = 0.90f;
         public const float MinVisitorWalkSpeed = 0.28f;
         public const float MaxVisitorWalkSpeed = 0.42f;
         public const float MinVisitorGapSeconds = 0.80f;
@@ -44,10 +43,10 @@ namespace MannLab.Games.Standing
             return sitting && isCustomer && phase == VisitorPhase.Passing;
         }
 
-        public static bool IsVisitorInDetectionZone(float routeProgress)
+        public static bool IsVisitorInDetectionZone(float routeCenterX)
         {
-            return routeProgress >= VisitorDetectionStartProgress
-                && routeProgress <= VisitorDetectionEndProgress;
+            return routeCenterX >= VisitorDetectionLeftX
+                && routeCenterX <= VisitorDetectionRightX;
         }
 
         public static bool ShouldCatch(bool sitting, VisitorPhase phase)
