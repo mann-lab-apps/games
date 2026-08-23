@@ -129,6 +129,50 @@ async function waitForGame(client) {
   throw new Error(`Timed out waiting for Unity WebGL. Last status: ${JSON.stringify(lastStatus)}\nRecent logs:\n${logs}`);
 }
 
+async function pageStatus(client) {
+  const result = await client.send("Runtime.evaluate", {
+    returnByValue: true,
+    expression: `(() => {
+      const warning = document.querySelector("#unity-warning");
+      return {
+        warningText: warning ? warning.innerText : "",
+        warningDisplay: warning ? getComputedStyle(warning).display : ""
+      };
+    })()`,
+  });
+  return result.result?.value ?? {};
+}
+
+async function performSmokeMoves(client) {
+  const keyCodes = {
+    ArrowLeft: 37,
+    ArrowUp: 38,
+    ArrowRight: 39,
+    ArrowDown: 40,
+  };
+  const keys = ["ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"];
+  for (const key of keys) {
+    await client.send("Input.dispatchKeyEvent", {
+      type: "keyDown",
+      key,
+      code: key,
+      windowsVirtualKeyCode: keyCodes[key],
+    });
+    await client.send("Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key,
+      code: key,
+      windowsVirtualKeyCode: keyCodes[key],
+    });
+    await delay(850);
+
+    const status = await pageStatus(client);
+    if (status.warningText.includes("게임을 실행하지 못했어요")) {
+      throw new Error(`WebGL page failed after ${key}: ${status.warningText}`);
+    }
+  }
+}
+
 async function main() {
   if (!existsSync(chromePath)) throw new Error(`Google Chrome not found: ${chromePath}`);
 
@@ -174,6 +218,7 @@ async function main() {
       });
       await client.send("Page.navigate", { url: appUrl });
       await waitForGame(client);
+      await performSmokeMoves(client);
       const capture = await client.send("Page.captureScreenshot", {
         format: "png",
         fromSurface: true,

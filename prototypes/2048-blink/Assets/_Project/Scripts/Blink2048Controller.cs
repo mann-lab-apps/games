@@ -292,8 +292,11 @@ namespace MannLab.Games.Game2048Blink
             {
                 var tile = CreateTileVisual(animationLayerRect, motion.SourceValue, IsHiddenInMask(beforeHidden, motion.SourceIndex));
                 var rect = tile.GetComponent<RectTransform>();
+                rect.anchorMin = new Vector2(0.5f, 0.5f);
+                rect.anchorMax = new Vector2(0.5f, 0.5f);
+                rect.pivot = new Vector2(0.5f, 0.5f);
                 rect.sizeDelta = CellSize();
-                rect.anchoredPosition = CellPosition(motion.SourceIndex);
+                rect.position = CellWorldPosition(motion.SourceIndex);
                 tile.transform.SetAsLastSibling();
                 ghosts.Add(new TileGhost(tile, rect, motion));
             }
@@ -308,9 +311,9 @@ namespace MannLab.Games.Game2048Blink
                 var eased = Smooth01(elapsed / SlideDuration);
                 foreach (var ghost in ghosts)
                 {
-                    ghost.Rect.anchoredPosition = Vector2.Lerp(
-                        CellPosition(ghost.Motion.SourceIndex),
-                        CellPosition(ghost.Motion.TargetIndex),
+                    ghost.Rect.position = Vector3.Lerp(
+                        CellWorldPosition(ghost.Motion.SourceIndex),
+                        CellWorldPosition(ghost.Motion.TargetIndex),
                         eased);
                 }
 
@@ -319,7 +322,7 @@ namespace MannLab.Games.Game2048Blink
 
             foreach (var ghost in ghosts)
             {
-                ghost.Rect.anchoredPosition = CellPosition(ghost.Motion.TargetIndex);
+                ghost.Rect.position = CellWorldPosition(ghost.Motion.TargetIndex);
             }
 
             for (var elapsed = 0f; elapsed < SettleDuration; elapsed += Time.deltaTime)
@@ -495,9 +498,9 @@ namespace MannLab.Games.Game2048Blink
             animationLayerRect.SetAsLastSibling();
         }
 
-        private Vector2 CellPosition(int index)
+        private Vector3 CellWorldPosition(int index)
         {
-            return cellRects[index].anchoredPosition;
+            return cellRects[index].position;
         }
 
         private Vector2 CellSize()
