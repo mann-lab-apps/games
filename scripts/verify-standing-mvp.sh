@@ -105,6 +105,14 @@ public static class VerifyStandingRules
                 Console.Error.WriteLine($"Visitor gap out of range: {gap}.");
                 return 1;
             }
+
+            var passingSeconds = StandingBalance.NextVisitorPassingSeconds(rng);
+            if (passingSeconds < StandingBalance.MinVisitorPassingSeconds
+                || passingSeconds > StandingBalance.MaxVisitorPassingSeconds)
+            {
+                Console.Error.WriteLine($"Visitor passing duration out of range: {passingSeconds}.");
+                return 1;
+            }
         }
 
         Console.WriteLine("Standing rules verified.");

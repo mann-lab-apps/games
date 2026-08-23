@@ -19,7 +19,6 @@ namespace MannLab.Games.Standing
         private static readonly Color PlayerPantsColor = new Color32(74, 83, 101, 255);
         private static readonly Color SkinColor = new Color32(248, 189, 132, 255);
         private static readonly Color VisitorColor = new Color32(196, 79, 117, 255);
-        private static readonly Color VisitorGlowColor = new Color32(255, 226, 92, 255);
         private static readonly Color HealthGoodColor = new Color32(47, 183, 97, 255);
         private static readonly Color HealthWarnColor = new Color32(238, 181, 56, 255);
         private static readonly Color HealthLowColor = new Color32(238, 96, 56, 255);
@@ -65,8 +64,11 @@ namespace MannLab.Games.Standing
         private int clearedCustomers;
         private float nextVisitorAt;
         private float visitorPhaseEndsAt;
+        private float passerStartedAt;
+        private float currentPasserDuration;
         private float resultAt;
         private float visualPulse;
+        private int currentPasserFrameOffset;
         private bool wasSitting;
         private bool currentPasserIsCustomer;
         private StandingGameState lastEndState;
@@ -144,6 +146,8 @@ namespace MannLab.Games.Standing
             currentPasserIsCustomer = false;
             wasSitting = false;
             visualPulse = 0f;
+            currentPasserDuration = StandingBalance.MinVisitorPassingSeconds;
+            currentPasserFrameOffset = 0;
             nextVisitorAt = Time.time + StandingBalance.NextVisitorGap(random);
             visitorPhaseEndsAt = 0f;
             resultPanel.SetActive(false);
@@ -186,21 +190,29 @@ namespace MannLab.Games.Standing
 
                 visitorPhase = VisitorPhase.Warning;
                 currentPasserIsCustomer = random.NextDouble() < StandingBalance.CustomerChance;
+                currentPasserDuration = StandingBalance.NextVisitorPassingSeconds(random);
+                currentPasserFrameOffset = random.Next(0, 6);
+                passerStartedAt = Time.time;
                 visitorPhaseEndsAt = Time.time + StandingBalance.VisitorWarningSeconds;
+                UpdatePasserArt();
+                PositionPasser(0f);
+                visitorRoot.gameObject.SetActive(true);
                 return;
             }
 
             if (visitorPhase == VisitorPhase.Warning)
             {
+                var warningProgress = 0.18f * (1f - Mathf.Clamp01((visitorPhaseEndsAt - Time.time) / StandingBalance.VisitorWarningSeconds));
+                PositionPasser(warningProgress);
+                UpdatePasserWalkFrame();
                 if (Time.time < visitorPhaseEndsAt)
                 {
                     return;
                 }
 
                 visitorPhase = VisitorPhase.Passing;
-                visitorPhaseEndsAt = Time.time + StandingBalance.VisitorPassingSeconds;
-                UpdatePasserArt();
-                visitorRoot.gameObject.SetActive(true);
+                passerStartedAt = Time.time;
+                visitorPhaseEndsAt = Time.time + currentPasserDuration;
             }
 
             if (visitorPhase != VisitorPhase.Passing)
@@ -208,11 +220,9 @@ namespace MannLab.Games.Standing
                 return;
             }
 
-            var progress = 1f - Mathf.Clamp01((visitorPhaseEndsAt - Time.time) / StandingBalance.VisitorPassingSeconds);
-            visitorRoot.anchorMin = new Vector2(-0.14f + progress * 1.28f, 0.55f);
-            visitorRoot.anchorMax = new Vector2(0.08f + progress * 1.28f, 0.86f);
-            visitorImage.color = WithAlpha(currentPasserIsCustomer ? VisitorGlowColor : MonitorColor, 0.22f);
-            SetPasserFrame(Mathf.FloorToInt(progress * 6f));
+            var progress = 0.18f + 0.82f * (1f - Mathf.Clamp01((visitorPhaseEndsAt - Time.time) / currentPasserDuration));
+            PositionPasser(progress);
+            UpdatePasserWalkFrame();
 
             if (Time.time < visitorPhaseEndsAt)
             {
@@ -241,6 +251,21 @@ namespace MannLab.Games.Standing
                 : phonePasserTexture;
             passerArt.color = Color.white;
             SetPasserFrame(0);
+        }
+
+        private void PositionPasser(float progress)
+        {
+            var x = -0.24f + Mathf.Clamp01(progress) * 1.32f;
+            visitorRoot.anchorMin = new Vector2(x, 0.48f);
+            visitorRoot.anchorMax = new Vector2(x + 0.30f, 0.80f);
+            visitorRoot.offsetMin = Vector2.zero;
+            visitorRoot.offsetMax = Vector2.zero;
+        }
+
+        private void UpdatePasserWalkFrame()
+        {
+            var frame = currentPasserFrameOffset + Mathf.FloorToInt((Time.time - passerStartedAt) * 7.5f);
+            SetPasserFrame(frame);
         }
 
         private void EndRun(StandingGameState finalState)
@@ -521,7 +546,8 @@ namespace MannLab.Games.Standing
             visitor.transform.SetParent(parent, false);
             visitorRoot = visitor.GetComponent<RectTransform>();
             visitorImage = visitor.GetComponent<Image>();
-            visitorImage.color = WithAlpha(VisitorGlowColor, 0.24f);
+            visitorImage.color = Color.clear;
+            visitorImage.raycastTarget = false;
 
             if (customerTexture != null)
             {
@@ -539,7 +565,7 @@ namespace MannLab.Games.Standing
             SetAnchor(torso.GetComponent<RectTransform>(), 0.18f, 0.18f, 0.82f, 0.70f);
             AddSketchOutline(torso.transform);
 
-            var bag = CreatePanel(visitor.transform, "Customer Bag", VisitorGlowColor);
+            var bag = CreatePanel(visitor.transform, "Customer Bag", SketchPalette.WarmHighlight);
             SetAnchor(bag.GetComponent<RectTransform>(), 0.00f, 0.30f, 0.24f, 0.58f);
             AddSketchOutline(bag.transform);
 

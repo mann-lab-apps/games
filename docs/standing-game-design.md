@@ -7,7 +7,7 @@ Standing is a one-touch hyper-casual stealth-rest prototype.
 - The player character stands behind a desk chair, shown from the back.
 - Standing drains stamina over time.
 - Holding the screen makes the character sit and recover stamina.
-- Visitors randomly pass through the front of the scene.
+- Visitors randomly walk through the front of the scene at readable speeds.
 - If a visitor passes while the character is sitting, the character is caught and the run ends.
 - If stamina reaches zero, the character collapses and the run ends.
 - The score is survival time.
@@ -25,6 +25,7 @@ Standing is a one-touch hyper-casual stealth-rest prototype.
 - Best survival time
 - Current posture
 - Current risk state: `Clear`, `Footsteps`, `Passing`
+- Passers should be identified by their pose/props, without colored aura backplates.
 
 ## States
 

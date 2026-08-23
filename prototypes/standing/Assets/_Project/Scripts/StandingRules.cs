@@ -23,8 +23,9 @@ namespace MannLab.Games.Standing
         public const float MaxHealth = 100f;
         public const float StandingDrainPerSecond = 18f;
         public const float SittingRecoveryPerSecond = 22f;
-        public const float VisitorWarningSeconds = 0.45f;
-        public const float VisitorPassingSeconds = 0.78f;
+        public const float VisitorWarningSeconds = 0.70f;
+        public const float MinVisitorPassingSeconds = 1.65f;
+        public const float MaxVisitorPassingSeconds = 2.75f;
         public const float MinVisitorGapSeconds = 0.80f;
         public const float MaxVisitorGapSeconds = 2.40f;
         public const double CustomerChance = 0.66d;
@@ -60,6 +61,17 @@ namespace MannLab.Games.Standing
 
             return MinVisitorGapSeconds
                 + (float)random.NextDouble() * (MaxVisitorGapSeconds - MinVisitorGapSeconds);
+        }
+
+        public static float NextVisitorPassingSeconds(Random random)
+        {
+            if (random == null)
+            {
+                throw new ArgumentNullException(nameof(random));
+            }
+
+            return MinVisitorPassingSeconds
+                + (float)random.NextDouble() * (MaxVisitorPassingSeconds - MinVisitorPassingSeconds);
         }
 
         private static float Clamp(float value, float min, float max)

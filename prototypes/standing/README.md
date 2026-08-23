@@ -13,7 +13,7 @@ One-touch stealth-rest hyper-casual prototype.
 
 - Stand behind a desk chair while stamina drains.
 - Hold the screen to sit and recover stamina.
-- Stand before a visitor passes through the front of the scene.
+- Read the walking passer and stand before a customer reaches the front of the scene.
 - Sitting while a visitor passes ends the run as `Caught`.
 - Letting stamina hit zero ends the run as `Exhausted`.
 - Survive as long as possible.
