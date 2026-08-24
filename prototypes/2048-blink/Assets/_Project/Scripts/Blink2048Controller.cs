@@ -18,6 +18,7 @@ namespace MannLab.Games.Game2048Blink
         private const float SettleDuration = 0.08f;
         private const float SpawnPopDuration = 0.12f;
         private const float CurtainDuration = 0.22f;
+        private const string UiMaterialResourceName = "BlinkUiDefault";
         private const string GameOverInterstitialAdUnitId = "ca-app-pub-4525914685149405/8208624041";
         private const int GameOverInterstitialInterval = 3;
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
@@ -34,6 +35,7 @@ namespace MannLab.Games.Game2048Blink
         private readonly RectTransform[] cellRects = new RectTransform[Blink2048Board.CellCount];
         private readonly Blink2048Board board = new Blink2048Board();
 
+        private static Material cachedUiMaterial;
         private RectTransform boardRect;
         private RectTransform animationLayerRect;
         private Text scoreText;
@@ -766,7 +768,7 @@ namespace MannLab.Games.Game2048Blink
             var background = new GameObject("Paper Background", typeof(RectTransform), typeof(Image));
             background.transform.SetParent(parent, false);
             Stretch(background.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
-            background.GetComponent<Image>().color = SketchPalette.Paper;
+            PrepareGraphic(background.GetComponent<Image>()).color = SketchPalette.Paper;
         }
 
         private static void CreateTitle(Transform parent)
@@ -863,7 +865,7 @@ namespace MannLab.Games.Game2048Blink
             cell.transform.SetParent(parent, false);
             cellRects[index] = cell.GetComponent<RectTransform>();
 
-            var background = cell.GetComponent<Image>();
+            var background = PrepareGraphic(cell.GetComponent<Image>());
             background.color = TileColor(0);
 
             var label = CreateText(cell.transform, string.Empty, 76, TextAnchor.MiddleCenter);
@@ -873,7 +875,7 @@ namespace MannLab.Games.Game2048Blink
             var gray = new GameObject("Gray Tile Mask", typeof(RectTransform), typeof(Image));
             gray.transform.SetParent(cell.transform, false);
             Stretch(gray.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
-            var grayImage = gray.GetComponent<Image>();
+            var grayImage = PrepareGraphic(gray.GetComponent<Image>());
             grayImage.raycastTarget = false;
 
             AddSketchOutline(cell.transform);
@@ -887,7 +889,7 @@ namespace MannLab.Games.Game2048Blink
         {
             var tile = new GameObject($"Moving Tile {value}", typeof(RectTransform), typeof(Image));
             tile.transform.SetParent(parent, false);
-            tile.GetComponent<Image>().color = hidden ? new Color(0.12f, 0.13f, 0.14f, CurtainAlpha(false)) : TileColor(value);
+            PrepareGraphic(tile.GetComponent<Image>()).color = hidden ? new Color(0.12f, 0.13f, 0.14f, CurtainAlpha(false)) : TileColor(value);
             AddSketchOutline(tile.transform);
 
             if (!hidden)
@@ -912,7 +914,7 @@ namespace MannLab.Games.Game2048Blink
             rect.sizeDelta = new Vector2(560f, 430f);
             rect.anchoredPosition = Vector2.zero;
 
-            resultPanel.GetComponent<Image>().color = new Color(SketchPalette.TilePaper.r, SketchPalette.TilePaper.g, SketchPalette.TilePaper.b, 0.97f);
+            PrepareGraphic(resultPanel.GetComponent<Image>()).color = new Color(SketchPalette.TilePaper.r, SketchPalette.TilePaper.g, SketchPalette.TilePaper.b, 0.97f);
             AddSketchOutline(resultPanel.transform);
 
             resultTitleText = CreateText(resultPanel.transform, "Game Over", 56, TextAnchor.MiddleCenter);
@@ -945,7 +947,7 @@ namespace MannLab.Games.Game2048Blink
         {
             var buttonObject = new GameObject(label, typeof(RectTransform), typeof(Image), typeof(Button));
             buttonObject.transform.SetParent(parent, false);
-            buttonObject.GetComponent<Image>().color = SketchPalette.TilePaper;
+            PrepareGraphic(buttonObject.GetComponent<Image>()).color = SketchPalette.TilePaper;
             AddSketchOutline(buttonObject.transform);
 
             var button = buttonObject.GetComponent<Button>();
@@ -963,7 +965,7 @@ namespace MannLab.Games.Game2048Blink
             var outline = new GameObject("Sketch Outline", typeof(RectTransform), typeof(SketchOutlineGraphic));
             outline.transform.SetParent(parent, false);
             Stretch(outline.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
-            var outlineGraphic = outline.GetComponent<SketchOutlineGraphic>();
+            var outlineGraphic = PrepareGraphic(outline.GetComponent<SketchOutlineGraphic>());
             outlineGraphic.color = SketchPalette.Ink;
             outlineGraphic.Thickness = 3.2f;
             outlineGraphic.Jitter = 1.9f;
@@ -977,6 +979,7 @@ namespace MannLab.Games.Game2048Blink
             textObject.transform.SetParent(parent, false);
 
             var text = textObject.GetComponent<Text>();
+            PrepareGraphic(text);
             text.text = value;
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.fontSize = fontSize;
@@ -986,6 +989,45 @@ namespace MannLab.Games.Game2048Blink
             text.resizeTextMinSize = Mathf.Max(12, fontSize / 2);
             text.resizeTextMaxSize = fontSize;
             return text;
+        }
+
+        private static T PrepareGraphic<T>(T graphic) where T : Graphic
+        {
+            var material = UiMaterial();
+            if (material != null)
+            {
+                graphic.material = material;
+            }
+
+            return graphic;
+        }
+
+        private static Material UiMaterial()
+        {
+            if (cachedUiMaterial != null)
+            {
+                return cachedUiMaterial;
+            }
+
+            cachedUiMaterial = Resources.Load<Material>(UiMaterialResourceName);
+            if (cachedUiMaterial != null)
+            {
+                return cachedUiMaterial;
+            }
+
+            var shader = Shader.Find("UI/Default") ?? Shader.Find("Sprites/Default");
+            if (shader == null)
+            {
+                Debug.LogWarning("2048 Blink could not find a UI shader; falling back to Unity defaults.");
+                return null;
+            }
+
+            cachedUiMaterial = new Material(shader)
+            {
+                name = UiMaterialResourceName,
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            return cachedUiMaterial;
         }
 
         private static Color TileColor(int value)

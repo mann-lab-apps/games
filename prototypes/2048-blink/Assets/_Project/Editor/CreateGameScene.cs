@@ -40,6 +40,7 @@ namespace MannLab.Games.Game2048Blink.EditorTools
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
 
+            BlinkRuntimeAssets.EnsureUiDefaultMaterial();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
         }
