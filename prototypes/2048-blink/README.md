@@ -79,6 +79,17 @@ iOS release Xcode project verification:
 ./scripts/verify-2048-blink-ios-readiness.sh
 ```
 
+For TestFlight/App Store archive, open the generated CocoaPods workspace, not the
+standalone Xcode project:
+
+```sh
+open prototypes/2048-blink/Builds/iOS/Xcode/Unity-iPhone.xcworkspace
+```
+
+`Unity-iPhone.xcodeproj` does not load the Pods project by itself, so AdMob builds
+can fail with `Framework 'GoogleMobileAds' not found` if that file is opened
+directly.
+
 iOS Crashlytics test Xcode project verification:
 
 ```sh

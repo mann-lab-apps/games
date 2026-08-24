@@ -139,3 +139,4 @@ Privacy note:
 - iOS Crashlytics 테스트 Xcode 프로젝트 생성: `./scripts/verify-2048-blink-ios-readiness.sh crashlytics-test`
 - Firebase 코드/설정 점검: `./scripts/verify-2048-blink-firebase-readiness.sh`
 - 기본 산출물: `prototypes/2048-blink/Builds/iOS/Xcode`
+- AdMob/CocoaPods가 포함된 릴리즈 빌드는 반드시 `prototypes/2048-blink/Builds/iOS/Xcode/Unity-iPhone.xcworkspace`를 열어 Archive한다. `Unity-iPhone.xcodeproj`를 직접 열면 `Framework 'GoogleMobileAds' not found` 링크 에러가 날 수 있다.

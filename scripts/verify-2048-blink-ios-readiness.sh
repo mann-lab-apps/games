@@ -32,6 +32,8 @@ esac
 
 build_log="/tmp/2048-blink-unity-ios-${mode}-build.log"
 pbxproj="$output_path/Unity-iPhone.xcodeproj/project.pbxproj"
+workspace="$output_path/Unity-iPhone.xcworkspace"
+podfile="$output_path/Podfile"
 
 if [[ ! -x "$unity_editor" ]]; then
   echo "Unity Editor not found: $unity_editor" >&2
@@ -95,6 +97,8 @@ fi
 
 test -d "$output_path"
 test -f "$pbxproj"
+test -d "$workspace"
+test -f "$podfile"
 
 if [[ "$mode" != "crashlytics-simulator-test" ]]; then
   if ! grep -q "PROVISIONING_PROFILE_SPECIFIER = \"$profile_name\";" "$pbxproj"; then
@@ -110,3 +114,5 @@ fi
 
 echo "iOS build log: $build_log"
 echo "iOS $mode Xcode project verified: $output_path"
+echo "Open this workspace for AdMob/CocoaPods builds: $workspace"
+echo "Do not archive Unity-iPhone.xcodeproj directly; GoogleMobileAds is linked through Pods."
