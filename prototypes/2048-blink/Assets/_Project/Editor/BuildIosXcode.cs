@@ -15,6 +15,7 @@ namespace MannLab.Games.Game2048Blink.EditorTools
         private const string CrashlyticsTestOutputPath = "Builds/iOS/CrashlyticsTestXcode";
         private const string CrashlyticsSimulatorTestOutputPath = "Builds/iOS/CrashlyticsSimulatorTestXcode";
         private const string BundleIdentifier = "com.mannlab.games.game2048blink";
+        private const string AdMobIosAppId = "ca-app-pub-4525914685149405~6400718358";
         private const string AppleTeamIdEnv = "MANNLAB_APPLE_TEAM_ID";
         private const string DefaultAppleTeamId = "ZRA4DHHKQ4";
         private const string ProvisioningProfileEnv = "MANNLAB_2048_BLINK_IOS_PROFILE_SPECIFIER";
@@ -79,6 +80,7 @@ namespace MannLab.Games.Game2048Blink.EditorTools
 
             AddMarketingIconToXcodeProject(outputPath);
             AddSimpleLaunchScreensToXcodeProject(outputPath);
+            ConfigureAdMobInfoPlist(outputPath);
             if (sdkVersion == iOSSdkVersion.DeviceSDK)
             {
                 ConfigureArchiveSigning(outputPath);
@@ -200,6 +202,21 @@ namespace MannLab.Games.Game2048Blink.EditorTools
         {
             WriteSimpleLaunchScreen(Path.Combine(outputPath, "LaunchScreen-iPhone.storyboard"));
             WriteSimpleLaunchScreen(Path.Combine(outputPath, "LaunchScreen-iPad.storyboard"));
+        }
+
+        private static void ConfigureAdMobInfoPlist(string outputPath)
+        {
+            var plistPath = Path.Combine(outputPath, "Info.plist");
+            if (!File.Exists(plistPath))
+            {
+                throw new FileNotFoundException($"Xcode Info.plist not found: {plistPath}");
+            }
+
+            var plist = new PlistDocument();
+            plist.ReadFromFile(plistPath);
+            plist.root.SetString("GADApplicationIdentifier", AdMobIosAppId);
+            plist.root.SetBoolean("GADIsAdManagerApp", false);
+            plist.WriteToFile(plistPath);
         }
 
         private static void WriteSimpleLaunchScreen(string path)

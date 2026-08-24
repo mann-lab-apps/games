@@ -106,13 +106,24 @@ ca-app-pub-4525914685149405~6400718358
 - 광고 형식: Interstitial
 - 노출 위치: 게임 오버 후
 - 노출 빈도: 몇 판에 한 번만, 초기값은 3판마다 1회 후보
-- 개발/검수 중 광고 단위: Google iOS interstitial test ad unit ID 사용
+- 개발/검수 빌드 광고 단위: Google iOS interstitial test ad unit ID 자동 사용
+- 릴리즈 빌드 광고 단위: production `2048 Blink iOS Game Over Interstitial` 자동 사용
 
 ```text
 ca-app-pub-3940256099942544/4411468910
 ```
 
-실제 광고 단위 ID는 AdMob 콘솔에서 `2048 Blink iOS Game Over Interstitial` 이름으로 생성한 뒤 코드에 반영한다.
+Production iOS interstitial ad unit:
+
+```text
+ca-app-pub-4525914685149405/8208624041
+```
+
+SDK/코드 점검:
+
+```sh
+./scripts/verify-2048-blink-admob-readiness.sh
+```
 
 Privacy note:
 

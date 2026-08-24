@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using MannLab.Ads;
 using MannLab.HyperCasual;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -17,6 +18,8 @@ namespace MannLab.Games.Game2048Blink
         private const float SettleDuration = 0.08f;
         private const float SpawnPopDuration = 0.12f;
         private const float CurtainDuration = 0.22f;
+        private const string GameOverInterstitialAdUnitId = "ca-app-pub-4525914685149405/8208624041";
+        private const int GameOverInterstitialInterval = 3;
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
         private const string CrashlyticsTestArgument = "--mannlab-force-crashlytics-test";
         private const string CrashlyticsTestEnvironmentVariable = "MANNLAB_FORCE_CRASHLYTICS_TEST";
@@ -59,6 +62,10 @@ namespace MannLab.Games.Game2048Blink
             FirebaseTelemetry.Initialize();
             FirebaseTelemetry.SetContext("game", "2048-blink");
             FirebaseTelemetry.LogEvent("app_open");
+            MannLabAdMob.InitializeGameOverInterstitial(
+                "2048-blink",
+                GameOverInterstitialAdUnitId,
+                GameOverInterstitialInterval);
             BuildInterface();
             StartRun();
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
@@ -204,6 +211,7 @@ namespace MannLab.Games.Game2048Blink
             resultTitleText.text = "Game Over";
             resultScoreText.text = $"Tile {board.HighestTile}\nScore {board.Score}";
             resultPanel.SetActive(true);
+            MannLabAdMob.TryShowGameOverInterstitial();
         }
 
 #if DEVELOPMENT_BUILD || UNITY_EDITOR

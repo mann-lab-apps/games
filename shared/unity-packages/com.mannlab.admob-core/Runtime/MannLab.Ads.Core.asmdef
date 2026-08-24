@@ -1,0 +1,20 @@
+{
+  "name": "MannLab.Ads.Core",
+  "rootNamespace": "MannLab.Ads",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [
+    {
+      "name": "com.google.ads.mobile",
+      "expression": "11.4.0",
+      "define": "MANNLAB_ADMOB_GOOGLE_MOBILE_ADS"
+    }
+  ],
+  "noEngineReferences": false
+}

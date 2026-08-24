@@ -35,13 +35,16 @@ Implemented:
 - Firebase/Crashlytics telemetry bridge with Unity-log fallback
 - Firebase Unity SDK 13.14.0 Analytics/Crashlytics package reference
 - Development-only Crashlytics forced crash trigger
+- Shared AdMob interstitial bridge
+- Google Mobile Ads Unity SDK dependency through the shared AdMob package
+- Google Mobile Ads iOS App ID project settings
+- Game-over interstitial hook with a once-every-three-game-overs default
 - Tile slide and merge animation
 - Continuity-first Gray Cross transition after every valid move
 - Hidden-tile motion that preserves covered values during movement
 
 Not implemented:
 
-- Ads
 - Online leaderboard
 - Final store naming/legal clearance
 
@@ -88,6 +91,12 @@ Firebase code/config readiness:
 ./scripts/verify-2048-blink-firebase-readiness.sh
 ```
 
+AdMob code/config readiness:
+
+```sh
+./scripts/verify-2048-blink-admob-readiness.sh
+```
+
 ## Firebase Notes
 
 The runtime calls `FirebaseTelemetry` for `app_open`, `run_start`, `restart`, `run_end`, and `crashlytics_test_trigger` breadcrumbs. It also forwards unhandled exceptions and Unity exception logs to Crashlytics when the Firebase Unity SDK is present.
@@ -109,13 +118,19 @@ Initial ad policy:
 - Interstitial only.
 - Show after game over.
 - Do not show every run; start around once every three game overs.
-- Use the Google iOS interstitial test ad unit during development:
+- Development and debug builds automatically use the Google iOS interstitial test ad unit:
 
 ```text
 ca-app-pub-3940256099942544/4411468910
 ```
 
-Replace the test ad unit with the production `2048 Blink iOS Game Over Interstitial` ad unit ID before release verification.
+Release builds use the production `2048 Blink iOS Game Over Interstitial` ad unit ID.
+
+Production iOS interstitial ad unit:
+
+```text
+ca-app-pub-4525914685149405/8208624041
+```
 
 ## Release Notes
 

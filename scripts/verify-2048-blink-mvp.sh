@@ -12,6 +12,7 @@ mono_lib="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/unityjit-mac
 ugui="$(find "$unity_root/Resources/PackageManager/ProjectTemplates/libcache" -path '*/ScriptAssemblies/UnityEngine.UI.dll' -type f | sort | head -n 1)"
 project="$repo_root/prototypes/2048-blink"
 shared_runtime="$repo_root/shared/unity-packages/com.mannlab.hypercasual-core/Runtime"
+shared_ads="$repo_root/shared/unity-packages/com.mannlab.admob-core/Runtime"
 tmpdir="$(mktemp -d)"
 
 runtime_dll="$tmpdir/Game2048BlinkRuntime.dll"
@@ -34,6 +35,7 @@ fi
   -r:"$unity/UnityEngine.IMGUIModule.dll" \
   -r:"$ugui" \
   "$shared_runtime"/*.cs \
+  "$shared_ads"/*.cs \
   "$project"/Assets/_Project/Scripts/*.cs
 
 "$mono" "$csc" -target:library -nologo -nostdlib -out:"$editor_dll" \
