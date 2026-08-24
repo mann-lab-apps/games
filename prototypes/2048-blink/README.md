@@ -96,6 +96,27 @@ The iOS Firebase app config must be placed at `Assets/GoogleService-Info.plist` 
 
 The Crashlytics test trigger is compiled only for Unity Editor or development builds. In the `crashlytics-test` iOS build, tap the top-left corner 7 times within 2.5 seconds to request a forced Crashlytics test crash. Reopen the app after the crash so Crashlytics can upload the report.
 
+## AdMob Notes
+
+AdMob iOS App ID:
+
+```text
+ca-app-pub-4525914685149405~6400718358
+```
+
+Initial ad policy:
+
+- Interstitial only.
+- Show after game over.
+- Do not show every run; start around once every three game overs.
+- Use the Google iOS interstitial test ad unit during development:
+
+```text
+ca-app-pub-3940256099942544/4411468910
+```
+
+Replace the test ad unit with the production `2048 Blink iOS Game Over Interstitial` ad unit ID before release verification.
+
 ## Release Notes
 
 Keep prototype learnings, build links, and store-readiness notes here.

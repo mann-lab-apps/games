@@ -293,14 +293,14 @@ function PrivacyStage() {
       <article className="privacy-document">
         <span>Mannlab Games</span>
         <h1>Privacy Policy</h1>
-        <p className="privacy-updated">Last updated: August 6, 2026</p>
+        <p className="privacy-updated">Last updated: August 24, 2026</p>
 
         <section>
           <h2>Overview</h2>
           <p>
             Mannlab Games publishes small games including Mannlab 10000,
-            Dopamine Swap, and 2048 Crash. The mobile app versions do not
-            require account creation.
+            Dopamine Swap, 2048 Crash, and 2048 Blink. The mobile app versions
+            do not require account creation.
           </p>
         </section>
 
@@ -312,16 +312,25 @@ function PrivacyStage() {
             local gameplay state is not sent to Mannlab.
           </p>
           <p>
-            2048 Crash and Wind Gull may use Firebase Analytics to understand
-            app launches and gameplay interactions, and Firebase Crashlytics to
-            diagnose crashes and stability issues. This may include device
-            identifiers, product interaction data, crash data, and performance
-            diagnostics.
+            2048 Crash, 2048 Blink, and Wind Gull may use Firebase Analytics
+            to understand app launches and gameplay interactions, and Firebase
+            Crashlytics to diagnose crashes and stability issues. This may
+            include device identifiers, product interaction data, crash data,
+            and performance diagnostics.
           </p>
           <p>
-            The mobile apps do not currently include third-party advertising
-            SDKs, ad tracking, account systems, in-app purchases, chat,
-            location access, camera access, or microphone access.
+            2048 Blink may use Google AdMob to show third-party advertising at
+            natural breaks, such as after a game over. Google AdMob may collect
+            or share data such as device identifiers, advertising identifiers
+            where available, approximate location inferred from IP address,
+            product interaction data, advertising interaction data, and
+            diagnostics for advertising, analytics, fraud prevention, security,
+            and performance purposes.
+          </p>
+          <p>
+            The mobile apps do not currently include account systems, in-app
+            purchases, chat, location access, camera access, or microphone
+            access.
           </p>
         </section>
 

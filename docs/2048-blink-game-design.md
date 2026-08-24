@@ -93,6 +93,33 @@ Analytics events:
 - `run_end`
 - `crashlytics_test_trigger`
 
+## AdMob 광고
+
+AdMob iOS App ID:
+
+```text
+ca-app-pub-4525914685149405~6400718358
+```
+
+초기 광고 정책:
+
+- 광고 형식: Interstitial
+- 노출 위치: 게임 오버 후
+- 노출 빈도: 몇 판에 한 번만, 초기값은 3판마다 1회 후보
+- 개발/검수 중 광고 단위: Google iOS interstitial test ad unit ID 사용
+
+```text
+ca-app-pub-3940256099942544/4411468910
+```
+
+실제 광고 단위 ID는 AdMob 콘솔에서 `2048 Blink iOS Game Over Interstitial` 이름으로 생성한 뒤 코드에 반영한다.
+
+Privacy note:
+
+- 2048 Blink의 공개 privacy policy는 Firebase Analytics/Crashlytics와 Google AdMob 사용을 반영한다.
+- App Store Connect App Privacy 답변에는 third-party advertising SDK가 수집하는 데이터도 포함한다.
+- ATT/IDFA 사용 여부는 실제 AdMob/consent 설정과 Apple 심사 제출 전 최종 빌드 기준으로 다시 확인한다.
+
 ## iOS 배포 준비
 
 - 앱 아이콘: `prototypes/2048-blink/Assets/_Project/Art/AppStore/AppIcon-1024.png`
