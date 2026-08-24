@@ -6,12 +6,32 @@ project="$repo_root/prototypes/2048-blink"
 unity_editor="/Applications/Unity/Hub/Editor/6000.3.22f1/Unity.app/Contents/MacOS/Unity"
 unity_cli="${HOME}/.unity/bin/unity"
 ios_engine="/Applications/Unity/Hub/Editor/6000.3.22f1/PlaybackEngines/iOSSupport"
-build_log="/tmp/2048-blink-unity-ios-build.log"
-output_path="$project/Builds/iOS/Xcode"
-pbxproj="$output_path/Unity-iPhone.xcodeproj/project.pbxproj"
+mode="${1:-release}"
 profile_name="${MANNLAB_2048_BLINK_IOS_PROFILE_SPECIFIER:-2048 Blink}"
 profile_uuid="${MANNLAB_2048_BLINK_IOS_PROFILE_UUID:-b8ffa290-1a3e-444d-8190-1474514857cf}"
 missing=0
+
+case "$mode" in
+  release)
+    build_method="MannLab.Games.Game2048Blink.EditorTools.BuildIosXcode.BuildRelease"
+    output_path="$project/Builds/iOS/Xcode"
+    ;;
+  crashlytics-test)
+    build_method="MannLab.Games.Game2048Blink.EditorTools.BuildIosXcode.BuildCrashlyticsTest"
+    output_path="$project/Builds/iOS/CrashlyticsTestXcode"
+    ;;
+  crashlytics-simulator-test)
+    build_method="MannLab.Games.Game2048Blink.EditorTools.BuildIosXcode.BuildCrashlyticsSimulatorTest"
+    output_path="$project/Builds/iOS/CrashlyticsSimulatorTestXcode"
+    ;;
+  *)
+    echo "Usage: $0 [release|crashlytics-test|crashlytics-simulator-test]" >&2
+    exit 64
+    ;;
+esac
+
+build_log="/tmp/2048-blink-unity-ios-${mode}-build.log"
+pbxproj="$output_path/Unity-iPhone.xcodeproj/project.pbxproj"
 
 if [[ ! -x "$unity_editor" ]]; then
   echo "Unity Editor not found: $unity_editor" >&2
@@ -66,21 +86,23 @@ fi
   -batchmode \
   -quit \
   -projectPath "$project" \
-  -executeMethod MannLab.Games.Game2048Blink.EditorTools.BuildIosXcode.BuildRelease \
+  -executeMethod "$build_method" \
   -logFile "$build_log"
 
 test -d "$output_path"
 test -f "$pbxproj"
 
-if ! grep -q "PROVISIONING_PROFILE_SPECIFIER = \"$profile_name\";" "$pbxproj"; then
-  echo "Expected provisioning profile specifier not found in Xcode project: $profile_name" >&2
-  exit 3
-fi
+if [[ "$mode" != "crashlytics-simulator-test" ]]; then
+  if ! grep -q "PROVISIONING_PROFILE_SPECIFIER = \"$profile_name\";" "$pbxproj"; then
+    echo "Expected provisioning profile specifier not found in Xcode project: $profile_name" >&2
+    exit 3
+  fi
 
-if ! grep -Eq "PROVISIONING_PROFILE = \"?$profile_uuid\"?;" "$pbxproj"; then
-  echo "Expected provisioning profile UUID not found in Xcode project: $profile_uuid" >&2
-  exit 3
+  if ! grep -Eq "PROVISIONING_PROFILE = \"?$profile_uuid\"?;" "$pbxproj"; then
+    echo "Expected provisioning profile UUID not found in Xcode project: $profile_uuid" >&2
+    exit 3
+  fi
 fi
 
 echo "iOS build log: $build_log"
-echo "iOS Xcode project verified: $output_path"
+echo "iOS $mode Xcode project verified: $output_path"

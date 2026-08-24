@@ -32,13 +32,15 @@ Implemented:
 - Result panel
 - iOS app icon asset
 - iOS Xcode build script
+- Firebase/Crashlytics telemetry bridge with Unity-log fallback
+- Firebase Unity SDK 13.14.0 Analytics/Crashlytics package reference
+- Development-only Crashlytics forced crash trigger
 - Tile slide and merge animation
 - Continuity-first Gray Cross transition after every valid move
 - Hidden-tile motion that preserves covered values during movement
 
 Not implemented:
 
-- Firebase/Crashlytics telemetry
 - Ads
 - Online leaderboard
 - Final store naming/legal clearance
@@ -73,6 +75,26 @@ iOS release Xcode project verification:
 ```sh
 ./scripts/verify-2048-blink-ios-readiness.sh
 ```
+
+iOS Crashlytics test Xcode project verification:
+
+```sh
+./scripts/verify-2048-blink-ios-readiness.sh crashlytics-test
+```
+
+Firebase code/config readiness:
+
+```sh
+./scripts/verify-2048-blink-firebase-readiness.sh
+```
+
+## Firebase Notes
+
+The runtime calls `FirebaseTelemetry` for `app_open`, `run_start`, `restart`, `run_end`, and `crashlytics_test_trigger` breadcrumbs. It also forwards unhandled exceptions and Unity exception logs to Crashlytics when the Firebase Unity SDK is present.
+
+The iOS Firebase app config must be placed at `Assets/GoogleService-Info.plist` for bundle ID `com.mannlab.games.game2048blink`.
+
+The Crashlytics test trigger is compiled only for Unity Editor or development builds. In the `crashlytics-test` iOS build, tap the top-left corner 7 times within 2.5 seconds to request a forced Crashlytics test crash. Reopen the app after the crash so Crashlytics can upload the report.
 
 ## Release Notes
 

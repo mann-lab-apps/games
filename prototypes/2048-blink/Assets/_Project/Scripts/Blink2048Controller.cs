@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using MannLab.HyperCasual;
@@ -16,6 +17,13 @@ namespace MannLab.Games.Game2048Blink
         private const float SettleDuration = 0.08f;
         private const float SpawnPopDuration = 0.12f;
         private const float CurtainDuration = 0.22f;
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private const string CrashlyticsTestArgument = "--mannlab-force-crashlytics-test";
+        private const string CrashlyticsTestEnvironmentVariable = "MANNLAB_FORCE_CRASHLYTICS_TEST";
+        private const int CrashlyticsTestTapCount = 7;
+        private const float CrashlyticsTestTapWindowSeconds = 2.5f;
+        private const float CrashlyticsTestTapZoneSize = 220f;
+#endif
 
         private readonly Image[] cellBackgrounds = new Image[Blink2048Board.CellCount];
         private readonly Image[] grayOverlays = new Image[Blink2048Board.CellCount];
@@ -36,19 +44,40 @@ namespace MannLab.Games.Game2048Blink
         private bool gameOver;
         private bool pointerActive;
         private bool isAnimating;
+        private bool runStarted;
         private Vector2 pointerStart;
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private int crashlyticsTestTapCount;
+        private float crashlyticsTestTapDeadline;
+#endif
 
         private void Awake()
         {
             MobileRuntime.ApplyDefaults();
             bestTile = PlayerPrefs.GetInt(BestTileKey, 0);
             bestScore = PlayerPrefs.GetInt(BestScoreKey, 0);
+            FirebaseTelemetry.Initialize();
+            FirebaseTelemetry.SetContext("game", "2048-blink");
+            FirebaseTelemetry.LogEvent("app_open");
             BuildInterface();
             StartRun();
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (ShouldForceCrashlyticsTestOnLaunch())
+            {
+                StartCoroutine(ForceCrashlyticsTestAfterStartup());
+            }
+#endif
         }
 
         private void Update()
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (HandleCrashlyticsTestTrigger())
+            {
+                return;
+            }
+#endif
+
             if (gameOver || isAnimating)
             {
                 return;
@@ -83,12 +112,34 @@ namespace MannLab.Games.Game2048Blink
 
         private void StartRun()
         {
+            if (runStarted)
+            {
+                FirebaseTelemetry.LogEvent(
+                    "restart",
+                    new Dictionary<string, string>
+                    {
+                        { "score", board.Score.ToString() },
+                        { "highest_tile", board.HighestTile.ToString() },
+                        { "best_tile", bestTile.ToString() },
+                        { "best_score", bestScore.ToString() }
+                    });
+            }
+
+            runStarted = true;
             gameOver = false;
             isAnimating = false;
             ClearAnimationLayer();
             resultPanel.SetActive(false);
             board.StartNew();
             UpdateHeader();
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "run_start",
+                new Dictionary<string, string>
+                {
+                    { "best_tile", bestTile.ToString() },
+                    { "best_score", bestScore.ToString() }
+                });
             UpdateBoard(showCurtains: true);
         }
 
@@ -113,6 +164,7 @@ namespace MannLab.Games.Game2048Blink
             }
 
             var motions = BuildTileMotions(beforeValues, direction);
+            UpdateTelemetryContext();
             StartCoroutine(AnimateValidMove(beforeValues, beforeHidden, motions, result));
         }
 
@@ -138,10 +190,121 @@ namespace MannLab.Games.Game2048Blink
 
             PlayerPrefs.Save();
             UpdateHeader();
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "run_end",
+                new Dictionary<string, string>
+                {
+                    { "score", board.Score.ToString() },
+                    { "highest_tile", board.HighestTile.ToString() },
+                    { "turn", board.Turn.ToString() },
+                    { "best_tile", bestTile.ToString() },
+                    { "best_score", bestScore.ToString() }
+                });
             resultTitleText.text = "Game Over";
             resultScoreText.text = $"Tile {board.HighestTile}\nScore {board.Score}";
             resultPanel.SetActive(true);
         }
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private IEnumerator ForceCrashlyticsTestAfterStartup()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            TriggerCrashlyticsTest("launch_flag");
+        }
+
+        private bool HandleCrashlyticsTestTrigger()
+        {
+            if (!TryReadCrashlyticsTestTap(out var position))
+            {
+                return false;
+            }
+
+            if (position.x > CrashlyticsTestTapZoneSize || position.y < Screen.height - CrashlyticsTestTapZoneSize)
+            {
+                return false;
+            }
+
+            if (Time.unscaledTime > crashlyticsTestTapDeadline)
+            {
+                crashlyticsTestTapCount = 0;
+            }
+
+            crashlyticsTestTapDeadline = Time.unscaledTime + CrashlyticsTestTapWindowSeconds;
+            crashlyticsTestTapCount++;
+
+            if (crashlyticsTestTapCount < CrashlyticsTestTapCount)
+            {
+                return true;
+            }
+
+            crashlyticsTestTapCount = 0;
+            TriggerCrashlyticsTest("hidden_tap");
+            return true;
+        }
+
+        private void TriggerCrashlyticsTest(string trigger)
+        {
+            FirebaseTelemetry.SetContext("crashlytics_test", trigger);
+            FirebaseTelemetry.LogEvent(
+                "crashlytics_test_trigger",
+                new Dictionary<string, string>
+                {
+                    { "trigger", trigger },
+                    { "score", board.Score.ToString() },
+                    { "highest_tile", board.HighestTile.ToString() },
+                    { "turn", board.Turn.ToString() }
+                });
+            FirebaseTelemetry.ForceCrashForTesting();
+        }
+
+        private static bool TryReadCrashlyticsTestTap(out Vector2 position)
+        {
+            if (Input.touchCount > 0)
+            {
+                var touch = Input.GetTouch(0);
+                if (touch.phase == TouchPhase.Began)
+                {
+                    position = touch.position;
+                    return true;
+                }
+            }
+
+            if (Input.GetMouseButtonDown(0))
+            {
+                position = Input.mousePosition;
+                return true;
+            }
+
+            position = Vector2.zero;
+            return false;
+        }
+
+        private static bool ShouldForceCrashlyticsTestOnLaunch()
+        {
+            if (IsTruthy(Environment.GetEnvironmentVariable(CrashlyticsTestEnvironmentVariable)))
+            {
+                return true;
+            }
+
+            foreach (var argument in Environment.GetCommandLineArgs())
+            {
+                if (string.Equals(argument, CrashlyticsTestArgument, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsTruthy(string value)
+        {
+            return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
+        }
+#endif
 
         private void ReadPointerSwipe()
         {
@@ -199,6 +362,17 @@ namespace MannLab.Games.Game2048Blink
             scoreText.text = $"Score {board.Score}";
             blinkText.text = board.GrayCrossName;
             bestText.text = $"Best {bestTile}";
+        }
+
+        private void UpdateTelemetryContext()
+        {
+            FirebaseTelemetry.SetContext("score", board.Score.ToString());
+            FirebaseTelemetry.SetContext("highest_tile", board.HighestTile.ToString());
+            FirebaseTelemetry.SetContext("turn", board.Turn.ToString());
+            FirebaseTelemetry.SetContext("gray_cross", board.GrayCrossName);
+            FirebaseTelemetry.SetContext("best_tile", bestTile.ToString());
+            FirebaseTelemetry.SetContext("best_score", bestScore.ToString());
+            FirebaseTelemetry.SetContext("game_over", gameOver ? "true" : "false");
         }
 
         private void UpdateBoard(int spawnedTileIndex = -1, bool showCurtains = true)

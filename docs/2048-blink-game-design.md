@@ -60,12 +60,44 @@ Mann Lab Games 공통 손그림 스케치 스타일을 따른다.
 1. 가려진 칸이 너무 억울하지 않은지 첫 플레이 난이도를 확인한다.
 2. Gray Cross 전환 전 짧은 전체 공개 연출이 필요한지 테스트한다.
 3. 스토어 아이콘과 첫 스크린샷에서 "절반이 깜박이는 2048"을 명확히 보여준다.
-4. Firebase Analytics/Crashlytics를 붙일지 결정한다.
+4. Firebase Analytics/Crashlytics를 붙인다.
 5. iOS TestFlight 또는 WebGL로 빠르게 반응을 본다.
+
+## Firebase 계측
+
+코드는 Firebase SDK가 없어도 컴파일되는 `FirebaseTelemetry` 어댑터를 사용한다. Firebase Unity SDK와 iOS Firebase config 파일이 추가되면 같은 호출이 Firebase Analytics/Crashlytics로 전달된다.
+
+iOS Firebase 앱 설정은 `Assets/GoogleService-Info.plist`에 둔다. 현재 번들 ID는 `com.mannlab.games.game2048blink`이다.
+
+Firebase Unity SDK 13.14.0의 Analytics/Crashlytics 패키지를 포함한 공용 `com.mannlab.firebase-unity-sdk` 패키지를 사용한다.
+
+Crashlytics 확인용 development build는 좌상단을 2.5초 안에 7번 탭하면 강제 테스트 크래시를 발생시킨다. CLI 검증 시에는 `--mannlab-force-crashlytics-test` launch argument 또는 `MANNLAB_FORCE_CRASHLYTICS_TEST=1` 환경변수를 주면 앱 시작 직후 테스트 크래시가 발생한다. 이 트리거는 Unity Editor 또는 development build에서만 컴파일되며, App Store/TestFlight release build에는 포함되지 않는다.
+
+Crashlytics custom keys:
+
+- `game`
+- `score`
+- `highest_tile`
+- `turn`
+- `gray_cross`
+- `best_tile`
+- `best_score`
+- `game_over`
+- `crashlytics_test`
+
+Analytics events:
+
+- `app_open`
+- `run_start`
+- `restart`
+- `run_end`
+- `crashlytics_test_trigger`
 
 ## iOS 배포 준비
 
 - 앱 아이콘: `prototypes/2048-blink/Assets/_Project/Art/AppStore/AppIcon-1024.png`
 - 아이콘 생성: `node scripts/generate-2048-blink-app-icon.mjs`
 - iOS 릴리즈 Xcode 프로젝트 생성: `./scripts/verify-2048-blink-ios-readiness.sh`
+- iOS Crashlytics 테스트 Xcode 프로젝트 생성: `./scripts/verify-2048-blink-ios-readiness.sh crashlytics-test`
+- Firebase 코드/설정 점검: `./scripts/verify-2048-blink-firebase-readiness.sh`
 - 기본 산출물: `prototypes/2048-blink/Builds/iOS/Xcode`
