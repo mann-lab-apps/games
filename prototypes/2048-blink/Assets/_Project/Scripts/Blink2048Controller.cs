@@ -19,6 +19,7 @@ namespace MannLab.Games.Game2048Blink
         private const float SpawnPopDuration = 0.12f;
         private const float CurtainDuration = 0.22f;
         private const string UiMaterialResourceName = "BlinkUiDefault";
+        private const string UiShaderName = "MannLab/2048Blink/UIUnlit";
         private const string GameOverInterstitialAdUnitId = "ca-app-pub-4525914685149405/8208624041";
         private const int GameOverInterstitialInterval = 3;
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
@@ -1015,7 +1016,7 @@ namespace MannLab.Games.Game2048Blink
                 return cachedUiMaterial;
             }
 
-            var shader = Shader.Find("UI/Default") ?? Shader.Find("Sprites/Default");
+            var shader = Shader.Find(UiShaderName) ?? Shader.Find("UI/Default") ?? Shader.Find("Sprites/Default");
             if (shader == null)
             {
                 Debug.LogWarning("2048 Blink could not find a UI shader; falling back to Unity defaults.");

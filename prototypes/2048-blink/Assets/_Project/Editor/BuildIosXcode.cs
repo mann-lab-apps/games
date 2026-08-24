@@ -58,7 +58,7 @@ namespace MannLab.Games.Game2048Blink.EditorTools
             PlayerSettings.bundleVersion = "0.1";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleIdentifier);
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
-            PlayerSettings.iOS.buildNumber = "3";
+            PlayerSettings.iOS.buildNumber = "4";
             PlayerSettings.iOS.targetOSVersionString = "15.0";
             PlayerSettings.iOS.sdkVersion = sdkVersion;
 

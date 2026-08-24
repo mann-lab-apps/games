@@ -8,15 +8,16 @@ namespace MannLab.Games.Game2048Blink.EditorTools
     {
         private const string ResourcesPath = "Assets/_Project/Resources";
         private const string UiMaterialPath = ResourcesPath + "/BlinkUiDefault.mat";
+        private const string UiShaderName = "MannLab/2048Blink/UIUnlit";
 
         public static void EnsureUiDefaultMaterial()
         {
             EnsureResourcesFolder();
 
-            var shader = Shader.Find("UI/Default") ?? Shader.Find("Sprites/Default");
+            var shader = Shader.Find(UiShaderName) ?? Shader.Find("UI/Default") ?? Shader.Find("Sprites/Default");
             if (shader == null)
             {
-                throw new InvalidOperationException("2048 Blink requires UI/Default or Sprites/Default shader for runtime UI rendering.");
+                throw new InvalidOperationException("2048 Blink requires a UI shader for runtime UI rendering.");
             }
 
             var material = AssetDatabase.LoadAssetAtPath<Material>(UiMaterialPath);
