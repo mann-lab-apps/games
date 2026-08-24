@@ -59,14 +59,8 @@ namespace MannLab.Games.Game2048Blink
             MobileRuntime.ApplyDefaults();
             bestTile = PlayerPrefs.GetInt(BestTileKey, 0);
             bestScore = PlayerPrefs.GetInt(BestScoreKey, 0);
-            FirebaseTelemetry.Initialize();
-            FirebaseTelemetry.SetContext("game", "2048-blink");
-            FirebaseTelemetry.LogEvent("app_open");
-            MannLabAdMob.InitializeGameOverInterstitial(
-                "2048-blink",
-                GameOverInterstitialAdUnitId,
-                GameOverInterstitialInterval);
             BuildInterface();
+            InitializeTelemetryAndAds();
             StartRun();
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
             if (ShouldForceCrashlyticsTestOnLaunch())
@@ -74,6 +68,32 @@ namespace MannLab.Games.Game2048Blink
                 StartCoroutine(ForceCrashlyticsTestAfterStartup());
             }
 #endif
+        }
+
+        private static void InitializeTelemetryAndAds()
+        {
+            try
+            {
+                FirebaseTelemetry.Initialize();
+                FirebaseTelemetry.SetContext("game", "2048-blink");
+                FirebaseTelemetry.LogEvent("app_open");
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[2048 Blink] Firebase initialization skipped: {exception.GetType().Name}");
+            }
+
+            try
+            {
+                MannLabAdMob.InitializeGameOverInterstitial(
+                    "2048-blink",
+                    GameOverInterstitialAdUnitId,
+                    GameOverInterstitialInterval);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[2048 Blink] AdMob initialization skipped: {exception.GetType().Name}");
+            }
         }
 
         private void Update()
