@@ -1,0 +1,31 @@
+{
+  "project_info": {
+    "project_number": "181934332973",
+    "project_id": "blink-6c948",
+    "storage_bucket": "blink-6c948.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:181934332973:ios:ea802724b2c08f573c2ca4",
+        "android_client_info": {
+          "package_name": "com.mannlab.games.game2048blink"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyAwTkFEzPD4ST8B-iX0gSbg0P3NNWV6naw"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 0
+        },
+        "appinvite_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
