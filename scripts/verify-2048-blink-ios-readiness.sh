@@ -49,9 +49,13 @@ if [[ ! -x "$unity_cli" ]]; then
   missing=1
 else
   license_state="$("$unity_cli" license --json 2>/dev/null || true)"
-  if ! python3 -c 'import json,sys; sys.exit(0 if len(json.load(sys.stdin)["data"]) > 0 else 1)' <<< "$license_state"; then
-    echo "No Unity Editor license found. Activate a license in Unity Hub before running this script." >&2
-    missing=1
+  if ! python3 -c 'import json,sys; data=json.load(sys.stdin).get("data") or []; sys.exit(0 if len(data) > 0 else 1)' <<< "$license_state" 2>/dev/null; then
+    if [[ -s "${HOME}/Library/Unity/licenses/UnityEntitlementLicense.xml" ]]; then
+      echo "Unity CLI license check did not return active entitlements; using local Unity entitlement license file." >&2
+    else
+      echo "No Unity Editor license found. Activate a license in Unity Hub before running this script." >&2
+      missing=1
+    fi
   fi
 fi
 
