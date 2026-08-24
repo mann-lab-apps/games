@@ -18,8 +18,6 @@ namespace MannLab.Games.Game2048Blink
         private const float SettleDuration = 0.08f;
         private const float SpawnPopDuration = 0.12f;
         private const float CurtainDuration = 0.22f;
-        private const string UiMaterialResourceName = "BlinkUiDefault";
-        private const string UiShaderName = "MannLab/2048Blink/UIUnlit";
         private const string GameOverInterstitialAdUnitId = "ca-app-pub-4525914685149405/8208624041";
         private const int GameOverInterstitialInterval = 3;
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
@@ -36,7 +34,6 @@ namespace MannLab.Games.Game2048Blink
         private readonly RectTransform[] cellRects = new RectTransform[Blink2048Board.CellCount];
         private readonly Blink2048Board board = new Blink2048Board();
 
-        private static Material cachedUiMaterial;
         private RectTransform boardRect;
         private RectTransform animationLayerRect;
         private Text scoreText;
@@ -994,41 +991,7 @@ namespace MannLab.Games.Game2048Blink
 
         private static T PrepareGraphic<T>(T graphic) where T : Graphic
         {
-            var material = UiMaterial();
-            if (material != null)
-            {
-                graphic.material = material;
-            }
-
             return graphic;
-        }
-
-        private static Material UiMaterial()
-        {
-            if (cachedUiMaterial != null)
-            {
-                return cachedUiMaterial;
-            }
-
-            cachedUiMaterial = Resources.Load<Material>(UiMaterialResourceName);
-            if (cachedUiMaterial != null)
-            {
-                return cachedUiMaterial;
-            }
-
-            var shader = Shader.Find(UiShaderName) ?? Shader.Find("UI/Default") ?? Shader.Find("Sprites/Default");
-            if (shader == null)
-            {
-                Debug.LogWarning("2048 Blink could not find a UI shader; falling back to Unity defaults.");
-                return null;
-            }
-
-            cachedUiMaterial = new Material(shader)
-            {
-                name = UiMaterialResourceName,
-                hideFlags = HideFlags.HideAndDontSave
-            };
-            return cachedUiMaterial;
         }
 
         private static Color TileColor(int value)
