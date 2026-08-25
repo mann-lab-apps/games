@@ -1,6 +1,6 @@
 # Mann Lab Games Troubleshooting
 
-Last updated: 2026-08-06
+Last updated: 2026-08-25
 
 만랩 게임즈에서 Unity/WebGL/iOS/App Store 배포 중 실제로 만난 문제와 결론을 모아둔다.
 
@@ -84,6 +84,96 @@ MANNLAB_2048_CRASH_IOS_PROFILE_SPECIFIER="<PROFILE_NAME>" \
 빨간 signing error, linker error, missing plist, missing framework, archive failure가 아니면 우선 Archive 결과를 기준으로 판단한다.
 
 Crashlytics run script 경고는 output file 목록이 없어서 매번 실행된다는 뜻이다. 빌드 실패 원인은 아니며, 나중에 빌드 시간을 줄이고 싶을 때 정리한다.
+
+## iOS Xcode Archives
+
+### AdMob/CocoaPods Builds Must Archive The Workspace
+
+Google Mobile Ads가 들어간 Unity iOS export는 `Unity-iPhone.xcodeproj`가 아니라 `Unity-iPhone.xcworkspace`를 열거나 지정해야 한다.
+
+잘못된 입력:
+
+```sh
+xcodebuild archive \
+  -project prototypes/2048-blink/Builds/iOS/Xcode/Unity-iPhone.xcodeproj
+```
+
+권장 입력:
+
+```sh
+xcodebuild archive \
+  -workspace /Users/gimjaeman/Desktop/coding/mannlab/games/prototypes/2048-blink/Builds/iOS/Xcode/Unity-iPhone.xcworkspace \
+  -scheme Unity-iPhone \
+  -configuration Release \
+  -destination generic/platform=iOS \
+  -archivePath /Users/gimjaeman/Library/Developer/Xcode/Archives/2026-08-25/2048Blink-Release-11-direct.xcarchive
+```
+
+`Framework 'GoogleMobileAds' not found`가 뜨면 대개 workspace가 아니라 xcodeproj를 열었거나, Pods project가 로드되지 않은 상태다.
+
+### Verify The Archive, Not Just The Xcode Project
+
+Xcode Organizer에 같은 버전의 archive가 여러 개 쌓이면 선택한 줄이 최신 archive가 아닐 수 있다. 또한 source `Info.plist`가 맞아도 archive 내부 plist가 다를 수 있으므로, 업로드 전 archive 자체를 확인한다.
+
+```sh
+/usr/libexec/PlistBuddy \
+  -c 'Print :CFBundleShortVersionString' \
+  -c 'Print :CFBundleVersion' \
+  -c 'Print :GADApplicationIdentifier' \
+  /Users/gimjaeman/Library/Developer/Xcode/Archives/2026-08-25/2048Blink-Release-11-direct.xcarchive/Products/Applications/2048Blink.app/Info.plist
+```
+
+2048 Blink build 11에서 기대한 값:
+
+```text
+0.1
+11
+ca-app-pub-4525914685149405~6400718358
+```
+
+Archive metadata도 같이 확인한다.
+
+```sh
+/usr/libexec/PlistBuddy \
+  -c 'Print :ApplicationProperties:CFBundleShortVersionString' \
+  -c 'Print :ApplicationProperties:CFBundleVersion' \
+  -c 'Print :ApplicationProperties:CFBundleIdentifier' \
+  /Users/gimjaeman/Library/Developer/Xcode/Archives/2026-08-25/2048Blink-Release-11-direct.xcarchive/Info.plist
+```
+
+### Test Ad Build vs Release Build
+
+2048 Blink에는 AdMob 확인용 `admob-test` iOS build가 따로 있다. 이 빌드는 release-style device build지만 `MANNLAB_ADMOB_FORCE_TEST_ADS` define을 켜서 Google test interstitial을 사용하고, 게임오버 1회마다 광고를 보여준다. TestFlight에서 광고 표시 여부를 빠르게 확인할 때만 사용하고 App Review에는 제출하지 않는다.
+
+Release build는 테스트 UI 문자열이 없어야 하고 production interstitial unit만 들어 있어야 한다.
+
+```sh
+LC_ALL=C grep -a -o -E \
+  'Ad test build|Test Ad|ads: loaded|ads: load failed|ca-app-pub-4525914685149405/8208624041' \
+  /Users/gimjaeman/Library/Developer/Xcode/Archives/2026-08-25/2048Blink-Release-11-direct.xcarchive/Products/Applications/2048Blink.app/Data/Managed/Metadata/global-metadata.dat \
+  | sort -u
+```
+
+Release build에서 기대한 출력:
+
+```text
+ca-app-pub-4525914685149405/8208624041
+```
+
+`Ad test build`, `Test Ad`, `ads: loaded`, `ads: load failed`가 나오면 테스트용 diagnostic UI가 들어간 archive이므로 제출하지 않는다.
+
+### Unity Batch Licensing Can Block Export
+
+Unity batchmode가 아래 로그에서 멈추면 Xcode archive 문제가 아니라 Unity licensing client 초기화 문제다.
+
+```text
+Timed-out after 60.00s, waiting for channel: "LicenseClient-..."
+Licensing initialization failed
+```
+
+이때는 이미 생성된 Xcode export가 최신 gameplay/code를 포함하는지 먼저 확인한다. export를 새로 만들어야 한다면 Unity Hub/Unity Editor를 한 번 열어 라이선스 클라이언트를 깨운 뒤 다시 `verify-*-ios-readiness.sh`를 실행한다.
+
+이미 생성된 Xcode export로 archive만 다시 해야 할 때는 source `Info.plist`와 archive 내부 plist를 모두 확인한다. 2048 Blink에서는 `prototypes/2048-blink/Builds/iOS/Xcode/Info.plist`가 `0.1 (11)`이어야 하며, 최종 판단은 archive 내부 `Products/Applications/2048Blink.app/Info.plist` 기준으로 한다.
 
 ## App Store Screenshots
 

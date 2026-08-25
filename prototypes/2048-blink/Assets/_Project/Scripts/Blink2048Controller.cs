@@ -19,7 +19,11 @@ namespace MannLab.Games.Game2048Blink
         private const float SpawnPopDuration = 0.12f;
         private const float CurtainDuration = 0.22f;
         private const string GameOverInterstitialAdUnitId = "ca-app-pub-4525914685149405/8208624041";
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+        private const int GameOverInterstitialInterval = 1;
+#else
         private const int GameOverInterstitialInterval = 3;
+#endif
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
         private const string CrashlyticsTestArgument = "--mannlab-force-crashlytics-test";
         private const string CrashlyticsTestEnvironmentVariable = "MANNLAB_FORCE_CRASHLYTICS_TEST";
@@ -52,6 +56,10 @@ namespace MannLab.Games.Game2048Blink
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
         private int crashlyticsTestTapCount;
         private float crashlyticsTestTapDeadline;
+#endif
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+        private Text adDiagnosticsText;
+        private float nextAdDiagnosticsRefreshTime;
 #endif
 
         private void Awake()
@@ -102,6 +110,12 @@ namespace MannLab.Games.Game2048Blink
             if (HandleCrashlyticsTestTrigger())
             {
                 return;
+            }
+#endif
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+            if (Time.unscaledTime >= nextAdDiagnosticsRefreshTime)
+            {
+                UpdateAdDiagnostics();
             }
 #endif
 
@@ -232,6 +246,9 @@ namespace MannLab.Games.Game2048Blink
             resultScoreText.text = $"Tile {board.HighestTile}\nScore {board.Score}";
             resultPanel.SetActive(true);
             MannLabAdMob.TryShowGameOverInterstitial();
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+            UpdateAdDiagnostics();
+#endif
         }
 
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
@@ -734,6 +751,9 @@ namespace MannLab.Games.Game2048Blink
             CreateHeader(safeAreaRoot);
             CreateBoard(safeAreaRoot);
             CreateResultPanel(safeAreaRoot);
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+            CreateAdDiagnostics(safeAreaRoot);
+#endif
         }
 
         private static void EnsureEventSystem()
@@ -940,6 +960,56 @@ namespace MannLab.Games.Game2048Blink
 
             resultPanel.SetActive(false);
         }
+
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+        private void CreateAdDiagnostics(Transform parent)
+        {
+            var panel = new GameObject("AdMob Test Diagnostics", typeof(RectTransform), typeof(Image));
+            panel.transform.SetParent(parent, false);
+            var rect = panel.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.offsetMin = new Vector2(32f, 24f);
+            rect.offsetMax = new Vector2(-32f, 116f);
+            PrepareGraphic(panel.GetComponent<Image>()).color =
+                new Color(SketchPalette.TilePaper.r, SketchPalette.TilePaper.g, SketchPalette.TilePaper.b, 0.94f);
+            AddSketchOutline(panel.transform);
+
+            adDiagnosticsText = CreateText(panel.transform, string.Empty, 24, TextAnchor.MiddleLeft);
+            var textRect = adDiagnosticsText.GetComponent<RectTransform>();
+            textRect.anchorMin = new Vector2(0f, 0f);
+            textRect.anchorMax = new Vector2(0.72f, 1f);
+            textRect.offsetMin = new Vector2(24f, 8f);
+            textRect.offsetMax = new Vector2(-8f, -8f);
+
+            var testButton = CreateSketchButton(panel.transform, "Test Ad", 24);
+            var buttonRect = testButton.GetComponent<RectTransform>();
+            buttonRect.anchorMin = new Vector2(0.74f, 0.16f);
+            buttonRect.anchorMax = new Vector2(0.98f, 0.84f);
+            buttonRect.offsetMin = Vector2.zero;
+            buttonRect.offsetMax = Vector2.zero;
+            testButton.onClick.AddListener(() =>
+            {
+                MannLabAdMob.TryShowInterstitialForTesting();
+                UpdateAdDiagnostics();
+            });
+
+            UpdateAdDiagnostics();
+        }
+
+        private void UpdateAdDiagnostics()
+        {
+            nextAdDiagnosticsRefreshTime = Time.unscaledTime + 0.5f;
+            if (adDiagnosticsText == null)
+            {
+                return;
+            }
+
+            var state = MannLabAdMob.IsReady ? "ready" : MannLabAdMob.IsLoading ? "loading" : "not ready";
+            adDiagnosticsText.text = $"Ad test build: {state}\n{MannLabAdMob.DiagnosticSummary}";
+        }
+#endif
 
         private static Button CreateSketchButton(Transform parent, string label, int fontSize)
         {

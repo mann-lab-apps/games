@@ -17,11 +17,12 @@ games/
 ## Recommended Flow
 
 1. Start from the workflow in `docs/production-workflow.md`.
-2. Create new concepts in `prototypes/`.
-3. Promote promising projects into `releases/`.
-4. Keep common code in `shared/unity-packages/`.
-5. Treat every game directory as its own Unity project.
-6. Use the shared hand-drawn sketch visual direction in `docs/visual-direction.md`.
+2. Use `docs/classic-casual-twist-strategy.md` when choosing small classic-casual variants.
+3. Create new concepts in `prototypes/`.
+4. Promote promising projects into `releases/`.
+5. Keep common code in `shared/unity-packages/`.
+6. Treat every game directory as its own Unity project.
+7. Use the shared hand-drawn sketch visual direction in `docs/visual-direction.md`.
 
 ```sh
 ./scripts/new-unity-game.sh prototypes stack-jump
@@ -31,6 +32,7 @@ Then open the generated directory from Unity Hub and let Unity import the projec
 
 ## Current Prototypes
 
+- `2048-blink`: 2048 memory variant with alternating odd/even curtain cells, see `docs/2048-blink-game-design.md`.
 - `2048-crash`: static special-block variant of 2048, see `docs/2048-crash-game-design.md`.
 - `10000`: see `docs/10000-game-design.md` and `docs/10000-worklog.md`.
 - `dopamine-swap`: candidate card comparison game, see `docs/dopamine-swap-game-design.md`.

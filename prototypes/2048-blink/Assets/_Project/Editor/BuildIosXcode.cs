@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Build;
@@ -14,8 +15,13 @@ namespace MannLab.Games.Game2048Blink.EditorTools
         private const string OutputPath = "Builds/iOS/Xcode";
         private const string CrashlyticsTestOutputPath = "Builds/iOS/CrashlyticsTestXcode";
         private const string CrashlyticsSimulatorTestOutputPath = "Builds/iOS/CrashlyticsSimulatorTestXcode";
+        private const string AdMobTestOutputPath = "Builds/iOS/AdMobTestXcode";
         private const string BundleIdentifier = "com.mannlab.games.game2048blink";
         private const string AdMobIosAppId = "ca-app-pub-4525914685149405~6400718358";
+        private const string ForceAdMobTestAdsDefine = "MANNLAB_ADMOB_FORCE_TEST_ADS";
+        private const string BuildNumberEnv = "MANNLAB_2048_BLINK_IOS_BUILD_NUMBER";
+        private const string DefaultBuildNumber = "11";
+        private const string MarketingVersion = "0.1";
         private const string AppleTeamIdEnv = "MANNLAB_APPLE_TEAM_ID";
         private const string DefaultAppleTeamId = "ZRA4DHHKQ4";
         private const string ProvisioningProfileEnv = "MANNLAB_2048_BLINK_IOS_PROFILE_SPECIFIER";
@@ -44,7 +50,16 @@ namespace MannLab.Games.Game2048Blink.EditorTools
             BuildIos(CrashlyticsSimulatorTestOutputPath, true, iOSSdkVersion.SimulatorSDK);
         }
 
-        private static void BuildIos(string outputPath, bool developmentBuild, iOSSdkVersion sdkVersion)
+        public static void BuildAdMobTest()
+        {
+            BuildIos(AdMobTestOutputPath, false, iOSSdkVersion.DeviceSDK, true);
+        }
+
+        private static void BuildIos(
+            string outputPath,
+            bool developmentBuild,
+            iOSSdkVersion sdkVersion,
+            bool forceAdMobTestAds = false)
         {
             CreateGameScene.Create();
             Directory.CreateDirectory(outputPath);
@@ -55,36 +70,79 @@ namespace MannLab.Games.Game2048Blink.EditorTools
 
             PlayerSettings.companyName = "Mann Lab";
             PlayerSettings.productName = "2048 Blink";
-            PlayerSettings.bundleVersion = "0.1";
+            PlayerSettings.bundleVersion = MarketingVersion;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleIdentifier);
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
-            PlayerSettings.iOS.buildNumber = "5";
+            var buildNumber = GetBuildNumber();
+            PlayerSettings.iOS.buildNumber = buildNumber;
             PlayerSettings.iOS.targetOSVersionString = "15.0";
             PlayerSettings.iOS.sdkVersion = sdkVersion;
 
             ApplyAppIcon();
             ApplySigningHint();
 
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            var namedBuildTarget = NamedBuildTarget.iOS;
+            var previousDefines = PlayerSettings.GetScriptingDefineSymbols(namedBuildTarget);
+            try
             {
-                scenes = new[] { ScenePath },
-                locationPathName = outputPath,
-                target = BuildTarget.iOS,
-                options = developmentBuild ? BuildOptions.Development | BuildOptions.AllowDebugging : BuildOptions.None
-            });
+                PlayerSettings.SetScriptingDefineSymbols(
+                    namedBuildTarget,
+                    SetScriptingDefine(previousDefines, ForceAdMobTestAdsDefine, forceAdMobTestAds));
 
-            if (report.summary.result != BuildResult.Succeeded)
+                var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                {
+                    scenes = new[] { ScenePath },
+                    locationPathName = outputPath,
+                    target = BuildTarget.iOS,
+                    options = developmentBuild ? BuildOptions.Development | BuildOptions.AllowDebugging : BuildOptions.None
+                });
+
+                if (report.summary.result != BuildResult.Succeeded)
+                {
+                    throw new InvalidOperationException($"iOS Xcode project build failed: {report.summary.result}");
+                }
+            }
+            finally
             {
-                throw new InvalidOperationException($"iOS Xcode project build failed: {report.summary.result}");
+                PlayerSettings.SetScriptingDefineSymbols(namedBuildTarget, previousDefines);
             }
 
             AddMarketingIconToXcodeProject(outputPath);
             AddSimpleLaunchScreensToXcodeProject(outputPath);
-            ConfigureAdMobInfoPlist(outputPath);
+            ConfigureInfoPlist(outputPath, buildNumber);
+            ConfigureArchiveVersion(outputPath, buildNumber);
             if (sdkVersion == iOSSdkVersion.DeviceSDK)
             {
                 ConfigureArchiveSigning(outputPath);
             }
+        }
+
+        private static string SetScriptingDefine(string currentDefines, string define, bool enabled)
+        {
+            var symbols = new List<string>();
+            foreach (var rawSymbol in currentDefines.Split(';'))
+            {
+                var symbol = rawSymbol.Trim();
+                if (string.IsNullOrEmpty(symbol) || symbol == define)
+                {
+                    continue;
+                }
+
+                symbols.Add(symbol);
+            }
+
+            if (enabled)
+            {
+                symbols.Add(define);
+            }
+
+            return string.Join(";", symbols);
+        }
+
+        private static string GetBuildNumber()
+        {
+            var buildNumber = Environment.GetEnvironmentVariable(BuildNumberEnv);
+            return string.IsNullOrWhiteSpace(buildNumber) ? DefaultBuildNumber : buildNumber;
         }
 
         private static void ApplySigningHint()
@@ -204,7 +262,7 @@ namespace MannLab.Games.Game2048Blink.EditorTools
             WriteSimpleLaunchScreen(Path.Combine(outputPath, "LaunchScreen-iPad.storyboard"));
         }
 
-        private static void ConfigureAdMobInfoPlist(string outputPath)
+        private static void ConfigureInfoPlist(string outputPath, string buildNumber)
         {
             var plistPath = Path.Combine(outputPath, "Info.plist");
             if (!File.Exists(plistPath))
@@ -214,9 +272,33 @@ namespace MannLab.Games.Game2048Blink.EditorTools
 
             var plist = new PlistDocument();
             plist.ReadFromFile(plistPath);
+            plist.root.SetString("CFBundleShortVersionString", MarketingVersion);
+            plist.root.SetString("CFBundleVersion", buildNumber);
             plist.root.SetString("GADApplicationIdentifier", AdMobIosAppId);
             plist.root.SetBoolean("GADIsAdManagerApp", false);
             plist.WriteToFile(plistPath);
+        }
+
+        private static void ConfigureArchiveVersion(string outputPath, string buildNumber)
+        {
+            var projectPath = PBXProject.GetPBXProjectPath(outputPath);
+            var project = new PBXProject();
+            project.ReadFromFile(projectPath);
+
+            ConfigureTargetVersion(project, project.ProjectGuid(), buildNumber);
+            ConfigureTargetVersion(project, project.GetUnityMainTargetGuid(), buildNumber);
+            ConfigureTargetVersion(project, project.GetUnityFrameworkTargetGuid(), buildNumber);
+
+            project.WriteToFile(projectPath);
+        }
+
+        private static void ConfigureTargetVersion(PBXProject project, string targetGuid, string buildNumber)
+        {
+            project.SetBuildProperty(targetGuid, "MARKETING_VERSION", MarketingVersion);
+            project.SetBuildProperty(targetGuid, "CURRENT_PROJECT_VERSION", buildNumber);
+            project.SetBuildProperty(targetGuid, "VERSIONING_SYSTEM", "apple-generic");
+            project.SetBuildProperty(targetGuid, "INFOPLIST_KEY_CFBundleShortVersionString", MarketingVersion);
+            project.SetBuildProperty(targetGuid, "INFOPLIST_KEY_CFBundleVersion", buildNumber);
         }
 
         private static void WriteSimpleLaunchScreen(string path)

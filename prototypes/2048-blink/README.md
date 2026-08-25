@@ -96,6 +96,62 @@ iOS Crashlytics test Xcode project verification:
 ./scripts/verify-2048-blink-ios-readiness.sh crashlytics-test
 ```
 
+iOS AdMob test Xcode project verification:
+
+```sh
+./scripts/verify-2048-blink-ios-readiness.sh admob-test
+```
+
+The AdMob test build is a release-style device build that forces Google's iOS
+interstitial test ad unit and shows after every game over. Use it only to verify
+ad display in TestFlight; do not submit that build to App Review.
+
+The generated iOS build number defaults to `11`. Override it when uploading
+multiple TestFlight builds:
+
+```sh
+MANNLAB_2048_BLINK_IOS_BUILD_NUMBER=12 ./scripts/verify-2048-blink-ios-readiness.sh release
+```
+
+When Xcode Organizer keeps selecting an older archive, create and verify the
+archive directly from the workspace:
+
+```sh
+xcodebuild archive \
+  -workspace /Users/gimjaeman/Desktop/coding/mannlab/games/prototypes/2048-blink/Builds/iOS/Xcode/Unity-iPhone.xcworkspace \
+  -scheme Unity-iPhone \
+  -configuration Release \
+  -destination generic/platform=iOS \
+  -archivePath /Users/gimjaeman/Library/Developer/Xcode/Archives/2026-08-25/2048Blink-Release-11-direct.xcarchive
+```
+
+Verify the archive plist before uploading:
+
+```sh
+/usr/libexec/PlistBuddy \
+  -c 'Print :CFBundleShortVersionString' \
+  -c 'Print :CFBundleVersion' \
+  -c 'Print :GADApplicationIdentifier' \
+  /Users/gimjaeman/Library/Developer/Xcode/Archives/2026-08-25/2048Blink-Release-11-direct.xcarchive/Products/Applications/2048Blink.app/Info.plist
+```
+
+The release archive should report `0.1`, build `11`, and AdMob app ID
+`ca-app-pub-4525914685149405~6400718358`. The release metadata should include
+the production interstitial unit only:
+
+```sh
+LC_ALL=C grep -a -o -E \
+  'Ad test build|Test Ad|ads: loaded|ads: load failed|ca-app-pub-4525914685149405/8208624041' \
+  /Users/gimjaeman/Library/Developer/Xcode/Archives/2026-08-25/2048Blink-Release-11-direct.xcarchive/Products/Applications/2048Blink.app/Data/Managed/Metadata/global-metadata.dat \
+  | sort -u
+```
+
+Expected release output:
+
+```text
+ca-app-pub-4525914685149405/8208624041
+```
+
 Firebase code/config readiness:
 
 ```sh
@@ -130,6 +186,7 @@ Initial ad policy:
 - Show after game over.
 - Do not show every run; start around once every three game overs.
 - Development and debug builds automatically use the Google iOS interstitial test ad unit:
+- The `admob-test` iOS build also forces the Google test ad unit and lowers the game-over interval to 1 for verification.
 
 ```text
 ca-app-pub-3940256099942544/4411468910

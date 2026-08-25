@@ -24,8 +24,12 @@ case "$mode" in
     build_method="MannLab.Games.Game2048Blink.EditorTools.BuildIosXcode.BuildCrashlyticsSimulatorTest"
     output_path="$project/Builds/iOS/CrashlyticsSimulatorTestXcode"
     ;;
+  admob-test)
+    build_method="MannLab.Games.Game2048Blink.EditorTools.BuildIosXcode.BuildAdMobTest"
+    output_path="$project/Builds/iOS/AdMobTestXcode"
+    ;;
   *)
-    echo "Usage: $0 [release|crashlytics-test|crashlytics-simulator-test]" >&2
+    echo "Usage: $0 [release|crashlytics-test|crashlytics-simulator-test|admob-test]" >&2
     exit 64
     ;;
 esac

@@ -14,8 +14,11 @@ namespace MannLab.Ads
         private static bool initialized;
         private static string gameKey;
         private static int gameOverInterval = 3;
+        public static string DiagnosticSummary { get; private set; } = "ads: not initialized";
 #if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS
         private static bool loadingInterstitial;
+        private static bool showInterstitialWhenLoaded;
+        private static bool usingTestAds;
         private static string interstitialAdUnitId;
         private static InterstitialAd interstitialAd;
 #endif
@@ -26,6 +29,18 @@ namespace MannLab.Ads
             {
 #if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS
                 return interstitialAd != null && interstitialAd.CanShowAd();
+#else
+                return false;
+#endif
+            }
+        }
+
+        public static bool IsLoading
+        {
+            get
+            {
+#if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS
+                return loadingInterstitial;
 #else
                 return false;
 #endif
@@ -49,26 +64,34 @@ namespace MannLab.Ads
 #if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS
             try
             {
-                interstitialAdUnitId = ShouldUseTestAds() ? IosInterstitialTestAdUnitId : productionIosAdUnitId;
+                usingTestAds = ShouldUseTestAds();
+                interstitialAdUnitId = usingTestAds ? IosInterstitialTestAdUnitId : productionIosAdUnitId;
+                Debug.Log(
+                    $"[Ads] Game-over interstitial configured. mode={(usingTestAds ? "test" : "production")}, interval={gameOverInterval}.");
+                SetDiagnosticSummary($"ads: configured mode={(usingTestAds ? "test" : "production")} interval={gameOverInterval}");
                 MobileAds.SetiOSAppPauseOnBackground(true);
                 MobileAds.Initialize(status =>
                 {
                     if (status == null)
                     {
                         Debug.LogWarning("[Ads] Google Mobile Ads initialization returned no status.");
+                        SetDiagnosticSummary("ads: init returned no status");
                         return;
                     }
 
                     Debug.Log("[Ads] Google Mobile Ads initialized.");
+                    SetDiagnosticSummary("ads: initialized, loading");
                     MobileAdsEventExecutor.ExecuteInUpdate(LoadInterstitial);
                 });
             }
             catch (Exception exception)
             {
                 Debug.LogWarning($"[Ads] Google Mobile Ads initialization failed: {exception.GetType().Name}");
+                SetDiagnosticSummary($"ads: init failed {exception.GetType().Name}");
             }
 #else
             Debug.Log("[Ads] Google Mobile Ads SDK not installed. Interstitials are disabled.");
+            SetDiagnosticSummary("ads: SDK not installed");
 #endif
         }
 
@@ -81,6 +104,10 @@ namespace MannLab.Ads
 
 #if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS
             var gameOverCount = IncrementGameOverCount();
+            Debug.Log(
+                $"[Ads] Game-over interstitial check. count={gameOverCount}, interval={gameOverInterval}, ready={IsReady}, loading={loadingInterstitial}.");
+            SetDiagnosticSummary($"ads: gameover count={gameOverCount} ready={IsReady} loading={loadingInterstitial}");
+
             if (gameOverCount % gameOverInterval != 0)
             {
                 if (interstitialAd == null && !loadingInterstitial)
@@ -93,6 +120,9 @@ namespace MannLab.Ads
 
             if (interstitialAd == null || !interstitialAd.CanShowAd())
             {
+                Debug.LogWarning("[Ads] Game-over interstitial was due, but no loaded ad is ready yet.");
+                SetDiagnosticSummary($"ads: due, not ready loading={loadingInterstitial}");
+                showInterstitialWhenLoaded = true;
                 if (interstitialAd == null && !loadingInterstitial)
                 {
                     LoadInterstitial();
@@ -103,18 +133,45 @@ namespace MannLab.Ads
 
             try
             {
-                interstitialAd.Show();
-                Debug.Log("[Ads] Game-over interstitial shown.");
-                return true;
+                return TryShowLoadedInterstitial();
             }
             catch (Exception exception)
             {
                 Debug.LogWarning($"[Ads] Failed to show interstitial: {exception.GetType().Name}");
+                SetDiagnosticSummary($"ads: show failed {exception.GetType().Name}");
                 DestroyInterstitial();
                 LoadInterstitial();
                 return false;
             }
 #else
+            return false;
+#endif
+        }
+
+        public static bool TryShowInterstitialForTesting()
+        {
+#if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS && MANNLAB_ADMOB_FORCE_TEST_ADS
+            if (!initialized)
+            {
+                SetDiagnosticSummary("ads: manual show before init");
+                return false;
+            }
+
+            SetDiagnosticSummary($"ads: manual show ready={IsReady} loading={loadingInterstitial}");
+            if (interstitialAd == null || !interstitialAd.CanShowAd())
+            {
+                showInterstitialWhenLoaded = true;
+                if (interstitialAd == null && !loadingInterstitial)
+                {
+                    LoadInterstitial();
+                }
+
+                return false;
+            }
+
+            return TryShowLoadedInterstitial();
+#else
+            SetDiagnosticSummary("ads: manual show only in AdMob test build");
             return false;
 #endif
         }
@@ -129,6 +186,8 @@ namespace MannLab.Ads
 
             try
             {
+                Debug.Log($"[Ads] Loading interstitial. mode={(usingTestAds ? "test" : "production")}.");
+                SetDiagnosticSummary($"ads: loading mode={(usingTestAds ? "test" : "production")}");
                 loadingInterstitial = true;
                 var request = new AdRequest();
                 InterstitialAd.Load(interstitialAdUnitId, request, (ad, error) =>
@@ -140,6 +199,7 @@ namespace MannLab.Ads
             {
                 loadingInterstitial = false;
                 Debug.LogWarning($"[Ads] Failed to request interstitial: {exception.GetType().Name}");
+                SetDiagnosticSummary($"ads: request failed {exception.GetType().Name}");
             }
         }
 
@@ -149,6 +209,7 @@ namespace MannLab.Ads
             if (error != null || ad == null)
             {
                 Debug.LogWarning($"[Ads] Interstitial failed to load: {error}");
+                SetDiagnosticSummary($"ads: load failed {ShortError(error)}");
                 return;
             }
 
@@ -156,6 +217,12 @@ namespace MannLab.Ads
             interstitialAd = ad;
             RegisterInterstitialEvents(ad);
             Debug.Log("[Ads] Interstitial loaded.");
+            SetDiagnosticSummary($"ads: loaded pending={showInterstitialWhenLoaded}");
+            if (showInterstitialWhenLoaded)
+            {
+                showInterstitialWhenLoaded = false;
+                TryShowLoadedInterstitial();
+            }
         }
 
         private static void RegisterInterstitialEvents(InterstitialAd ad)
@@ -173,6 +240,7 @@ namespace MannLab.Ads
         private static void HandleInterstitialClosed()
         {
             Debug.Log("[Ads] Interstitial closed.");
+            SetDiagnosticSummary("ads: closed, loading next");
             DestroyInterstitial();
             LoadInterstitial();
         }
@@ -180,8 +248,30 @@ namespace MannLab.Ads
         private static void HandleInterstitialFailedToOpen(AdError error)
         {
             Debug.LogWarning($"[Ads] Interstitial failed to open: {error}");
+            SetDiagnosticSummary($"ads: open failed {ShortError(error)}");
+            showInterstitialWhenLoaded = false;
             DestroyInterstitial();
             LoadInterstitial();
+        }
+
+        private static bool TryShowLoadedInterstitial()
+        {
+            try
+            {
+                interstitialAd.Show();
+                Debug.Log("[Ads] Game-over interstitial shown.");
+                SetDiagnosticSummary("ads: shown");
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Ads] Failed to show interstitial: {exception.GetType().Name}");
+                SetDiagnosticSummary($"ads: show failed {exception.GetType().Name}");
+                showInterstitialWhenLoaded = false;
+                DestroyInterstitial();
+                LoadInterstitial();
+                return false;
+            }
         }
 
         private static void DestroyInterstitial()
@@ -193,6 +283,22 @@ namespace MannLab.Ads
 
             interstitialAd.Destroy();
             interstitialAd = null;
+        }
+
+        private static string ShortError(object error)
+        {
+            if (error == null)
+            {
+                return "unknown";
+            }
+
+            var text = error.ToString();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return error.GetType().Name;
+            }
+
+            return text.Length > 96 ? text.Substring(0, 96) : text;
         }
 #endif
 
@@ -207,7 +313,16 @@ namespace MannLab.Ads
 
         private static bool ShouldUseTestAds()
         {
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+            return true;
+#else
             return Application.isEditor || Debug.isDebugBuild;
+#endif
+        }
+
+        private static void SetDiagnosticSummary(string value)
+        {
+            DiagnosticSummary = string.IsNullOrWhiteSpace(value) ? "ads: unknown" : value;
         }
     }
 }
