@@ -14,6 +14,9 @@ namespace MannLab.Games.Standing.EditorTools
         private const string OutputPath = "Builds/iOS/Xcode";
         private const string BundleIdentifier = "com.mannlab.games.standing";
         private const string AppleTeamIdEnv = "MANNLAB_APPLE_TEAM_ID";
+        private const string DefaultAppleTeamId = "ZRA4DHHKQ4";
+        private const string ProvisioningProfileName = "Standing!";
+        private const string ProvisioningProfileUuid = "a8eb35e9-069d-4df9-aaf3-098cb9d724c7";
         private const string AppIconPath = "Assets/_Project/Art/AppStore/AppIcon-1024.png";
 
         public static void Build()
@@ -60,11 +63,13 @@ namespace MannLab.Games.Standing.EditorTools
             var teamId = Environment.GetEnvironmentVariable(AppleTeamIdEnv);
             if (string.IsNullOrWhiteSpace(teamId))
             {
-                return;
+                teamId = DefaultAppleTeamId;
             }
 
-            PlayerSettings.iOS.appleEnableAutomaticSigning = true;
+            PlayerSettings.iOS.appleEnableAutomaticSigning = false;
             PlayerSettings.iOS.appleDeveloperTeamID = teamId;
+            PlayerSettings.iOS.iOSManualProvisioningProfileID = ProvisioningProfileUuid;
+            PlayerSettings.iOS.iOSManualProvisioningProfileType = ProvisioningProfileType.Distribution;
         }
 
         private static void ApplyAppIcon()
@@ -205,30 +210,36 @@ namespace MannLab.Games.Standing.EditorTools
             var project = new PBXProject();
             project.ReadFromFile(projectPath);
 
-            var appTargetGuid = project.GetUnityMainTargetGuid();
-            var frameworkTargetGuid = project.GetUnityFrameworkTargetGuid();
-            ConfigureDistributionSigning(project, appTargetGuid);
-            ConfigureDistributionSigning(project, frameworkTargetGuid);
-            DisableUserScriptSandboxing(project, appTargetGuid);
-            DisableUserScriptSandboxing(project, frameworkTargetGuid);
+            ConfigureAppSigning(project, project.GetUnityMainTargetGuid());
+            ConfigureFrameworkSigning(project, project.GetUnityFrameworkTargetGuid());
+            DisableUserScriptSandboxing(project, project.TargetGuidByName("Unity-iPhone Tests"));
+            DisableUserScriptSandboxing(project, project.TargetGuidByName("GameAssembly"));
+            DisableUserScriptSandboxing(project, project.GetUnityMainTargetGuid());
+            DisableUserScriptSandboxing(project, project.GetUnityFrameworkTargetGuid());
 
             project.WriteToFile(projectPath);
         }
 
-        private static void ConfigureDistributionSigning(PBXProject project, string targetGuid)
+        private static void ConfigureAppSigning(PBXProject project, string targetGuid)
         {
-            project.SetBuildProperty(targetGuid, "CODE_SIGN_STYLE", "Automatic");
+            project.SetBuildProperty(targetGuid, "CODE_SIGN_STYLE", "Manual");
+            project.SetBuildProperty(targetGuid, "CODE_SIGN_IDENTITY", "Apple Distribution");
+            project.SetBuildProperty(targetGuid, "CODE_SIGN_IDENTITY[sdk=iphoneos*]", "Apple Distribution");
+            project.SetBuildProperty(targetGuid, "PROVISIONING_PROFILE_SPECIFIER", ProvisioningProfileName);
+            project.SetBuildProperty(targetGuid, "PROVISIONING_PROFILE", ProvisioningProfileUuid);
+            project.SetBuildProperty(targetGuid, "PROVISIONING_PROFILE_APP", ProvisioningProfileUuid);
+            project.SetBuildProperty(targetGuid, "PRODUCT_BUNDLE_IDENTIFIER", BundleIdentifier);
+            project.SetBuildProperty(targetGuid, "DEVELOPMENT_TEAM", GetAppleTeamId());
+        }
+
+        private static void ConfigureFrameworkSigning(PBXProject project, string targetGuid)
+        {
+            project.SetBuildProperty(targetGuid, "CODE_SIGN_STYLE", "Manual");
             project.SetBuildProperty(targetGuid, "CODE_SIGN_IDENTITY", "Apple Distribution");
             project.SetBuildProperty(targetGuid, "CODE_SIGN_IDENTITY[sdk=iphoneos*]", "Apple Distribution");
             project.SetBuildProperty(targetGuid, "PROVISIONING_PROFILE_SPECIFIER", string.Empty);
             project.SetBuildProperty(targetGuid, "PROVISIONING_PROFILE", string.Empty);
-            project.SetBuildProperty(targetGuid, "PRODUCT_BUNDLE_IDENTIFIER", BundleIdentifier);
-
-            var teamId = GetAppleTeamId();
-            if (!string.IsNullOrWhiteSpace(teamId))
-            {
-                project.SetBuildProperty(targetGuid, "DEVELOPMENT_TEAM", teamId);
-            }
+            project.SetBuildProperty(targetGuid, "DEVELOPMENT_TEAM", GetAppleTeamId());
         }
 
         private static void DisableUserScriptSandboxing(PBXProject project, string targetGuid)
@@ -247,7 +258,9 @@ namespace MannLab.Games.Standing.EditorTools
                 return teamId;
             }
 
-            return PlayerSettings.iOS.appleDeveloperTeamID;
+            return string.IsNullOrWhiteSpace(PlayerSettings.iOS.appleDeveloperTeamID)
+                ? DefaultAppleTeamId
+                : PlayerSettings.iOS.appleDeveloperTeamID;
         }
     }
 }

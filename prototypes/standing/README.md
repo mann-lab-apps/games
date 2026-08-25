@@ -42,6 +42,13 @@ Build the iOS Xcode project:
 ./scripts/verify-standing-ios-readiness.sh
 ```
 
+Capture App Store screenshots from the WebGL build:
+
+```sh
+node scripts/capture-standing-webgl-app-store-assets.mjs
+./scripts/verify-standing-app-store-readiness.sh
+```
+
 ## Deferred
 
-Ads, Firebase, Crashlytics, screenshots, and store metadata are intentionally deferred until the game loop proves worth continuing.
+Ads, Firebase, Crashlytics, and store metadata are intentionally deferred until the game loop proves worth continuing.

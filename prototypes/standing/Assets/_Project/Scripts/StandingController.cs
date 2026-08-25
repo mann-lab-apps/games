@@ -91,6 +91,7 @@ namespace MannLab.Games.Standing
         private Color currentPasserTint;
         private bool wasSitting;
         private bool currentPasserIsCustomer;
+        private bool appStoreShotMode;
         private StandingGameState lastEndState;
 
         private void Awake()
@@ -107,10 +108,16 @@ namespace MannLab.Games.Standing
             LoadArtAssets();
             BuildInterface();
             StartRun();
+            ApplyAppStoreShotState();
         }
 
         private void Update()
         {
+            if (appStoreShotMode)
+            {
+                return;
+            }
+
             if (state == StandingGameState.GameOver)
             {
                 return;
@@ -176,6 +183,97 @@ namespace MannLab.Games.Standing
             visitorRoot.gameObject.SetActive(false);
             UpdateHud();
             UpdateCharacterVisual(false);
+        }
+
+        private void ApplyAppStoreShotState()
+        {
+            var shot = GetAppStoreShot();
+            if (shot == 0)
+            {
+                return;
+            }
+
+            appStoreShotMode = true;
+            StopAllCoroutines();
+            resultPanel.SetActive(false);
+            currentPasserTint = Color.white;
+            currentPasserWalkSpeed = StandingBalance.MinVisitorWalkSpeed;
+            currentPasserFrameOffset = shot;
+            currentPasserDirection = shot == 2 ? -1 : 1;
+            visitorPhase = VisitorPhase.Warning;
+            visitorRoot.gameObject.SetActive(true);
+
+            if (shot == 1)
+            {
+                state = StandingGameState.GameOver;
+                runSeconds = 11.7f;
+                bestSeconds = Mathf.Max(bestSeconds, 18f);
+                health = 58f;
+                currentPasserIsCustomer = true;
+                UpdatePasserArt();
+                SetPasserFrame(2);
+                PositionPasser(0.44f);
+                ForceEmployeePose(EmployeeStandingPose, -28f, 0f, 1f);
+                UpdateHud();
+                return;
+            }
+
+            if (shot == 2)
+            {
+                state = StandingGameState.GameOver;
+                runSeconds = 19.2f;
+                bestSeconds = Mathf.Max(bestSeconds, 24f);
+                health = 92f;
+                currentPasserIsCustomer = false;
+                UpdatePasserArt();
+                SetPasserFrame(4);
+                PositionPasser(0.64f);
+                ForceEmployeePose(EmployeeSittingPose, -92f, -2f, 0.98f);
+                UpdateHud();
+                return;
+            }
+
+            state = StandingGameState.GameOver;
+            lastEndState = StandingGameState.Caught;
+            runSeconds = 27.4f;
+            bestSeconds = Mathf.Max(bestSeconds, 27.4f);
+            health = 76f;
+            currentPasserIsCustomer = true;
+            UpdatePasserArt();
+            SetPasserFrame(3);
+            PositionPasser(0.52f);
+            ForceEmployeePose(EmployeeCaughtPose, -80f, -8f, 1.14f);
+            UpdateHud();
+            ShowResult();
+        }
+
+        private static int GetAppStoreShot()
+        {
+            var url = Application.absoluteURL;
+            if (string.IsNullOrEmpty(url))
+            {
+                return 0;
+            }
+
+            if (url.Contains("appstoreShot=1", StringComparison.Ordinal))
+            {
+                return 1;
+            }
+
+            if (url.Contains("appstoreShot=2", StringComparison.Ordinal))
+            {
+                return 2;
+            }
+
+            return url.Contains("appstoreShot=3", StringComparison.Ordinal) ? 3 : 0;
+        }
+
+        private void ForceEmployeePose(int poseIndex, float y, float rotationDegrees, float headScale)
+        {
+            SetEmployeePose(poseIndex);
+            characterRoot.anchoredPosition = new Vector2(0f, y);
+            characterBody.localRotation = Quaternion.Euler(0f, 0f, rotationDegrees);
+            characterHead.localScale = Vector3.one * headScale;
         }
 
         private void LoadArtAssets()
@@ -751,10 +849,22 @@ namespace MannLab.Games.Standing
 
         private static Sprite[] CreateWalkFrames(Texture2D texture)
         {
-            return CreateGridFrames(texture, 3, 2);
+            return CreateGridFrames(texture, 3, 2, 0.075f, 0.06f, 0f, 0f);
         }
 
         private static Sprite[] CreateGridFrames(Texture2D texture, int columns, int rows)
+        {
+            return CreateGridFrames(texture, columns, rows, 0f, 0f, 0f, 0f);
+        }
+
+        private static Sprite[] CreateGridFrames(
+            Texture2D texture,
+            int columns,
+            int rows,
+            float cropLeftRatio,
+            float cropRightRatio,
+            float cropBottomRatio,
+            float cropTopRatio)
         {
             if (texture == null || columns <= 0 || rows <= 0 || texture.width < columns || texture.height < rows)
             {
@@ -768,10 +878,13 @@ namespace MannLab.Games.Standing
             {
                 var column = frame % columns;
                 var rowFromTop = frame / columns;
-                var y = (rows - rowFromTop - 1) * frameHeight;
+                var x = column * frameWidth + frameWidth * cropLeftRatio;
+                var y = (rows - rowFromTop - 1) * frameHeight + frameHeight * cropBottomRatio;
+                var width = frameWidth * (1f - cropLeftRatio - cropRightRatio);
+                var height = frameHeight * (1f - cropBottomRatio - cropTopRatio);
                 frames[frame] = Sprite.Create(
                     texture,
-                    new Rect(column * frameWidth, y, frameWidth, frameHeight),
+                    new Rect(x, y, width, height),
                     new Vector2(0.5f, 0.5f),
                     100f);
             }
