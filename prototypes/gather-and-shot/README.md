@@ -71,6 +71,12 @@ iOS Xcode export readiness:
 ./scripts/verify-gather-and-shot-ios-readiness.sh admob-test
 ```
 
+Capture App Store screenshots from the WebGL build:
+
+```sh
+node scripts/capture-gather-and-shot-webgl-app-store-assets.mjs
+```
+
 ## Firebase Notes
 
 The runtime calls `FirebaseTelemetry` for `app_open`, `run_start`, `restart`, `gather_start`, `run_end`, and `crashlytics_test_trigger` breadcrumbs. It also forwards unhandled exceptions and Unity exception logs to Crashlytics when the Firebase Unity SDK is present.
