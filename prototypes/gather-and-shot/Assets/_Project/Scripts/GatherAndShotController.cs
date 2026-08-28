@@ -13,6 +13,9 @@ namespace MannLab.Games.GatherAndShot
         private const float WorldHalfHeight = 6.6f;
         private const float WorldHalfWidth = 3.7f;
         private const float WarmthBarWidth = 620f;
+        private const float DirectionInputDeadZone = 26f;
+        private const float DirectionInputMaxDistance = 180f;
+        private const float JoystickVisualRadius = 66f;
 
         private static readonly Color SnowTint = new Color32(239, 249, 255, 255);
         private static readonly Color PaperBlue = new Color32(218, 238, 242, 255);
@@ -39,6 +42,7 @@ namespace MannLab.Games.GatherAndShot
         private SpriteRenderer playerRenderer;
         private RectTransform joystickBase;
         private RectTransform joystickKnob;
+        private RectTransform joystickRoot;
         private Text scoreText;
         private Text bestText;
         private Text ammoText;
@@ -47,7 +51,6 @@ namespace MannLab.Games.GatherAndShot
         private Text resultScoreText;
         private Vector2 playerPosition;
         private Vector2 playerVelocity;
-        private Vector2 joystickOrigin;
         private Vector2 joystickVector;
         private GatherAndShotGameState state;
         private float warmth;
@@ -150,12 +153,14 @@ namespace MannLab.Games.GatherAndShot
             bg.transform.position = new Vector3(0f, 0f, 8f);
             bg.sortingOrder = -20;
 
+            BuildBoundaryMarkers();
+
             for (var i = 0; i < 18; i++)
             {
                 var stroke = new GameObject("Sketch Snow Line", typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
                 stroke.sprite = CreateSolidSprite("SnowLine", 80 + random.Next(90), 4, PaperBlue, 32f);
                 stroke.transform.position = new Vector3(
-                    RandomRange(-WorldHalfWidth, WorldHalfWidth),
+                    RandomRange(-PlayHalfWidth, PlayHalfWidth),
                     RandomRange(-WorldHalfHeight + 0.5f, WorldHalfHeight - 0.5f),
                     6f);
                 stroke.transform.rotation = Quaternion.Euler(0f, 0f, RandomRange(-13f, 13f));
@@ -197,9 +202,10 @@ namespace MannLab.Games.GatherAndShot
             warmthFill.rectTransform.offsetMin = Vector2.zero;
             warmthFill.rectTransform.offsetMax = Vector2.zero;
 
-            joystickBase = CreatePanel(safe, "Joystick Base", new Vector2(0f, 0f), new Vector2(230f, 230f), new Color32(255, 253, 247, 158));
-            joystickBase.anchoredPosition = new Vector2(154f, 172f);
+            joystickRoot = safe;
+            joystickBase = CreatePanel(safe, "Move Direction Guide", new Vector2(0.5f, 0.5f), new Vector2(230f, 230f), new Color32(255, 253, 247, 118));
             joystickKnob = CreatePanel(joystickBase, "Joystick Knob", new Vector2(0.5f, 0.5f), new Vector2(86f, 86f), new Color32(88, 166, 206, 210));
+            joystickBase.gameObject.SetActive(false);
 
             resultPanel = CreatePanel(safe, "Result Panel", new Vector2(0.5f, 0.5f), new Vector2(660f, 520f), SketchPalette.TilePaper).gameObject;
             CreateText(resultPanel.transform, "Result Title", "GAME OVER", 58, TextAnchor.MiddleCenter, new Vector2(0f, 142f), new Vector2(560f, 82f));
@@ -247,9 +253,8 @@ namespace MannLab.Games.GatherAndShot
         private void BeginJoystick(Vector2 screenPosition)
         {
             joystickHeld = true;
-            joystickOrigin = screenPosition;
-            DragJoystick(screenPosition);
             UpdateJoystickVisual(true);
+            DragJoystick(screenPosition);
         }
 
         private void DragJoystick(Vector2 screenPosition)
@@ -259,9 +264,13 @@ namespace MannLab.Games.GatherAndShot
                 return;
             }
 
-            var delta = Vector2.ClampMagnitude(screenPosition - joystickOrigin, 96f);
-            joystickVector = delta / 96f;
-            joystickKnob.anchoredPosition = joystickVector * 66f;
+            PositionJoystickGuideAtPlayer();
+            var playerScreen = (Vector2)worldCamera.WorldToScreenPoint(playerPosition);
+            var delta = screenPosition - playerScreen;
+            joystickVector = delta.magnitude <= DirectionInputDeadZone
+                ? Vector2.zero
+                : Vector2.ClampMagnitude(delta, DirectionInputMaxDistance) / DirectionInputMaxDistance;
+            joystickKnob.anchoredPosition = joystickVector * JoystickVisualRadius;
         }
 
         private void EndJoystick()
@@ -273,8 +282,13 @@ namespace MannLab.Games.GatherAndShot
 
         private void UpdateJoystickVisual(bool held)
         {
+            joystickBase.gameObject.SetActive(held);
             joystickKnob.anchoredPosition = Vector2.zero;
             joystickBase.localScale = held ? Vector3.one * 1.05f : Vector3.one;
+            if (held)
+            {
+                PositionJoystickGuideAtPlayer();
+            }
         }
 
         private void MovePlayer()
@@ -282,12 +296,17 @@ namespace MannLab.Games.GatherAndShot
             var speed = GatherAndShotBalance.PlayerSpeed(elapsedSeconds);
             playerVelocity = Vector2.Lerp(playerVelocity, joystickVector * speed, Time.deltaTime * 12f);
             playerPosition += playerVelocity * Time.deltaTime;
-            playerPosition.x = Mathf.Clamp(playerPosition.x, -WorldHalfWidth + 0.38f, WorldHalfWidth - 0.38f);
+            playerPosition.x = Mathf.Clamp(playerPosition.x, -PlayHalfWidth + 0.38f, PlayHalfWidth - 0.38f);
             playerPosition.y = Mathf.Clamp(playerPosition.y, -WorldHalfHeight + 0.55f, WorldHalfHeight - 0.55f);
             playerRenderer.transform.position = playerPosition;
             if (playerVelocity.sqrMagnitude > 0.05f)
             {
                 playerRenderer.transform.localScale = new Vector3(playerVelocity.x < -0.05f ? -0.82f : 0.82f, 0.82f, 1f);
+            }
+
+            if (joystickHeld)
+            {
+                PositionJoystickGuideAtPlayer();
             }
         }
 
@@ -306,7 +325,7 @@ namespace MannLab.Games.GatherAndShot
         {
             var angle = RandomRange(0f, Mathf.PI * 2f);
             var spawn = playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * RandomRange(6.2f, 7.8f);
-            spawn.x = Mathf.Clamp(spawn.x, -WorldHalfWidth - 0.9f, WorldHalfWidth + 0.9f);
+            spawn.x = Mathf.Clamp(spawn.x, -PlayHalfWidth - 0.9f, PlayHalfWidth + 0.9f);
             spawn.y = Mathf.Clamp(spawn.y, -WorldHalfHeight - 0.9f, WorldHalfHeight + 0.9f);
 
             var renderer = new GameObject(kind.ToString(), typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
@@ -342,7 +361,7 @@ namespace MannLab.Games.GatherAndShot
             var renderer = new GameObject(drift ? "Snowdrift" : "Snowball Pickup", typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
             renderer.sprite = drift ? driftSprite : snowballSprite;
             renderer.sortingOrder = 4;
-            renderer.transform.position = new Vector3(RandomRange(-WorldHalfWidth + 0.4f, WorldHalfWidth - 0.4f), RandomRange(-WorldHalfHeight + 0.75f, WorldHalfHeight - 0.75f), 0f);
+            renderer.transform.position = new Vector3(RandomRange(-PlayHalfWidth + 0.4f, PlayHalfWidth - 0.4f), RandomRange(-WorldHalfHeight + 0.75f, WorldHalfHeight - 0.75f), 0f);
             renderer.transform.localScale = Vector3.one * (drift ? 0.74f : 0.48f);
             pickups.Add(new Pickup
             {
@@ -594,6 +613,34 @@ namespace MannLab.Games.GatherAndShot
             bursts.Clear();
         }
 
+        private void BuildBoundaryMarkers()
+        {
+            var fill = new Color32(200, 229, 235, 96);
+            var ink = new Color32(122, 170, 178, 84);
+            var halfWidth = PlayHalfWidth;
+            var horizontalPixels = Mathf.CeilToInt((halfWidth * 2f + 0.4f) * 96f);
+            const float edge = 0.1f;
+
+            CreateWorldBand("North Snowbank", new Vector2(0f, WorldHalfHeight - edge), horizontalPixels, 26, fill, 96f, 0f, -18);
+            CreateWorldBand("South Snowbank", new Vector2(0f, -WorldHalfHeight + edge), horizontalPixels, 26, fill, 96f, 0f, -18);
+            CreateWorldBand("West Snowbank", new Vector2(-halfWidth + edge, 0f), 26, 1365, fill, 96f, 0f, -18);
+            CreateWorldBand("East Snowbank", new Vector2(halfWidth - edge, 0f), 26, 1365, fill, 96f, 0f, -18);
+
+            CreateWorldBand("North Edge Ink", new Vector2(0f, WorldHalfHeight - 0.24f), horizontalPixels - 36, 4, ink, 96f, RandomRange(-1.4f, 1.4f), -14);
+            CreateWorldBand("South Edge Ink", new Vector2(0f, -WorldHalfHeight + 0.24f), horizontalPixels - 36, 4, ink, 96f, RandomRange(-1.4f, 1.4f), -14);
+            CreateWorldBand("West Edge Ink", new Vector2(-halfWidth + 0.24f, 0f), 4, 1300, ink, 96f, RandomRange(-1.4f, 1.4f), -14);
+            CreateWorldBand("East Edge Ink", new Vector2(halfWidth - 0.24f, 0f), 4, 1300, ink, 96f, RandomRange(-1.4f, 1.4f), -14);
+        }
+
+        private void CreateWorldBand(string name, Vector2 position, int width, int height, Color color, float pixelsPerUnit, float rotation, int sortingOrder)
+        {
+            var renderer = new GameObject(name, typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
+            renderer.sprite = CreateSolidSprite(name, width, height, color, pixelsPerUnit);
+            renderer.transform.position = new Vector3(position.x, position.y, 7f);
+            renderer.transform.rotation = Quaternion.Euler(0f, 0f, rotation);
+            renderer.sortingOrder = sortingOrder;
+        }
+
         private Sprite LoadSprite(string name, Color fallbackColor, int size)
         {
             var texture = Resources.Load<Texture2D>($"GatherAndShot/{name}");
@@ -691,6 +738,22 @@ namespace MannLab.Games.GatherAndShot
             CreateText(button.transform, $"{name} Label", label, 38, TextAnchor.MiddleCenter, Vector2.zero, dimensions);
             return button;
         }
+
+        private void PositionJoystickGuideAtPlayer()
+        {
+            if (joystickRoot == null || joystickBase == null || worldCamera == null)
+            {
+                return;
+            }
+
+            var playerScreen = RectTransformUtility.WorldToScreenPoint(worldCamera, playerPosition);
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(joystickRoot, playerScreen, null, out var localPoint))
+            {
+                joystickBase.anchoredPosition = localPoint;
+            }
+        }
+
+        private float PlayHalfWidth => Mathf.Min(WorldHalfWidth, worldCamera.orthographicSize * worldCamera.aspect);
 
         private static Font GetDefaultFont()
         {
