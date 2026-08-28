@@ -11,10 +11,11 @@ namespace MannLab.Games.GatherAndShot
     {
         private const string BestScoreKey = "mannlab.gather_and_shot.best_score";
         private const float WorldHalfHeight = 6.6f;
-        private const float WorldHalfWidth = 3.7f;
+        private const float WorldHalfWidth = WorldHalfHeight;
         private const float WarmthBarWidth = 620f;
         private const float DirectionInputDeadZone = 26f;
         private const float DirectionInputMaxDistance = 180f;
+        private const float DirectionGuideVisibleSeconds = 0.42f;
         private const float JoystickVisualRadius = 66f;
 
         private static readonly Color SnowTint = new Color32(239, 249, 255, 255);
@@ -32,6 +33,7 @@ namespace MannLab.Games.GatherAndShot
         private readonly System.Random random = new System.Random(Environment.TickCount);
 
         private Camera worldCamera;
+        private Camera letterboxCamera;
         private Sprite playerSprite;
         private Sprite walkerSprite;
         private Sprite runnerSprite;
@@ -43,6 +45,7 @@ namespace MannLab.Games.GatherAndShot
         private RectTransform joystickBase;
         private RectTransform joystickKnob;
         private RectTransform joystickRoot;
+        private RectTransform gameSquareRoot;
         private Text scoreText;
         private Text bestText;
         private Text ammoText;
@@ -62,6 +65,9 @@ namespace MannLab.Games.GatherAndShot
         private float nextPickupAt;
         private float nextFireAt;
         private float contactReadyAt;
+        private float directionGuideHideAt;
+        private int lastScreenWidth;
+        private int lastScreenHeight;
         private bool joystickHeld;
 
         private void Awake()
@@ -74,11 +80,7 @@ namespace MannLab.Games.GatherAndShot
                 worldCamera.tag = "MainCamera";
             }
 
-            worldCamera.orthographic = true;
-            worldCamera.orthographicSize = WorldHalfHeight;
-            worldCamera.clearFlags = CameraClearFlags.SolidColor;
-            worldCamera.backgroundColor = SketchPalette.Paper;
-            worldCamera.transform.position = new Vector3(0f, 0f, -10f);
+            BuildCameras();
 
             LoadSprites();
             BuildWorld();
@@ -93,8 +95,10 @@ namespace MannLab.Games.GatherAndShot
                 return;
             }
 
+            ConfigureSquareViewportIfNeeded();
             elapsedSeconds += Time.deltaTime;
             UpdateJoystick();
+            UpdateDirectionGuideVisibility();
             MovePlayer();
             UpdatePickups();
             UpdateEnemies();
@@ -120,6 +124,7 @@ namespace MannLab.Games.GatherAndShot
             elapsedSeconds = 0f;
             nextFireAt = 0f;
             contactReadyAt = 0f;
+            directionGuideHideAt = 0f;
             bestScore = PlayerPrefs.GetInt(BestScoreKey, 0);
             resultPanel.SetActive(false);
             playerRenderer.transform.position = playerPosition;
@@ -146,10 +151,71 @@ namespace MannLab.Games.GatherAndShot
             puffSprite = LoadSprite("puff", new Color32(238, 249, 255, 210), 96);
         }
 
+        private void BuildCameras()
+        {
+            letterboxCamera = new GameObject("Letterbox Camera", typeof(Camera)).GetComponent<Camera>();
+            letterboxCamera.clearFlags = CameraClearFlags.SolidColor;
+            letterboxCamera.backgroundColor = Color.black;
+            letterboxCamera.cullingMask = 0;
+            letterboxCamera.depth = -100f;
+            letterboxCamera.orthographic = true;
+            letterboxCamera.rect = new Rect(0f, 0f, 1f, 1f);
+
+            worldCamera.orthographic = true;
+            worldCamera.orthographicSize = WorldHalfHeight;
+            worldCamera.aspect = 1f;
+            worldCamera.clearFlags = CameraClearFlags.SolidColor;
+            worldCamera.backgroundColor = SketchPalette.Paper;
+            worldCamera.depth = 0f;
+            worldCamera.transform.position = new Vector3(0f, 0f, -10f);
+            ConfigureSquareViewportIfNeeded(true);
+        }
+
+        private void ConfigureSquareViewportIfNeeded(bool force = false)
+        {
+            if (!force && Screen.width == lastScreenWidth && Screen.height == lastScreenHeight)
+            {
+                return;
+            }
+
+            lastScreenWidth = Screen.width;
+            lastScreenHeight = Screen.height;
+
+            var width = Mathf.Max(1f, Screen.width);
+            var height = Mathf.Max(1f, Screen.height);
+            if (width <= height)
+            {
+                var normalizedHeight = width / height;
+                worldCamera.rect = new Rect(0f, (1f - normalizedHeight) * 0.5f, 1f, normalizedHeight);
+            }
+            else
+            {
+                var normalizedWidth = height / width;
+                worldCamera.rect = new Rect((1f - normalizedWidth) * 0.5f, 0f, normalizedWidth, 1f);
+            }
+
+            worldCamera.aspect = 1f;
+            ApplySquareHudAnchors();
+        }
+
+        private void ApplySquareHudAnchors()
+        {
+            if (gameSquareRoot == null || worldCamera == null)
+            {
+                return;
+            }
+
+            var rect = worldCamera.rect;
+            gameSquareRoot.anchorMin = new Vector2(rect.xMin, rect.yMin);
+            gameSquareRoot.anchorMax = new Vector2(rect.xMax, rect.yMax);
+            gameSquareRoot.offsetMin = Vector2.zero;
+            gameSquareRoot.offsetMax = Vector2.zero;
+        }
+
         private void BuildWorld()
         {
             var bg = new GameObject("Snow Paper", typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
-            bg.sprite = CreateSolidSprite("SnowPaper", 768, 1365, SnowTint, 64f);
+            bg.sprite = CreateSolidSprite("SnowPaper", 1400, 1400, SnowTint, 96f);
             bg.transform.position = new Vector3(0f, 0f, 8f);
             bg.sortingOrder = -20;
 
@@ -188,7 +254,10 @@ namespace MannLab.Games.GatherAndShot
             canvasObject.GetComponent<CanvasScaler>().referenceResolution = new Vector2(1080f, 1920f);
 
             var safe = SketchUiFactory.CreateSafeAreaRoot(canvasObject.transform);
-            var top = CreateRect(safe, "Top HUD", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -218f), new Vector2(0f, -24f));
+            gameSquareRoot = CreateRect(safe, "Game Square HUD", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            ApplySquareHudAnchors();
+
+            var top = CreateRect(gameSquareRoot, "Top HUD", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -218f), new Vector2(0f, -24f));
             bestText = CreateText(top, "Best", "BEST 0", 32, TextAnchor.UpperLeft, new Vector2(0f, 1f), new Vector2(36f, -18f), new Vector2(300f, 56f));
             scoreText = CreateText(top, "Score", "0", 60, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(260f, 78f));
             ammoText = CreateText(top, "Ammo", "SNOW x3", 34, TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(-36f, -22f), new Vector2(300f, 58f));
@@ -202,12 +271,12 @@ namespace MannLab.Games.GatherAndShot
             warmthFill.rectTransform.offsetMin = Vector2.zero;
             warmthFill.rectTransform.offsetMax = Vector2.zero;
 
-            joystickRoot = safe;
-            joystickBase = CreatePanel(safe, "Move Direction Guide", new Vector2(0.5f, 0.5f), new Vector2(230f, 230f), new Color32(255, 253, 247, 118));
+            joystickRoot = gameSquareRoot;
+            joystickBase = CreatePanel(gameSquareRoot, "Move Direction Guide", new Vector2(0.5f, 0.5f), new Vector2(230f, 230f), new Color32(255, 253, 247, 118));
             joystickKnob = CreatePanel(joystickBase, "Joystick Knob", new Vector2(0.5f, 0.5f), new Vector2(86f, 86f), new Color32(88, 166, 206, 210));
             joystickBase.gameObject.SetActive(false);
 
-            resultPanel = CreatePanel(safe, "Result Panel", new Vector2(0.5f, 0.5f), new Vector2(660f, 520f), SketchPalette.TilePaper).gameObject;
+            resultPanel = CreatePanel(gameSquareRoot, "Result Panel", new Vector2(0.5f, 0.5f), new Vector2(660f, 520f), SketchPalette.TilePaper).gameObject;
             CreateText(resultPanel.transform, "Result Title", "GAME OVER", 58, TextAnchor.MiddleCenter, new Vector2(0f, 142f), new Vector2(560f, 82f));
             resultScoreText = CreateText(resultPanel.transform, "Result Score", "0", 38, TextAnchor.MiddleCenter, new Vector2(0f, 54f), new Vector2(560f, 68f));
             var again = CreateButton(resultPanel.transform, "Again Button", "Again", new Vector2(0f, -120f), new Vector2(260f, 92f));
@@ -264,13 +333,20 @@ namespace MannLab.Games.GatherAndShot
                 return;
             }
 
-            PositionJoystickGuideAtPlayer();
+            if (joystickBase.gameObject.activeSelf)
+            {
+                PositionJoystickGuideAtPlayer();
+            }
+
             var playerScreen = (Vector2)worldCamera.WorldToScreenPoint(playerPosition);
             var delta = screenPosition - playerScreen;
             joystickVector = delta.magnitude <= DirectionInputDeadZone
                 ? Vector2.zero
                 : Vector2.ClampMagnitude(delta, DirectionInputMaxDistance) / DirectionInputMaxDistance;
-            joystickKnob.anchoredPosition = joystickVector * JoystickVisualRadius;
+            if (joystickBase.gameObject.activeSelf)
+            {
+                joystickKnob.anchoredPosition = joystickVector * JoystickVisualRadius;
+            }
         }
 
         private void EndJoystick()
@@ -287,7 +363,21 @@ namespace MannLab.Games.GatherAndShot
             joystickBase.localScale = held ? Vector3.one * 1.05f : Vector3.one;
             if (held)
             {
+                directionGuideHideAt = Time.time + DirectionGuideVisibleSeconds;
                 PositionJoystickGuideAtPlayer();
+            }
+        }
+
+        private void UpdateDirectionGuideVisibility()
+        {
+            if (!joystickHeld || joystickBase == null || !joystickBase.gameObject.activeSelf)
+            {
+                return;
+            }
+
+            if (Time.time >= directionGuideHideAt)
+            {
+                joystickBase.gameObject.SetActive(false);
             }
         }
 
@@ -304,7 +394,7 @@ namespace MannLab.Games.GatherAndShot
                 playerRenderer.transform.localScale = new Vector3(playerVelocity.x < -0.05f ? -0.82f : 0.82f, 0.82f, 1f);
             }
 
-            if (joystickHeld)
+            if (joystickHeld && joystickBase.gameObject.activeSelf)
             {
                 PositionJoystickGuideAtPlayer();
             }
@@ -753,7 +843,7 @@ namespace MannLab.Games.GatherAndShot
             }
         }
 
-        private float PlayHalfWidth => Mathf.Min(WorldHalfWidth, worldCamera.orthographicSize * worldCamera.aspect);
+        private float PlayHalfWidth => WorldHalfWidth;
 
         private static Font GetDefaultFont()
         {
