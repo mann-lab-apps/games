@@ -12,6 +12,7 @@ namespace MannLab.Games.GatherAndShot
         private const string BestScoreKey = "mannlab.gather_and_shot.best_score";
         private const float WorldHalfHeight = 6.6f;
         private const float WorldHalfWidth = 3.7f;
+        private const float WarmthBarWidth = 620f;
 
         private static readonly Color SnowTint = new Color32(239, 249, 255, 255);
         private static readonly Color PaperBlue = new Color32(218, 238, 242, 255);
@@ -182,13 +183,13 @@ namespace MannLab.Games.GatherAndShot
             canvasObject.GetComponent<CanvasScaler>().referenceResolution = new Vector2(1080f, 1920f);
 
             var safe = SketchUiFactory.CreateSafeAreaRoot(canvasObject.transform);
-            var top = CreateRect(safe, "Top HUD", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -188f), new Vector2(0f, -26f));
-            scoreText = CreateText(top, "Score", "0", 56, TextAnchor.UpperLeft, new Vector2(36f, -18f), new Vector2(300f, 74f));
-            bestText = CreateText(top, "Best", "BEST 0", 30, TextAnchor.UpperRight, new Vector2(-336f, -24f), new Vector2(300f, 56f));
-            ammoText = CreateText(top, "Ammo", "SNOW x3", 34, TextAnchor.UpperRight, new Vector2(-336f, -82f), new Vector2(300f, 56f));
+            var top = CreateRect(safe, "Top HUD", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -218f), new Vector2(0f, -24f));
+            bestText = CreateText(top, "Best", "BEST 0", 32, TextAnchor.UpperLeft, new Vector2(0f, 1f), new Vector2(36f, -18f), new Vector2(300f, 56f));
+            scoreText = CreateText(top, "Score", "0", 60, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(260f, 78f));
+            ammoText = CreateText(top, "Ammo", "SNOW x3", 34, TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(-36f, -22f), new Vector2(300f, 58f));
 
-            var warmthBack = CreatePanel(top, "Warmth Back", new Vector2(0.5f, 0f), new Vector2(520f, 38f), SketchPalette.WarmShadow);
-            warmthBack.anchoredPosition = new Vector2(0f, 16f);
+            var warmthBack = CreatePanel(top, "Warmth Back", new Vector2(0.5f, 1f), new Vector2(WarmthBarWidth, 38f), SketchPalette.WarmShadow);
+            warmthBack.anchoredPosition = new Vector2(0f, -112f);
             warmthFill = CreateImage(warmthBack, "Warmth Fill", WarmthColor);
             warmthFill.rectTransform.anchorMin = new Vector2(0f, 0f);
             warmthFill.rectTransform.anchorMax = new Vector2(0f, 1f);
@@ -550,7 +551,7 @@ namespace MannLab.Games.GatherAndShot
             scoreText.text = score.ToString();
             bestText.text = $"BEST {bestScore}";
             ammoText.text = $"SNOW x{ammo}";
-            warmthFill.rectTransform.sizeDelta = new Vector2(520f * Mathf.Clamp01(warmth / GatherAndShotBalance.MaxWarmth), 0f);
+            warmthFill.rectTransform.sizeDelta = new Vector2(WarmthBarWidth * Mathf.Clamp01(warmth / GatherAndShotBalance.MaxWarmth), 0f);
         }
 
         private void ClearActors()
@@ -653,10 +654,16 @@ namespace MannLab.Games.GatherAndShot
 
         private Text CreateText(Transform parent, string name, string value, int size, TextAnchor alignment, Vector2 position, Vector2 dimensions)
         {
+            return CreateText(parent, name, value, size, alignment, new Vector2(0.5f, 0.5f), position, dimensions);
+        }
+
+        private Text CreateText(Transform parent, string name, string value, int size, TextAnchor alignment, Vector2 anchor, Vector2 position, Vector2 dimensions)
+        {
             var text = new GameObject(name, typeof(RectTransform), typeof(Text)).GetComponent<Text>();
             text.transform.SetParent(parent, false);
-            text.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-            text.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            text.rectTransform.anchorMin = anchor;
+            text.rectTransform.anchorMax = anchor;
+            text.rectTransform.pivot = anchor;
             text.rectTransform.anchoredPosition = position;
             text.rectTransform.sizeDelta = dimensions;
             text.font = GetDefaultFont();
