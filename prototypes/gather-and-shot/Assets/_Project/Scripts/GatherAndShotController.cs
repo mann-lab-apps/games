@@ -245,11 +245,6 @@ namespace MannLab.Games.GatherAndShot
 
         private void BeginJoystick(Vector2 screenPosition)
         {
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-            {
-                return;
-            }
-
             joystickHeld = true;
             joystickOrigin = screenPosition;
             DragJoystick(screenPosition);
@@ -637,17 +632,14 @@ namespace MannLab.Games.GatherAndShot
 
         private RectTransform CreatePanel(Transform parent, string name, Vector2 anchor, Vector2 size, Color color)
         {
-            var panel = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(SketchOutlineGraphic)).GetComponent<RectTransform>();
+            var panel = new GameObject(name, typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
             panel.SetParent(parent, false);
             panel.anchorMin = anchor;
             panel.anchorMax = anchor;
             panel.pivot = new Vector2(0.5f, 0.5f);
             panel.sizeDelta = size;
             panel.GetComponent<Image>().color = color;
-            var outline = panel.GetComponent<SketchOutlineGraphic>();
-            outline.color = SketchPalette.Ink;
-            outline.Thickness = 3.25f;
-            outline.Jitter = 3.2f;
+            AddSketchOutline(panel, 3.25f, 3.2f);
             return panel;
         }
 
@@ -667,7 +659,7 @@ namespace MannLab.Games.GatherAndShot
             text.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             text.rectTransform.anchoredPosition = position;
             text.rectTransform.sizeDelta = dimensions;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font = GetDefaultFont();
             text.text = value;
             text.fontSize = size;
             text.color = SketchPalette.Ink;
@@ -680,7 +672,7 @@ namespace MannLab.Games.GatherAndShot
 
         private Button CreateButton(Transform parent, string name, string label, Vector2 position, Vector2 dimensions)
         {
-            var button = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(SketchOutlineGraphic), typeof(Button)).GetComponent<Button>();
+            var button = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button)).GetComponent<Button>();
             button.transform.SetParent(parent, false);
             button.GetComponent<RectTransform>().anchorMin = new Vector2(0.5f, 0.5f);
             button.GetComponent<RectTransform>().anchorMax = new Vector2(0.5f, 0.5f);
@@ -688,11 +680,33 @@ namespace MannLab.Games.GatherAndShot
             button.GetComponent<RectTransform>().sizeDelta = dimensions;
             button.GetComponent<Image>().color = SketchPalette.WarmHighlight;
             button.colors = SketchUiFactory.ButtonColors();
-            var outline = button.GetComponent<SketchOutlineGraphic>();
-            outline.color = SketchPalette.Ink;
-            outline.Thickness = 3.25f;
+            AddSketchOutline(button.GetComponent<RectTransform>(), 3.25f, 3.2f);
             CreateText(button.transform, $"{name} Label", label, 38, TextAnchor.MiddleCenter, Vector2.zero, dimensions);
             return button;
+        }
+
+        private static Font GetDefaultFont()
+        {
+            return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+                   ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        }
+
+        private static void AddSketchOutline(RectTransform target, float thickness, float jitter)
+        {
+            var outline = new GameObject("Sketch Outline", typeof(RectTransform), typeof(SketchOutlineGraphic));
+            outline.transform.SetParent(target, false);
+
+            var rect = outline.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            var graphic = outline.GetComponent<SketchOutlineGraphic>();
+            graphic.color = SketchPalette.Ink;
+            graphic.raycastTarget = false;
+            graphic.Thickness = thickness;
+            graphic.Jitter = jitter;
         }
 
         private float RandomRange(float min, float max)
