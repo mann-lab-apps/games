@@ -52,6 +52,8 @@ captures/
 !web/mannlab-games/public/games/dopamine-swap/Build/**
 !web/mannlab-games/public/games/flying-bird/Build/
 !web/mannlab-games/public/games/flying-bird/Build/**
+!web/mannlab-games/public/games/gather-and-shot/Build/
+!web/mannlab-games/public/games/gather-and-shot/Build/**
 !web/mannlab-games/public/games/sitting/Build/
 !web/mannlab-games/public/games/sitting/Build/**
 [Ll]ogs/
