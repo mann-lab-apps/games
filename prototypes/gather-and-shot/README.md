@@ -62,6 +62,15 @@ AdMob readiness:
 ./scripts/verify-gather-and-shot-admob-readiness.sh
 ```
 
+iOS Xcode export readiness:
+
+```sh
+./scripts/generate-gather-and-shot-doodle-assets.py
+./scripts/verify-gather-and-shot-ios-readiness.sh
+./scripts/verify-gather-and-shot-ios-readiness.sh crashlytics-test
+./scripts/verify-gather-and-shot-ios-readiness.sh admob-test
+```
+
 ## Firebase Notes
 
 The runtime calls `FirebaseTelemetry` for `app_open`, `run_start`, `restart`, `gather_start`, `run_end`, and `crashlytics_test_trigger` breadcrumbs. It also forwards unhandled exceptions and Unity exception logs to Crashlytics when the Firebase Unity SDK is present.
@@ -83,6 +92,13 @@ The Google Mobile Ads settings asset currently uses Google's sample app IDs so t
 - iOS AdMob App ID: `ca-app-pub-3940256099942544~1458002511`
 - Production Android interstitial: set `ProductionAndroidInterstitialAdUnitId` in `GatherAndShotController`
 - Production iOS interstitial: set `ProductionIosInterstitialAdUnitId` in `GatherAndShotController`
+- iOS release export App ID override: set `MANNLAB_GATHER_AND_SHOT_ADMOB_IOS_APP_ID`
+
+## iOS Notes
+
+The generated app icon is `Assets/_Project/Art/AppStore/AppIcon-1024.png`. The iOS export script copies it into the Xcode AppIcon asset catalog as the marketing icon and uses it for Unity's iOS application icons.
+
+Default iOS versioning is `0.1 (1)`. Override with `MANNLAB_GATHER_AND_SHOT_IOS_MARKETING_VERSION` and `MANNLAB_GATHER_AND_SHOT_IOS_BUILD_NUMBER` before exporting a store build. AdMob/CocoaPods exports should be archived from `Builds/iOS/Xcode/Unity-iPhone.xcworkspace`.
 
 ## Deferred
 

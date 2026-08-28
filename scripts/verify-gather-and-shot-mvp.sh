@@ -12,6 +12,7 @@ ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.t
 project="$repo_root/prototypes/gather-and-shot"
 shared_runtime="$repo_root/shared/unity-packages/com.mannlab.hypercasual-core/Runtime"
 shared_ads_runtime="$repo_root/shared/unity-packages/com.mannlab.admob-core/Runtime"
+ios_xcode="$unity_root/PlaybackEngines/MacStandaloneSupport/UnityEditor.iOS.Extensions.Xcode.dll"
 tmpdir="$(mktemp -d)"
 
 runtime_dll="$tmpdir/GatherAndShotRuntime.dll"
@@ -47,9 +48,9 @@ editor_dll="$tmpdir/GatherAndShotEditor.dll"
   -r:"$unity/UnityEngine.InputLegacyModule.dll" \
   -r:"$unity/UnityEngine.IMGUIModule.dll" \
   -r:"$ugui" \
+  -r:"$ios_xcode" \
   -r:"$runtime_dll" \
-  "$project"/Assets/_Project/Editor/CreateGameScene.cs \
-  "$project"/Assets/_Project/Editor/BuildWebGL.cs
+  "$project"/Assets/_Project/Editor/*.cs
 
 cat > "$tmpdir/VerifyGatherAndShotRules.cs" <<'CS'
 using System;
