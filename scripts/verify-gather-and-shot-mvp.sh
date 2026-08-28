@@ -79,6 +79,22 @@ public static class VerifyGatherAndShotRules
             return 1;
         }
 
+        if (GatherAndShotBalance.MaxLivePickups > 12
+            || GatherAndShotBalance.PickupSpawnGapMin(0f) < 1f
+            || GatherAndShotBalance.PickupSpawnGapMax(0f) < GatherAndShotBalance.PickupSpawnGapMin(0f))
+        {
+            Console.Error.WriteLine("Snow pickup spawn pressure is too generous for the gathering-risk design.");
+            return 1;
+        }
+
+        if (GatherAndShotBalance.PickupGatherSeconds(PickupKind.Snowball) <= 0f
+            || GatherAndShotBalance.PickupGatherSeconds(PickupKind.Snowdrift) <= GatherAndShotBalance.PickupGatherSeconds(PickupKind.Snowball)
+            || GatherAndShotBalance.PickupGatherSeconds(PickupKind.BigSnowdrift) <= GatherAndShotBalance.PickupGatherSeconds(PickupKind.Snowdrift))
+        {
+            Console.Error.WriteLine("Pickup gathering risk should scale with snow size.");
+            return 1;
+        }
+
         if (GatherAndShotBalance.StartingHealth(EnemyKind.Walker) != 1
             || GatherAndShotBalance.StartingHealth(EnemyKind.Runner) != 1
             || GatherAndShotBalance.StartingHealth(EnemyKind.Heavy) <= 1)

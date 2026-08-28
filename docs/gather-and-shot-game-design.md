@@ -8,6 +8,7 @@ Gather & Shot is a mobile portrait snowball survival prototype.
 - Collect snowballs, snowdrifts, and rare big snowdrifts to build ammo.
 - When an enemy enters range, the player automatically throws one snowball at the nearest enemy.
 - Each throw spends one snowball.
+- Collecting snow briefly locks movement and auto-fire while the player gathers it.
 - Defeated enemies add score.
 - Contact damage drains Warmth and knocks the player away.
 - The run ends when Warmth reaches zero.
@@ -16,8 +17,8 @@ Gather & Shot is a mobile portrait snowball survival prototype.
 ## Pickups
 
 - Snowball: common pickup, +1 ammo.
-- Snowdrift: medium pickup, +3 ammo.
-- Big snowdrift: rare large pickup, +5 ammo, often appears near enemies to create a simple risk-reward route choice.
+- Snowdrift: medium pickup, +3 ammo and a longer gathering pause.
+- Big snowdrift: rare large pickup, +5 ammo, the longest gathering pause, and often appears near enemies to create a simple risk-reward route choice.
 
 ## Enemies
 

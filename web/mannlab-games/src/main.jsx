@@ -85,7 +85,7 @@ const games = [
     description: "눈덩이를 모아 가까운 적에게 자동으로 던지는 스케치풍 생존 게임",
     route: "/gather-and-shot",
     aliases: ["/snow-shooter"],
-    embedHref: "/games/gather-and-shot/?v=7faa32361ad8",
+    embedHref: "/games/gather-and-shot/?v=85928c3144d0",
     available: true,
   },
   {

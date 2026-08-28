@@ -13,6 +13,7 @@ Mobile portrait snowball survival prototype.
 
 - Move with a virtual joystick.
 - Collect snowballs, snowdrifts, and rare big snowdrifts to build ammo.
+- Gathering snow briefly stops movement and auto-fire.
 - Automatically throw snowballs at the nearest enemy in range.
 - Each hit can defeat or damage enemies.
 - Defeated enemies add score.
@@ -22,8 +23,8 @@ Mobile portrait snowball survival prototype.
 ## Pickups
 
 - Snowball: +1 ammo.
-- Snowdrift: +3 ammo.
-- Big snowdrift: +5 ammo and a larger pickup radius. It is rare and tends to appear near enemies after the opening seconds.
+- Snowdrift: +3 ammo with a longer gathering pause.
+- Big snowdrift: +5 ammo, a larger pickup radius, and the longest gathering pause. It is rare and tends to appear near enemies after the opening seconds.
 
 ## Build
 
