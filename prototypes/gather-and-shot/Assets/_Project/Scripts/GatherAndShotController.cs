@@ -15,7 +15,7 @@ namespace MannLab.Games.GatherAndShot
         private const float WarmthBarWidth = 620f;
         private const float DirectionInputDeadZone = 26f;
         private const float DirectionInputMaxDistance = 180f;
-        private const float DirectionGuideVisibleSeconds = 0.42f;
+        private const float DirectionGuideFadeSeconds = 0.58f;
         private const float JoystickVisualRadius = 66f;
 
         private static readonly Color SnowTint = new Color32(239, 249, 255, 255);
@@ -45,6 +45,7 @@ namespace MannLab.Games.GatherAndShot
         private RectTransform joystickBase;
         private RectTransform joystickKnob;
         private RectTransform joystickRoot;
+        private CanvasGroup joystickCanvasGroup;
         private RectTransform gameSquareRoot;
         private Text scoreText;
         private Text bestText;
@@ -65,7 +66,7 @@ namespace MannLab.Games.GatherAndShot
         private float nextPickupAt;
         private float nextFireAt;
         private float contactReadyAt;
-        private float directionGuideHideAt;
+        private float directionGuideShownAt;
         private int lastScreenWidth;
         private int lastScreenHeight;
         private bool joystickHeld;
@@ -124,7 +125,7 @@ namespace MannLab.Games.GatherAndShot
             elapsedSeconds = 0f;
             nextFireAt = 0f;
             contactReadyAt = 0f;
-            directionGuideHideAt = 0f;
+            directionGuideShownAt = 0f;
             bestScore = PlayerPrefs.GetInt(BestScoreKey, 0);
             resultPanel.SetActive(false);
             playerRenderer.transform.position = playerPosition;
@@ -273,6 +274,10 @@ namespace MannLab.Games.GatherAndShot
 
             joystickRoot = gameSquareRoot;
             joystickBase = CreatePanel(gameSquareRoot, "Move Direction Guide", new Vector2(0.5f, 0.5f), new Vector2(230f, 230f), new Color32(255, 253, 247, 118));
+            joystickCanvasGroup = joystickBase.gameObject.AddComponent<CanvasGroup>();
+            joystickCanvasGroup.alpha = 0f;
+            joystickCanvasGroup.blocksRaycasts = false;
+            joystickCanvasGroup.interactable = false;
             joystickKnob = CreatePanel(joystickBase, "Joystick Knob", new Vector2(0.5f, 0.5f), new Vector2(86f, 86f), new Color32(88, 166, 206, 210));
             joystickBase.gameObject.SetActive(false);
 
@@ -359,11 +364,12 @@ namespace MannLab.Games.GatherAndShot
         private void UpdateJoystickVisual(bool held)
         {
             joystickBase.gameObject.SetActive(held);
+            joystickCanvasGroup.alpha = held ? 1f : 0f;
             joystickKnob.anchoredPosition = Vector2.zero;
             joystickBase.localScale = held ? Vector3.one * 1.05f : Vector3.one;
             if (held)
             {
-                directionGuideHideAt = Time.time + DirectionGuideVisibleSeconds;
+                directionGuideShownAt = Time.time;
                 PositionJoystickGuideAtPlayer();
             }
         }
@@ -375,7 +381,9 @@ namespace MannLab.Games.GatherAndShot
                 return;
             }
 
-            if (Time.time >= directionGuideHideAt)
+            var progress = Mathf.Clamp01((Time.time - directionGuideShownAt) / DirectionGuideFadeSeconds);
+            joystickCanvasGroup.alpha = 1f - Mathf.SmoothStep(0f, 1f, progress);
+            if (progress >= 1f)
             {
                 joystickBase.gameObject.SetActive(false);
             }
