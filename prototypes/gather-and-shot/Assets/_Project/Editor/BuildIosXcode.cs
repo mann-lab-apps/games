@@ -27,7 +27,7 @@ namespace MannLab.Games.GatherAndShot.EditorTools
         private const string AppleTeamIdEnv = "MANNLAB_APPLE_TEAM_ID";
         private const string DefaultAppleTeamId = "ZRA4DHHKQ4";
         private const string ProvisioningProfileEnv = "MANNLAB_GATHER_AND_SHOT_IOS_APP_STORE_PROFILE_SPECIFIER";
-        private const string DefaultProvisioningProfileSpecifier = "Gather & Shot";
+        private const string DefaultProvisioningProfileSpecifier = "Gather And Shot";
         private const string AppIconPath = "Assets/_Project/Art/AppStore/AppIcon-1024.png";
 
         public static void Build()
