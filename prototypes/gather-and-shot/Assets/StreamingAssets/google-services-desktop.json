@@ -1,0 +1,31 @@
+{
+  "project_info": {
+    "project_number": "428409714761",
+    "project_id": "gather-and-shot",
+    "storage_bucket": "gather-and-shot.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:428409714761:ios:1b8b019cb68f9b35faa798",
+        "android_client_info": {
+          "package_name": "com.mannlab.games.gatherandshot"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcAUhHOyebMaL2qHBOJhn75iWOk2S__ro"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 0
+        },
+        "appinvite_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
