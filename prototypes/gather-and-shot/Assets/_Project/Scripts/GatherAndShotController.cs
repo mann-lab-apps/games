@@ -73,6 +73,7 @@ namespace MannLab.Games.GatherAndShot
         private Text resultScoreText;
         private Vector2 playerPosition;
         private Vector2 playerVelocity;
+        private Vector2 joystickAnchorScreen;
         private Vector2 joystickVector;
         private GatherAndShotGameState state;
         private float warmth;
@@ -423,6 +424,7 @@ namespace MannLab.Games.GatherAndShot
 
         private void BeginJoystick(Vector2 screenPosition)
         {
+            joystickAnchorScreen = screenPosition;
             joystickHeld = true;
             UpdateJoystickVisual(true);
             DragJoystick(screenPosition);
@@ -437,11 +439,10 @@ namespace MannLab.Games.GatherAndShot
 
             if (joystickBase.gameObject.activeSelf)
             {
-                PositionJoystickGuideAtPlayer();
+                PositionJoystickGuideAtScreenPoint(joystickAnchorScreen);
             }
 
-            var playerScreen = (Vector2)worldCamera.WorldToScreenPoint(playerPosition);
-            var delta = screenPosition - playerScreen;
+            var delta = screenPosition - joystickAnchorScreen;
             joystickVector = delta.magnitude <= DirectionInputDeadZone
                 ? Vector2.zero
                 : Vector2.ClampMagnitude(delta, DirectionInputMaxDistance) / DirectionInputMaxDistance;
@@ -467,7 +468,7 @@ namespace MannLab.Games.GatherAndShot
             if (held)
             {
                 directionGuideShownAt = Time.time;
-                PositionJoystickGuideAtPlayer();
+                PositionJoystickGuideAtScreenPoint(joystickAnchorScreen);
             }
         }
 
@@ -495,7 +496,7 @@ namespace MannLab.Games.GatherAndShot
                 playerRenderer.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Sin(Time.time * 18f) * 4.5f);
                 if (joystickHeld && joystickBase.gameObject.activeSelf)
                 {
-                    PositionJoystickGuideAtPlayer();
+                    PositionJoystickGuideAtScreenPoint(joystickAnchorScreen);
                 }
 
                 return;
@@ -515,7 +516,7 @@ namespace MannLab.Games.GatherAndShot
 
             if (joystickHeld && joystickBase.gameObject.activeSelf)
             {
-                PositionJoystickGuideAtPlayer();
+                PositionJoystickGuideAtScreenPoint(joystickAnchorScreen);
             }
         }
 
@@ -1233,15 +1234,14 @@ namespace MannLab.Games.GatherAndShot
             return button;
         }
 
-        private void PositionJoystickGuideAtPlayer()
+        private void PositionJoystickGuideAtScreenPoint(Vector2 screenPosition)
         {
-            if (joystickRoot == null || joystickBase == null || worldCamera == null)
+            if (joystickRoot == null || joystickBase == null)
             {
                 return;
             }
 
-            var playerScreen = RectTransformUtility.WorldToScreenPoint(worldCamera, playerPosition);
-            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(joystickRoot, playerScreen, null, out var localPoint))
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(joystickRoot, screenPosition, null, out var localPoint))
             {
                 joystickBase.anchoredPosition = localPoint;
             }
