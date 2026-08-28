@@ -11,6 +11,7 @@ mono_lib="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/unityjit-mac
 ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.template.2d-cross-platform-2d-6.1.6/ScriptAssemblies/UnityEngine.UI.dll"
 project="$repo_root/prototypes/gather-and-shot"
 shared_runtime="$repo_root/shared/unity-packages/com.mannlab.hypercasual-core/Runtime"
+shared_ads_runtime="$repo_root/shared/unity-packages/com.mannlab.admob-core/Runtime"
 tmpdir="$(mktemp -d)"
 
 runtime_dll="$tmpdir/GatherAndShotRuntime.dll"
@@ -29,6 +30,7 @@ editor_dll="$tmpdir/GatherAndShotEditor.dll"
   -r:"$unity/UnityEngine.IMGUIModule.dll" \
   -r:"$ugui" \
   "$shared_runtime"/*.cs \
+  "$shared_ads_runtime"/*.cs \
   "$project"/Assets/_Project/Scripts/*.cs
 
 "$mono" "$csc" -target:library -nologo -nostdlib -out:"$editor_dll" \

@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using MannLab.Ads;
 using MannLab.HyperCasual;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -17,6 +19,20 @@ namespace MannLab.Games.GatherAndShot
         private const float DirectionInputMaxDistance = 180f;
         private const float DirectionGuideFadeSeconds = 0.58f;
         private const float JoystickVisualRadius = 66f;
+        private const string ProductionIosInterstitialAdUnitId = "";
+        private const string ProductionAndroidInterstitialAdUnitId = "";
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+        private const int GameOverInterstitialInterval = 1;
+#else
+        private const int GameOverInterstitialInterval = 3;
+#endif
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private const string CrashlyticsTestArgument = "--mannlab-force-crashlytics-test";
+        private const string CrashlyticsTestEnvironmentVariable = "MANNLAB_FORCE_CRASHLYTICS_TEST";
+        private const int CrashlyticsTestTapCount = 7;
+        private const float CrashlyticsTestTapWindowSeconds = 2.5f;
+        private const float CrashlyticsTestTapZoneSize = 220f;
+#endif
 
         private static readonly Color SnowTint = new Color32(239, 249, 255, 255);
         private static readonly Color PaperBlue = new Color32(218, 238, 242, 255);
@@ -76,6 +92,11 @@ namespace MannLab.Games.GatherAndShot
         private int lastScreenWidth;
         private int lastScreenHeight;
         private bool joystickHeld;
+        private bool runStarted;
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private int crashlyticsTestTapCount;
+        private float crashlyticsTestTapDeadline;
+#endif
 
         private void Awake()
         {
@@ -92,11 +113,25 @@ namespace MannLab.Games.GatherAndShot
             LoadSprites();
             BuildWorld();
             BuildHud();
+            InitializeTelemetryAndAds();
             StartRun();
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (ShouldForceCrashlyticsTestOnLaunch())
+            {
+                StartCoroutine(ForceCrashlyticsTestAfterStartup());
+            }
+#endif
         }
 
         private void Update()
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (HandleCrashlyticsTestTrigger())
+            {
+                return;
+            }
+#endif
+
             if (state == GatherAndShotGameState.GameOver)
             {
                 return;
@@ -118,9 +153,49 @@ namespace MannLab.Games.GatherAndShot
             UpdateHud();
         }
 
+        private static void InitializeTelemetryAndAds()
+        {
+            try
+            {
+                FirebaseTelemetry.Initialize();
+                FirebaseTelemetry.SetContext("game", "gather-and-shot");
+                FirebaseTelemetry.LogEvent("app_open");
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Gather & Shot] Firebase initialization skipped: {exception.GetType().Name}");
+            }
+
+            try
+            {
+                MannLabAdMob.InitializeGameOverInterstitial(
+                    "gather-and-shot",
+                    ProductionIosInterstitialAdUnitId,
+                    GameOverInterstitialInterval,
+                    ProductionAndroidInterstitialAdUnitId);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Gather & Shot] AdMob initialization skipped: {exception.GetType().Name}");
+            }
+        }
+
         private void StartRun()
         {
+            if (runStarted)
+            {
+                FirebaseTelemetry.LogEvent(
+                    "restart",
+                    new Dictionary<string, string>
+                    {
+                        { "score", score.ToString() },
+                        { "best_score", bestScore.ToString() },
+                        { "elapsed_seconds", Mathf.FloorToInt(elapsedSeconds).ToString() }
+                    });
+            }
+
             ClearActors();
+            runStarted = true;
             state = GatherAndShotGameState.Playing;
             playerPosition = Vector2.zero;
             playerVelocity = Vector2.zero;
@@ -146,6 +221,13 @@ namespace MannLab.Games.GatherAndShot
             nextSpawnAt = Time.time + 0.45f;
             nextPickupAt = Time.time + 0.25f;
             UpdateHud();
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "run_start",
+                new Dictionary<string, string>
+                {
+                    { "best_score", bestScore.ToString() }
+                });
             UpdateJoystickVisual(false);
         }
 
@@ -590,6 +672,14 @@ namespace MannLab.Games.GatherAndShot
             playerVelocity = Vector2.zero;
             playerRenderer.transform.position = playerPosition;
             SpawnBurst(position, kind == PickupKind.BigSnowdrift ? 0.45f : 0.28f, kind == PickupKind.BigSnowdrift ? 4 : 2);
+            FirebaseTelemetry.LogEvent(
+                "gather_start",
+                new Dictionary<string, string>
+                {
+                    { "pickup_kind", kind.ToString() },
+                    { "pending_ammo", pendingGatherAmmo.ToString() },
+                    { "score", score.ToString() }
+                });
             UpdateGatheringVisual(0f);
         }
 
@@ -610,6 +700,7 @@ namespace MannLab.Games.GatherAndShot
 
             ammo = Mathf.Min(GatherAndShotBalance.MaxAmmo, ammo + pendingGatherAmmo);
             SpawnBurst(playerPosition, gatheringKind == PickupKind.BigSnowdrift ? 1.05f : 0.72f, gatheringKind == PickupKind.BigSnowdrift ? 10 : 6);
+            UpdateTelemetryContext();
             ClearGathering();
         }
 
@@ -685,6 +776,7 @@ namespace MannLab.Games.GatherAndShot
                     contactReadyAt = Time.time + GatherAndShotBalance.ContactCooldownSeconds;
                     playerVelocity = (playerPosition - enemy.Position).normalized * 5.2f;
                     SpawnBurst(playerPosition, 0.95f, 8);
+                    UpdateTelemetryContext();
                     if (GatherAndShotBalance.IsGameOver(warmth))
                     {
                         EndRun();
@@ -708,6 +800,7 @@ namespace MannLab.Games.GatherAndShot
             }
 
             ammo--;
+            UpdateTelemetryContext();
             nextFireAt = Time.time + GatherAndShotBalance.FireCooldownSeconds;
             var renderer = new GameObject("Snowball Projectile", typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
             renderer.sprite = snowballSprite;
@@ -783,6 +876,7 @@ namespace MannLab.Games.GatherAndShot
             }
 
             score++;
+            UpdateTelemetryContext();
             Destroy(enemy.Renderer.gameObject);
             enemies.Remove(enemy);
         }
@@ -831,11 +925,23 @@ namespace MannLab.Games.GatherAndShot
             bestScore = Mathf.Max(bestScore, score);
             PlayerPrefs.SetInt(BestScoreKey, bestScore);
             PlayerPrefs.Save();
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "run_end",
+                new Dictionary<string, string>
+                {
+                    { "score", score.ToString() },
+                    { "best_score", bestScore.ToString() },
+                    { "ammo", ammo.ToString() },
+                    { "warmth", Mathf.RoundToInt(warmth).ToString() },
+                    { "elapsed_seconds", Mathf.FloorToInt(elapsedSeconds).ToString() }
+                });
             resultScoreText.text = $"Score {score}\nBest {bestScore}";
             resultPanel.SetActive(true);
             UpdateHud();
             EndJoystick();
             ClearGathering();
+            MannLabAdMob.TryShowGameOverInterstitial();
         }
 
         private void UpdateHud()
@@ -845,6 +951,121 @@ namespace MannLab.Games.GatherAndShot
             ammoText.text = $"SNOW x{ammo}";
             warmthFill.rectTransform.sizeDelta = new Vector2(WarmthBarWidth * Mathf.Clamp01(warmth / GatherAndShotBalance.MaxWarmth), 0f);
         }
+
+        private void UpdateTelemetryContext()
+        {
+            FirebaseTelemetry.SetContext("score", score.ToString());
+            FirebaseTelemetry.SetContext("best_score", bestScore.ToString());
+            FirebaseTelemetry.SetContext("ammo", ammo.ToString());
+            FirebaseTelemetry.SetContext("warmth", Mathf.RoundToInt(warmth).ToString());
+            FirebaseTelemetry.SetContext("elapsed_seconds", Mathf.FloorToInt(elapsedSeconds).ToString());
+            FirebaseTelemetry.SetContext("enemy_count", enemies.Count.ToString());
+            FirebaseTelemetry.SetContext("pickup_count", pickups.Count.ToString());
+            FirebaseTelemetry.SetContext("game_over", state == GatherAndShotGameState.GameOver ? "true" : "false");
+            FirebaseTelemetry.SetContext("gathering", IsGathering ? gatheringKind.ToString() : "none");
+        }
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private IEnumerator ForceCrashlyticsTestAfterStartup()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            TriggerCrashlyticsTest("launch_flag");
+        }
+
+        private bool HandleCrashlyticsTestTrigger()
+        {
+            if (!TryReadCrashlyticsTestTap(out var position))
+            {
+                return false;
+            }
+
+            if (position.x > CrashlyticsTestTapZoneSize || position.y < Screen.height - CrashlyticsTestTapZoneSize)
+            {
+                return false;
+            }
+
+            if (Time.unscaledTime > crashlyticsTestTapDeadline)
+            {
+                crashlyticsTestTapCount = 0;
+            }
+
+            crashlyticsTestTapDeadline = Time.unscaledTime + CrashlyticsTestTapWindowSeconds;
+            crashlyticsTestTapCount++;
+
+            if (crashlyticsTestTapCount < CrashlyticsTestTapCount)
+            {
+                return true;
+            }
+
+            crashlyticsTestTapCount = 0;
+            TriggerCrashlyticsTest("hidden_tap");
+            return true;
+        }
+
+        private void TriggerCrashlyticsTest(string trigger)
+        {
+            FirebaseTelemetry.SetContext("crashlytics_test", trigger);
+            FirebaseTelemetry.LogEvent(
+                "crashlytics_test_trigger",
+                new Dictionary<string, string>
+                {
+                    { "trigger", trigger },
+                    { "score", score.ToString() },
+                    { "best_score", bestScore.ToString() },
+                    { "ammo", ammo.ToString() },
+                    { "warmth", Mathf.RoundToInt(warmth).ToString() },
+                    { "elapsed_seconds", Mathf.FloorToInt(elapsedSeconds).ToString() }
+                });
+            FirebaseTelemetry.ForceCrashForTesting();
+        }
+
+        private static bool TryReadCrashlyticsTestTap(out Vector2 position)
+        {
+            if (Input.touchCount > 0)
+            {
+                var touch = Input.GetTouch(0);
+                if (touch.phase == TouchPhase.Began)
+                {
+                    position = touch.position;
+                    return true;
+                }
+            }
+
+            if (Input.GetMouseButtonDown(0))
+            {
+                position = Input.mousePosition;
+                return true;
+            }
+
+            position = Vector2.zero;
+            return false;
+        }
+
+        private static bool ShouldForceCrashlyticsTestOnLaunch()
+        {
+            if (IsTruthy(Environment.GetEnvironmentVariable(CrashlyticsTestEnvironmentVariable)))
+            {
+                return true;
+            }
+
+            foreach (var argument in Environment.GetCommandLineArgs())
+            {
+                if (string.Equals(argument, CrashlyticsTestArgument, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsTruthy(string value)
+        {
+            return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
+        }
+#endif
 
         private void ClearActors()
         {

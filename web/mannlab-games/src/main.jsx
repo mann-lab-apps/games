@@ -85,7 +85,7 @@ const games = [
     description: "눈덩이를 모아 가까운 적에게 자동으로 던지는 스케치풍 생존 게임",
     route: "/gather-and-shot",
     aliases: ["/snow-shooter"],
-    embedHref: "/games/gather-and-shot/?v=85928c3144d0",
+    embedHref: "/games/gather-and-shot/?v=c680b345885b",
     available: true,
   },
   {
@@ -303,7 +303,7 @@ function PrivacyStage() {
       <article className="privacy-document">
         <span>Mannlab Games</span>
         <h1>Privacy Policy</h1>
-        <p className="privacy-updated">Last updated: August 24, 2026</p>
+        <p className="privacy-updated">Last updated: August 28, 2026</p>
 
         <section>
           <h2>Overview</h2>
@@ -322,18 +322,20 @@ function PrivacyStage() {
             local gameplay state is not sent to Mannlab.
           </p>
           <p>
-            2048 Crash, 2048 Blink, and Wind Gull may use Firebase Analytics
-            to understand app launches and gameplay interactions, and Firebase
-            Crashlytics to diagnose crashes and stability issues. This may
+            2048 Crash, 2048 Blink, Gather & Shot, and Wind Gull may use
+            Firebase Analytics to understand app launches and gameplay
+            interactions, and Firebase Crashlytics to diagnose crashes and
+            stability issues. This may
             include device identifiers, product interaction data, crash data,
             and performance diagnostics.
           </p>
           <p>
-            2048 Blink may use Google AdMob to show third-party advertising at
-            natural breaks, such as after a game over. Google AdMob may collect
-            or share data such as device identifiers, advertising identifiers
-            where available, approximate location inferred from IP address,
-            product interaction data, advertising interaction data, and
+            2048 Crash, 2048 Blink, and Gather & Shot may use Google AdMob to
+            show third-party advertising at natural breaks, such as after a game
+            over. Google AdMob may collect or share data such as device
+            identifiers, advertising identifiers where available, approximate
+            location inferred from IP address, product interaction data,
+            advertising interaction data, and
             diagnostics for advertising, analytics, fraud prevention, security,
             and performance purposes.
           </p>

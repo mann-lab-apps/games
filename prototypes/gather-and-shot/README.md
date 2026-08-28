@@ -50,6 +50,40 @@ Run the lightweight local verification:
 ./scripts/verify-gather-and-shot-mvp.sh
 ```
 
+Firebase/Crashlytics readiness:
+
+```sh
+./scripts/verify-gather-and-shot-firebase-readiness.sh
+```
+
+AdMob readiness:
+
+```sh
+./scripts/verify-gather-and-shot-admob-readiness.sh
+```
+
+## Firebase Notes
+
+The runtime calls `FirebaseTelemetry` for `app_open`, `run_start`, `restart`, `gather_start`, `run_end`, and `crashlytics_test_trigger` breadcrumbs. It also forwards unhandled exceptions and Unity exception logs to Crashlytics when the Firebase Unity SDK is present.
+
+Firebase app config must be added per platform before real Crashlytics testing:
+
+- iOS: `Assets/GoogleService-Info.plist`
+- Android: `Assets/google-services.json`
+
+The Crashlytics test trigger is compiled only for Unity Editor or development builds. Tap the top-left corner 7 times within 2.5 seconds, or launch with `--mannlab-force-crashlytics-test` / `MANNLAB_FORCE_CRASHLYTICS_TEST=1`, then reopen the app so Crashlytics can upload the report.
+
+## AdMob Notes
+
+AdMob uses the shared game-over interstitial bridge. Debug/development builds use Google's test interstitial IDs through the bridge, and `MANNLAB_ADMOB_FORCE_TEST_ADS` forces every game over to request a test interstitial.
+
+The Google Mobile Ads settings asset currently uses Google's sample app IDs so test builds can initialize safely. Replace these before release:
+
+- Android AdMob App ID: `ca-app-pub-3940256099942544~3347511713`
+- iOS AdMob App ID: `ca-app-pub-3940256099942544~1458002511`
+- Production Android interstitial: set `ProductionAndroidInterstitialAdUnitId` in `GatherAndShotController`
+- Production iOS interstitial: set `ProductionIosInterstitialAdUnitId` in `GatherAndShotController`
+
 ## Deferred
 
-Weapon levels, upgrade choices, ads, Firebase, Crashlytics, and store metadata are intentionally deferred until the simple score-chase loop proves worth continuing.
+Weapon levels, upgrade choices, and store metadata are intentionally deferred until the simple score-chase loop proves worth continuing.
