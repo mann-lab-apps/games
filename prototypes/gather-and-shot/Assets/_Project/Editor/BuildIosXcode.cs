@@ -18,7 +18,7 @@ namespace MannLab.Games.GatherAndShot.EditorTools
         private const string BundleIdentifier = "com.mannlab.games.gatherandshot";
         private const string ForceAdMobTestAdsDefine = "MANNLAB_ADMOB_FORCE_TEST_ADS";
         private const string AdMobIosAppIdEnv = "MANNLAB_GATHER_AND_SHOT_ADMOB_IOS_APP_ID";
-        private const string AdMobIosAppId = "";
+        private const string AdMobIosAppId = "ca-app-pub-4525914685149405~6036634116";
         private const string AdMobIosTestAppId = "ca-app-pub-3940256099942544~1458002511";
         private const string MarketingVersionEnv = "MANNLAB_GATHER_AND_SHOT_IOS_MARKETING_VERSION";
         private const string DefaultMarketingVersion = "0.1";

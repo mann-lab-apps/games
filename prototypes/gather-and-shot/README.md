@@ -86,12 +86,12 @@ The Crashlytics test trigger is compiled only for Unity Editor or development bu
 
 AdMob uses the shared game-over interstitial bridge. Debug/development builds use Google's test interstitial IDs through the bridge, and `MANNLAB_ADMOB_FORCE_TEST_ADS` forces every game over to request a test interstitial.
 
-The Google Mobile Ads settings asset currently uses Google's sample app IDs so test builds can initialize safely. Replace these before release:
+The Google Mobile Ads settings asset uses the production iOS app ID and Google's sample Android app ID until Android release setup is ready. Debug/development builds and `MANNLAB_ADMOB_FORCE_TEST_ADS` still force Google's test interstitial IDs.
 
 - Android AdMob App ID: `ca-app-pub-3940256099942544~3347511713`
-- iOS AdMob App ID: `ca-app-pub-3940256099942544~1458002511`
+- iOS AdMob App ID: `ca-app-pub-4525914685149405~6036634116`
 - Production Android interstitial: set `ProductionAndroidInterstitialAdUnitId` in `GatherAndShotController`
-- Production iOS interstitial: set `ProductionIosInterstitialAdUnitId` in `GatherAndShotController`
+- Production iOS interstitial: `ca-app-pub-4525914685149405/2541126713`
 - iOS release export App ID override: set `MANNLAB_GATHER_AND_SHOT_ADMOB_IOS_APP_ID`
 
 ## iOS Notes

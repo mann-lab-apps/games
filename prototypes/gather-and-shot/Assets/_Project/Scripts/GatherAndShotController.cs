@@ -19,7 +19,7 @@ namespace MannLab.Games.GatherAndShot
         private const float DirectionInputMaxDistance = 180f;
         private const float DirectionGuideFadeSeconds = 0.58f;
         private const float JoystickVisualRadius = 66f;
-        private const string ProductionIosInterstitialAdUnitId = "";
+        private const string ProductionIosInterstitialAdUnitId = "ca-app-pub-4525914685149405/2541126713";
         private const string ProductionAndroidInterstitialAdUnitId = "";
 #if MANNLAB_ADMOB_FORCE_TEST_ADS
         private const int GameOverInterstitialInterval = 1;

@@ -23,14 +23,17 @@ case "$mode" in
   release)
     build_method="MannLab.Games.GatherAndShot.EditorTools.BuildIosXcode.BuildRelease"
     output_path="$project/Builds/iOS/Xcode"
+    expected_gad_app_id="ca-app-pub-4525914685149405~6036634116"
     ;;
   crashlytics-test)
     build_method="MannLab.Games.GatherAndShot.EditorTools.BuildIosXcode.BuildCrashlyticsTest"
     output_path="$project/Builds/iOS/CrashlyticsTestXcode"
+    expected_gad_app_id="ca-app-pub-4525914685149405~6036634116"
     ;;
   admob-test)
     build_method="MannLab.Games.GatherAndShot.EditorTools.BuildIosXcode.BuildAdMobTest"
     output_path="$project/Builds/iOS/AdMobTestXcode"
+    expected_gad_app_id="ca-app-pub-3940256099942544~1458002511"
     ;;
   *)
     echo "Usage: $0 [release|crashlytics-test|admob-test]" >&2
@@ -92,10 +95,6 @@ elif [[ -z "$xcode_major" || "$xcode_major" -lt 26 ]]; then
   echo "Local unsigned iOS build checks can still run with the installed Xcode." >&2
 fi
 
-if [[ "$mode" == "release" && -z "${MANNLAB_GATHER_AND_SHOT_ADMOB_IOS_APP_ID:-}" ]]; then
-  echo "Warning: release export will omit GADApplicationIdentifier until MANNLAB_GATHER_AND_SHOT_ADMOB_IOS_APP_ID is set." >&2
-fi
-
 if [[ "$missing" -ne 0 ]]; then
   exit 2
 fi
@@ -111,6 +110,12 @@ test -d "$output_path"
 test -f "$output_path/Unity-iPhone/Images.xcassets/AppIcon.appiconset/Icon-AppStore-1024.png"
 test -f "$output_path/LaunchScreen-iPhone.storyboard"
 test -f "$output_path/LaunchScreen-iPad.storyboard"
+actual_gad_app_id="$(/usr/libexec/PlistBuddy -c 'Print :GADApplicationIdentifier' "$output_path/Info.plist")"
+if [[ "$actual_gad_app_id" != "$expected_gad_app_id" ]]; then
+  echo "Unexpected GADApplicationIdentifier in $output_path/Info.plist: $actual_gad_app_id" >&2
+  echo "Expected: $expected_gad_app_id" >&2
+  exit 1
+fi
 
 echo "iOS build log: $build_log"
 echo "iOS $mode Xcode project verified: $output_path"
