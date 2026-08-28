@@ -58,16 +58,24 @@ public static class VerifyGatherAndShotRules
     public static int Main()
     {
         var maxAmmo = GatherAndShotBalance.MaxAmmo;
-        if (maxAmmo != 6)
+        if (maxAmmo != 8)
         {
             Console.Error.WriteLine("Ammo cap drifted from the MVP design.");
             return 1;
         }
 
         if (GatherAndShotBalance.PickupAmmo("Ball") != 1
-            || GatherAndShotBalance.PickupAmmo("Drift") != 3)
+            || GatherAndShotBalance.PickupAmmo("Drift") != 3
+            || GatherAndShotBalance.PickupAmmo("BigSnowdrift") != 5
+            || GatherAndShotBalance.PickupAmmo(PickupKind.BigSnowdrift) != 5)
         {
             Console.Error.WriteLine("Pickup ammo values are wrong.");
+            return 1;
+        }
+
+        if (GatherAndShotBalance.PickupRadius(PickupKind.BigSnowdrift) <= GatherAndShotBalance.PickupRadius(PickupKind.Snowball))
+        {
+            Console.Error.WriteLine("Big snowdrifts should be easier to pick up than single snowballs.");
             return 1;
         }
 

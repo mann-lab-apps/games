@@ -193,6 +193,18 @@ def draw_snowdrift() -> list[list[Color]]:
     return img
 
 
+def draw_big_snowdrift() -> list[list[Color]]:
+    img = canvas(160, 160)
+    sketch_ellipse(img, 58, 99, 44, 30, SNOW, 6)
+    sketch_ellipse(img, 98, 96, 46, 32, SNOW, 6)
+    sketch_ellipse(img, 80, 75, 35, 26, SNOW, 5)
+    sketch_ellipse(img, 113, 76, 26, 20, SNOW, 4)
+    sketch_line(img, 38, 106, 74, 96, SNOW_SHADOW, 5, 1, 5)
+    sketch_line(img, 78, 112, 126, 104, SNOW_SHADOW, 5, 1, 5)
+    sketch_line(img, 49, 84, 102, 72, SNOW_SHADOW, 4, 1, 5)
+    return img
+
+
 def draw_puff() -> list[list[Color]]:
     img = canvas(96, 96)
     for cx, cy, rx, ry in ((38, 42, 18, 12), (54, 42, 16, 13), (48, 54, 24, 14), (29, 54, 11, 8)):
@@ -230,6 +242,7 @@ def main() -> None:
         "snowball.png": draw_snowball(),
         "snowdrift.png": draw_snowdrift(),
         "puff.png": draw_puff(),
+        "big_snowdrift.png": draw_big_snowdrift(),
     }
     for name, image in assets.items():
         save_png(image, OUT_DIR / name)

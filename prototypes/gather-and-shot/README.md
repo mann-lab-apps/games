@@ -12,12 +12,18 @@ Mobile portrait snowball survival prototype.
 ## Core Loop
 
 - Move with a virtual joystick.
-- Collect snowballs and snowdrifts to build ammo.
+- Collect snowballs, snowdrifts, and rare big snowdrifts to build ammo.
 - Automatically throw snowballs at the nearest enemy in range.
 - Each hit can defeat or damage enemies.
 - Defeated enemies add score.
 - Enemy contact drains Warmth and knocks the player back.
 - The run ends when Warmth reaches zero.
+
+## Pickups
+
+- Snowball: +1 ammo.
+- Snowdrift: +3 ammo.
+- Big snowdrift: +5 ammo and a larger pickup radius. It is rare and tends to appear near enemies after the opening seconds.
 
 ## Build
 

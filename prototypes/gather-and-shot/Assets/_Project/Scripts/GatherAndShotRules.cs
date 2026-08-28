@@ -15,15 +15,22 @@ namespace MannLab.Games.GatherAndShot
         Heavy
     }
 
+    public enum PickupKind
+    {
+        Snowball,
+        Snowdrift,
+        BigSnowdrift
+    }
+
     public readonly struct GatherAndShotBalance
     {
         public const float MaxWarmth = 100f;
-        public const int MaxAmmo = 6;
+        public const int MaxAmmo = 8;
         public const float FireRange = 4.25f;
         public const float FireCooldownSeconds = 0.45f;
         public const float ContactDamage = 18f;
         public const float ContactCooldownSeconds = 0.55f;
-        public const float PickupRadius = 0.52f;
+        public const float BasePickupRadius = 0.52f;
         public const float ProjectileSpeed = 10.5f;
         public const float ProjectileHitRadius = 0.34f;
         public const float SpawnRampSeconds = 180f;
@@ -73,9 +80,56 @@ namespace MannLab.Games.GatherAndShot
             return kind == EnemyKind.Heavy ? 0.68f : 0.50f;
         }
 
+        public static int PickupAmmo(PickupKind kind)
+        {
+            switch (kind)
+            {
+                case PickupKind.BigSnowdrift:
+                    return 5;
+                case PickupKind.Snowdrift:
+                    return 3;
+                default:
+                    return 1;
+            }
+        }
+
         public static int PickupAmmo(string pickupKind)
         {
-            return string.Equals(pickupKind, "Drift", StringComparison.Ordinal) ? 3 : 1;
+            if (string.Equals(pickupKind, "BigSnowdrift", StringComparison.Ordinal)
+                || string.Equals(pickupKind, "BigDrift", StringComparison.Ordinal))
+            {
+                return PickupAmmo(PickupKind.BigSnowdrift);
+            }
+
+            return string.Equals(pickupKind, "Drift", StringComparison.Ordinal)
+                || string.Equals(pickupKind, "Snowdrift", StringComparison.Ordinal)
+                ? PickupAmmo(PickupKind.Snowdrift)
+                : PickupAmmo(PickupKind.Snowball);
+        }
+
+        public static float PickupRadius(PickupKind kind)
+        {
+            return kind == PickupKind.BigSnowdrift ? 0.72f : BasePickupRadius;
+        }
+
+        public static PickupKind RollPickupKind(Random random, float elapsedSeconds)
+        {
+            if (random == null)
+            {
+                throw new ArgumentNullException(nameof(random));
+            }
+
+            var t = Saturate(elapsedSeconds / SpawnRampSeconds);
+            var bigChance = elapsedSeconds < 7f ? 0.02d : 0.07d + 0.04d * t;
+            var driftChance = 0.26d + 0.05d * t;
+            var roll = random.NextDouble();
+
+            if (roll < bigChance)
+            {
+                return PickupKind.BigSnowdrift;
+            }
+
+            return roll < bigChance + driftChance ? PickupKind.Snowdrift : PickupKind.Snowball;
         }
 
         public static EnemyKind RollEnemyKind(Random random, float elapsedSeconds)

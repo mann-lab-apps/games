@@ -40,6 +40,7 @@ namespace MannLab.Games.GatherAndShot
         private Sprite heavySprite;
         private Sprite snowballSprite;
         private Sprite driftSprite;
+        private Sprite bigDriftSprite;
         private Sprite puffSprite;
         private SpriteRenderer playerRenderer;
         private RectTransform joystickBase;
@@ -132,7 +133,7 @@ namespace MannLab.Games.GatherAndShot
 
             for (var i = 0; i < 7; i++)
             {
-                SpawnPickup(i % 3 == 0);
+                SpawnPickup(i % 3 == 0 ? PickupKind.Snowdrift : PickupKind.Snowball);
             }
 
             nextSpawnAt = Time.time + 0.45f;
@@ -149,6 +150,7 @@ namespace MannLab.Games.GatherAndShot
             heavySprite = LoadSprite("heavy", HeavyTint, 128);
             snowballSprite = LoadSprite("snowball", Color.white, 96);
             driftSprite = LoadSprite("snowdrift", new Color32(226, 244, 251, 255), 128);
+            bigDriftSprite = LoadSprite("big_snowdrift", new Color32(226, 244, 251, 255), 160);
             puffSprite = LoadSprite("puff", new Color32(238, 249, 255, 210), 96);
         }
 
@@ -450,23 +452,84 @@ namespace MannLab.Games.GatherAndShot
                 return;
             }
 
-            SpawnPickup(random.NextDouble() < 0.28d);
+            SpawnPickup(GatherAndShotBalance.RollPickupKind(random, elapsedSeconds));
             nextPickupAt = Time.time + RandomRange(0.55f, 1.15f);
         }
 
-        private void SpawnPickup(bool drift)
+        private void SpawnPickup(PickupKind kind)
         {
-            var renderer = new GameObject(drift ? "Snowdrift" : "Snowball Pickup", typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
-            renderer.sprite = drift ? driftSprite : snowballSprite;
-            renderer.sortingOrder = 4;
-            renderer.transform.position = new Vector3(RandomRange(-PlayHalfWidth + 0.4f, PlayHalfWidth - 0.4f), RandomRange(-WorldHalfHeight + 0.75f, WorldHalfHeight - 0.75f), 0f);
-            renderer.transform.localScale = Vector3.one * (drift ? 0.74f : 0.48f);
+            var renderer = new GameObject(PickupName(kind), typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
+            renderer.sprite = PickupSprite(kind);
+            renderer.sortingOrder = kind == PickupKind.BigSnowdrift ? 5 : 4;
+            renderer.transform.position = ChoosePickupPosition(kind);
+            renderer.transform.localScale = Vector3.one * PickupScale(kind);
             pickups.Add(new Pickup
             {
-                Drift = drift,
+                Kind = kind,
                 Renderer = renderer,
                 Position = renderer.transform.position
             });
+        }
+
+        private Vector2 ChoosePickupPosition(PickupKind kind)
+        {
+            if (kind == PickupKind.BigSnowdrift && enemies.Count > 0 && random.NextDouble() < 0.75d)
+            {
+                var enemy = enemies[random.Next(enemies.Count)];
+                var angle = RandomRange(0f, Mathf.PI * 2f);
+                var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * RandomRange(0.9f, 1.8f);
+                return ClampToPlayfield(enemy.Position + offset, 0.65f);
+            }
+
+            return new Vector2(
+                RandomRange(-PlayHalfWidth + 0.4f, PlayHalfWidth - 0.4f),
+                RandomRange(-WorldHalfHeight + 0.75f, WorldHalfHeight - 0.75f));
+        }
+
+        private Vector2 ClampToPlayfield(Vector2 position, float margin)
+        {
+            position.x = Mathf.Clamp(position.x, -PlayHalfWidth + margin, PlayHalfWidth - margin);
+            position.y = Mathf.Clamp(position.y, -WorldHalfHeight + margin, WorldHalfHeight - margin);
+            return position;
+        }
+
+        private Sprite PickupSprite(PickupKind kind)
+        {
+            switch (kind)
+            {
+                case PickupKind.BigSnowdrift:
+                    return bigDriftSprite;
+                case PickupKind.Snowdrift:
+                    return driftSprite;
+                default:
+                    return snowballSprite;
+            }
+        }
+
+        private static string PickupName(PickupKind kind)
+        {
+            switch (kind)
+            {
+                case PickupKind.BigSnowdrift:
+                    return "Big Snowdrift";
+                case PickupKind.Snowdrift:
+                    return "Snowdrift";
+                default:
+                    return "Snowball Pickup";
+            }
+        }
+
+        private static float PickupScale(PickupKind kind)
+        {
+            switch (kind)
+            {
+                case PickupKind.BigSnowdrift:
+                    return 0.95f;
+                case PickupKind.Snowdrift:
+                    return 0.74f;
+                default:
+                    return 0.48f;
+            }
         }
 
         private void UpdatePickups()
@@ -474,14 +537,27 @@ namespace MannLab.Games.GatherAndShot
             for (var i = pickups.Count - 1; i >= 0; i--)
             {
                 var pickup = pickups[i];
-                pickup.Renderer.transform.Rotate(0f, 0f, (pickup.Drift ? 10f : -18f) * Time.deltaTime);
-                if (Vector2.Distance(playerPosition, pickup.Position) <= GatherAndShotBalance.PickupRadius)
+                pickup.Renderer.transform.Rotate(0f, 0f, PickupSpin(pickup.Kind) * Time.deltaTime);
+                if (Vector2.Distance(playerPosition, pickup.Position) <= GatherAndShotBalance.PickupRadius(pickup.Kind))
                 {
-                    ammo = Mathf.Min(GatherAndShotBalance.MaxAmmo, ammo + GatherAndShotBalance.PickupAmmo(pickup.Drift ? "Drift" : "Ball"));
-                    SpawnBurst(pickup.Position, 0.62f, 5);
+                    ammo = Mathf.Min(GatherAndShotBalance.MaxAmmo, ammo + GatherAndShotBalance.PickupAmmo(pickup.Kind));
+                    SpawnBurst(pickup.Position, pickup.Kind == PickupKind.BigSnowdrift ? 0.95f : 0.62f, pickup.Kind == PickupKind.BigSnowdrift ? 9 : 5);
                     Destroy(pickup.Renderer.gameObject);
                     pickups.RemoveAt(i);
                 }
+            }
+        }
+
+        private static float PickupSpin(PickupKind kind)
+        {
+            switch (kind)
+            {
+                case PickupKind.BigSnowdrift:
+                    return 6f;
+                case PickupKind.Snowdrift:
+                    return 10f;
+                default:
+                    return -18f;
             }
         }
 
@@ -893,7 +969,7 @@ namespace MannLab.Games.GatherAndShot
 
         private sealed class Pickup
         {
-            public bool Drift;
+            public PickupKind Kind;
             public SpriteRenderer Renderer;
             public Vector2 Position;
         }
