@@ -60,12 +60,13 @@ const games = [
     available: true,
   },
   {
-    id: "sitting",
+    id: "standing",
     title: "Standing!",
     status: "Prototype",
     description: "고객과 통행자를 구분하며 몰래 앉아 버티는 눈치 게임",
-    route: "/sitting",
-    embedHref: "/games/sitting/?v=61f5811b0316",
+    route: "/standing",
+    aliases: ["/sitting"],
+    embedHref: "/games/standing/?v=dd82fbc65ddc",
     available: true,
   },
   {
@@ -75,6 +76,16 @@ const games = [
     description: "사선으로 쏟아지는 비를 낙서 우산 각도로 막으며 걷는 방어 게임",
     route: "/rainwalker",
     embedHref: "/games/rainwalker/?v=693011352d21",
+    available: true,
+  },
+  {
+    id: "gather-and-shot",
+    title: "Gather & Shot",
+    status: "Prototype",
+    description: "눈덩이를 모아 가까운 적에게 자동으로 던지는 스케치풍 생존 게임",
+    route: "/gather-and-shot",
+    aliases: ["/snow-shooter"],
+    embedHref: "/games/gather-and-shot/?v=8cf8338b60c8",
     available: true,
   },
   {
@@ -292,14 +303,14 @@ function PrivacyStage() {
       <article className="privacy-document">
         <span>Mannlab Games</span>
         <h1>Privacy Policy</h1>
-        <p className="privacy-updated">Last updated: August 6, 2026</p>
+        <p className="privacy-updated">Last updated: August 24, 2026</p>
 
         <section>
           <h2>Overview</h2>
           <p>
             Mannlab Games publishes small games including Mannlab 10000,
-            Dopamine Swap, and 2048 Crash. The mobile app versions do not
-            require account creation.
+            Dopamine Swap, 2048 Crash, and 2048 Blink. The mobile app versions
+            do not require account creation.
           </p>
         </section>
 
@@ -311,16 +322,25 @@ function PrivacyStage() {
             local gameplay state is not sent to Mannlab.
           </p>
           <p>
-            2048 Crash and Wind Gull may use Firebase Analytics to understand
-            app launches and gameplay interactions, and Firebase Crashlytics to
-            diagnose crashes and stability issues. This may include device
-            identifiers, product interaction data, crash data, and performance
-            diagnostics.
+            2048 Crash, 2048 Blink, and Wind Gull may use Firebase Analytics
+            to understand app launches and gameplay interactions, and Firebase
+            Crashlytics to diagnose crashes and stability issues. This may
+            include device identifiers, product interaction data, crash data,
+            and performance diagnostics.
           </p>
           <p>
-            The mobile apps do not currently include third-party advertising
-            SDKs, ad tracking, account systems, in-app purchases, chat,
-            location access, camera access, or microphone access.
+            2048 Blink may use Google AdMob to show third-party advertising at
+            natural breaks, such as after a game over. Google AdMob may collect
+            or share data such as device identifiers, advertising identifiers
+            where available, approximate location inferred from IP address,
+            product interaction data, advertising interaction data, and
+            diagnostics for advertising, analytics, fraud prevention, security,
+            and performance purposes.
+          </p>
+          <p>
+            The mobile apps do not currently include account systems, in-app
+            purchases, chat, location access, camera access, or microphone
+            access.
           </p>
         </section>
 
