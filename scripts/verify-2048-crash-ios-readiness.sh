@@ -3,9 +3,18 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 project="$repo_root/prototypes/2048-crash"
-unity_editor="/Applications/Unity/Hub/Editor/6000.3.20f1/Unity.app/Contents/MacOS/Unity"
+project_unity_version="$(awk '/m_EditorVersion:/ {print $2; exit}' "$project/ProjectSettings/ProjectVersion.txt")"
+unity_version="${UNITY_EDITOR_VERSION:-$project_unity_version}"
+unity_root="/Applications/Unity/Hub/Editor/$unity_version/Unity.app/Contents"
+if [[ ! -x "$unity_root/MacOS/Unity" ]]; then
+  latest_unity_app="$(find /Applications/Unity/Hub/Editor -maxdepth 2 -path '*/Unity.app' -type d 2>/dev/null | sort | tail -1 || true)"
+  if [[ -n "$latest_unity_app" ]]; then
+    unity_root="$latest_unity_app/Contents"
+  fi
+fi
+unity_editor="$unity_root/MacOS/Unity"
 unity_cli="${HOME}/.unity/bin/unity"
-ios_engine="/Applications/Unity/Hub/Editor/6000.3.20f1/PlaybackEngines/iOSSupport"
+ios_engine="$(dirname "$(dirname "$unity_root")")/PlaybackEngines/iOSSupport"
 mode="${1:-release}"
 build_log="/tmp/2048-crash-unity-ios-${mode}-build.log"
 missing=0
@@ -19,8 +28,12 @@ case "$mode" in
     build_method="MannLab.Games.Game2048Crash.EditorTools.BuildIosXcode.BuildCrashlyticsTest"
     output_path="$project/Builds/iOS/CrashlyticsTestXcode"
     ;;
+  admob-test)
+    build_method="MannLab.Games.Game2048Crash.EditorTools.BuildIosXcode.BuildAdMobTest"
+    output_path="$project/Builds/iOS/AdMobTestXcode"
+    ;;
   *)
-    echo "Usage: $0 [release|crashlytics-test]" >&2
+    echo "Usage: $0 [release|crashlytics-test|admob-test]" >&2
     exit 64
     ;;
 esac
@@ -80,3 +93,8 @@ test -d "$output_path"
 
 echo "iOS build log: $build_log"
 echo "iOS $mode Xcode project verified: $output_path"
+workspace="$output_path/Unity-iPhone.xcworkspace"
+if [[ "$mode" == "admob-test" || -d "$workspace" ]]; then
+  echo "Open this workspace for AdMob/CocoaPods builds: $workspace"
+  echo "Do not archive Unity-iPhone.xcodeproj directly; GoogleMobileAds is linked through Pods."
+fi

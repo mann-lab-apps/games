@@ -35,18 +35,20 @@ Implemented:
 - Local best stage
 - Firebase/Crashlytics telemetry bridge with Unity-log fallback
 - Firebase Unity SDK 13.14.0 Analytics/Crashlytics packages
+- Google Mobile Ads Unity plugin through `com.mannlab.admob-core`
 - Android app icon asset
 - Release-signed Android AAB/APK build script
 - Firebase iOS config file for `com.mannlab.games.game2048crash`
 - iOS Xcode build script with release and Crashlytics test modes
 - Development-only Crashlytics forced crash trigger
+- AdMob game-over interstitial hook with a dedicated test build
 - App Store listing/privacy prep draft
 - App Store screenshot generator and readiness verifier
 - Result panel
 
 Not implemented:
 
-- Ads
+- Android production AdMob app/ad unit IDs
 - Online leaderboard
 - Final store naming/legal clearance
 
@@ -107,6 +109,24 @@ iOS Crashlytics test Xcode project verification:
 ./scripts/verify-2048-crash-ios-readiness.sh crashlytics-test
 ```
 
+AdMob wiring verification:
+
+```sh
+../../scripts/verify-2048-crash-admob-readiness.sh
+```
+
+iOS AdMob test Xcode project verification:
+
+```sh
+./scripts/verify-2048-crash-ios-readiness.sh admob-test
+```
+
+Android AdMob test APK verification:
+
+```sh
+./scripts/verify-2048-crash-android.sh admob-test
+```
+
 Generate App Store screenshots:
 
 ```sh
@@ -132,3 +152,9 @@ The iOS Firebase app config is checked in at `Assets/GoogleService-Info.plist` f
 Firebase Unity SDK 13.14.0 packages are imported for Analytics and Crashlytics. The next verification step is an iOS device build that triggers a test crash and confirms it appears in Firebase Console.
 
 The Crashlytics test trigger is compiled only for Unity Editor or development builds. In the `crashlytics-test` iOS build, tap the top-left corner 7 times within 2.5 seconds to request a forced Crashlytics test crash. Reopen the app after the crash so Crashlytics can upload the report.
+
+## AdMob Notes
+
+Game-over interstitials are initialized through `MannLabAdMob`. The `admob-test` iOS build enables `MANNLAB_ADMOB_FORCE_TEST_ADS`, uses Google's sample app/ad unit IDs, shows a small diagnostics panel, and attempts an interstitial after every game over.
+
+Release iOS builds use the 2048 Crash AdMob app ID `ca-app-pub-4525914685149405~7818820774` and the game-over interstitial unit `ca-app-pub-4525914685149405/6947652887`. The default iOS marketing version is `1.0.1` with build number `2`; override them with `MANNLAB_2048_CRASH_IOS_MARKETING_VERSION` and `MANNLAB_2048_CRASH_IOS_BUILD_NUMBER` if App Store Connect uses different values. Android production IDs remain empty until the Android AdMob app and unit are created.

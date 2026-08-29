@@ -7,8 +7,8 @@ Last updated: 2026-08-06
 - App name: `2048 Crash`
 - Project: `prototypes/2048-crash`
 - Bundle ID: `com.mannlab.games.game2048crash`
-- Version: `0.1`
-- Build number: `1`
+- Version: `1.0.1`
+- Build number: `2`
 - Initial channel: iOS TestFlight, then App Store
 - Public web URL: `https://games.mannlab.app/2048-crash/`
 - Privacy policy URL: `https://games.mannlab.app/privacy`
@@ -96,7 +96,7 @@ How to test:
 6. Continue until there are no valid moves, then tap Again to restart.
 
 5. External services, tools, or platforms
-The app uses Firebase Analytics for gameplay event analytics and Firebase Crashlytics for crash diagnostics. Gameplay itself runs locally on the device. Best stage and gameplay progress are stored locally on device. The app does not use authentication services, payment processors, ad networks, AI services, external gameplay services, online leaderboards, or remote content providers.
+The app uses Firebase Analytics for gameplay event analytics, Firebase Crashlytics for crash diagnostics, and Google AdMob for third-party advertising at natural breaks such as game over. Gameplay itself runs locally on the device. Best stage and gameplay progress are stored locally on device. The app does not use authentication services, payment processors, AI services, external gameplay services, online leaderboards, or remote content providers.
 
 6. Regional differences
 The app functions consistently across all regions. There are no region-specific features, content, pricing, services, or restrictions in the submitted build.
@@ -123,7 +123,7 @@ Use a physical iPhone or iPad with the latest available OS before resubmission.
 
 ## App Privacy Draft
 
-Use this as the App Store Connect privacy answer draft for the current Firebase Analytics/Crashlytics build. Re-check Firebase Console settings before submission.
+Use this as the App Store Connect privacy answer draft for the current Firebase Analytics/Crashlytics and Google AdMob build. Re-check Firebase Console, AdMob, and consent settings before submission.
 
 ### Data Collected
 
@@ -143,6 +143,16 @@ Use this as the App Store Connect privacy answer draft for the current Firebase 
   - Purpose: `App Functionality`, `Analytics`
   - Linked to user: `Yes`, unless Firebase settings are changed to prevent linkage.
   - Used for tracking: `No`
+- `Identifiers / Device ID`
+  - Purpose: `Third-Party Advertising`, `Analytics`
+  - Linked to user: `Yes`, unless Google AdMob settings and consent flow prevent linkage.
+  - Used for tracking: `Yes`, if personalized ads or IDFA-based tracking are enabled.
+  - Source: Google AdMob
+- `Usage Data / Advertising Data`
+  - Purpose: `Third-Party Advertising`, `Analytics`
+  - Linked to user: `Yes`, unless Google AdMob settings and consent flow prevent linkage.
+  - Used for tracking: `Yes`, if personalized ads or cross-app tracking are enabled.
+  - Source: Google AdMob
 
 ### Data Not Collected
 

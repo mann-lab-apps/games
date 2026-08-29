@@ -9,6 +9,7 @@ namespace MannLab.Ads
 {
     public static class MannLabAdMob
     {
+        public const string AndroidInterstitialTestAdUnitId = "ca-app-pub-3940256099942544/1033173712";
         public const string IosInterstitialTestAdUnitId = "ca-app-pub-3940256099942544/4411468910";
 
         private static bool initialized;
@@ -50,7 +51,8 @@ namespace MannLab.Ads
         public static void InitializeGameOverInterstitial(
             string gameIdentifier,
             string productionIosAdUnitId,
-            int interstitialEveryGameOvers = 3)
+            int interstitialEveryGameOvers = 3,
+            string productionAndroidAdUnitId = null)
         {
             if (initialized)
             {
@@ -65,7 +67,17 @@ namespace MannLab.Ads
             try
             {
                 usingTestAds = ShouldUseTestAds();
-                interstitialAdUnitId = usingTestAds ? IosInterstitialTestAdUnitId : productionIosAdUnitId;
+                interstitialAdUnitId = ResolveInterstitialAdUnitId(
+                    productionIosAdUnitId,
+                    productionAndroidAdUnitId,
+                    usingTestAds);
+                if (string.IsNullOrWhiteSpace(interstitialAdUnitId))
+                {
+                    Debug.LogWarning("[Ads] No interstitial ad unit ID is configured for this platform. Interstitials are disabled.");
+                    SetDiagnosticSummary("ads: missing ad unit id");
+                    return;
+                }
+
                 Debug.Log(
                     $"[Ads] Game-over interstitial configured. mode={(usingTestAds ? "test" : "production")}, interval={gameOverInterval}.");
                 SetDiagnosticSummary($"ads: configured mode={(usingTestAds ? "test" : "production")} interval={gameOverInterval}");
@@ -317,6 +329,20 @@ namespace MannLab.Ads
             return true;
 #else
             return Application.isEditor || Debug.isDebugBuild;
+#endif
+        }
+
+        private static string ResolveInterstitialAdUnitId(
+            string productionIosAdUnitId,
+            string productionAndroidAdUnitId,
+            bool useTestAds)
+        {
+#if UNITY_ANDROID
+            return useTestAds ? AndroidInterstitialTestAdUnitId : productionAndroidAdUnitId;
+#elif UNITY_IOS
+            return useTestAds ? IosInterstitialTestAdUnitId : productionIosAdUnitId;
+#else
+            return null;
 #endif
         }
 

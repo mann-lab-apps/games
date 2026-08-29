@@ -3,7 +3,16 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 project="$repo_root/prototypes/2048-crash"
-unity_editor="/Applications/Unity/Hub/Editor/6000.3.20f1/Unity.app/Contents/MacOS/Unity"
+project_unity_version="$(awk '/m_EditorVersion:/ {print $2; exit}' "$project/ProjectSettings/ProjectVersion.txt")"
+unity_version="${UNITY_EDITOR_VERSION:-$project_unity_version}"
+unity_root="/Applications/Unity/Hub/Editor/$unity_version/Unity.app/Contents"
+if [[ ! -x "$unity_root/MacOS/Unity" ]]; then
+  latest_unity_app="$(find /Applications/Unity/Hub/Editor -maxdepth 2 -path '*/Unity.app' -type d 2>/dev/null | sort | tail -1 || true)"
+  if [[ -n "$latest_unity_app" ]]; then
+    unity_root="$latest_unity_app/Contents"
+  fi
+fi
+unity_editor="$unity_root/MacOS/Unity"
 unity_cli="${HOME}/.unity/bin/unity"
 build_format="${1:-aab}"
 build_log="/tmp/2048-crash-unity-android-${build_format}-build.log"
@@ -18,13 +27,17 @@ case "$build_format" in
     build_method="MannLab.Games.Game2048Crash.EditorTools.BuildAndroidAab.BuildApk"
     artifact="$project/Builds/Android/2048-crash.apk"
     ;;
+  admob-test)
+    build_method="MannLab.Games.Game2048Crash.EditorTools.BuildAndroidAab.BuildAdMobTestApk"
+    artifact="$project/Builds/Android/2048-crash-admob-test.apk"
+    ;;
   *)
-    echo "Usage: $0 [aab|apk]" >&2
+    echo "Usage: $0 [aab|apk|admob-test]" >&2
     exit 64
     ;;
 esac
 
-if [[ -f "$signing_env" ]]; then
+if [[ "$build_format" != "admob-test" && -f "$signing_env" ]]; then
   set -a
   # shellcheck disable=SC1090
   source "$signing_env"
@@ -38,21 +51,24 @@ required_env=(
   MANNLAB_2048_CRASH_ANDROID_KEYALIAS_PASS
 )
 
-for env_name in "${required_env[@]}"; do
-  if [[ -z "${!env_name:-}" ]]; then
-    echo "Missing required signing env: $env_name" >&2
-    echo "Create $signing_env or export the signing variables before running this script." >&2
-    exit 65
-  fi
-done
+if [[ "$build_format" != "admob-test" ]]; then
+  for env_name in "${required_env[@]}"; do
+    if [[ -z "${!env_name:-}" ]]; then
+      echo "Missing required signing env: $env_name" >&2
+      echo "Create $signing_env or export the signing variables before running this script." >&2
+      exit 65
+    fi
+  done
+fi
 
 if [[ ! -x "$unity_editor" ]]; then
   echo "Unity Editor not found: $unity_editor" >&2
   exit 1
 fi
 
-if [[ ! -d "/Applications/Unity/Hub/Editor/6000.3.20f1/PlaybackEngines/AndroidPlayer" ]]; then
-  echo "Unity Android Build Support is missing for 6000.3.20f1." >&2
+android_engine="$(dirname "$(dirname "$unity_root")")/PlaybackEngines/AndroidPlayer"
+if [[ ! -d "$android_engine" ]]; then
+  echo "Unity Android Build Support is missing: $android_engine" >&2
   exit 1
 fi
 

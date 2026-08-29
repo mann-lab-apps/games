@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using MannLab.Ads;
 using MannLab.HyperCasual;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -14,7 +15,12 @@ namespace MannLab.Games.Game2048Crash
         private const float SlideAnimationSeconds = 0.16f;
         private const float CrashAnimationSeconds = 0.2f;
         private const float SpawnAnimationSeconds = 0.14f;
+        private const string GameOverInterstitialIosAdUnitId = "ca-app-pub-4525914685149405/6947652887";
+        private const string GameOverInterstitialAndroidAdUnitId = "";
+        private const int GameOverInterstitialInterval = 1;
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private const string CrashlyticsTestArgument = "--mannlab-force-crashlytics-test";
+        private const string CrashlyticsTestEnvironmentVariable = "MANNLAB_FORCE_CRASHLYTICS_TEST";
         private const int CrashlyticsTestTapCount = 7;
         private const float CrashlyticsTestTapWindowSeconds = 2.5f;
         private const float CrashlyticsTestTapZoneSize = 220f;
@@ -43,16 +49,51 @@ namespace MannLab.Games.Game2048Crash
         private int crashlyticsTestTapCount;
         private float crashlyticsTestTapDeadline;
 #endif
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+        private Text adDiagnosticsText;
+        private float nextAdDiagnosticsRefreshTime;
+#endif
 
         private void Awake()
         {
             MobileRuntime.ApplyDefaults();
             bestStage = PlayerPrefs.GetInt(BestStageKey, 0);
-            FirebaseTelemetry.Initialize();
-            FirebaseTelemetry.SetContext("game", "2048-crash");
-            FirebaseTelemetry.LogEvent("app_open");
             BuildInterface();
+            InitializeTelemetryAndAds();
             StartRun();
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (ShouldForceCrashlyticsTestOnLaunch())
+            {
+                StartCoroutine(ForceCrashlyticsTestAfterStartup());
+            }
+#endif
+        }
+
+        private static void InitializeTelemetryAndAds()
+        {
+            try
+            {
+                FirebaseTelemetry.Initialize();
+                FirebaseTelemetry.SetContext("game", "2048-crash");
+                FirebaseTelemetry.LogEvent("app_open");
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogWarning($"[2048 Crash] Firebase initialization skipped: {exception.GetType().Name}");
+            }
+
+            try
+            {
+                MannLabAdMob.InitializeGameOverInterstitial(
+                    "2048-crash",
+                    GameOverInterstitialIosAdUnitId,
+                    GameOverInterstitialInterval,
+                    GameOverInterstitialAndroidAdUnitId);
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogWarning($"[2048 Crash] AdMob initialization skipped: {exception.GetType().Name}");
+            }
         }
 
         private void Update()
@@ -61,6 +102,12 @@ namespace MannLab.Games.Game2048Crash
             if (HandleCrashlyticsTestTrigger())
             {
                 return;
+            }
+#endif
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+            if (Time.unscaledTime >= nextAdDiagnosticsRefreshTime)
+            {
+                UpdateAdDiagnostics();
             }
 #endif
 
@@ -97,6 +144,12 @@ namespace MannLab.Games.Game2048Crash
         }
 
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private IEnumerator ForceCrashlyticsTestAfterStartup()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            TriggerCrashlyticsTest("launch_flag");
+        }
+
         private bool HandleCrashlyticsTestTrigger()
         {
             if (!TryReadCrashlyticsTestTap(out var position))
@@ -123,16 +176,22 @@ namespace MannLab.Games.Game2048Crash
             }
 
             crashlyticsTestTapCount = 0;
-            FirebaseTelemetry.SetContext("crashlytics_test", "true");
+            TriggerCrashlyticsTest("hidden_tap");
+            return true;
+        }
+
+        private void TriggerCrashlyticsTest(string trigger)
+        {
+            FirebaseTelemetry.SetContext("crashlytics_test", trigger);
             FirebaseTelemetry.LogEvent(
                 "crashlytics_test_trigger",
                 new Dictionary<string, string>
                 {
+                    { "trigger", trigger },
                     { "stage", board.Stage.ToString() },
                     { "target_value", board.SpecialValue.ToString() }
                 });
             FirebaseTelemetry.ForceCrashForTesting();
-            return true;
         }
 
         private static bool TryReadCrashlyticsTestTap(out Vector2 position)
@@ -155,6 +214,31 @@ namespace MannLab.Games.Game2048Crash
 
             position = Vector2.zero;
             return false;
+        }
+
+        private static bool ShouldForceCrashlyticsTestOnLaunch()
+        {
+            if (IsTruthy(System.Environment.GetEnvironmentVariable(CrashlyticsTestEnvironmentVariable)))
+            {
+                return true;
+            }
+
+            foreach (var argument in System.Environment.GetCommandLineArgs())
+            {
+                if (string.Equals(argument, CrashlyticsTestArgument, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsTruthy(string value)
+        {
+            return string.Equals(value, "1", System.StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "true", System.StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "yes", System.StringComparison.OrdinalIgnoreCase);
         }
 #endif
 
@@ -349,6 +433,10 @@ namespace MannLab.Games.Game2048Crash
             resultTitleText.text = "Game Over";
             resultScoreText.text = $"Stage {board.Stage}\nBest {bestStage}";
             resultPanel.SetActive(true);
+            MannLabAdMob.TryShowGameOverInterstitial();
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+            UpdateAdDiagnostics();
+#endif
         }
 
         private void ReadPointerSwipe()
@@ -582,6 +670,9 @@ namespace MannLab.Games.Game2048Crash
             CreateHeader(safeAreaRoot);
             CreateBoard(safeAreaRoot);
             CreateResultPanel(safeAreaRoot);
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+            CreateAdDiagnostics(safeAreaRoot);
+#endif
         }
 
         private static void EnsureEventSystem()
@@ -834,6 +925,56 @@ namespace MannLab.Games.Game2048Crash
 
             resultPanel.SetActive(false);
         }
+
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+        private void CreateAdDiagnostics(Transform parent)
+        {
+            var panel = new GameObject("AdMob Test Diagnostics", typeof(RectTransform), typeof(Image));
+            panel.transform.SetParent(parent, false);
+            var rect = panel.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.offsetMin = new Vector2(32f, 24f);
+            rect.offsetMax = new Vector2(-32f, 116f);
+            panel.GetComponent<Image>().color =
+                new Color(SketchPalette.TilePaper.r, SketchPalette.TilePaper.g, SketchPalette.TilePaper.b, 0.94f);
+            AddSketchOutline(panel.transform);
+
+            adDiagnosticsText = CreateText(panel.transform, string.Empty, 24, TextAnchor.MiddleLeft);
+            var textRect = adDiagnosticsText.GetComponent<RectTransform>();
+            textRect.anchorMin = new Vector2(0f, 0f);
+            textRect.anchorMax = new Vector2(0.72f, 1f);
+            textRect.offsetMin = new Vector2(24f, 8f);
+            textRect.offsetMax = new Vector2(-8f, -8f);
+
+            var testButton = CreateSketchButton(panel.transform, "Test Ad", 24);
+            var buttonRect = testButton.GetComponent<RectTransform>();
+            buttonRect.anchorMin = new Vector2(0.74f, 0.16f);
+            buttonRect.anchorMax = new Vector2(0.98f, 0.84f);
+            buttonRect.offsetMin = Vector2.zero;
+            buttonRect.offsetMax = Vector2.zero;
+            testButton.onClick.AddListener(() =>
+            {
+                MannLabAdMob.TryShowInterstitialForTesting();
+                UpdateAdDiagnostics();
+            });
+
+            UpdateAdDiagnostics();
+        }
+
+        private void UpdateAdDiagnostics()
+        {
+            nextAdDiagnosticsRefreshTime = Time.unscaledTime + 0.5f;
+            if (adDiagnosticsText == null)
+            {
+                return;
+            }
+
+            var state = MannLabAdMob.IsReady ? "ready" : MannLabAdMob.IsLoading ? "loading" : "not ready";
+            adDiagnosticsText.text = $"Ad test build: {state}\n{MannLabAdMob.DiagnosticSummary}";
+        }
+#endif
 
         private static Button CreateSketchButton(Transform parent, string label, int fontSize)
         {

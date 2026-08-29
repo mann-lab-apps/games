@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Build;
@@ -13,10 +14,19 @@ namespace MannLab.Games.Game2048Crash.EditorTools
         private const string ScenePath = "Assets/_Project/Scenes/Game.unity";
         private const string ReleaseOutputPath = "Builds/iOS/Xcode";
         private const string CrashlyticsTestOutputPath = "Builds/iOS/CrashlyticsTestXcode";
+        private const string AdMobTestOutputPath = "Builds/iOS/AdMobTestXcode";
         private const string BundleIdentifier = "com.mannlab.games.game2048crash";
+        private const string ForceAdMobTestAdsDefine = "MANNLAB_ADMOB_FORCE_TEST_ADS";
+        private const string AdMobIosAppIdEnv = "MANNLAB_2048_CRASH_ADMOB_IOS_APP_ID";
+        private const string AdMobIosAppId = "ca-app-pub-4525914685149405~7818820774";
+        private const string AdMobIosTestAppId = "ca-app-pub-3940256099942544~1458002511";
+        private const string MarketingVersionEnv = "MANNLAB_2048_CRASH_IOS_MARKETING_VERSION";
+        private const string DefaultMarketingVersion = "1.0.1";
+        private const string BuildNumberEnv = "MANNLAB_2048_CRASH_IOS_BUILD_NUMBER";
+        private const string DefaultBuildNumber = "2";
         private const string AppleTeamIdEnv = "MANNLAB_APPLE_TEAM_ID";
         private const string DefaultAppleTeamId = "ZRA4DHHKQ4";
-        private const string ProvisioningProfileEnv = "MANNLAB_2048_CRASH_IOS_PROFILE_SPECIFIER";
+        private const string ProvisioningProfileEnv = "MANNLAB_2048_CRASH_IOS_APP_STORE_PROFILE_SPECIFIER";
         private const string DefaultProvisioningProfileSpecifier = "2048 Crash";
         private const string AppIconPath = "Assets/_Project/Art/AppStore/AppIcon-1024.png";
 
@@ -25,17 +35,25 @@ namespace MannLab.Games.Game2048Crash.EditorTools
             BuildRelease();
         }
 
+        [MenuItem("MannLab/2048 Crash/Build iOS Release Xcode")]
         public static void BuildRelease()
         {
             BuildIos(ReleaseOutputPath, false);
         }
 
+        [MenuItem("MannLab/2048 Crash/Build iOS Crashlytics Test Xcode")]
         public static void BuildCrashlyticsTest()
         {
             BuildIos(CrashlyticsTestOutputPath, true);
         }
 
-        private static void BuildIos(string outputPath, bool developmentBuild)
+        [MenuItem("MannLab/2048 Crash/Build iOS AdMob Test Xcode")]
+        public static void BuildAdMobTest()
+        {
+            BuildIos(AdMobTestOutputPath, false, true);
+        }
+
+        private static void BuildIos(string outputPath, bool developmentBuild, bool forceAdMobTestAds = false)
         {
             CreateGameScene.Create();
             Directory.CreateDirectory(outputPath);
@@ -46,31 +64,68 @@ namespace MannLab.Games.Game2048Crash.EditorTools
 
             PlayerSettings.companyName = "Mann Lab";
             PlayerSettings.productName = "2048 Crash";
-            PlayerSettings.bundleVersion = "0.1";
+            PlayerSettings.bundleVersion = GetMarketingVersion();
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleIdentifier);
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
-            PlayerSettings.iOS.buildNumber = "1";
+            PlayerSettings.iOS.buildNumber = GetBuildNumber();
             PlayerSettings.iOS.targetOSVersionString = "15.0";
 
             ApplyAppIcon();
             ApplySigningHint();
 
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            var namedBuildTarget = NamedBuildTarget.iOS;
+            var previousDefines = PlayerSettings.GetScriptingDefineSymbols(namedBuildTarget);
+            try
             {
-                scenes = new[] { ScenePath },
-                locationPathName = outputPath,
-                target = BuildTarget.iOS,
-                options = BuildOptions.None
-            });
+                PlayerSettings.SetScriptingDefineSymbols(
+                    namedBuildTarget,
+                    SetScriptingDefine(previousDefines, ForceAdMobTestAdsDefine, forceAdMobTestAds));
 
-            if (report.summary.result != BuildResult.Succeeded)
+                var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                {
+                    scenes = new[] { ScenePath },
+                    locationPathName = outputPath,
+                    target = BuildTarget.iOS,
+                    options = developmentBuild ? BuildOptions.Development | BuildOptions.AllowDebugging : BuildOptions.None
+                });
+
+                if (report.summary.result != BuildResult.Succeeded)
+                {
+                    throw new InvalidOperationException($"iOS Xcode project build failed: {report.summary.result}");
+                }
+            }
+            finally
             {
-                throw new InvalidOperationException($"iOS Xcode project build failed: {report.summary.result}");
+                PlayerSettings.SetScriptingDefineSymbols(namedBuildTarget, previousDefines);
             }
 
+            RemoveLegacyCocoaPodsSpecsSource(outputPath);
             AddMarketingIconToXcodeProject(outputPath);
             AddSimpleLaunchScreensToXcodeProject(outputPath);
+            ConfigureInfoPlist(outputPath, forceAdMobTestAds);
             ConfigureArchiveSigning(outputPath);
+        }
+
+        private static string SetScriptingDefine(string currentDefines, string define, bool enabled)
+        {
+            var symbols = new List<string>();
+            foreach (var rawSymbol in currentDefines.Split(';'))
+            {
+                var symbol = rawSymbol.Trim();
+                if (string.IsNullOrEmpty(symbol) || symbol == define)
+                {
+                    continue;
+                }
+
+                symbols.Add(symbol);
+            }
+
+            if (enabled)
+            {
+                symbols.Add(define);
+            }
+
+            return string.Join(";", symbols);
         }
 
         private static void ApplySigningHint()
@@ -188,6 +243,44 @@ namespace MannLab.Games.Game2048Crash.EditorTools
             WriteSimpleLaunchScreen(Path.Combine(outputPath, "LaunchScreen-iPad.storyboard"));
         }
 
+        private static void RemoveLegacyCocoaPodsSpecsSource(string outputPath)
+        {
+            var podfilePath = Path.Combine(outputPath, "Podfile");
+            if (!File.Exists(podfilePath))
+            {
+                return;
+            }
+
+            var contents = File.ReadAllText(podfilePath);
+            contents = contents.Replace("source 'https://github.com/CocoaPods/Specs'\n", string.Empty);
+            File.WriteAllText(podfilePath, contents);
+        }
+
+        private static void ConfigureInfoPlist(string outputPath, bool forceAdMobTestAds)
+        {
+            var plistPath = Path.Combine(outputPath, "Info.plist");
+            if (!File.Exists(plistPath))
+            {
+                throw new FileNotFoundException($"Xcode Info.plist not found: {plistPath}");
+            }
+
+            var plist = new PlistDocument();
+            plist.ReadFromFile(plistPath);
+            var appId = GetAdMobIosAppId(forceAdMobTestAds);
+            if (string.IsNullOrWhiteSpace(appId))
+            {
+                plist.root.values.Remove("GADApplicationIdentifier");
+                plist.root.values.Remove("GADIsAdManagerApp");
+            }
+            else
+            {
+                plist.root.SetString("GADApplicationIdentifier", appId);
+                plist.root.SetBoolean("GADIsAdManagerApp", false);
+            }
+
+            plist.WriteToFile(plistPath);
+        }
+
         private static void WriteSimpleLaunchScreen(string path)
         {
             File.WriteAllText(path, @"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -282,6 +375,44 @@ namespace MannLab.Games.Game2048Crash.EditorTools
             }
 
             return DefaultProvisioningProfileSpecifier;
+        }
+
+        private static string GetAdMobIosAppId(bool forceAdMobTestAds)
+        {
+            if (forceAdMobTestAds)
+            {
+                return AdMobIosTestAppId;
+            }
+
+            var appId = Environment.GetEnvironmentVariable(AdMobIosAppIdEnv);
+            if (!string.IsNullOrWhiteSpace(appId))
+            {
+                return appId;
+            }
+
+            return AdMobIosAppId;
+        }
+
+        private static string GetMarketingVersion()
+        {
+            var version = Environment.GetEnvironmentVariable(MarketingVersionEnv);
+            if (!string.IsNullOrWhiteSpace(version))
+            {
+                return version;
+            }
+
+            return DefaultMarketingVersion;
+        }
+
+        private static string GetBuildNumber()
+        {
+            var buildNumber = Environment.GetEnvironmentVariable(BuildNumberEnv);
+            if (!string.IsNullOrWhiteSpace(buildNumber))
+            {
+                return buildNumber;
+            }
+
+            return DefaultBuildNumber;
         }
 
         private static void HardenIl2CppBuildScript(string projectPath)

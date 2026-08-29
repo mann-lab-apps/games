@@ -108,6 +108,32 @@ Crashlytics custom keys:
 - `best_stage`
 - `game_over`
 
+## AdMob 광고
+
+2048 Crash Game Over Interstitial:
+
+- 게임오버 결과 패널이 열린 뒤 interstitial 표시를 시도한다.
+- 기본 노출 간격은 게임오버 1회마다 1회다.
+- `MANNLAB_ADMOB_FORCE_TEST_ADS` define이 켜진 AdMob test build에서는 공식 Google 테스트 광고를 사용하고 같은 간격으로 표시한다.
+- production iOS App ID는 `ca-app-pub-4525914685149405~7818820774`를 사용한다.
+- production iOS Game Over Interstitial 광고 단위 ID는 `ca-app-pub-4525914685149405/6947652887`를 사용한다.
+- production Android 광고 단위 ID는 아직 비워 둔다. Android용 AdMob 앱과 interstitial unit을 만든 뒤 코드 상수를 교체한다.
+
+AdMob test IDs:
+
+- Android app: `ca-app-pub-3940256099942544~3347511713`
+- Android interstitial: `ca-app-pub-3940256099942544/1033173712`
+- iOS app: `ca-app-pub-3940256099942544~1458002511`
+- iOS interstitial: `ca-app-pub-3940256099942544/4411468910`
+
+릴리즈 제출 전 확인:
+
+- 새 App Store Connect 버전은 `1.0.1`로 만들거나, 다른 버전명을 쓰는 경우 `MANNLAB_2048_CRASH_IOS_MARKETING_VERSION`으로 Unity iOS export 버전을 맞춘다.
+- `MANNLAB_2048_CRASH_ADMOB_IOS_APP_ID`는 기본 production iOS AdMob app ID를 override해야 할 때만 사용한다.
+- `MANNLAB_2048_CRASH_ADMOB_ANDROID_APP_ID`가 2048 Crash 전용 Android AdMob app ID인지 확인한다.
+- `GameOverInterstitialIosAdUnitId`와 `GameOverInterstitialAndroidAdUnitId`가 2048 Crash 전용 interstitial ad unit ID인지 확인한다.
+- 공개 privacy policy와 App Store privacy 답변은 Firebase Analytics/Crashlytics와 Google AdMob 사용을 반영한다.
+
 ## App Store 출시 준비
 
 - 출시 준비 문서: `docs/2048-crash-app-store-prep.md`

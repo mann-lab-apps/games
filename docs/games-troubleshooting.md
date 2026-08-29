@@ -89,7 +89,7 @@ Crashlytics run script 경고는 output file 목록이 없어서 매번 실행�
 
 ### AdMob/CocoaPods Builds Must Archive The Workspace
 
-Google Mobile Ads가 들어간 Unity iOS export는 `Unity-iPhone.xcodeproj`가 아니라 `Unity-iPhone.xcworkspace`를 열거나 지정해야 한다.
+Google Mobile Ads가 들어간 Unity iOS export는 `Unity-iPhone.xcodeproj`가 아니라 `Unity-iPhone.xcworkspace`를 열거나 지정해야 한다. 2048 Crash와 2048 Blink 모두 이 규칙을 따른다.
 
 잘못된 입력:
 
@@ -143,7 +143,7 @@ Archive metadata도 같이 확인한다.
 
 ### Test Ad Build vs Release Build
 
-2048 Blink에는 AdMob 확인용 `admob-test` iOS build가 따로 있다. 이 빌드는 release-style device build지만 `MANNLAB_ADMOB_FORCE_TEST_ADS` define을 켜서 Google test interstitial을 사용하고, 게임오버 1회마다 광고를 보여준다. TestFlight에서 광고 표시 여부를 빠르게 확인할 때만 사용하고 App Review에는 제출하지 않는다.
+2048 Crash와 2048 Blink에는 AdMob 확인용 `admob-test` iOS build가 따로 있다. 이 빌드는 release-style device build지만 `MANNLAB_ADMOB_FORCE_TEST_ADS` define을 켜서 Google test interstitial을 사용하고, 게임오버 1회마다 광고를 보여준다. TestFlight에서 광고 표시 여부를 빠르게 확인할 때만 사용하고 App Review에는 제출하지 않는다.
 
 Release build는 테스트 UI 문자열이 없어야 하고 production interstitial unit만 들어 있어야 한다.
 

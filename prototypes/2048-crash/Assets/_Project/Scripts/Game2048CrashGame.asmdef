@@ -2,7 +2,8 @@
   "name": "MannLab.Games.Game2048Crash",
   "rootNamespace": "MannLab.Games.Game2048Crash",
   "references": [
-    "MannLab.HyperCasual.Core"
+    "MannLab.HyperCasual.Core",
+    "MannLab.Ads.Core"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

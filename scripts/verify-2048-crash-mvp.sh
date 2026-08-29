@@ -2,17 +2,33 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-unity_root="/Applications/Unity/Hub/Editor/6000.3.20f1/Unity.app/Contents"
+project="$repo_root/prototypes/2048-crash"
+project_unity_version="$(awk '/m_EditorVersion:/ {print $2; exit}' "$project/ProjectSettings/ProjectVersion.txt")"
+unity_version="${UNITY_EDITOR_VERSION:-$project_unity_version}"
+unity_root="/Applications/Unity/Hub/Editor/$unity_version/Unity.app/Contents"
+if [[ ! -x "$unity_root/MacOS/Unity" ]]; then
+  latest_unity_app="$(find /Applications/Unity/Hub/Editor -maxdepth 2 -path '*/Unity.app' -type d 2>/dev/null | sort | tail -1 || true)"
+  if [[ -n "$latest_unity_app" ]]; then
+    unity_root="$latest_unity_app/Contents"
+  fi
+fi
 mono="$unity_root/Resources/Scripting/MonoBleedingEdge/bin/mono"
 csc="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/4.5/csc.exe"
 managed="$unity_root/Resources/Scripting/Managed"
 unity="$managed/UnityEngine"
 xcode_dll="$unity_root/PlaybackEngines/MacStandaloneSupport/UnityEditor.iOS.Extensions.Xcode.dll"
 mono_lib="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/unityjit-macos"
-ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.template.2d-cross-platform-2d-6.1.2/ScriptAssemblies/UnityEngine.UI.dll"
-project="$repo_root/prototypes/2048-crash"
+ugui="$(find "$unity_root/Resources/PackageManager/ProjectTemplates/libcache" -path '*/ScriptAssemblies/UnityEngine.UI.dll' -type f 2>/dev/null | head -1 || true)"
 shared_runtime="$repo_root/shared/unity-packages/com.mannlab.hypercasual-core/Runtime"
+admob_runtime="$repo_root/shared/unity-packages/com.mannlab.admob-core/Runtime"
+firebase_plugins="$project/Assets/Firebase/Plugins"
 tmpdir="$(mktemp -d)"
+
+if [[ ! -x "$mono" || ! -f "$csc" || ! -f "$ugui" ]]; then
+  echo "Unity compile tools not found under: $unity_root" >&2
+  echo "Set UNITY_EDITOR_VERSION=<installed-version> and retry." >&2
+  exit 2
+fi
 
 runtime_dll="$tmpdir/Game2048CrashRuntime.dll"
 editor_dll="$tmpdir/Game2048CrashEditor.dll"
@@ -28,7 +44,12 @@ editor_dll="$tmpdir/Game2048CrashEditor.dll"
   -r:"$unity/UnityEngine.InputLegacyModule.dll" \
   -r:"$unity/UnityEngine.IMGUIModule.dll" \
   -r:"$ugui" \
+  -r:"$firebase_plugins/Firebase.App.dll" \
+  -r:"$firebase_plugins/Firebase.Analytics.dll" \
+  -r:"$firebase_plugins/Firebase.Crashlytics.dll" \
+  -r:"$firebase_plugins/Firebase.TaskExtension.dll" \
   "$shared_runtime"/*.cs \
+  "$admob_runtime"/*.cs \
   "$project"/Assets/_Project/Scripts/*.cs
 
 "$mono" "$csc" -target:library -nologo -nostdlib -out:"$editor_dll" \
