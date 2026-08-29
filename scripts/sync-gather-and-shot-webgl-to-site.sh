@@ -24,6 +24,11 @@ done
 perl -pi -e 's/gather-and-shot\.data\.gz/gather-and-shot.data/g; s/gather-and-shot\.framework\.js\.gz/gather-and-shot.framework.js/g; s/gather-and-shot\.wasm\.gz/gather-and-shot.wasm/g' "$target_dir/index.html"
 perl -pi -e 's/canvas\.style\.width = "960px";/canvas.style.width = "100%";/g; s/canvas\.style\.height = "600px";/canvas.style.height = "100%";/g' "$target_dir/index.html"
 
+# GitHub Pages may dynamically gzip raw .wasm responses. Unity's streaming
+# instantiate path can warn before falling back, so use the stable ArrayBuffer
+# path for the public build.
+perl -pi -e 's/!binary&&typeof WebAssembly\.instantiateStreaming=="function"/!binary&&false&&typeof WebAssembly.instantiateStreaming=="function"/g' "$target_dir/Build/gather-and-shot.framework.js"
+
 asset_version="$(
   shasum -a 256 \
     "$target_dir/Build/gather-and-shot.data" \
