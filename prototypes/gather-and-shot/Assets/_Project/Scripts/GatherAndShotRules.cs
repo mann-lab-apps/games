@@ -25,7 +25,7 @@ namespace MannLab.Games.GatherAndShot
     public readonly struct GatherAndShotBalance
     {
         public const float MaxWarmth = 100f;
-        public const int MaxAmmo = 8;
+        public const int MaxAmmo = 10;
         public const float FireRange = 4.25f;
         public const float FireCooldownSeconds = 0.45f;
         public const float ContactDamage = 18f;
@@ -35,7 +35,9 @@ namespace MannLab.Games.GatherAndShot
         public const float ProjectileHitRadius = 0.34f;
         public const float SpawnRampSeconds = 180f;
         public const float SpeedRampSeconds = 210f;
-        public const int MaxLivePickups = 12;
+        public const float StationaryGatherDelaySeconds = 0.18f;
+        public const int StationaryGatherAmmo = 1;
+        public const int MaxLivePickups = 3;
 
         public static float PlayerSpeed(float elapsedSeconds)
         {
@@ -60,12 +62,17 @@ namespace MannLab.Games.GatherAndShot
 
         public static float PickupSpawnGapMin(float elapsedSeconds)
         {
-            return Lerp(1.05f, 0.85f, Saturate(elapsedSeconds / SpawnRampSeconds));
+            return Lerp(5.8f, 4.4f, Saturate(elapsedSeconds / SpawnRampSeconds));
         }
 
         public static float PickupSpawnGapMax(float elapsedSeconds)
         {
-            return Lerp(1.85f, 1.45f, Saturate(elapsedSeconds / SpawnRampSeconds));
+            return Lerp(9.2f, 6.8f, Saturate(elapsedSeconds / SpawnRampSeconds));
+        }
+
+        public static float StationaryGatherCycleSeconds(float elapsedSeconds)
+        {
+            return Lerp(0.82f, 0.62f, Saturate(elapsedSeconds / SpeedRampSeconds));
         }
 
         public static int StartingHealth(EnemyKind kind)
@@ -96,11 +103,11 @@ namespace MannLab.Games.GatherAndShot
             switch (kind)
             {
                 case PickupKind.BigSnowdrift:
-                    return 5;
+                    return 6;
                 case PickupKind.Snowdrift:
-                    return 3;
+                    return 4;
                 default:
-                    return 1;
+                    return 2;
             }
         }
 
@@ -123,19 +130,6 @@ namespace MannLab.Games.GatherAndShot
             return kind == PickupKind.BigSnowdrift ? 0.72f : BasePickupRadius;
         }
 
-        public static float PickupGatherSeconds(PickupKind kind)
-        {
-            switch (kind)
-            {
-                case PickupKind.BigSnowdrift:
-                    return 0.95f;
-                case PickupKind.Snowdrift:
-                    return 0.55f;
-                default:
-                    return 0.22f;
-            }
-        }
-
         public static PickupKind RollPickupKind(Random random, float elapsedSeconds)
         {
             if (random == null)
@@ -144,8 +138,8 @@ namespace MannLab.Games.GatherAndShot
             }
 
             var t = Saturate(elapsedSeconds / SpawnRampSeconds);
-            var bigChance = elapsedSeconds < 9f ? 0.01d : 0.045d + 0.025d * t;
-            var driftChance = 0.20d + 0.04d * t;
+            var bigChance = elapsedSeconds < 12f ? 0.08d : 0.16d + 0.06d * t;
+            var driftChance = 0.34d + 0.08d * t;
             var roll = random.NextDouble();
 
             if (roll < bigChance)

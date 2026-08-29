@@ -61,18 +61,26 @@ public static class VerifyGatherAndShotRules
     public static int Main()
     {
         var maxAmmo = GatherAndShotBalance.MaxAmmo;
-        if (maxAmmo != 8)
+        if (maxAmmo != 10)
         {
             Console.Error.WriteLine("Ammo cap drifted from the MVP design.");
             return 1;
         }
 
-        if (GatherAndShotBalance.PickupAmmo("Ball") != 1
-            || GatherAndShotBalance.PickupAmmo("Drift") != 3
-            || GatherAndShotBalance.PickupAmmo("BigSnowdrift") != 5
-            || GatherAndShotBalance.PickupAmmo(PickupKind.BigSnowdrift) != 5)
+        if (GatherAndShotBalance.StationaryGatherDelaySeconds <= 0f
+            || GatherAndShotBalance.StationaryGatherAmmo != 1
+            || GatherAndShotBalance.StationaryGatherCycleSeconds(0f) <= GatherAndShotBalance.StationaryGatherCycleSeconds(180f))
         {
-            Console.Error.WriteLine("Pickup ammo values are wrong.");
+            Console.Error.WriteLine("Stationary snow gathering should be active and improve slightly over time.");
+            return 1;
+        }
+
+        if (GatherAndShotBalance.PickupAmmo("Ball") != 2
+            || GatherAndShotBalance.PickupAmmo("Drift") != 4
+            || GatherAndShotBalance.PickupAmmo("BigSnowdrift") != 6
+            || GatherAndShotBalance.PickupAmmo(PickupKind.BigSnowdrift) != 6)
+        {
+            Console.Error.WriteLine("Emergency bonus pickup ammo values are wrong.");
             return 1;
         }
 
@@ -82,19 +90,11 @@ public static class VerifyGatherAndShotRules
             return 1;
         }
 
-        if (GatherAndShotBalance.MaxLivePickups > 12
-            || GatherAndShotBalance.PickupSpawnGapMin(0f) < 1f
+        if (GatherAndShotBalance.MaxLivePickups > 3
+            || GatherAndShotBalance.PickupSpawnGapMin(0f) < 5f
             || GatherAndShotBalance.PickupSpawnGapMax(0f) < GatherAndShotBalance.PickupSpawnGapMin(0f))
         {
-            Console.Error.WriteLine("Snow pickup spawn pressure is too generous for the gathering-risk design.");
-            return 1;
-        }
-
-        if (GatherAndShotBalance.PickupGatherSeconds(PickupKind.Snowball) <= 0f
-            || GatherAndShotBalance.PickupGatherSeconds(PickupKind.Snowdrift) <= GatherAndShotBalance.PickupGatherSeconds(PickupKind.Snowball)
-            || GatherAndShotBalance.PickupGatherSeconds(PickupKind.BigSnowdrift) <= GatherAndShotBalance.PickupGatherSeconds(PickupKind.Snowdrift))
-        {
-            Console.Error.WriteLine("Pickup gathering risk should scale with snow size.");
+            Console.Error.WriteLine("Emergency bonus pickup pressure is too generous for the stationary-gather design.");
             return 1;
         }
 

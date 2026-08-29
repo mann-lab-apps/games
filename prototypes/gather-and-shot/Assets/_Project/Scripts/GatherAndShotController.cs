@@ -69,6 +69,8 @@ namespace MannLab.Games.GatherAndShot
         private Text bestText;
         private Text ammoText;
         private Image warmthFill;
+        private RectTransform gatherBack;
+        private Image gatherFill;
         private GameObject resultPanel;
         private Text resultScoreText;
         private Vector2 playerPosition;
@@ -86,6 +88,7 @@ namespace MannLab.Games.GatherAndShot
         private float nextFireAt;
         private float contactReadyAt;
         private float directionGuideShownAt;
+        private float stationaryGatherReadyAt;
         private float gatheringStartedAt;
         private float gatheringUntil;
         private int pendingGatherAmmo;
@@ -209,18 +212,19 @@ namespace MannLab.Games.GatherAndShot
             nextFireAt = 0f;
             contactReadyAt = 0f;
             directionGuideShownAt = 0f;
+            stationaryGatherReadyAt = Time.time + GatherAndShotBalance.StationaryGatherDelaySeconds;
             ClearGathering();
             bestScore = PlayerPrefs.GetInt(BestScoreKey, 0);
             resultPanel.SetActive(false);
             playerRenderer.transform.position = playerPosition;
 
-            for (var i = 0; i < 7; i++)
+            for (var i = 0; i < 2; i++)
             {
-                SpawnPickup(i % 3 == 0 ? PickupKind.Snowdrift : PickupKind.Snowball);
+                SpawnPickup(i == 0 ? PickupKind.Snowdrift : PickupKind.Snowball);
             }
 
             nextSpawnAt = Time.time + 0.45f;
-            nextPickupAt = Time.time + 0.25f;
+            nextPickupAt = Time.time + 5.2f;
             UpdateHud();
             UpdateTelemetryContext();
             FirebaseTelemetry.LogEvent(
@@ -359,7 +363,7 @@ namespace MannLab.Games.GatherAndShot
             var top = CreateRect(gameSquareRoot, "Top HUD", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -218f), new Vector2(0f, -24f));
             bestText = CreateText(top, "Best", "BEST 0", 32, TextAnchor.UpperLeft, new Vector2(0f, 1f), new Vector2(36f, -18f), new Vector2(300f, 56f));
             scoreText = CreateText(top, "Score", "0", 60, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(260f, 78f));
-            ammoText = CreateText(top, "Ammo", "SNOW x3", 34, TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(-36f, -22f), new Vector2(300f, 58f));
+            ammoText = CreateText(top, "Ammo", "SNOW 3/10", 34, TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(-36f, -22f), new Vector2(300f, 58f));
 
             var warmthBack = CreatePanel(top, "Warmth Back", new Vector2(0.5f, 1f), new Vector2(WarmthBarWidth, 38f), SketchPalette.WarmShadow);
             warmthBack.anchoredPosition = new Vector2(0f, -112f);
@@ -369,6 +373,16 @@ namespace MannLab.Games.GatherAndShot
             warmthFill.rectTransform.pivot = new Vector2(0f, 0.5f);
             warmthFill.rectTransform.offsetMin = Vector2.zero;
             warmthFill.rectTransform.offsetMax = Vector2.zero;
+
+            gatherBack = CreatePanel(top, "Gather Back", new Vector2(0.5f, 1f), new Vector2(360f, 22f), new Color32(255, 253, 247, 138));
+            gatherBack.anchoredPosition = new Vector2(0f, -166f);
+            gatherFill = CreateImage(gatherBack, "Gather Fill", AmmoColor);
+            gatherFill.rectTransform.anchorMin = new Vector2(0f, 0f);
+            gatherFill.rectTransform.anchorMax = new Vector2(0f, 1f);
+            gatherFill.rectTransform.pivot = new Vector2(0f, 0.5f);
+            gatherFill.rectTransform.offsetMin = Vector2.zero;
+            gatherFill.rectTransform.offsetMax = Vector2.zero;
+            gatherBack.gameObject.SetActive(false);
 
             joystickRoot = gameSquareRoot;
             joystickBase = CreatePanel(gameSquareRoot, "Move Direction Guide", new Vector2(0.5f, 0.5f), new Vector2(230f, 230f), new Color32(255, 253, 247, 118));
@@ -424,6 +438,11 @@ namespace MannLab.Games.GatherAndShot
 
         private void BeginJoystick(Vector2 screenPosition)
         {
+            if (IsGathering)
+            {
+                CancelGathering();
+            }
+
             joystickAnchorScreen = screenPosition;
             joystickHeld = true;
             UpdateJoystickVisual(true);
@@ -456,6 +475,7 @@ namespace MannLab.Games.GatherAndShot
         {
             joystickHeld = false;
             joystickVector = Vector2.zero;
+            stationaryGatherReadyAt = Time.time + GatherAndShotBalance.StationaryGatherDelaySeconds;
             UpdateJoystickVisual(false);
         }
 
@@ -585,11 +605,11 @@ namespace MannLab.Games.GatherAndShot
 
         private Vector2 ChoosePickupPosition(PickupKind kind)
         {
-            if (kind == PickupKind.BigSnowdrift && enemies.Count > 0 && random.NextDouble() < 0.75d)
+            if (kind != PickupKind.Snowball && enemies.Count > 0 && random.NextDouble() < 0.68d)
             {
                 var enemy = enemies[random.Next(enemies.Count)];
                 var angle = RandomRange(0f, Mathf.PI * 2f);
-                var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * RandomRange(0.9f, 1.8f);
+                var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * RandomRange(1.1f, 2.1f);
                 return ClampToPlayfield(enemy.Position + offset, 0.65f);
             }
 
@@ -657,27 +677,43 @@ namespace MannLab.Games.GatherAndShot
 
                 if (Vector2.Distance(playerPosition, pickup.Position) <= GatherAndShotBalance.PickupRadius(pickup.Kind))
                 {
-                    BeginGathering(pickup.Kind, pickup.Position);
+                    CollectBonusPickup(pickup.Kind, pickup.Position);
                     Destroy(pickup.Renderer.gameObject);
                     pickups.RemoveAt(i);
                 }
             }
         }
 
-        private void BeginGathering(PickupKind kind, Vector2 position)
+        private void CollectBonusPickup(PickupKind kind, Vector2 position)
         {
-            gatheringKind = kind;
-            pendingGatherAmmo = GatherAndShotBalance.PickupAmmo(kind);
+            var bonusAmmo = GatherAndShotBalance.PickupAmmo(kind);
+            ammo = Mathf.Min(GatherAndShotBalance.MaxAmmo, ammo + bonusAmmo);
+            SpawnBurst(position, kind == PickupKind.BigSnowdrift ? 1.05f : kind == PickupKind.Snowdrift ? 0.78f : 0.52f, kind == PickupKind.BigSnowdrift ? 10 : 6);
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "bonus_pickup",
+                new Dictionary<string, string>
+                {
+                    { "pickup_kind", kind.ToString() },
+                    { "bonus_ammo", bonusAmmo.ToString() },
+                    { "score", score.ToString() }
+                });
+        }
+
+        private void BeginStationaryGathering()
+        {
+            gatheringKind = PickupKind.Snowball;
+            pendingGatherAmmo = GatherAndShotBalance.StationaryGatherAmmo;
             gatheringStartedAt = Time.time;
-            gatheringUntil = Time.time + GatherAndShotBalance.PickupGatherSeconds(kind);
+            gatheringUntil = Time.time + GatherAndShotBalance.StationaryGatherCycleSeconds(elapsedSeconds);
             playerVelocity = Vector2.zero;
             playerRenderer.transform.position = playerPosition;
-            SpawnBurst(position, kind == PickupKind.BigSnowdrift ? 0.45f : 0.28f, kind == PickupKind.BigSnowdrift ? 4 : 2);
+            SpawnBurst(playerPosition, 0.24f, 2);
             FirebaseTelemetry.LogEvent(
                 "gather_start",
                 new Dictionary<string, string>
                 {
-                    { "pickup_kind", kind.ToString() },
+                    { "source", "stationary" },
                     { "pending_ammo", pendingGatherAmmo.ToString() },
                     { "score", score.ToString() }
                 });
@@ -686,8 +722,33 @@ namespace MannLab.Games.GatherAndShot
 
         private void UpdateGathering()
         {
+            if (joystickHeld)
+            {
+                if (IsGathering)
+                {
+                    CancelGathering();
+                }
+
+                return;
+            }
+
+            if (ammo >= GatherAndShotBalance.MaxAmmo)
+            {
+                if (IsGathering)
+                {
+                    ClearGathering();
+                }
+
+                return;
+            }
+
             if (!IsGathering)
             {
+                if (Time.time >= stationaryGatherReadyAt && playerVelocity.sqrMagnitude < 0.06f)
+                {
+                    BeginStationaryGathering();
+                }
+
                 return;
             }
 
@@ -700,9 +761,16 @@ namespace MannLab.Games.GatherAndShot
             }
 
             ammo = Mathf.Min(GatherAndShotBalance.MaxAmmo, ammo + pendingGatherAmmo);
-            SpawnBurst(playerPosition, gatheringKind == PickupKind.BigSnowdrift ? 1.05f : 0.72f, gatheringKind == PickupKind.BigSnowdrift ? 10 : 6);
+            SpawnBurst(playerPosition, 0.72f, 6);
             UpdateTelemetryContext();
-            ClearGathering();
+            if (ammo < GatherAndShotBalance.MaxAmmo)
+            {
+                BeginStationaryGathering();
+            }
+            else
+            {
+                ClearGathering();
+            }
         }
 
         private void UpdateGatheringVisual(float progress)
@@ -714,11 +782,17 @@ namespace MannLab.Games.GatherAndShot
 
             gatheringRenderer.gameObject.SetActive(true);
             gatheringRenderer.transform.position = new Vector3(playerPosition.x, playerPosition.y - 0.06f, 0f);
-            var baseScale = gatheringKind == PickupKind.BigSnowdrift ? 0.92f : gatheringKind == PickupKind.Snowdrift ? 0.68f : 0.46f;
-            gatheringRenderer.transform.localScale = Vector3.one * baseScale * Mathf.Lerp(0.72f, 1.1f, progress);
+            const float baseScale = 0.64f;
+            gatheringRenderer.transform.localScale = Vector3.one * baseScale * Mathf.Lerp(0.72f, 1.18f, progress);
             var color = Color.white;
             color.a = Mathf.Lerp(0.28f, 0.58f, Mathf.Sin(progress * Mathf.PI));
             gatheringRenderer.color = color;
+        }
+
+        private void CancelGathering()
+        {
+            ClearGathering();
+            SpawnBurst(playerPosition, 0.28f, 2);
         }
 
         private void ClearGathering()
@@ -730,6 +804,11 @@ namespace MannLab.Games.GatherAndShot
             if (gatheringRenderer != null)
             {
                 gatheringRenderer.gameObject.SetActive(false);
+            }
+
+            if (gatherBack != null)
+            {
+                gatherBack.gameObject.SetActive(false);
             }
 
             if (playerRenderer != null)
@@ -949,8 +1028,22 @@ namespace MannLab.Games.GatherAndShot
         {
             scoreText.text = score.ToString();
             bestText.text = $"BEST {bestScore}";
-            ammoText.text = $"SNOW x{ammo}";
+            ammoText.text = IsGathering ? $"SNOW {ammo}/{GatherAndShotBalance.MaxAmmo} +" : $"SNOW {ammo}/{GatherAndShotBalance.MaxAmmo}";
             warmthFill.rectTransform.sizeDelta = new Vector2(WarmthBarWidth * Mathf.Clamp01(warmth / GatherAndShotBalance.MaxWarmth), 0f);
+            if (gatherBack == null || gatherFill == null)
+            {
+                return;
+            }
+
+            gatherBack.gameObject.SetActive(IsGathering);
+            if (!IsGathering)
+            {
+                return;
+            }
+
+            var duration = Mathf.Max(0.01f, gatheringUntil - gatheringStartedAt);
+            var progress = Mathf.Clamp01((Time.time - gatheringStartedAt) / duration);
+            gatherFill.rectTransform.sizeDelta = new Vector2(360f * progress, 0f);
         }
 
         private void UpdateTelemetryContext()
