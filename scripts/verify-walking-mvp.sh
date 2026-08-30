@@ -8,6 +8,7 @@ csc="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/4.5/csc.exe"
 managed="$unity_root/Resources/Scripting/Managed"
 unity="$managed/UnityEngine"
 mono_lib="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/unityjit-macos"
+ios_xcode="$unity_root/PlaybackEngines/iOSSupport/UnityEditor.iOS.Extensions.Xcode.dll"
 ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.template.2d-cross-platform-2d-6.1.7/ScriptAssemblies/UnityEngine.UI.dll"
 nunit="$unity_root/Resources/PackageManager/BuiltInPackages/com.unity.ext.nunit/net40/unity-custom/nunit.framework.dll"
 project="$repo_root/prototypes/walking"
@@ -25,6 +26,10 @@ fi
 
 if [[ ! -f "$ugui" ]]; then
   ugui="$(find "$unity_root/Resources/PackageManager/ProjectTemplates/libcache" -path '*/ScriptAssemblies/UnityEngine.UI.dll' | head -n 1)"
+fi
+
+if [[ ! -f "$ios_xcode" ]]; then
+  ios_xcode="$(find "$unity_root" -name 'UnityEditor.iOS.Extensions.Xcode.dll' | head -n 1)"
 fi
 
 "$mono" "$csc" -target:library -nologo -nostdlib -out:"$runtime_dll" \
@@ -51,6 +56,7 @@ fi
   -r:"$mono_lib/Facades/netstandard.dll" \
   -r:"$managed/UnityEngine/UnityEditor.CoreModule.dll" \
   -r:"$managed/UnityEngine/UnityEditor.SceneViewModule.dll" \
+  -r:"$ios_xcode" \
   -r:"$unity/UnityEngine.CoreModule.dll" \
   -r:"$unity/UnityEngine.AudioModule.dll" \
   -r:"$unity/UnityEngine.UIModule.dll" \

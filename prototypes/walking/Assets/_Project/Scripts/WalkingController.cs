@@ -65,6 +65,7 @@ namespace MannLab.Games.Walking
         private GUIStyle smallHudStyle;
         private GUIStyle titleStyle;
         private GUIStyle hintStyle;
+        private GUIStyle guideStyle;
         private GUIStyle buttonStyle;
 
         private Vector2 leftFootPosition;
@@ -101,6 +102,7 @@ namespace MannLab.Games.Walking
             public InputMode Mode { get; set; }
             public int FingerId { get; set; } = int.MinValue;
             public Vector2 ScreenPosition { get; set; }
+            public Vector2 BestStepScreenPosition { get; set; }
             public WalkingFootPlacement Candidate { get; set; }
             public float StatusPulse { get; set; }
         }
@@ -160,6 +162,7 @@ namespace MannLab.Games.Walking
             foot.Mode = InputMode.Idle;
             foot.FingerId = int.MinValue;
             foot.ScreenPosition = Vector2.zero;
+            foot.BestStepScreenPosition = Vector2.zero;
             foot.Candidate = default;
             foot.StatusPulse = 0f;
         }
@@ -436,6 +439,7 @@ namespace MannLab.Games.Walking
 
             foot.FingerId = pointerId;
             foot.ScreenPosition = screenPosition;
+            foot.BestStepScreenPosition = screenPosition;
             activeTouches[pointerId] = foot;
 
             if (foot.NeedsReturn)
@@ -460,6 +464,10 @@ namespace MannLab.Games.Walking
             if (foot.Mode == InputMode.Placement)
             {
                 foot.ScreenPosition = screenPosition;
+                if (screenPosition.y > foot.BestStepScreenPosition.y)
+                {
+                    foot.BestStepScreenPosition = screenPosition;
+                }
             }
         }
 
@@ -510,7 +518,7 @@ namespace MannLab.Games.Walking
                 foot.Side,
                 support,
                 facing,
-                foot.ScreenPosition,
+                foot.BestStepScreenPosition,
                 new Vector2(Screen.width, Screen.height));
             foot.Candidate = WalkingRules.ValidateFootPlacement(foot.Side, support, candidate, facing, maze);
         }
@@ -641,6 +649,11 @@ namespace MannLab.Games.Walking
             var scale = Mathf.Clamp(Screen.width / 720f, 0.8f, 1.55f);
             var margin = 22f * scale;
             var topHeight = 68f * scale;
+            if (state != WalkingGameState.Result)
+            {
+                DrawInputGuide(scale, state == WalkingGameState.Ready || steps < 8 || leftFoot.NeedsReturn || rightFoot.NeedsReturn);
+            }
+
             DrawGuiRect(new Rect(margin, margin, Screen.width - margin * 2f, topHeight), new Color(1f, 0.99f, 0.96f, 0.82f));
             GUI.Label(new Rect(margin + 18f * scale, margin + 12f * scale, 240f * scale, topHeight), $"{distanceMeters:0.0} m", hudStyle);
             GUI.Label(new Rect(Screen.width - margin - 260f * scale, margin + 10f * scale, 240f * scale, topHeight), $"BEST {bestDistanceMeters:0.0}\n{steps} STEPS", smallHudStyle);
@@ -650,9 +663,7 @@ namespace MannLab.Games.Walking
 
             if (state == WalkingGameState.Ready)
             {
-                DrawGuiRect(new Rect(Screen.width * 0.16f, Screen.height * 0.28f, Screen.width * 0.68f, 170f * scale), new Color(1f, 0.99f, 0.96f, 0.84f));
-                GUI.Label(new Rect(Screen.width * 0.16f, Screen.height * 0.29f, Screen.width * 0.68f, 80f * scale), "Walking", titleStyle);
-                GUI.Label(new Rect(Screen.width * 0.16f, Screen.height * 0.36f, Screen.width * 0.68f, 80f * scale), "Step high. Pull low. Repeat.", hintStyle);
+                DrawReadyCoach(scale);
             }
             else if (state == WalkingGameState.Result)
             {
@@ -663,6 +674,82 @@ namespace MannLab.Games.Walking
                     ResetRun();
                 }
             }
+        }
+
+        private void DrawInputGuide(float scale, bool showLabels)
+        {
+            var splitTop = Screen.height * 0.16f;
+            var returnTop = Screen.height * (1f - WalkingRules.ReturnGestureMaxScreenY);
+            var lowHeight = Screen.height - returnTop;
+            var leftLowColor = leftFoot.NeedsReturn || leftFoot.Mode == InputMode.Return
+                ? new Color(Blue.r, Blue.g, Blue.b, 0.13f)
+                : new Color(Blue.r, Blue.g, Blue.b, 0.055f);
+            var rightLowColor = rightFoot.NeedsReturn || rightFoot.Mode == InputMode.Return
+                ? new Color(Blue.r, Blue.g, Blue.b, 0.13f)
+                : new Color(Blue.r, Blue.g, Blue.b, 0.055f);
+
+            DrawGuiRect(new Rect(0f, returnTop, Screen.width * 0.5f, lowHeight), leftLowColor);
+            DrawGuiRect(new Rect(Screen.width * 0.5f, returnTop, Screen.width * 0.5f, lowHeight), rightLowColor);
+            DrawGuiRect(new Rect(Screen.width * 0.5f - 1f * scale, splitTop, 2f * scale, Screen.height - splitTop), new Color(Ink.r, Ink.g, Ink.b, 0.13f));
+            DrawGuiRect(new Rect(0f, returnTop, Screen.width, 2f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.12f));
+
+            if (!showLabels)
+            {
+                return;
+            }
+
+            DrawGuideChip(new Rect(26f * scale, Screen.height * 0.18f, 150f * scale, 38f * scale), "STEP HIGH", Warm, scale);
+            DrawGuideChip(new Rect(Screen.width - 176f * scale, Screen.height * 0.18f, 150f * scale, 38f * scale), "STEP HIGH", Warm, scale);
+            DrawGuideChip(new Rect(26f * scale, Screen.height - 150f * scale, 160f * scale, 38f * scale), "PULL LOW", Blue, scale);
+            DrawGuideChip(new Rect(Screen.width - 186f * scale, Screen.height - 150f * scale, 160f * scale, 38f * scale), "PULL LOW", Blue, scale);
+        }
+
+        private void DrawReadyCoach(float scale)
+        {
+            var panel = new Rect(Screen.width * 0.09f, Screen.height * 0.20f, Screen.width * 0.82f, Screen.height * 0.39f);
+            DrawGuiRect(panel, new Color(1f, 0.99f, 0.96f, 0.9f));
+            GUI.Label(new Rect(panel.x + 18f * scale, panel.y + 12f * scale, panel.width - 36f * scale, 44f * scale), "Tap high. Lift. Pull low.", hintStyle);
+
+            var gap = 18f * scale;
+            var laneTop = panel.y + 68f * scale;
+            var laneHeight = panel.height - 86f * scale;
+            var laneWidth = (panel.width - gap * 3f) * 0.5f;
+            var leftLane = new Rect(panel.x + gap, laneTop, laneWidth, laneHeight);
+            var rightLane = new Rect(panel.x + gap * 2f + laneWidth, laneTop, laneWidth, laneHeight);
+            DrawThumbLoop(leftLane, "LEFT", 0f, scale);
+            DrawThumbLoop(rightLane, "RIGHT", 0.5f, scale);
+        }
+
+        private void DrawThumbLoop(Rect lane, string label, float phaseOffset, float scale)
+        {
+            DrawGuiRect(lane, new Color(Ink.r, Ink.g, Ink.b, 0.045f));
+            GUI.Label(new Rect(lane.x, lane.y + 6f * scale, lane.width, 28f * scale), label, guideStyle);
+
+            var topTarget = new Rect(lane.x + lane.width * 0.18f, lane.y + 42f * scale, lane.width * 0.64f, 30f * scale);
+            var bottomTarget = new Rect(lane.x + lane.width * 0.18f, lane.yMax - 42f * scale, lane.width * 0.64f, 30f * scale);
+            DrawGuideChip(topTarget, "STEP", Warm, scale);
+            DrawGuideChip(bottomTarget, "PULL", Blue, scale);
+
+            var pathX = lane.center.x - 3f * scale;
+            DrawGuiRect(new Rect(pathX, topTarget.yMax, 6f * scale, bottomTarget.y - topTarget.yMax), new Color(Ink.r, Ink.g, Ink.b, 0.12f));
+
+            var phase = Mathf.Repeat(Time.unscaledTime * 0.72f + phaseOffset, 1f);
+            var upPhase = phase < 0.46f;
+            var t = upPhase ? phase / 0.46f : (phase - 0.46f) / 0.54f;
+            t = Mathf.SmoothStep(0f, 1f, t);
+            var thumbY = upPhase
+                ? Mathf.Lerp(bottomTarget.center.y, topTarget.center.y, t)
+                : Mathf.Lerp(topTarget.center.y, bottomTarget.center.y, t);
+            var thumbColor = upPhase ? Warm : Blue;
+            var thumb = new Rect(lane.center.x - 19f * scale, thumbY - 19f * scale, 38f * scale, 38f * scale);
+            DrawGuiRect(thumb, new Color(thumbColor.r, thumbColor.g, thumbColor.b, 0.92f));
+            GUI.Label(new Rect(thumb.x, thumb.y + 5f * scale, thumb.width, thumb.height), upPhase ? "TAP" : "LOW", guideStyle);
+        }
+
+        private void DrawGuideChip(Rect rect, string text, Color color, float scale)
+        {
+            DrawGuiRect(rect, new Color(color.r, color.g, color.b, 0.78f));
+            GUI.Label(new Rect(rect.x, rect.y + 3f * scale, rect.width, rect.height), text, guideStyle);
         }
 
         private void DrawFootBadge(FootRuntime foot, Rect rect, float scale)
@@ -738,6 +825,13 @@ namespace MannLab.Games.Walking
                 alignment = TextAnchor.MiddleCenter,
                 fontSize = Mathf.RoundToInt(22f),
                 wordWrap = true,
+                normal = { textColor = Ink }
+            };
+            guideStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = Mathf.RoundToInt(15f),
+                fontStyle = FontStyle.Bold,
                 normal = { textColor = Ink }
             };
             buttonStyle = new GUIStyle(GUI.skin.button)
