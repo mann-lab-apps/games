@@ -1,0 +1,21 @@
+{
+  "name": "MannLab.Games.Walking.EditorTests",
+  "rootNamespace": "MannLab.Games.Walking.Tests",
+  "references": [
+    "MannLab.Games.Walking"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "noEngineReferences": false
+}

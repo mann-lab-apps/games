@@ -1,0 +1,1386 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>최고의 라면</title>
+    <style>
+      :root {
+        --ink: #28231d;
+        --bg: #f5efd9;
+        --paper: #fff9ea;
+        --muted: #70685b;
+        --red: #df533f;
+        --yellow: #f5bd3f;
+        --green: #6fa86c;
+        --blue: #74aeba;
+        --broth: #c96f3f;
+        --water-ink: #4e97a5;
+        --broth-ink: #bd683a;
+        --noodle-ink: #d99c36;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        color: var(--ink);
+        background: var(--bg);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+      }
+
+      .game {
+        width: 100%;
+        min-width: 320px;
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        background: var(--bg);
+      }
+
+      .top {
+        min-height: 58px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px clamp(12px, 3vw, 24px);
+        border-bottom: 2px solid var(--ink);
+        background: #fff2c9;
+      }
+
+      h1,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(25px, 5vw, 46px);
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .score-sticker span {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .score-sticker {
+        position: absolute;
+        right: 18px;
+        top: 68px;
+        z-index: 5;
+        min-width: 88px;
+        padding: 8px 10px;
+        border: 2px solid var(--ink);
+        border-radius: 8px;
+        background: var(--paper);
+        box-shadow: 3px 4px 0 rgba(40, 35, 29, 0.16);
+        text-align: center;
+        transform: rotate(2deg);
+      }
+
+      .score-sticker strong {
+        display: block;
+        font-size: 28px;
+        line-height: 1;
+      }
+
+      .score-sticker span {
+        display: block;
+        margin-top: 3px;
+      }
+
+      .stage {
+        position: relative;
+        min-height: 0;
+        display: grid;
+        place-items: center;
+        padding: clamp(10px, 2vw, 18px);
+      }
+
+      .kitchen {
+        position: relative;
+        width: min(100%, 860px);
+        height: min(100%, 590px);
+        min-height: 430px;
+        overflow: hidden;
+        border: 2px solid var(--ink);
+        border-radius: 8px;
+        background: linear-gradient(#fffaf0 0 62%, #ded3bd 62% 100%);
+        box-shadow: 0 18px 42px rgba(40, 35, 29, 0.18);
+      }
+
+      .steam {
+        position: absolute;
+        left: 50%;
+        top: 15%;
+        width: 310px;
+        height: 185px;
+        opacity: 0;
+        transform: translateX(-50%);
+        transition: opacity 130ms ease;
+      }
+
+      .steam i {
+        position: absolute;
+        bottom: 0;
+        width: 38px;
+        height: 136px;
+        border-left: 5px solid rgba(40, 35, 29, 0.3);
+        border-radius: 50%;
+        animation: steam 1.55s ease-in-out infinite;
+      }
+
+      .steam i:nth-child(1) {
+        left: 24%;
+      }
+
+      .steam i:nth-child(2) {
+        left: 47%;
+        animation-delay: 0.3s;
+      }
+
+      .steam i:nth-child(3) {
+        left: 69%;
+        animation-delay: 0.6s;
+      }
+
+      @keyframes steam {
+        0% {
+          opacity: 0;
+          transform: translateY(24px);
+        }
+        42% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-30px);
+        }
+      }
+
+      .flame {
+        position: absolute;
+        left: 50%;
+        bottom: 66px;
+        z-index: 2;
+        width: min(320px, 52%);
+        height: 112px;
+        opacity: 0;
+        transform: translateX(-50%) scaleY(0.7);
+        transform-origin: bottom center;
+        transition: opacity 120ms ease, transform 120ms ease;
+      }
+
+      .gas-ring {
+        position: absolute;
+        left: 50%;
+        bottom: 12px;
+        width: min(270px, 88%);
+        height: 42px;
+        border: 3px solid var(--ink);
+        border-radius: 50%;
+        background:
+          repeating-radial-gradient(ellipse at center, transparent 0 9px, rgba(255, 250, 240, 0.2) 10px 12px),
+          #3f3d38;
+        transform: translateX(-50%);
+      }
+
+      .gas-ring::before {
+        content: "";
+        position: absolute;
+        inset: 7px 18px;
+        border: 3px dashed #78b9d5;
+        border-radius: 50%;
+        filter: drop-shadow(0 0 5px rgba(82, 174, 215, 0.8));
+        animation: gasPulse 0.44s ease-in-out infinite alternate;
+      }
+
+      .flame-jet {
+        position: absolute;
+        bottom: 35px;
+        width: 34px;
+        height: 62px;
+        opacity: 0.92;
+        border: 2px solid var(--ink);
+        border-radius: 50% 50% 46% 46%;
+        background: #78b9d5;
+        transform: translateX(-50%) rotate(45deg);
+        animation: flameFlicker 0.48s ease-in-out infinite alternate;
+      }
+
+      .flame-jet:nth-child(2) {
+        left: 27%;
+        animation-delay: 0.08s;
+      }
+
+      .flame-jet:nth-child(3) {
+        left: 40%;
+        height: 74px;
+        background: var(--yellow);
+        animation-delay: 0.16s;
+      }
+
+      .flame-jet:nth-child(4) {
+        left: 53%;
+        height: 82px;
+        background: var(--red);
+        animation-delay: 0.24s;
+      }
+
+      .flame-jet:nth-child(5) {
+        left: 66%;
+        height: 70px;
+        background: var(--yellow);
+        animation-delay: 0.32s;
+      }
+
+      .flame-jet:nth-child(6) {
+        left: 79%;
+        animation-delay: 0.4s;
+      }
+
+      .spark {
+        position: absolute;
+        bottom: 84px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #fffaf0;
+        box-shadow: 0 0 0 2px var(--ink), 0 0 12px var(--yellow);
+        animation: spark 0.8s ease-in-out infinite;
+      }
+
+      .spark:nth-child(7) {
+        left: 36%;
+      }
+
+      .spark:nth-child(8) {
+        left: 70%;
+        animation-delay: 0.28s;
+      }
+
+      @keyframes gasPulse {
+        from {
+          opacity: 0.62;
+          transform: scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1.03);
+        }
+      }
+
+      @keyframes flameFlicker {
+        from {
+          transform: translateX(-50%) rotate(45deg) scale(0.92, 0.9);
+        }
+        to {
+          transform: translateX(-50%) rotate(45deg) scale(1.06, 1.12);
+        }
+      }
+
+      @keyframes spark {
+        0%,
+        100% {
+          opacity: 0;
+          transform: translateY(8px) scale(0.65);
+        }
+        45% {
+          opacity: 1;
+          transform: translateY(-10px) scale(1);
+        }
+      }
+
+      .flame::before,
+      .flame::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: 32px;
+        border: 2px solid var(--ink);
+        border-radius: 50% 50% 46% 46%;
+        transform: translateX(-50%) rotate(45deg);
+      }
+
+      .flame::before {
+        width: 74px;
+        height: 98px;
+        background: var(--red);
+      }
+
+      .flame::after {
+        width: 42px;
+        height: 62px;
+        background: var(--yellow);
+      }
+
+      .burner {
+        position: absolute;
+        left: 50%;
+        bottom: 56px;
+        z-index: 1;
+        width: min(370px, 60%);
+        height: 60px;
+        border: 2px solid var(--ink);
+        border-radius: 50%;
+        background: #48443d;
+        box-shadow: 4px 3px 0 rgba(40, 35, 29, 0.18);
+        transform: translateX(-50%) rotate(-1deg);
+      }
+
+      .pot {
+        position: absolute;
+        left: 50%;
+        bottom: 100px;
+        z-index: 3;
+        width: min(430px, 72%);
+        aspect-ratio: 1.45;
+        transform: translateX(-50%);
+      }
+
+      .pot-body {
+        position: absolute;
+        inset: 18% 7% 0;
+        overflow: hidden;
+        border: 3px solid var(--ink);
+        border-radius: 10px 10px 28px 28px;
+        background: #d7ddd7;
+        box-shadow:
+          inset 3px 0 0 rgba(255, 250, 240, 0.42),
+          inset -4px -3px 0 rgba(40, 35, 29, 0.08);
+      }
+
+      .pot-lip {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 10%;
+        height: 21%;
+        border: 3px solid var(--ink);
+        border-radius: 50%;
+        background: #eef0ea;
+        transform: rotate(0.7deg);
+      }
+
+      .handle {
+        position: absolute;
+        top: 36%;
+        width: 18%;
+        height: 25%;
+        border: 3px solid var(--ink);
+        border-radius: 999px;
+        background: #f1e7cf;
+      }
+
+      .handle.left {
+        left: -4%;
+        transform: rotate(2deg);
+      }
+
+      .handle.right {
+        right: -4%;
+        transform: rotate(-2deg);
+      }
+
+      .water {
+        position: absolute;
+        left: 5%;
+        right: 5%;
+        bottom: 5%;
+        height: 0%;
+        overflow: hidden;
+        border-radius: 16px 16px 24px 24px;
+        --liquid-edge: var(--water-ink);
+        --liquid-fill: rgba(118, 190, 216, 0.34);
+        --liquid-hatch: rgba(77, 168, 205, 0.42);
+        --liquid-hatch-soft: rgba(77, 168, 205, 0.24);
+        background:
+          repeating-linear-gradient(
+            116deg,
+            transparent 0 5px,
+            var(--liquid-hatch) 5px 6px,
+            transparent 6px 8px
+          ),
+          repeating-linear-gradient(
+            116deg,
+            transparent 0 13px,
+            var(--liquid-hatch-soft) 13px 14px,
+            transparent 14px 17px
+          ),
+          var(--liquid-fill);
+        box-shadow: inset 0 -10px 18px rgba(78, 151, 165, 0.08);
+        transition:
+          height 80ms linear,
+          background 160ms ease;
+      }
+
+      .water.has-soup {
+        --liquid-edge: var(--broth-ink);
+        --liquid-fill: rgba(207, 121, 70, 0.5);
+        --liquid-hatch: rgba(173, 89, 48, 0.38);
+        --liquid-hatch-soft: rgba(173, 89, 48, 0.2);
+      }
+
+      .water::before {
+        content: "";
+        position: absolute;
+        left: -8%;
+        right: -8%;
+        top: -12px;
+        height: 28px;
+        border-top: 4px solid var(--liquid-edge);
+        border-radius: 50%;
+        animation: brothWave 0.8s ease-in-out infinite alternate;
+      }
+
+      .water::after {
+        content: none;
+      }
+
+      @keyframes brothWave {
+        from {
+          transform: translateX(-5px) scaleX(1.02);
+        }
+        to {
+          transform: translateX(5px) scaleX(0.98);
+        }
+      }
+
+      .target-line {
+        position: absolute;
+        left: 7%;
+        right: 7%;
+        bottom: 43%;
+        z-index: 7;
+        height: 0;
+        border-top: 4px solid var(--red);
+        filter: drop-shadow(0 2px 0 #fffaf0);
+        transform: rotate(-0.4deg);
+      }
+
+      .bubbles {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 120ms ease;
+      }
+
+      .bubble {
+        position: absolute;
+        bottom: 12%;
+        width: 12px;
+        height: 12px;
+        border: 2px solid rgba(40, 35, 29, 0.44);
+        border-radius: 50%;
+        animation: bubble 0.92s linear infinite;
+      }
+
+      .bubble:nth-child(1) {
+        left: 22%;
+      }
+
+      .bubble:nth-child(2) {
+        left: 38%;
+        width: 9px;
+        height: 9px;
+        animation-delay: 0.18s;
+      }
+
+      .bubble:nth-child(3) {
+        left: 56%;
+        width: 15px;
+        height: 15px;
+        animation-delay: 0.36s;
+      }
+
+      .bubble:nth-child(4) {
+        left: 72%;
+        animation-delay: 0.54s;
+      }
+
+      @keyframes bubble {
+        0% {
+          opacity: 0;
+          transform: translateY(0) scale(0.7);
+        }
+        24%,
+        70% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-90px) scale(1.25);
+        }
+      }
+
+      .noodle-bundle {
+        position: absolute;
+        left: 7%;
+        right: 7%;
+        bottom: var(--noodle-bottom, 8%);
+        z-index: 4;
+        width: auto;
+        height: var(--noodle-height, 22%);
+        opacity: 0;
+        --loosen: 0;
+        --spread: 0;
+        --bloat: 0;
+        transform:
+          scale(1, calc(0.9 + var(--bloat) * 0.28));
+        transform-origin: center bottom;
+        transition:
+          opacity 160ms ease,
+          bottom 100ms linear,
+          height 100ms linear;
+      }
+
+      .noodle-bundle.is-visible {
+        opacity: 1;
+      }
+
+      .noodle-bundle svg {
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+      }
+
+      .noodle-bundle path {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition:
+          stroke 180ms ease,
+          stroke-width 180ms ease,
+          transform 260ms ease;
+      }
+
+      .noodle-bundle .strand:not(.sketch) {
+        stroke: url(#noodleHatch);
+        stroke-width: calc(14px + var(--loosen) * 1px + var(--bloat) * 10px);
+        filter: drop-shadow(0 -1px 0 rgba(255, 250, 240, 0.5));
+      }
+
+      .noodle-bundle .noodle-outline {
+        stroke: rgba(221, 160, 49, 0.62);
+        stroke-width: calc(19px + var(--loosen) * 1px + var(--bloat) * 12px);
+        filter: none;
+      }
+
+      .noodle-bundle .sketch {
+        display: none;
+      }
+
+      .noodle-bundle.is-raw {
+        transform:
+          scale(0.8, 0.9)
+          rotate(-2deg);
+      }
+
+      .noodle-bundle.is-loosening {
+        transform:
+          scale(calc(0.72 + var(--loosen) * 0.04), 0.9);
+      }
+
+      .noodle-bundle.is-loosening .strand:not(.sketch) {
+        stroke: url(#noodleHatch);
+      }
+
+      .noodle-bundle.is-loosening .strand[data-strand="0"],
+      .noodle-bundle.is-loosening .noodle-outline[data-strand="0"] {
+        transform: translateX(calc(var(--loosen) * -7px));
+      }
+
+      .noodle-bundle.is-loosening .strand[data-strand="1"],
+      .noodle-bundle.is-loosening .noodle-outline[data-strand="1"] {
+        transform: translateX(calc(var(--loosen) * 6px));
+      }
+
+      .noodle-bundle.is-loosening .strand[data-strand="2"],
+      .noodle-bundle.is-loosening .noodle-outline[data-strand="2"] {
+        transform: translateX(calc(var(--loosen) * -4px));
+      }
+
+      .noodle-bundle.is-spreading {
+        transform:
+          scale(calc(0.5 + var(--spread) * 0.5), 0.9);
+      }
+
+      .noodle-bundle.is-spreading .strand:not(.sketch) {
+        stroke: url(#noodleHatch);
+      }
+
+      .noodle-bundle.is-loosening svg,
+      .noodle-bundle.is-spreading svg {
+        animation: noodleWiggle 0.72s ease-in-out infinite alternate;
+      }
+
+      .noodle-bundle.is-spreading .strand[data-strand="0"],
+      .noodle-bundle.is-spreading .noodle-outline[data-strand="0"] {
+        transform: translateX(0);
+      }
+
+      .noodle-bundle.is-spreading .strand[data-strand="1"],
+      .noodle-bundle.is-spreading .noodle-outline[data-strand="1"] {
+        transform: translateX(0);
+      }
+
+      .noodle-bundle.is-spreading .strand[data-strand="2"],
+      .noodle-bundle.is-spreading .noodle-outline[data-strand="2"] {
+        transform: translateX(0);
+      }
+
+      .noodle-bundle.is-spreading .strand[data-strand="3"],
+      .noodle-bundle.is-spreading .noodle-outline[data-strand="3"] {
+        transform: translateX(0);
+      }
+
+      .noodle-bundle.is-soggy {
+        transform:
+          scale(1, calc(0.95 + var(--bloat) * 0.32));
+      }
+
+      .noodle-bundle.is-soggy .strand:not(.sketch) {
+        stroke: url(#noodleSoggyHatch);
+        stroke-width: calc(19px + var(--bloat) * 8px);
+        animation: noodleSag 0.64s ease-in-out infinite alternate;
+      }
+
+      .noodle-bundle.is-soggy .noodle-outline {
+        stroke: rgba(190, 117, 45, 0.62);
+        stroke-width: calc(25px + var(--bloat) * 10px);
+        animation: noodleSag 0.64s ease-in-out infinite alternate;
+      }
+
+      .noodle-bundle.is-bloated {
+        transform:
+          scale(1, 1.24);
+        animation: bloatedNoodle 0.72s ease-in-out infinite alternate;
+      }
+
+      .noodle-bundle.is-bloated .strand:not(.sketch) {
+        stroke: url(#noodleBloatedHatch);
+        stroke-width: 29px;
+        animation: noodleSag 0.48s ease-in-out infinite alternate;
+      }
+
+      .noodle-bundle.is-bloated .noodle-outline {
+        stroke: rgba(168, 103, 43, 0.64);
+        stroke-width: 36px;
+        animation: noodleSag 0.48s ease-in-out infinite alternate;
+      }
+
+      @keyframes noodleWiggle {
+        from {
+          transform: translateX(-2px);
+        }
+        to {
+          transform: translateX(3px);
+        }
+      }
+
+      @keyframes noodleSag {
+        from {
+          transform: scaleX(1);
+        }
+        to {
+          transform: scaleX(1.05);
+        }
+      }
+
+      @keyframes bloatedNoodle {
+        from {
+          filter: saturate(0.94);
+        }
+        to {
+          filter: saturate(0.82);
+          transform: scale(1, 1.3);
+        }
+      }
+
+      .splash {
+        position: absolute;
+        left: 50%;
+        top: 15%;
+        width: 16px;
+        height: 54%;
+        opacity: 0;
+        border-radius: 999px;
+        background:
+          repeating-linear-gradient(
+            116deg,
+            transparent 0 5px,
+            rgba(77, 168, 205, 0.42) 5px 6px,
+            transparent 6px 8px
+          ),
+          rgba(118, 190, 216, 0.42);
+        box-shadow: 2px 2px 0 rgba(78, 151, 165, 0.1);
+        transform: translateX(-50%);
+      }
+
+      .splash.on {
+        opacity: 1;
+      }
+
+      .result {
+        position: absolute;
+        inset: 0;
+        z-index: 6;
+        display: none;
+        place-items: center;
+        padding: 18px;
+        background: rgba(245, 239, 217, 0.9);
+      }
+
+      .result.open {
+        display: grid;
+      }
+
+      .sheet {
+        width: min(100%, 560px);
+        padding: 22px;
+        border: 2px solid var(--ink);
+        border-radius: 8px;
+        background: #fffaf0;
+        box-shadow: 0 18px 42px rgba(40, 35, 29, 0.22);
+      }
+
+      .sheet h2 {
+        margin: 0;
+        font-size: clamp(54px, 14vw, 96px);
+        line-height: 0.9;
+        letter-spacing: 0;
+      }
+
+      .review-label {
+        display: block;
+        margin-top: 16px;
+        color: var(--ink);
+        font-size: 16px;
+        font-weight: 950;
+        line-height: 1;
+      }
+
+      .sheet p {
+        margin: 9px 0 0;
+        color: var(--muted);
+        font-weight: 800;
+        line-height: 1.45;
+      }
+
+      .scores {
+        display: grid;
+        gap: 8px;
+        margin: 16px 0;
+      }
+
+      .score-row {
+        display: grid;
+        grid-template-columns: 84px minmax(0, 1fr) 52px;
+        gap: 8px;
+        align-items: start;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .score-meter {
+        height: 12px;
+        overflow: hidden;
+        border: 1.5px solid var(--ink);
+        border-radius: 999px;
+        background: #efe4c9;
+      }
+
+      .score-row i {
+        display: block;
+        height: 100%;
+        background: var(--green);
+      }
+
+      .score-note {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 900;
+        line-height: 1.2;
+      }
+
+      @media (max-width: 720px) {
+        html,
+        body {
+          overflow: auto;
+        }
+
+        .game {
+          min-height: 100%;
+          height: auto;
+        }
+
+        .stage {
+          min-height: 560px;
+          padding: 8px;
+        }
+
+        .kitchen {
+          height: 100%;
+          min-height: 540px;
+        }
+
+        .pot {
+          width: min(390px, 84%);
+          bottom: 104px;
+        }
+
+      }
+
+      @media (max-width: 420px) {
+        .kitchen {
+          border-radius: 0;
+        }
+
+        .top {
+          padding: 9px 10px;
+        }
+
+        .score-sticker {
+          right: 12px;
+          top: 58px;
+        }
+
+        .score-sticker span {
+          font-size: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="game" id="game" aria-label="최고의 라면">
+      <header class="top">
+        <h1>최고의 라면</h1>
+      </header>
+
+      <section class="stage">
+        <div class="kitchen">
+          <div class="score-sticker">
+            <strong id="best">0</strong>
+            <span>최고 기록</span>
+          </div>
+          <div class="steam" id="steam"><i></i><i></i><i></i></div>
+          <div class="flame" id="flame">
+            <div class="gas-ring"></div>
+            <i class="flame-jet"></i>
+            <i class="flame-jet"></i>
+            <i class="flame-jet"></i>
+            <i class="flame-jet"></i>
+            <i class="flame-jet"></i>
+            <i class="spark"></i>
+            <i class="spark"></i>
+          </div>
+          <div class="burner"></div>
+          <div class="pot">
+            <div class="handle left"></div>
+            <div class="handle right"></div>
+            <div class="pot-body">
+              <div class="target-line"></div>
+              <div class="water" id="water">
+                <div class="bubbles" id="bubbles">
+                  <span class="bubble"></span>
+                  <span class="bubble"></span>
+                  <span class="bubble"></span>
+                  <span class="bubble"></span>
+                </div>
+              </div>
+              <div class="noodle-bundle" id="noodleBundle" aria-hidden="true">
+                <svg viewBox="0 0 260 150" preserveAspectRatio="none">
+                  <defs>
+                    <pattern id="noodleHatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-16)">
+                      <line x1="0" y1="2" x2="8" y2="2" stroke="#d99c36" stroke-width="1.4" stroke-linecap="round" />
+                      <line x1="0" y1="6" x2="8" y2="6" stroke="#f2bd4b" stroke-width="0.8" stroke-linecap="round" />
+                    </pattern>
+                    <pattern id="noodleSoggyHatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-14)">
+                      <line x1="0" y1="2" x2="8" y2="2" stroke="#b97832" stroke-width="1.8" stroke-linecap="round" />
+                      <line x1="0" y1="6" x2="8" y2="6" stroke="#df9b3d" stroke-width="0.9" stroke-linecap="round" />
+                    </pattern>
+                    <pattern id="noodleBloatedHatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(-12)">
+                      <line x1="0" y1="2" x2="9" y2="2" stroke="#a96c2f" stroke-width="2" stroke-linecap="round" />
+                      <line x1="0" y1="7" x2="9" y2="7" stroke="#ce8639" stroke-width="1" stroke-linecap="round" />
+                    </pattern>
+                  </defs>
+                  <path class="noodle-outline" data-strand="0" d="M55 67 C78 53, 181 53, 205 67 C181 82, 78 82, 55 67" />
+                  <path class="noodle-outline" data-strand="1" d="M49 82 C75 66, 185 66, 211 82 C185 99, 75 99, 49 82" />
+                  <path class="noodle-outline" data-strand="2" d="M61 96 C88 82, 172 82, 199 96 C173 112, 87 112, 61 96" />
+                  <path class="noodle-outline" data-strand="3" d="M73 55 C96 43, 164 43, 187 55 C165 68, 95 68, 73 55" />
+                  <path class="strand" data-strand="0" d="M55 67 C78 53, 181 53, 205 67 C181 82, 78 82, 55 67" />
+                  <path class="strand" data-strand="1" d="M49 82 C75 66, 185 66, 211 82 C185 99, 75 99, 49 82" />
+                  <path class="strand" data-strand="2" d="M61 96 C88 82, 172 82, 199 96 C173 112, 87 112, 61 96" />
+                  <path class="strand" data-strand="3" d="M73 55 C96 43, 164 43, 187 55 C165 68, 95 68, 73 55" />
+                  <path class="strand sketch" data-strand="4" d="M52 73 C82 62, 178 62, 208 73" />
+                  <path class="strand sketch" data-strand="5" d="M58 91 C90 79, 170 79, 202 91" />
+                </svg>
+              </div>
+            </div>
+            <div class="pot-lip"></div>
+          </div>
+          <div class="splash" id="splash"></div>
+
+          <section class="result" id="result" aria-live="polite">
+            <article class="sheet">
+              <h2><span id="score">0</span>점</h2>
+              <strong class="review-label">시식평</strong>
+              <p id="grade">라면 평가 대기 중</p>
+              <div class="scores" id="scores"></div>
+              <p>아무데나 터치하면 다시 시작합니다.</p>
+            </article>
+          </section>
+
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const target = {
+        waterTop: 43,
+        boilPoint: 4.8,
+        cook: 8.8,
+        soggyStart: 8.8,
+        bloatedStart: 12.7,
+      };
+
+      const waterView = {
+        bottom: 5,
+        maxHeight: 68,
+        maxAmount: 760,
+      };
+      const adPolicy = {
+        failTasteScore: 76,
+        every: 3,
+      };
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const maxScore = 10000;
+      const scorePart = (diff, tolerance) =>
+        clamp(Math.round(100 - Math.pow(Math.abs(diff) / tolerance, 1.18) * 10), 0, 100);
+      const multiplyScores = (scores) =>
+        clamp(Math.round(scores.reduce((total, score) => total * score, 1) / 100), 0, maxScore);
+      const tasteScore = (score) => Math.round(score / 100);
+      const storedBestScore = () => {
+        const best = Number(localStorage.getItem("best-ramyeon-best") || 0);
+        return best > maxScore ? clamp(Math.round(best / 100), 0, maxScore) : best;
+      };
+      const waterTop = () =>
+        waterView.bottom + clamp(state.water / waterView.maxAmount, 0, 1) * waterView.maxHeight;
+      const nativeCrashlytics = () => window.BestRamyeonCrashlytics ?? window.MannlabCrashlytics;
+      const nativeAdMob = () => window.BestRamyeonAdMob ?? window.MannlabAdMob;
+
+      function reportError(error, fatal = false) {
+        const payload = {
+          game: "best-ramyeon",
+          fatal,
+          message: error?.message ?? String(error),
+          stack: error?.stack ?? "",
+          step: state?.step,
+        };
+
+        try {
+          nativeCrashlytics()?.recordError?.(payload);
+          window.gtag?.("event", "exception", {
+            description: payload.message,
+            fatal,
+            game: payload.game,
+          });
+        } catch (reportingError) {
+          console.warn("Crash report failed", reportingError);
+        }
+      }
+
+      const el = {
+        game: document.querySelector("#game"),
+        best: document.querySelector("#best"),
+        water: document.querySelector("#water"),
+        bubbles: document.querySelector("#bubbles"),
+        steam: document.querySelector("#steam"),
+        flame: document.querySelector("#flame"),
+        splash: document.querySelector("#splash"),
+        noodleBundle: document.querySelector("#noodleBundle"),
+        noodleStrands: [...document.querySelectorAll(".strand")],
+        noodleOutlines: [...document.querySelectorAll(".noodle-outline")],
+        result: document.querySelector("#result"),
+        score: document.querySelector("#score"),
+        grade: document.querySelector("#grade"),
+        scores: document.querySelector("#scores"),
+      };
+
+      const noodleShapes = {
+        raw: [
+          "M55 67 C78 53, 181 53, 205 67 C181 82, 78 82, 55 67",
+          "M49 82 C75 66, 185 66, 211 82 C185 99, 75 99, 49 82",
+          "M61 96 C88 82, 172 82, 199 96 C173 112, 87 112, 61 96",
+          "M73 55 C96 43, 164 43, 187 55 C165 68, 95 68, 73 55",
+          "M52 73 C82 62, 178 62, 208 73",
+          "M58 91 C90 79, 170 79, 202 91",
+        ],
+        loosen: [
+          "M45 67 C74 54, 101 80, 130 67 C158 54, 186 80, 215 67",
+          "M40 82 C70 68, 100 95, 130 82 C160 68, 190 95, 220 82",
+          "M51 96 C82 84, 105 108, 130 96 C155 84, 178 108, 209 96",
+          "M64 55 C92 44, 112 66, 138 55 C161 45, 184 65, 196 55",
+          "M43 74 C75 63, 102 85, 130 74 C158 63, 185 85, 217 74",
+          "M50 91 C82 80, 105 102, 130 91 C155 80, 178 102, 210 91",
+        ],
+        spread: [
+          "M4 67 C48 53, 87 82, 130 67 C173 52, 212 82, 256 67",
+          "M0 82 C46 67, 88 98, 130 82 C172 66, 214 98, 260 82",
+          "M6 96 C52 83, 91 111, 130 96 C169 81, 208 111, 254 96",
+          "M20 55 C64 43, 96 68, 133 55 C170 43, 206 66, 240 55",
+          "M2 74 C48 61, 89 88, 130 74 C171 60, 212 88, 258 74",
+          "M8 91 C54 79, 92 105, 130 91 C168 77, 206 105, 252 91",
+        ],
+        soggy: [
+          "M2 67 C47 54, 87 84, 130 67 C173 50, 213 84, 258 67",
+          "M0 82 C46 68, 88 101, 130 82 C172 63, 214 101, 260 82",
+          "M4 96 C51 84, 91 114, 130 96 C169 78, 209 114, 256 96",
+          "M16 55 C62 44, 96 70, 133 55 C170 40, 208 68, 244 55",
+          "M0 74 C46 62, 88 91, 130 74 C172 57, 214 91, 260 74",
+          "M6 91 C52 80, 92 108, 130 91 C168 74, 208 108, 254 91",
+        ],
+      };
+
+      function setNoodleShape(stage) {
+        noodleShapes[stage].forEach((path, index) => {
+          el.noodleStrands[index].setAttribute("d", path);
+          if (el.noodleOutlines[index]) {
+            el.noodleOutlines[index].setAttribute("d", path);
+          }
+        });
+      }
+
+      const state = {
+        step: "fill",
+        water: 0,
+        fireOn: false,
+        hasRamen: false,
+        hasSoup: false,
+        filling: false,
+        heating: 0,
+        boilAt: null,
+        ramenAt: null,
+        cook: 0,
+        noodleStage: "raw",
+        failsSinceAd: Number(localStorage.getItem("best-ramyeon-fails-since-ad") || 0),
+        lastTime: performance.now(),
+        best: storedBestScore(),
+      };
+
+      window.addEventListener("error", (event) => reportError(event.error ?? event.message, true));
+      window.addEventListener("unhandledrejection", (event) => reportError(event.reason, true));
+
+      function setMessage() {}
+
+      function reset() {
+        state.step = "fill";
+        state.water = 0;
+        state.fireOn = false;
+        state.hasRamen = false;
+        state.hasSoup = false;
+        state.filling = false;
+        state.heating = 0;
+        state.boilAt = null;
+        state.ramenAt = null;
+        state.cook = 0;
+        state.noodleStage = "raw";
+        state.lastTime = performance.now();
+        el.result.classList.remove("open");
+        setMessage("물 넣기", "화면 아무데나 길게 누르고, 빨간 선에 가까워지면 손을 떼세요.");
+        render();
+      }
+
+      function startFireAfterFill() {
+        state.filling = false;
+        state.step = "ramen";
+        state.fireOn = true;
+        setMessage("라면 넣기", "물이 끓기 시작하는 바로 그 순간에 아무데나 터치하세요.");
+        render();
+      }
+
+      function addRamenAndSoup() {
+        if (state.step !== "ramen") return;
+        state.step = "off";
+        state.hasRamen = true;
+        state.hasSoup = true;
+        state.ramenAt = performance.now();
+        setMessage("불 끄기", "면이 익다가 축 처지기 직전에 아무데나 터치하세요.");
+        render();
+      }
+
+      function scoreNotes(waterDiff, boilDelay, cookDiff, scores) {
+        const waterAbs = Math.abs(waterDiff);
+        const waterNote =
+          scores.water >= 94
+            ? "물 감각 좋음"
+            : waterDiff < 0
+              ? waterAbs > 8
+                ? "물이 많이 부족함"
+                : "물이 조금 부족함"
+              : waterAbs > 8
+                ? "물이 많이 많음"
+                : "물이 조금 많음";
+
+        const boilNote =
+          scores.boil >= 94
+            ? "투입 타이밍 좋음"
+            : boilDelay > 1
+              ? "투입이 늦음"
+              : "투입이 살짝 늦음";
+
+        const cookNote =
+          scores.cook >= 94
+            ? "익힘 좋음"
+            : cookDiff < 0
+              ? Math.abs(cookDiff) > 1.2
+                ? "불을 많이 빨리 끔"
+                : "불을 조금 빨리 끔"
+              : cookDiff > 1.2
+                ? "너무 오래 끓임"
+                : "불을 조금 늦게 끔";
+
+        return {
+          water: waterNote,
+          boil: boilNote,
+          cook: cookNote,
+        };
+      }
+
+      function persistAdCounter() {
+        localStorage.setItem("best-ramyeon-fails-since-ad", String(state.failsSinceAd));
+      }
+
+      function showNativeInterstitial() {
+        try {
+          const adMob = nativeAdMob();
+          if (typeof adMob?.showInterstitial !== "function") return false;
+          adMob.showInterstitial({ placement: "best_ramyeon_fail_3" });
+          window.gtag?.("event", "ad_interstitial_show", {
+            game: "best-ramyeon",
+            placement: "fail_3",
+          });
+          return true;
+        } catch (error) {
+          reportError(error, false);
+          return false;
+        }
+      }
+
+      function maybeShowAd(finalScore) {
+        if (tasteScore(finalScore) >= adPolicy.failTasteScore) return;
+
+        state.failsSinceAd += 1;
+        if (state.failsSinceAd >= adPolicy.every) {
+          state.failsSinceAd = 0;
+          showNativeInterstitial();
+        }
+        persistAdCounter();
+      }
+
+      function finish() {
+        if (state.step !== "off") return;
+        state.step = "result";
+        state.fireOn = false;
+        state.filling = false;
+
+        const waterScore = scorePart(waterTop() - target.waterTop, 2.8);
+        const boilDelay = state.boilAt && state.ramenAt ? (state.ramenAt - state.boilAt) / 1000 : 99;
+        const boilScore = scorePart(Math.max(0, boilDelay), 0.42);
+        const cookDiff = state.cook - target.cook;
+        const cookScore =
+          state.cook < target.cook
+            ? scorePart(cookDiff, 0.75)
+            : scorePart(cookDiff, 0.5);
+        const finalScore = multiplyScores([waterScore, boilScore, cookScore]);
+        const finalTasteScore = tasteScore(finalScore);
+        const waterDiff = waterTop() - target.waterTop;
+
+        state.best = Math.max(state.best, finalScore);
+        localStorage.setItem("best-ramyeon-best", String(state.best));
+
+        const grade =
+          finalTasteScore >= 92
+            ? "선, 끓음, 면발이 딱 맞았습니다."
+            : finalTasteScore >= 76
+              ? "맛있습니다. 한 박자만 더 다듬으면 완벽합니다."
+              : finalTasteScore >= 56
+                ? "먹을 만하지만 물 높이나 타이밍이 흔들렸습니다."
+                : "조금 더 끓여보면 감이 잡힙니다.";
+        const notes = scoreNotes(waterDiff, boilDelay, cookDiff, {
+          water: waterScore,
+          boil: boilScore,
+          cook: cookScore,
+        });
+
+        el.score.textContent = finalScore;
+        el.grade.textContent = grade;
+        el.scores.innerHTML = [
+          ["물 높이", waterScore, notes.water],
+          ["투입", boilScore, notes.boil],
+          ["익힘", cookScore, notes.cook],
+        ]
+          .map(
+            ([label, value, note]) =>
+              `<div class="score-row"><span>${label}</span><div><div class="score-meter"><i style="width:${value}%"></i></div><em class="score-note">${note}</em></div><b>${value}</b></div>`,
+          )
+          .join("");
+        el.result.classList.add("open");
+        maybeShowAd(finalScore);
+        render();
+      }
+
+      function render() {
+        const waterPercent = clamp(state.water / waterView.maxAmount, 0, 1);
+        const boilPercent = clamp(state.heating / target.boilPoint, 0, 1);
+        const cookPercent = clamp(state.cook / target.soggyStart, 0, 1.2);
+        const waterHeight = waterPercent * waterView.maxHeight;
+        const noodleHeight = 44;
+        const noodleBottom = clamp(waterHeight - noodleHeight * 0.5, 9, 52);
+        const isBoiling = state.fireOn && boilPercent >= 1;
+        const isCooking = state.hasRamen && state.fireOn;
+        const isSoggy = state.cook >= target.soggyStart;
+        const isBloated = state.cook >= target.bloatedStart;
+        const loosenProgress = clamp((state.cook - 0.35) / 2.7, 0, 1);
+        const spreadProgress = clamp((state.cook - 3.0) / (target.cook - 3.0), 0, 1);
+        const bloatProgress = clamp((state.cook - target.cook) / (target.bloatedStart - target.cook), 0, 1);
+        const noodleStage = !state.hasRamen
+          ? "raw"
+          : isBloated
+            ? "soggy"
+            : isSoggy
+              ? "soggy"
+              : spreadProgress > 0
+                ? "spread"
+                : loosenProgress > 0.12
+                  ? "loosen"
+                  : "raw";
+
+        el.best.textContent = state.best;
+        el.water.style.height = `${waterPercent * waterView.maxHeight}%`;
+        el.water.classList.toggle("has-soup", state.hasSoup);
+        el.splash.classList.toggle("on", state.filling);
+        el.flame.style.opacity = state.fireOn ? 1 : 0;
+        el.flame.style.transform = `translateX(-50%) scaleY(${state.fireOn ? 1 : 0.7})`;
+        el.steam.style.opacity = state.fireOn ? clamp(boilPercent, 0, 1) : 0;
+        el.bubbles.style.opacity = isBoiling ? 1 : 0;
+        el.noodleBundle.style.setProperty("--noodle-height", `${noodleHeight}%`);
+        el.noodleBundle.style.setProperty("--noodle-bottom", `${noodleBottom}%`);
+        el.noodleBundle.style.setProperty("--loosen", loosenProgress.toFixed(3));
+        el.noodleBundle.style.setProperty("--spread", spreadProgress.toFixed(3));
+        el.noodleBundle.style.setProperty("--bloat", bloatProgress.toFixed(3));
+        el.noodleBundle.classList.toggle("is-visible", state.hasRamen);
+        el.noodleBundle.classList.toggle("is-raw", noodleStage === "raw");
+        el.noodleBundle.classList.toggle("is-loosening", noodleStage === "loosen");
+        el.noodleBundle.classList.toggle("is-spreading", noodleStage === "spread");
+        el.noodleBundle.classList.toggle("is-soggy", noodleStage === "soggy" && !isBloated);
+        el.noodleBundle.classList.toggle("is-bloated", isBloated);
+        el.noodleBundle.classList.toggle("is-cooking", isCooking && !isSoggy);
+        if (state.noodleStage !== noodleStage) {
+          state.noodleStage = noodleStage;
+          setNoodleShape(noodleStage);
+        }
+      }
+
+      function tick(now) {
+        const dt = Math.min((now - state.lastTime) / 1000, 0.08);
+        state.lastTime = now;
+
+        if (state.filling) {
+          state.water = clamp(state.water + dt * 315, 0, 780);
+        }
+
+        if (state.fireOn) {
+          const waterPenalty = clamp((waterTop() - target.waterTop) / 35, -0.22, 0.28);
+          state.heating += dt * (1 - waterPenalty);
+
+          if (!state.boilAt && state.heating >= target.boilPoint) {
+            state.boilAt = now;
+            setMessage("끓는다!", "지금 바로 아무데나 터치해서 라면과 스프를 넣으세요.");
+          }
+        }
+
+        if (state.hasRamen && state.fireOn) {
+          state.cook += dt;
+          state.water = clamp(state.water - dt * 4.2, 0, 780);
+
+          if (state.cook >= target.cook * 0.82 && state.cook < target.soggyStart) {
+            setMessage("거의 완성", "면이 축 처지기 전에 아무데나 터치해서 불을 끄세요.");
+          } else if (state.cook >= target.bloatedStart) {
+            setMessage("불어터진다!", "면이 퉁퉁 불었습니다. 지금이라도 불을 끄세요.");
+          } else if (state.cook >= target.soggyStart) {
+            setMessage("퍼진다!", "늦었습니다. 그래도 지금 끄면 조금은 살립니다.");
+          }
+        }
+
+        render();
+        requestAnimationFrame(tick);
+      }
+
+      function tapAction() {
+        if (state.step === "result") {
+          reset();
+          return;
+        }
+
+        if (state.step === "ramen") {
+          addRamenAndSoup();
+          return;
+        }
+
+        if (state.step === "off") {
+          finish();
+        }
+      }
+
+      el.game.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        if (state.step !== "fill") return;
+        state.filling = true;
+        setMessage("물 넣는 중", "물 높이가 빨간 선에 가까울수록 점수가 높아집니다.");
+      });
+
+      el.game.addEventListener("pointerup", (event) => {
+        event.preventDefault();
+
+        if (state.filling) {
+          startFireAfterFill();
+          return;
+        }
+
+        tapAction();
+      });
+
+      el.game.addEventListener("pointercancel", () => {
+        if (!state.filling) return;
+        startFireAfterFill();
+      });
+
+      el.best.textContent = state.best;
+      setNoodleShape("raw");
+      reset();
+      requestAnimationFrame(tick);
+    </script>
+  </body>
+</html>

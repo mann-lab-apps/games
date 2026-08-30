@@ -5,6 +5,25 @@ import "./styles.css";
 
 const games = [
   {
+    id: "best-ramyeon",
+    title: "최고의 라면",
+    status: "Prototype",
+    description: "물과 끓이는 시간을 눌렀다 떼며 감으로 맞히는 라면 게임",
+    route: "/best-ramyeon",
+    embedHref: "/games/best-ramyeon/index.html",
+    available: true,
+  },
+  {
+    id: "walking",
+    title: "Walking",
+    status: "MVP",
+    description: "두 엄지로 발을 찍고 당기며 1인칭 미로를 걷는 산책 게임",
+    route: "/walking",
+    aliases: ["/sanchaek"],
+    embedHref: "/games/walking/index.html?v=webgl-imgui-20260830",
+    available: true,
+  },
+  {
     id: "10000",
     title: "10000",
     status: "Live",
@@ -303,14 +322,14 @@ function PrivacyStage() {
       <article className="privacy-document">
         <span>Mannlab Games</span>
         <h1>Privacy Policy</h1>
-        <p className="privacy-updated">Last updated: August 28, 2026</p>
+        <p className="privacy-updated">Last updated: August 30, 2026</p>
 
         <section>
           <h2>Overview</h2>
           <p>
             Mannlab Games publishes small games including Mannlab 10000,
-            Dopamine Swap, 2048 Crash, and 2048 Blink. The mobile app versions
-            do not require account creation.
+            Best Ramyeon, Dopamine Swap, 2048 Crash, and 2048 Blink. The mobile
+            app versions do not require account creation.
           </p>
         </section>
 
@@ -322,20 +341,20 @@ function PrivacyStage() {
             local gameplay state is not sent to Mannlab.
           </p>
           <p>
-            2048 Crash, 2048 Blink, Gather & Shot, and Wind Gull may use
-            Firebase Analytics to understand app launches and gameplay
+            2048 Crash, 2048 Blink, Best Ramyeon, Gather & Shot, and Wind Gull
+            may use Firebase Analytics to understand app launches and gameplay
             interactions, and Firebase Crashlytics to diagnose crashes and
             stability issues. This may
             include device identifiers, product interaction data, crash data,
             and performance diagnostics.
           </p>
           <p>
-            2048 Crash, 2048 Blink, and Gather & Shot may use Google AdMob to
-            show third-party advertising at natural breaks, such as after a game
-            over. Google AdMob may collect or share data such as device
-            identifiers, advertising identifiers where available, approximate
-            location inferred from IP address, product interaction data,
-            advertising interaction data, and
+            2048 Crash, 2048 Blink, Best Ramyeon, and Gather & Shot may use
+            Google AdMob to show third-party advertising at natural breaks, such
+            as after a game over. Google AdMob may collect or share data such as
+            device identifiers, advertising identifiers where available,
+            approximate location inferred from IP address, product interaction
+            data, advertising interaction data, and
             diagnostics for advertising, analytics, fraud prevention, security,
             and performance purposes.
           </p>
