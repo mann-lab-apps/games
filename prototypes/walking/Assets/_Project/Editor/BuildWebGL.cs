@@ -20,7 +20,7 @@ namespace MannLab.Games.Walking.EditorTools
             EditorUserBuildSettings.allowDebugging = false;
 
             PlayerSettings.companyName = "Mann Lab";
-            PlayerSettings.productName = "Walking";
+            PlayerSettings.productName = "Thumbwalk";
             PlayerSettings.bundleVersion = "1.0";
 
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
@@ -47,9 +47,10 @@ namespace MannLab.Games.Walking.EditorTools
                 return;
             }
 
-            const string marker = "/* Mann Lab responsive Walking shell */";
+            const string marker = "/* Mann Lab responsive Thumbwalk shell */";
+            const string legacyMarker = "/* Mann Lab responsive Walking shell */";
             var style = File.ReadAllText(stylePath);
-            if (style.Contains(marker))
+            if (style.Contains(marker) || style.Contains(legacyMarker))
             {
                 return;
             }
@@ -58,7 +59,7 @@ namespace MannLab.Games.Walking.EditorTools
                 stylePath,
                 @"
 
-/* Mann Lab responsive Walking shell */
+/* Mann Lab responsive Thumbwalk shell */
 html, body {
   width: 100%;
   height: 100%;

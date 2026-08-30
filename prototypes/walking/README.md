@@ -1,6 +1,6 @@
-# Walking
+# Thumbwalk
 
-Unity mobile MVP for a first-person maze walk controlled by left-foot and right-foot touches.
+Unity mobile MVP for a first-person maze walk controlled by left-foot and right-foot touches. The player-facing title is `Thumbwalk`; the project path and package keep the original `walking` identifier for build compatibility.
 
 ## Project
 

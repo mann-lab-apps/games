@@ -15,9 +15,9 @@ const games = [
   },
   {
     id: "walking",
-    title: "Walking",
+    title: "Thumbwalk",
     status: "MVP",
-    description: "두 엄지로 발을 찍고 당기며 1인칭 미로를 걷는 산책 게임",
+    description: "두 엄지로 찍고 당겨서 걷는 1인칭 미로 산책 게임",
     route: "/walking",
     aliases: ["/sanchaek"],
     embedHref: "/games/walking/index.html?v=webgl-imgui-20260830",

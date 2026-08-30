@@ -628,7 +628,7 @@ namespace MannLab.Games.Walking
             var ready = state == WalkingGameState.Ready;
             titleText.gameObject.SetActive(ready);
             hintText.gameObject.SetActive(ready);
-            titleText.text = "Walking";
+            titleText.text = "Thumbwalk";
             hintText.text = "Step high. Pull low. Repeat.";
 
             resultText.gameObject.SetActive(state == WalkingGameState.Result);

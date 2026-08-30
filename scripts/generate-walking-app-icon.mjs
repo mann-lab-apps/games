@@ -256,7 +256,7 @@ writeFileSync(htmlPath, `<!doctype html>
   </style>
 </head>
 <body>
-  <div class="icon" aria-label="Walking app icon">
+  <div class="icon" aria-label="Thumbwalk app icon">
     <div class="paper-noise"></div>
     <div class="corridor">
       <div class="floor"></div>
