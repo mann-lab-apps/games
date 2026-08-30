@@ -57,6 +57,9 @@ jobs:
           mkdir -p dist/standing
           mkdir -p dist/sitting
           mkdir -p dist/rainwalker
+          mkdir -p dist/best-ramyeon
+          mkdir -p dist/walking
+          mkdir -p dist/sanchaek
           mkdir -p dist/privacy
           cp dist/index.html dist/10000/index.html
           cp dist/index.html dist/2048-blink/index.html
@@ -68,6 +71,9 @@ jobs:
           cp dist/index.html dist/standing/index.html
           cp dist/index.html dist/sitting/index.html
           cp dist/index.html dist/rainwalker/index.html
+          cp dist/index.html dist/best-ramyeon/index.html
+          cp dist/index.html dist/walking/index.html
+          cp dist/index.html dist/sanchaek/index.html
           cp dist/index.html dist/privacy/index.html
           cp dist/index.html dist/404.html
 
