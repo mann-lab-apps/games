@@ -241,8 +241,10 @@ MonoBehaviour:
   thirdPersonLookAhead: 1.02
   avatarMoveLerp: 5.4
   avatarTurnLerp: 7.2
-  wallHeight: 2.75
-  wallInset: 0.02
+  runDurationSeconds: 30
+  openFieldHalfWidth: 18
+  openFieldLength: 180
+  openFieldObstacleCount: 18
 --- !u!4 &844571443
 Transform:
   m_ObjectHideFlags: 0

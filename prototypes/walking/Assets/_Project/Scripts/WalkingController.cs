@@ -35,8 +35,10 @@ namespace MannLab.Games.Walking
         [SerializeField] private float avatarTurnLerp = 7.2f;
 
         [Header("World")]
-        [SerializeField] private float wallHeight = 2.75f;
-        [SerializeField] private float wallInset = 0.02f;
+        [SerializeField] private float runDurationSeconds = 30f;
+        [SerializeField] private float openFieldHalfWidth = 18f;
+        [SerializeField] private float openFieldLength = 180f;
+        [SerializeField] private int openFieldObstacleCount = 18;
 
         private readonly FootRuntime leftFoot = new FootRuntime(WalkingFootSide.Left);
         private readonly FootRuntime rightFoot = new FootRuntime(WalkingFootSide.Right);
@@ -53,6 +55,8 @@ namespace MannLab.Games.Walking
         private Transform playerBody;
         private Transform playerBackMark;
         private Transform playerHead;
+        private Transform playerLeftArm;
+        private Transform playerRightArm;
         private Transform playerLeftFoot;
         private Transform playerRightFoot;
         private Transform playerShadow;
@@ -82,6 +86,7 @@ namespace MannLab.Games.Walking
         private Texture2D circleTexture;
         private Texture2D ringTexture;
         private readonly List<StepStamp> stepStamps = new List<StepStamp>();
+        private readonly List<FieldObstacle> fieldObstacles = new List<FieldObstacle>();
 
         private Vector2 leftFootPosition;
         private Vector2 rightFootPosition;
@@ -93,6 +98,7 @@ namespace MannLab.Games.Walking
         private Vector2 cameraBodyPosition;
         private float distanceMeters;
         private float bestDistanceMeters;
+        private float runTimeRemaining;
         private int steps;
         private float bobImpulse;
         private float invalidPulse;
@@ -136,6 +142,18 @@ namespace MannLab.Games.Walking
             public float Age { get; set; }
         }
 
+        private readonly struct FieldObstacle
+        {
+            public FieldObstacle(Vector2 center, float radius)
+            {
+                Center = center;
+                Radius = radius;
+            }
+
+            public Vector2 Center { get; }
+            public float Radius { get; }
+        }
+
         private void Awake()
         {
             MobileRuntime.ApplyDefaults();
@@ -150,6 +168,7 @@ namespace MannLab.Games.Walking
         private void Update()
         {
             HandleInput();
+            UpdateRunTimer();
             UpdateCandidates();
             UpdatePlayerAvatar();
             UpdateStepStamps();
@@ -165,11 +184,10 @@ namespace MannLab.Games.Walking
 
         private void ResetRun()
         {
-            var seed = unchecked(System.DateTime.UtcNow.Millisecond * 73856093 ^ Random.Range(1, int.MaxValue));
-            maze = WalkingMaze.Generate(WalkingRules.MazeCellColumns, WalkingRules.MazeCellRows, seed, WalkingRules.TileSize);
+            maze = null;
             BuildWorld();
 
-            bodyPosition = maze.GridToWorld(3, 2);
+            bodyPosition = new Vector2(0f, 0.4f);
             leftFootPosition = bodyPosition + new Vector2(-WalkingRules.NaturalHalfStance, 0f);
             rightFootPosition = bodyPosition + new Vector2(WalkingRules.NaturalHalfStance, 0f);
             previousBodyPosition = bodyPosition;
@@ -178,6 +196,7 @@ namespace MannLab.Games.Walking
             visualFacing = facing;
             cameraBodyPosition = bodyPosition;
             distanceMeters = 0f;
+            runTimeRemaining = runDurationSeconds;
             steps = 0;
             bobImpulse = 0f;
             invalidPulse = 0f;
@@ -220,7 +239,7 @@ namespace MannLab.Games.Walking
             gameCamera.backgroundColor = Paper;
             gameCamera.fieldOfView = 58f;
             gameCamera.nearClipPlane = 0.04f;
-            gameCamera.farClipPlane = 95f;
+            gameCamera.farClipPlane = 180f;
             if (gameCamera.GetComponent<AudioListener>() == null)
             {
                 gameCamera.gameObject.AddComponent<AudioListener>();
@@ -249,83 +268,103 @@ namespace MannLab.Games.Walking
             }
 
             worldRoot = new GameObject("Walking World").transform;
-            var wallMaterial = CreateMaterial("Ink Wall", Ink);
-            var wallEdgeMaterial = CreateMaterial("Wall Edge", new Color32(33, 32, 30, 255));
             var floorMaterial = CreateMaterial("Paper Floor", new Color32(255, 253, 247, 255));
             var lineMaterial = CreateMaterial("Floor Ink Lines", new Color32(186, 181, 170, 255));
             var startMaterial = CreateMaterial("Start Wash", new Color32(240, 246, 226, 255));
             var goalMaterial = CreateMaterial("Forward Warm Marks", new Color32(236, 188, 91, 255));
+            var obstacleMaterial = CreateMaterial("Field Ink Obstacle", new Color32(45, 44, 40, 255));
+            var obstacleTopMaterial = CreateMaterial("Obstacle Paper Highlight", new Color32(71, 69, 63, 255));
+            var fieldWidth = openFieldHalfWidth * 2f;
+            var fieldCenterZ = openFieldLength * 0.5f;
+            fieldObstacles.Clear();
 
-            var floorCenter = new Vector3(0f, -0.035f, 0f);
-            var floorSize = new Vector3(
-                maze.GridWidth * maze.TileSize,
-                0.06f,
-                maze.GridHeight * maze.TileSize);
-            CreateCube("Paper Floor", floorCenter, floorSize, floorMaterial, worldRoot);
+            CreateCube(
+                "Open Paper Field",
+                new Vector3(0f, -0.035f, fieldCenterZ),
+                new Vector3(fieldWidth, 0.06f, openFieldLength + 18f),
+                floorMaterial,
+                worldRoot);
 
-            foreach (var tile in maze.SolidTiles())
+            CreateCube(
+                "Start Wash",
+                new Vector3(0f, -0.002f, 4.4f),
+                new Vector3(fieldWidth * 0.34f, 0.018f, 8.8f),
+                startMaterial,
+                worldRoot);
+
+            for (var i = 0; i <= Mathf.CeilToInt(openFieldLength / 2f); i++)
             {
-                var world = maze.GridToWorld(tile.x, tile.y);
-                var wall = CreateCube(
-                    "Ink Wall",
-                    new Vector3(world.x, wallHeight * 0.5f, world.y),
-                    new Vector3(maze.TileSize - wallInset, wallHeight, maze.TileSize - wallInset),
-                    wallMaterial,
-                    worldRoot);
-                wall.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-
+                var z = i * 2f;
+                var major = i % 5 == 0;
                 CreateCube(
-                    "Wall Top Sketch",
-                    new Vector3(world.x, wallHeight + 0.012f, world.y),
-                    new Vector3(maze.TileSize * 0.92f, 0.025f, maze.TileSize * 0.92f),
-                    wallEdgeMaterial,
-                    wall.transform);
+                    major ? "Forward Distance Mark" : "Forward Tick",
+                    new Vector3(0f, 0.018f, z),
+                    new Vector3(major ? fieldWidth * 0.18f : fieldWidth * 0.08f, 0.02f, major ? 0.08f : 0.05f),
+                    major ? goalMaterial : lineMaterial,
+                    worldRoot);
             }
 
-            for (var y = 0; y < maze.GridHeight; y++)
+            for (var i = 0; i <= Mathf.CeilToInt(openFieldLength / 6f); i++)
             {
-                for (var x = 0; x < maze.GridWidth; x++)
-                {
-                    if (maze.IsSolidGrid(x, y))
-                    {
-                        continue;
-                    }
-
-                    var world = maze.GridToWorld(x, y);
-                    var material = x <= 5 && y <= 12 ? startMaterial : lineMaterial;
-                    if (!maze.IsSolidGrid(x, y + 1))
-                    {
-                        CreateCube(
-                            "Floor Direction Line",
-                            new Vector3(world.x, 0.012f, world.y + maze.TileSize * 0.26f),
-                            new Vector3(0.08f, 0.018f, maze.TileSize * 0.46f),
-                            material,
-                            worldRoot);
-                    }
-
-                    if (!maze.IsSolidGrid(x + 1, y))
-                    {
-                        CreateCube(
-                            "Floor Cross Line",
-                            new Vector3(world.x + maze.TileSize * 0.26f, 0.014f, world.y),
-                            new Vector3(maze.TileSize * 0.46f, 0.018f, 0.055f),
-                            lineMaterial,
-                            worldRoot);
-                    }
-
-                    if (y > 4 && y % 4 == 0 && x % 2 == 0)
-                    {
-                        CreateCube(
-                            "Forward Distance Mark",
-                            new Vector3(world.x, 0.018f, world.y),
-                            new Vector3(maze.TileSize * 0.42f, 0.02f, 0.075f),
-                            goalMaterial,
-                            worldRoot);
-                    }
-                }
+                var z = i * 6f + 1.2f;
+                var sideOffset = 4.5f + Mathf.Sin(i * 1.77f) * 1.7f;
+                CreateCube(
+                    "Left Field Sketch Tick",
+                    new Vector3(-sideOffset, 0.014f, z),
+                    new Vector3(1.1f, 0.018f, 0.052f),
+                    lineMaterial,
+                    worldRoot);
+                CreateCube(
+                    "Right Field Sketch Tick",
+                    new Vector3(sideOffset * 1.08f, 0.014f, z + 2.6f),
+                    new Vector3(1.1f, 0.018f, 0.052f),
+                    lineMaterial,
+                    worldRoot);
             }
 
+            BuildOpenFieldObstacles(obstacleMaterial, obstacleTopMaterial);
             BuildDebugMarkers();
+        }
+
+        private void BuildOpenFieldObstacles(Material obstacleMaterial, Material obstacleTopMaterial)
+        {
+            var random = new System.Random(unchecked(System.DateTime.UtcNow.Millisecond * 92821 + steps * 97));
+            var count = Mathf.Max(0, openFieldObstacleCount);
+            var usableLength = Mathf.Max(20f, openFieldLength - 18f);
+
+            for (var i = 0; i < count; i++)
+            {
+                var lane = i / (float)Mathf.Max(1, count - 1);
+                var z = 13f + lane * usableLength + RandomRange(random, -2.4f, 2.4f);
+                var x = RandomRange(random, -openFieldHalfWidth + 2.4f, openFieldHalfWidth - 2.4f);
+                if (z < 40f && Mathf.Abs(x) < 2.2f)
+                {
+                    x += x < 0f ? -3.2f : 3.2f;
+                }
+
+                var radius = RandomRange(random, 0.42f, 0.82f);
+                var center = new Vector2(x, z);
+                fieldObstacles.Add(new FieldObstacle(center, radius));
+
+                var height = RandomRange(random, 0.22f, 0.46f);
+                var width = radius * RandomRange(random, 1.45f, 2.1f);
+                var depth = radius * RandomRange(random, 1.35f, 2.0f);
+                var obstacle = CreateEllipsoid(
+                    "Soft Ink Obstacle",
+                    new Vector3(center.x, height * 0.48f, center.y),
+                    new Vector3(width, height, depth),
+                    obstacleMaterial,
+                    worldRoot);
+                obstacle.transform.rotation = Quaternion.Euler(0f, RandomRange(random, -28f, 28f), 0f);
+
+                var highlight = CreateEllipsoid(
+                    "Obstacle Sketch Highlight",
+                    new Vector3(center.x - width * 0.12f, height * 0.82f, center.y - depth * 0.09f),
+                    new Vector3(width * 0.42f, height * 0.10f, depth * 0.24f),
+                    obstacleTopMaterial,
+                    obstacle.transform);
+                highlight.transform.localRotation = Quaternion.Euler(0f, 0f, RandomRange(random, -8f, 8f));
+            }
         }
 
         private void BuildPlayerAvatar()
@@ -341,43 +380,56 @@ namespace MannLab.Games.Walking
             var shadowMaterial = CreateMaterial("Player Sketch Shadow", new Color32(40, 39, 36, 255));
             var bodyMaterial = CreateMaterial("Player Paper Body", new Color32(255, 253, 247, 255));
             var headMaterial = CreateMaterial("Player Warm Head", new Color32(247, 181, 71, 255));
+            var armMaterial = CreateMaterial("Player Warm Arms", new Color32(240, 196, 113, 255));
             var leftFootMaterial = CreateMaterial("Player Left Foot", new Color32(88, 142, 181, 255));
             var rightFootMaterial = CreateMaterial("Player Right Foot", new Color32(247, 181, 71, 255));
 
-            playerShadow = CreateCube(
+            playerShadow = CreateEllipsoid(
                 "Player Shadow",
                 Vector3.zero,
-                new Vector3(0.62f, 0.018f, 0.46f),
+                new Vector3(0.72f, 0.022f, 0.54f),
                 shadowMaterial,
                 playerRoot).transform;
-            playerBody = CreateCube(
+            playerBody = CreateEllipsoid(
                 "Player Paper Body",
                 Vector3.zero,
-                new Vector3(0.42f, 0.68f, 0.30f),
+                new Vector3(0.58f, 0.82f, 0.42f),
                 bodyMaterial,
                 playerRoot).transform;
-            playerBackMark = CreateCube(
+            playerBackMark = CreateEllipsoid(
                 "Player Back Ink Mark",
                 Vector3.zero,
-                new Vector3(0.29f, 0.34f, 0.026f),
+                new Vector3(0.34f, 0.44f, 0.04f),
                 shadowMaterial,
                 playerRoot).transform;
-            playerHead = CreateCube(
+            playerHead = CreateEllipsoid(
                 "Player Head",
                 Vector3.zero,
-                new Vector3(0.30f, 0.30f, 0.30f),
+                new Vector3(0.42f, 0.36f, 0.40f),
                 headMaterial,
                 playerRoot).transform;
-            playerLeftFoot = CreateCube(
+            playerLeftArm = CreateEllipsoid(
+                "Player Left Arm",
+                Vector3.zero,
+                new Vector3(0.18f, 0.42f, 0.18f),
+                armMaterial,
+                playerRoot).transform;
+            playerRightArm = CreateEllipsoid(
+                "Player Right Arm",
+                Vector3.zero,
+                new Vector3(0.18f, 0.42f, 0.18f),
+                armMaterial,
+                playerRoot).transform;
+            playerLeftFoot = CreateEllipsoid(
                 "Player Left Foot",
                 Vector3.zero,
-                new Vector3(0.20f, 0.055f, 0.38f),
+                new Vector3(0.27f, 0.07f, 0.45f),
                 leftFootMaterial,
                 playerRoot).transform;
-            playerRightFoot = CreateCube(
+            playerRightFoot = CreateEllipsoid(
                 "Player Right Foot",
                 Vector3.zero,
-                new Vector3(0.20f, 0.055f, 0.38f),
+                new Vector3(0.27f, 0.07f, 0.45f),
                 rightFootMaterial,
                 playerRoot).transform;
         }
@@ -641,7 +693,10 @@ namespace MannLab.Games.Walking
                 facing,
                 foot.BestStepScreenPosition,
                 new Vector2(Screen.width, Screen.height));
-            foot.Candidate = WalkingRules.ValidateFootPlacement(foot.Side, support, candidate, facing, maze);
+            var placement = WalkingRules.ValidateFootPlacement(foot.Side, support, candidate, facing, maze);
+            foot.Candidate = placement.IsValid && IsCircleTouchingFieldObstacle(candidate, WalkingRules.FootRadius)
+                ? new WalkingFootPlacement(candidate, false, "obstacle")
+                : placement;
         }
 
         private bool TryLandFoot(FootRuntime foot)
@@ -658,6 +713,17 @@ namespace MannLab.Games.Walking
             previousBodyPosition = bodyPosition;
             var oldBody = bodyPosition;
             var oldFoot = foot.Side == WalkingFootSide.Left ? leftFootPosition : rightFootPosition;
+            var proposedLeftFoot = foot.Side == WalkingFootSide.Left ? foot.Candidate.Position : leftFootPosition;
+            var proposedRightFoot = foot.Side == WalkingFootSide.Right ? foot.Candidate.Position : rightFootPosition;
+            var proposedBody = WalkingRules.BodyCenter(proposedLeftFoot, proposedRightFoot);
+
+            if (IsCircleTouchingFieldObstacle(proposedBody, WalkingRules.BodyRadius))
+            {
+                invalidPulse = 1f;
+                foot.StatusPulse = 1f;
+                PlayBump(0.45f);
+                return false;
+            }
 
             if (foot.Side == WalkingFootSide.Left)
             {
@@ -673,11 +739,12 @@ namespace MannLab.Games.Walking
             var stepDirection = bodyPosition - oldBody;
             if (stepDirection.sqrMagnitude > 0.0001f)
             {
-                facing = Vector2.Lerp(footForward, stepDirection.normalized, 0.74f).normalized;
+                var runForward = Vector2.Lerp(stepDirection.normalized, Vector2.up, 0.42f).normalized;
+                facing = Vector2.Lerp(footForward, runForward, 0.74f).normalized;
             }
             else
             {
-                facing = footForward;
+                facing = Vector2.Lerp(footForward, Vector2.up, 0.42f).normalized;
             }
 
             var traveled = Vector2.Distance(oldBody, bodyPosition);
@@ -691,12 +758,35 @@ namespace MannLab.Games.Walking
             CreateStepStamp(foot.Candidate.Position, foot.Side);
             PlayStep();
 
-            if (WalkingRules.IsBodyColliding(bodyPosition, maze))
+            return true;
+        }
+
+        private void UpdateRunTimer()
+        {
+            if (state != WalkingGameState.Playing)
+            {
+                return;
+            }
+
+            runTimeRemaining = Mathf.Max(0f, runTimeRemaining - Time.deltaTime);
+            if (runTimeRemaining <= 0f)
             {
                 EndRun();
             }
+        }
 
-            return true;
+        private bool IsCircleTouchingFieldObstacle(Vector2 center, float radius)
+        {
+            for (var i = 0; i < fieldObstacles.Count; i++)
+            {
+                var obstacle = fieldObstacles[i];
+                if (Vector2.Distance(center, obstacle.Center) <= radius + obstacle.Radius)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void EndRun()
@@ -773,28 +863,44 @@ namespace MannLab.Games.Walking
             if (playerShadow != null)
             {
                 playerShadow.localPosition = new Vector3(0f, 0.026f, 0f);
-                playerShadow.localScale = new Vector3(0.62f, 0.018f, 0.46f);
+                playerShadow.localScale = new Vector3(0.72f, 0.022f, 0.54f);
             }
 
             if (playerBody != null)
             {
-                playerBody.localPosition = new Vector3(lean * 0.045f, 0.44f + bodyBob - bodyLeanPulse * 0.025f, 0f);
+                playerBody.localPosition = new Vector3(lean * 0.045f, 0.45f + bodyBob - bodyLeanPulse * 0.025f, 0f);
                 playerBody.localRotation = Quaternion.Euler(0f, 0f, -lean * 7f);
-                playerBody.localScale = new Vector3(0.42f + bodyLeanPulse * 0.025f, 0.68f - bodyLeanPulse * 0.035f, 0.30f);
+                playerBody.localScale = new Vector3(0.58f + bodyLeanPulse * 0.035f, 0.82f - bodyLeanPulse * 0.045f, 0.42f);
             }
 
             if (playerBackMark != null)
             {
-                playerBackMark.localPosition = new Vector3(lean * 0.045f, 0.48f + bodyBob - bodyLeanPulse * 0.025f, -0.17f);
+                playerBackMark.localPosition = new Vector3(lean * 0.045f, 0.50f + bodyBob - bodyLeanPulse * 0.025f, -0.22f);
                 playerBackMark.localRotation = Quaternion.Euler(0f, 0f, -lean * 7f);
-                playerBackMark.localScale = new Vector3(0.29f, 0.34f, 0.026f);
+                playerBackMark.localScale = new Vector3(0.34f, 0.44f, 0.04f);
             }
 
             if (playerHead != null)
             {
-                playerHead.localPosition = new Vector3(lean * 0.065f, 0.94f + bodyBob - bodyLeanPulse * 0.018f, 0.02f);
+                playerHead.localPosition = new Vector3(lean * 0.065f, 1.00f + bodyBob - bodyLeanPulse * 0.018f, 0.03f);
                 playerHead.localRotation = Quaternion.Euler(0f, 0f, -lean * 5f);
-                playerHead.localScale = new Vector3(0.30f, 0.30f, 0.30f);
+                playerHead.localScale = new Vector3(0.42f, 0.36f, 0.40f);
+            }
+
+            if (playerLeftArm != null)
+            {
+                var swing = Mathf.Clamp01(rightFoot.StatusPulse + bobImpulse * 2.6f);
+                playerLeftArm.localPosition = new Vector3(-0.38f + lean * 0.035f, 0.49f + bodyBob * 0.55f, 0.02f + swing * 0.08f);
+                playerLeftArm.localRotation = Quaternion.Euler(12f + swing * 16f, 0f, 18f - lean * 4f);
+                playerLeftArm.localScale = new Vector3(0.18f, 0.42f, 0.18f);
+            }
+
+            if (playerRightArm != null)
+            {
+                var swing = Mathf.Clamp01(leftFoot.StatusPulse + bobImpulse * 2.6f);
+                playerRightArm.localPosition = new Vector3(0.38f + lean * 0.035f, 0.49f + bodyBob * 0.55f, 0.02f + swing * 0.08f);
+                playerRightArm.localRotation = Quaternion.Euler(12f + swing * 16f, 0f, -18f - lean * 4f);
+                playerRightArm.localScale = new Vector3(0.18f, 0.42f, 0.18f);
             }
 
             SetAvatarFoot(playerLeftFoot, leftFootPosition, leftFoot.StatusPulse, targetRotation, snap);
@@ -813,7 +919,7 @@ namespace MannLab.Games.Walking
             foot.position = snap ? target : Vector3.Lerp(foot.position, target, t);
             foot.rotation = snap ? rotation : Quaternion.Slerp(foot.rotation, rotation, t);
             var spread = 1f + Mathf.Clamp01(pulse) * 0.16f;
-            foot.localScale = new Vector3(0.20f * spread, 0.055f, 0.38f * spread);
+            foot.localScale = new Vector3(0.27f * spread, 0.07f, 0.45f * spread);
         }
 
         private void CreateStepStamp(Vector2 position, WalkingFootSide side)
@@ -899,7 +1005,7 @@ namespace MannLab.Games.Walking
             }
 
             distanceText.text = $"{distanceMeters:0.0} m";
-            bestText.text = $"{bestDistanceMeters:0.0} m";
+            bestText.text = $"{Mathf.CeilToInt(runTimeRemaining)} s";
             stepText.text = state == WalkingGameState.Playing ? steps.ToString() : string.Empty;
 
             var ready = state == WalkingGameState.Ready;
@@ -933,6 +1039,7 @@ namespace MannLab.Games.Walking
 
             DrawGuiRect(new Rect(margin, margin, Screen.width - margin * 2f, topHeight), new Color(1f, 0.99f, 0.96f, 0.82f));
             GUI.Label(new Rect(margin + 18f * scale, margin + 12f * scale, 240f * scale, topHeight), $"{distanceMeters:0.0} m", hudStyle);
+            GUI.Label(new Rect(Screen.width * 0.5f - 64f * scale, margin + 12f * scale, 128f * scale, topHeight), $"{Mathf.CeilToInt(runTimeRemaining)}s", smallHudStyle);
             GUI.Label(new Rect(Screen.width - margin - 180f * scale, margin + 12f * scale, 160f * scale, topHeight), $"{bestDistanceMeters:0.0} m", smallHudStyle);
 
             DrawFootSignal(leftFoot, new Rect(margin, Screen.height - 90f * scale, 108f * scale, 54f * scale), scale);
@@ -945,7 +1052,7 @@ namespace MannLab.Games.Walking
             else if (state == WalkingGameState.Result)
             {
                 DrawGuiRect(new Rect(Screen.width * 0.18f, Screen.height * 0.27f, Screen.width * 0.64f, 240f * scale), new Color(1f, 0.99f, 0.96f, 0.9f));
-                GUI.Label(new Rect(Screen.width * 0.18f, Screen.height * 0.28f, Screen.width * 0.64f, 110f * scale), $"Result\n{distanceMeters:0.0} m", titleStyle);
+                GUI.Label(new Rect(Screen.width * 0.18f, Screen.height * 0.28f, Screen.width * 0.64f, 128f * scale), $"Result\n{distanceMeters:0.0} m\nBest {bestDistanceMeters:0.0} m", titleStyle);
                 if (GUI.Button(new Rect(Screen.width * 0.35f, Screen.height * 0.43f, Screen.width * 0.3f, 56f * scale), "Restart", buttonStyle))
                 {
                     ResetRun();
@@ -1279,6 +1386,11 @@ namespace MannLab.Games.Walking
             return 0.5f + Mathf.Sin(time * Mathf.PI * 2f) * 0.5f;
         }
 
+        private static float RandomRange(System.Random random, float min, float max)
+        {
+            return min + (max - min) * (float)random.NextDouble();
+        }
+
         private static void ApplyFootStatus(FootRuntime foot, Text label, Image badge, Image zone)
         {
             var color = new Color32(255, 253, 247, 210);
@@ -1389,6 +1501,18 @@ namespace MannLab.Games.Walking
             return cube;
         }
 
+        private static GameObject CreateEllipsoid(string objectName, Vector3 position, Vector3 scale, Material material, Transform parent)
+        {
+            var ellipsoid = new GameObject(objectName, typeof(MeshFilter), typeof(MeshRenderer));
+            ellipsoid.name = objectName;
+            ellipsoid.transform.SetParent(parent, false);
+            ellipsoid.transform.position = position;
+            ellipsoid.transform.localScale = scale;
+            ellipsoid.GetComponent<MeshFilter>().sharedMesh = CreateUnitSphereMesh();
+            ellipsoid.GetComponent<MeshRenderer>().sharedMaterial = material;
+            return ellipsoid;
+        }
+
         private static Mesh CreateUnitCubeMesh()
         {
             var mesh = new Mesh
@@ -1423,14 +1547,68 @@ namespace MannLab.Games.Walking
             return mesh;
         }
 
+        private static Mesh CreateUnitSphereMesh()
+        {
+            const int longitudeSegments = 18;
+            const int latitudeSegments = 10;
+            var vertices = new Vector3[(latitudeSegments + 1) * (longitudeSegments + 1)];
+            var triangles = new int[latitudeSegments * longitudeSegments * 6];
+
+            for (var lat = 0; lat <= latitudeSegments; lat++)
+            {
+                var v = lat / (float)latitudeSegments;
+                var theta = v * Mathf.PI;
+                var sinTheta = Mathf.Sin(theta);
+                var cosTheta = Mathf.Cos(theta);
+
+                for (var lon = 0; lon <= longitudeSegments; lon++)
+                {
+                    var u = lon / (float)longitudeSegments;
+                    var phi = u * Mathf.PI * 2f;
+                    var index = lat * (longitudeSegments + 1) + lon;
+                    vertices[index] = new Vector3(
+                        Mathf.Cos(phi) * sinTheta * 0.5f,
+                        cosTheta * 0.5f,
+                        Mathf.Sin(phi) * sinTheta * 0.5f);
+                }
+            }
+
+            var tri = 0;
+            for (var lat = 0; lat < latitudeSegments; lat++)
+            {
+                for (var lon = 0; lon < longitudeSegments; lon++)
+                {
+                    var current = lat * (longitudeSegments + 1) + lon;
+                    var next = current + longitudeSegments + 1;
+                    triangles[tri++] = current;
+                    triangles[tri++] = next;
+                    triangles[tri++] = current + 1;
+                    triangles[tri++] = current + 1;
+                    triangles[tri++] = next;
+                    triangles[tri++] = next + 1;
+                }
+            }
+
+            var mesh = new Mesh
+            {
+                name = "Thumbwalk Rounded Mesh",
+                vertices = vertices,
+                triangles = triangles
+            };
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
         private static Material CreateMaterial(string materialName, Color color)
         {
             var shader =
-                Shader.Find("Hidden/Internal-Colored") ??
                 Shader.Find("Unlit/Color") ??
+                Shader.Find("Universal Render Pipeline/Unlit") ??
                 Shader.Find("Sprites/Default") ??
                 Shader.Find("UI/Default") ??
-                Shader.Find("Standard");
+                Shader.Find("Standard") ??
+                Shader.Find("Hidden/Internal-Colored");
             var material = new Material(shader);
             material.name = materialName;
             material.color = color;
