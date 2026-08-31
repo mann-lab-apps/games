@@ -20,9 +20,9 @@ Open this directory from Unity Hub and run `Assets/_Project/Scenes/Game.unity`.
 - Foot positions, support feet, candidate steps, and return gestures exist only as internal simulation.
 - Set `debugFootMarkers` on `WalkingController` to show development-only foot and candidate markers.
 - Screen-left input controls the left foot, screen-right input controls the right foot.
-- Releasing a touch lands the foot when stride, side clearance, and wall checks pass.
-- After a foot lands, that same side must start one return touch near the body side of the screen before it can place another step; return touches are ignored as movement.
-- The first-run rhythm is intentionally simple: step high, pull low, repeat.
+- Touching high lands the foot immediately when stride, side clearance, and wall checks pass.
+- After a foot lands, that same side must return near the body side of the screen before it can place another step; dragging the same thumb down can complete return, but return motion is ignored as movement.
+- The first-run rhythm is intentionally simple: stamp high, pull low, disappear, repeat.
 - The HUD and lower touch zones show step, blocked, pull-back, and returning states.
 - Distance accumulates from body-center movement until the body radius touches a wall.
 

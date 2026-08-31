@@ -89,7 +89,9 @@ namespace MannLab.Games.Walking
             Idle,
             Placement,
             Return,
-            Ignored
+            Ignored,
+            LandedHold,
+            InvalidHold
         }
 
         private sealed class FootRuntime
@@ -464,7 +466,19 @@ namespace MannLab.Games.Walking
                 return;
             }
 
+            if (WalkingRules.IsReturnGesturePosition(screenPosition, new Vector2(Screen.width, Screen.height)))
+            {
+                foot.Mode = InputMode.Ignored;
+                foot.StatusPulse = 1f;
+                return;
+            }
+
             foot.Mode = InputMode.Placement;
+            var landed = TryLandFoot(foot);
+            if (state == WalkingGameState.Playing)
+            {
+                foot.Mode = landed ? InputMode.LandedHold : InputMode.InvalidHold;
+            }
         }
 
         private void MovePointer(int pointerId, Vector2 screenPosition)
@@ -482,6 +496,16 @@ namespace MannLab.Games.Walking
                     foot.BestStepScreenPosition = screenPosition;
                 }
             }
+            else if (foot.Mode == InputMode.LandedHold)
+            {
+                foot.ScreenPosition = screenPosition;
+                if (foot.NeedsReturn && WalkingRules.IsReturnGesturePosition(screenPosition, new Vector2(Screen.width, Screen.height)))
+                {
+                    foot.NeedsReturn = false;
+                    foot.Mode = InputMode.Return;
+                    foot.StatusPulse = 1f;
+                }
+            }
         }
 
         private void EndPointer(int pointerId, Vector2 screenPosition)
@@ -491,12 +515,7 @@ namespace MannLab.Games.Walking
                 return;
             }
 
-            if (foot.Mode == InputMode.Placement)
-            {
-                foot.ScreenPosition = screenPosition;
-                TryLandFoot(foot);
-            }
-            else if (foot.Mode == InputMode.Return)
+            if (foot.Mode == InputMode.Return)
             {
                 foot.NeedsReturn = false;
                 foot.StatusPulse = 1f;
@@ -536,7 +555,7 @@ namespace MannLab.Games.Walking
             foot.Candidate = WalkingRules.ValidateFootPlacement(foot.Side, support, candidate, facing, maze);
         }
 
-        private void TryLandFoot(FootRuntime foot)
+        private bool TryLandFoot(FootRuntime foot)
         {
             UpdateCandidate(foot);
             if (!foot.Candidate.IsValid)
@@ -544,7 +563,7 @@ namespace MannLab.Games.Walking
                 invalidPulse = 1f;
                 foot.StatusPulse = 1f;
                 PlayBump(0.35f);
-                return;
+                return false;
             }
 
             previousBodyPosition = bodyPosition;
@@ -584,6 +603,8 @@ namespace MannLab.Games.Walking
             {
                 EndRun();
             }
+
+            return true;
         }
 
         private void EndRun()
@@ -718,7 +739,7 @@ namespace MannLab.Games.Walking
         private void DrawTouchGlyph(FootRuntime foot, Rect zone, bool stepZone, bool suggested, float scale)
         {
             var phase = Pulse01(Time.unscaledTime * 1.55f + (foot.Side == WalkingFootSide.Left ? 0f : 0.5f));
-            var invalid = foot.Mode == InputMode.Placement && !foot.Candidate.IsValid;
+            var invalid = foot.Mode == InputMode.InvalidHold || (foot.Mode == InputMode.Placement && !foot.Candidate.IsValid);
             var active = stepZone
                 ? foot.Mode == InputMode.Placement || (!foot.NeedsReturn && suggested)
                 : foot.Mode == InputMode.Return || foot.NeedsReturn || suggested;
@@ -737,8 +758,8 @@ namespace MannLab.Games.Walking
 
             if (stepZone)
             {
-                DrawCircle(rect, new Color(color.r, color.g, color.b, alpha * 0.52f));
                 DrawRing(Inflate(rect, 7f * scale), new Color(color.r, color.g, color.b, alpha));
+                DrawFootprint(center, foot.Side, scale * 0.82f, new Color(color.r, color.g, color.b, alpha * 0.85f));
                 if (invalid)
                 {
                     DrawGuiRect(new Rect(rect.xMin - 14f * scale, rect.center.y - 3f * scale, rect.width + 28f * scale, 6f * scale), new Color(Red.r, Red.g, Red.b, 0.42f));
@@ -747,11 +768,8 @@ namespace MannLab.Games.Walking
                 return;
             }
 
-            var pocket = new Rect(center.x - 58f * scale, center.y - 16f * scale, 116f * scale, 32f * scale);
-            DrawGuiRect(new Rect(pocket.x, pocket.yMax - 6f * scale, pocket.width, 6f * scale), new Color(color.r, color.g, color.b, alpha));
-            DrawGuiRect(new Rect(pocket.x, pocket.y, 6f * scale, pocket.height), new Color(color.r, color.g, color.b, alpha));
-            DrawGuiRect(new Rect(pocket.xMax - 6f * scale, pocket.y, 6f * scale, pocket.height), new Color(color.r, color.g, color.b, alpha));
-            DrawCircle(CenteredRect(new Vector2(center.x, pocket.y - 18f * scale), size * 0.55f, size * 0.55f), new Color(color.r, color.g, color.b, alpha * 0.45f));
+            DrawReturnPocket(center, 116f * scale, 32f * scale, 6f * scale, new Color(color.r, color.g, color.b, alpha));
+            DrawThumb(CenteredRect(new Vector2(center.x, center.y - 34f * scale), size * 0.58f, size * 0.68f), new Color(color.r, color.g, color.b, alpha * 0.45f));
         }
 
         private void DrawReadyCoach(float scale)
@@ -766,43 +784,50 @@ namespace MannLab.Games.Walking
             var laneWidth = (panel.width - gap * 3f) * 0.5f;
             var leftLane = new Rect(panel.x + gap, laneTop, laneWidth, laneHeight);
             var rightLane = new Rect(panel.x + gap * 2f + laneWidth, laneTop, laneWidth, laneHeight);
-            DrawThumbLoop(leftLane, "1", 0f, scale);
-            DrawThumbLoop(rightLane, "2", 0.5f, scale);
+            DrawThumbLoop(leftLane, leftFoot.Side, 0f, scale);
+            DrawThumbLoop(rightLane, rightFoot.Side, 0.5f, scale);
         }
 
-        private void DrawThumbLoop(Rect lane, string order, float phaseOffset, float scale)
+        private void DrawThumbLoop(Rect lane, WalkingFootSide side, float phaseOffset, float scale)
         {
             DrawGuiRect(lane, new Color(Ink.r, Ink.g, Ink.b, 0.045f));
-            GUI.Label(new Rect(lane.x + 10f * scale, lane.y + 5f * scale, 28f * scale, 28f * scale), order, guideStyle);
 
             var topCenter = new Vector2(lane.center.x, lane.y + 55f * scale);
             var bottomCenter = new Vector2(lane.center.x, lane.yMax - 48f * scale);
-            var pulse = Pulse01(Time.unscaledTime * 1.55f + phaseOffset);
-            DrawRing(CenteredRect(topCenter, (56f + pulse * 10f) * scale, (56f + pulse * 10f) * scale), new Color(Warm.r, Warm.g, Warm.b, 0.58f));
-            DrawCircle(CenteredRect(topCenter, 20f * scale, 20f * scale), new Color(Warm.r, Warm.g, Warm.b, 0.42f));
+            var loop = Mathf.Repeat(Time.unscaledTime * 0.82f + phaseOffset, 1f);
+            var stampPulse = loop < 0.28f ? 1f - loop / 0.28f : Mathf.Clamp01(1f - (loop - 0.28f) / 0.52f);
+            var pocketPulse = loop > 0.34f && loop < 0.78f ? Pulse01((loop - 0.34f) * 2.2f) : 0.15f;
 
-            var pocket = new Rect(bottomCenter.x - 47f * scale, bottomCenter.y - 13f * scale, 94f * scale, 28f * scale);
-            DrawGuiRect(new Rect(pocket.x, pocket.yMax - 5f * scale, pocket.width, 5f * scale), new Color(Blue.r, Blue.g, Blue.b, 0.54f));
-            DrawGuiRect(new Rect(pocket.x, pocket.y, 5f * scale, pocket.height), new Color(Blue.r, Blue.g, Blue.b, 0.54f));
-            DrawGuiRect(new Rect(pocket.xMax - 5f * scale, pocket.y, 5f * scale, pocket.height), new Color(Blue.r, Blue.g, Blue.b, 0.54f));
-            DrawCircle(CenteredRect(bottomCenter + Vector2.up * 22f * scale, 18f * scale, 18f * scale), new Color(Blue.r, Blue.g, Blue.b, 0.26f));
+            DrawRing(CenteredRect(topCenter, (52f + stampPulse * 18f) * scale, (52f + stampPulse * 18f) * scale), new Color(Warm.r, Warm.g, Warm.b, 0.34f + stampPulse * 0.36f));
+            DrawFootprint(topCenter, side, scale * (0.86f + stampPulse * 0.12f), new Color(Warm.r, Warm.g, Warm.b, 0.34f + stampPulse * 0.48f));
+            DrawReturnPocket(bottomCenter, 94f * scale, 28f * scale, 5f * scale, new Color(Blue.r, Blue.g, Blue.b, 0.30f + pocketPulse * 0.28f));
 
-            var pathX = lane.center.x - 2f * scale;
-            DrawGuiRect(new Rect(pathX, topCenter.y + 34f * scale, 4f * scale, bottomCenter.y - topCenter.y - 67f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.08f));
-            DrawRing(CenteredRect(Vector2.Lerp(topCenter, bottomCenter, 0.52f), 28f * scale, 28f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.18f));
+            if (loop >= 0.10f && loop < 0.74f)
+            {
+                var t = Mathf.InverseLerp(0.10f, 0.74f, loop);
+                var eased = Mathf.SmoothStep(0f, 1f, t);
+                var center = Vector2.Lerp(topCenter, bottomCenter, eased);
+                var fade = 1f - Mathf.SmoothStep(0.58f, 0.74f, loop);
+                var pullColor = Color.Lerp(Warm, Blue, Mathf.Clamp01(t));
+                DrawThumb(CenteredRect(center, 42f * scale, 50f * scale), new Color(pullColor.r, pullColor.g, pullColor.b, 0.88f * fade));
 
-            var phase = Mathf.Repeat(Time.unscaledTime * 0.72f + phaseOffset, 1f);
-            var stepping = phase < 0.42f;
-            var airborne = phase >= 0.42f && phase < 0.58f;
-            var t = stepping ? phase / 0.42f : Mathf.Clamp01((phase - 0.58f) / 0.42f);
-            t = Mathf.SmoothStep(0f, 1f, t);
-            var thumbY = stepping
-                ? Mathf.Lerp(bottomCenter.y, topCenter.y, t)
-                : Mathf.Lerp(topCenter.y, bottomCenter.y, t);
-            var thumbColor = stepping ? Warm : Blue;
-            var thumbAlpha = airborne ? 0.24f : 0.9f;
-            var thumbSize = airborne ? 28f * scale : 40f * scale;
-            DrawThumb(CenteredRect(new Vector2(lane.center.x, thumbY), thumbSize, thumbSize * 1.18f), new Color(thumbColor.r, thumbColor.g, thumbColor.b, thumbAlpha));
+                var ghostCount = 3;
+                for (var i = 1; i <= ghostCount; i++)
+                {
+                    var ghostT = Mathf.Clamp01(eased - i * 0.15f);
+                    if (ghostT <= 0f)
+                    {
+                        continue;
+                    }
+
+                    var ghostCenter = Vector2.Lerp(topCenter, bottomCenter, ghostT);
+                    DrawCircle(CenteredRect(ghostCenter, 8f * scale, 8f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.06f * fade));
+                }
+            }
+            else if (loop < 0.10f)
+            {
+                DrawThumb(CenteredRect(topCenter, 46f * scale, 54f * scale), new Color(Warm.r, Warm.g, Warm.b, 0.95f));
+            }
         }
 
         private void DrawFootSignal(FootRuntime foot, Rect rect, float scale)
@@ -813,7 +838,7 @@ namespace MannLab.Games.Walking
             var lineColor = new Color(Ink.r, Ink.g, Ink.b, 0.42f);
             DrawGuiRect(new Rect(rect.x + 14f * scale, center.y - 2f * scale, rect.width - 28f * scale, 4f * scale), lineColor);
 
-            if (foot.Mode == InputMode.Placement && !foot.Candidate.IsValid)
+            if (foot.Mode == InputMode.InvalidHold || (foot.Mode == InputMode.Placement && !foot.Candidate.IsValid))
             {
                 DrawRing(Inflate(dot, 8f * scale), new Color(Red.r, Red.g, Red.b, 0.9f));
                 DrawGuiRect(new Rect(center.x - 18f * scale, center.y - 3f * scale, 36f * scale, 6f * scale), new Color(Red.r, Red.g, Red.b, 0.75f));
@@ -833,9 +858,9 @@ namespace MannLab.Games.Walking
 
         private static Color FootStatusColor(FootRuntime foot)
         {
-            if (foot.Mode == InputMode.Placement)
+            if (foot.Mode == InputMode.InvalidHold || foot.Mode == InputMode.Placement)
             {
-                return foot.Candidate.IsValid
+                return foot.Mode != InputMode.InvalidHold && foot.Candidate.IsValid
                     ? new Color(Green.r, Green.g, Green.b, 0.20f)
                     : new Color(Red.r, Red.g, Red.b, 0.24f);
             }
@@ -927,6 +952,23 @@ namespace MannLab.Games.Walking
             DrawCircle(rect, color);
             var highlight = new Rect(rect.x + rect.width * 0.22f, rect.y + rect.height * 0.12f, rect.width * 0.44f, rect.height * 0.26f);
             DrawCircle(highlight, new Color(1f, 1f, 1f, color.a * 0.22f));
+        }
+
+        private void DrawFootprint(Vector2 center, WalkingFootSide side, float scale, Color color)
+        {
+            var mirror = side == WalkingFootSide.Left ? -1f : 1f;
+            DrawCircle(CenteredRect(center + new Vector2(-mirror * 2f * scale, 7f * scale), 18f * scale, 34f * scale), color);
+            DrawCircle(CenteredRect(center + new Vector2(mirror * 3f * scale, -12f * scale), 10f * scale, 10f * scale), color);
+            DrawCircle(CenteredRect(center + new Vector2(-mirror * 6f * scale, -9f * scale), 8f * scale, 8f * scale), color);
+            DrawCircle(CenteredRect(center + new Vector2(mirror * 11f * scale, -5f * scale), 7f * scale, 7f * scale), color);
+        }
+
+        private static void DrawReturnPocket(Vector2 center, float width, float height, float stroke, Color color)
+        {
+            var pocket = new Rect(center.x - width * 0.5f, center.y - height * 0.5f, width, height);
+            DrawGuiRect(new Rect(pocket.x, pocket.yMax - stroke, pocket.width, stroke), color);
+            DrawGuiRect(new Rect(pocket.x, pocket.y, stroke, pocket.height), color);
+            DrawGuiRect(new Rect(pocket.xMax - stroke, pocket.y, stroke, pocket.height), color);
         }
 
         private static void DrawGuiTexture(Rect rect, Texture2D texture, Color color)
