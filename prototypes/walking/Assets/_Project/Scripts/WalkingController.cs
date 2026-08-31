@@ -708,7 +708,7 @@ namespace MannLab.Games.Walking
         {
             var panel = new Rect(Screen.width * 0.09f, Screen.height * 0.20f, Screen.width * 0.82f, Screen.height * 0.39f);
             DrawGuiRect(panel, new Color(1f, 0.99f, 0.96f, 0.9f));
-            GUI.Label(new Rect(panel.x + 18f * scale, panel.y + 12f * scale, panel.width - 36f * scale, 44f * scale), "Tap high. Lift. Pull low.", hintStyle);
+            GUI.Label(new Rect(panel.x + 18f * scale, panel.y + 12f * scale, panel.width - 36f * scale, 44f * scale), "Step high. Lift. Pull low.", hintStyle);
 
             var gap = 18f * scale;
             var laneTop = panel.y + 68f * scale;
@@ -725,13 +725,15 @@ namespace MannLab.Games.Walking
             DrawGuiRect(lane, new Color(Ink.r, Ink.g, Ink.b, 0.045f));
             GUI.Label(new Rect(lane.x, lane.y + 6f * scale, lane.width, 28f * scale), label, guideStyle);
 
-            var topTarget = new Rect(lane.x + lane.width * 0.18f, lane.y + 42f * scale, lane.width * 0.64f, 30f * scale);
-            var bottomTarget = new Rect(lane.x + lane.width * 0.18f, lane.yMax - 42f * scale, lane.width * 0.64f, 30f * scale);
-            DrawGuideChip(topTarget, "STEP", Warm, scale);
-            DrawGuideChip(bottomTarget, "PULL", Blue, scale);
+            var topTarget = new Rect(lane.x + lane.width * 0.12f, lane.y + 42f * scale, lane.width * 0.76f, 30f * scale);
+            var bottomTarget = new Rect(lane.x + lane.width * 0.12f, lane.yMax - 42f * scale, lane.width * 0.76f, 30f * scale);
+            DrawGuideChip(topTarget, "STEP HIGH", Warm, scale);
+            DrawGuideChip(bottomTarget, "PULL LOW", Blue, scale);
 
             var pathX = lane.center.x - 3f * scale;
             DrawGuiRect(new Rect(pathX, topTarget.yMax, 6f * scale, bottomTarget.y - topTarget.yMax), new Color(Ink.r, Ink.g, Ink.b, 0.12f));
+            GUI.Label(new Rect(lane.x, lane.center.y - 17f * scale, lane.width, 28f * scale), "LIFT", guideStyle);
+            GUI.Label(new Rect(lane.x, lane.yMax - 18f * scale, lane.width, 18f * scale), "REPEAT", guideStyle);
 
             var phase = Mathf.Repeat(Time.unscaledTime * 0.72f + phaseOffset, 1f);
             var upPhase = phase < 0.46f;
@@ -748,7 +750,7 @@ namespace MannLab.Games.Walking
 
         private void DrawGuideChip(Rect rect, string text, Color color, float scale)
         {
-            DrawGuiRect(rect, new Color(color.r, color.g, color.b, 0.78f));
+            DrawGuiRect(rect, new Color(color.r, color.g, color.b, 0.62f));
             GUI.Label(new Rect(rect.x, rect.y + 3f * scale, rect.width, rect.height), text, guideStyle);
         }
 

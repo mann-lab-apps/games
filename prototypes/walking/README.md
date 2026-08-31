@@ -39,3 +39,4 @@ Open this directory from Unity Hub and run `Assets/_Project/Scenes/Game.unity`.
 - Camera rotation blend: `WalkingController.TryLandFoot`.
 - Maze width: `WalkingRules.TileSize` and maze opening rules.
 - Invalid input feedback: `invalidPulse`, status badges, and invalid color.
+- Mode shape: consider a 60-second distance run with collision penalties once the thumb rhythm feels clear.
