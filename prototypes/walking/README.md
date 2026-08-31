@@ -28,7 +28,8 @@ Open this directory from Unity Hub and run `Assets/_Project/Scenes/Game.unity`.
 - The HUD and lower touch zones show step, blocked, pull-back, and returning states.
 - Distance accumulates from body-center movement during a short timed run.
 - The current MVP space is a broad paper field with sparse faceted iceberg obstacles, not a maze.
-- Obstacles block invalid landings and body overlap, but they do not end the run; the goal is still maximum distance before time runs out.
+- The score is total waddled distance, not one-axis forward progress, so the field avoids numbered or ruler-like distance ticks.
+- Icebergs block invalid landings and body overlap, but they chip down after repeated contact so the player can eventually push through.
 
 ## Testing Notes
 

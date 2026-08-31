@@ -21,7 +21,7 @@ namespace MannLab.Games.Walking.EditorTools
 
             PlayerSettings.companyName = "Mann Lab";
             PlayerSettings.productName = "Thumbwaddle";
-            PlayerSettings.bundleVersion = "1.0.7";
+            PlayerSettings.bundleVersion = "1.0.8";
 
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {

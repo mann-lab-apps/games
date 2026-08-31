@@ -63,7 +63,6 @@ namespace MannLab.Games.Walking
         private Transform playerRightArm;
         private Transform playerLeftFoot;
         private Transform playerRightFoot;
-        private Transform playerShadow;
         private Canvas canvas;
         private Text titleText;
         private Text hintText;
@@ -147,16 +146,19 @@ namespace MannLab.Games.Walking
             public float Age { get; set; }
         }
 
-        private readonly struct FieldObstacle
+        private sealed class FieldObstacle
         {
-            public FieldObstacle(Vector2 center, float radius)
+            public FieldObstacle(Vector2 center, float radius, Transform root)
             {
                 Center = center;
                 Radius = radius;
+                Root = root;
             }
 
             public Vector2 Center { get; }
-            public float Radius { get; }
+            public float Radius { get; set; }
+            public Transform Root { get; }
+            public int Hits { get; set; }
         }
 
         private void Awake()
@@ -274,8 +276,7 @@ namespace MannLab.Games.Walking
 
             worldRoot = new GameObject("Walking World").transform;
             var floorMaterial = CreateMaterial("Paper Floor", new Color32(255, 253, 247, 255));
-            var lineMaterial = CreateMaterial("Floor Ink Lines", new Color32(186, 181, 170, 255));
-            var goalMaterial = CreateMaterial("Forward Ice Marks", new Color32(145, 197, 215, 255));
+            var goalMaterial = CreateMaterial("Start Ice Line", new Color32(145, 197, 215, 255));
             var obstacleShadowMaterial = CreateMaterial("Iceberg Snow Shadow", new Color32(218, 232, 234, 255));
             var obstacleMaterial = CreateMaterial("Iceberg Blue Face", new Color32(188, 226, 237, 255));
             var obstacleTopMaterial = CreateMaterial("Iceberg Snow Face", new Color32(252, 254, 250, 255));
@@ -297,36 +298,6 @@ namespace MannLab.Games.Walking
                 new Vector3(fieldWidth * 0.20f, 0.012f, 0.065f),
                 goalMaterial,
                 worldRoot);
-
-            for (var i = 0; i <= Mathf.CeilToInt(openFieldLength / 2f); i++)
-            {
-                var z = i * 2f;
-                var major = i % 5 == 0;
-                CreateCube(
-                    major ? "Forward Distance Mark" : "Forward Tick",
-                    new Vector3(0f, 0.018f, z),
-                    new Vector3(major ? fieldWidth * 0.18f : fieldWidth * 0.08f, 0.02f, major ? 0.08f : 0.05f),
-                    major ? goalMaterial : lineMaterial,
-                    worldRoot);
-            }
-
-            for (var i = 0; i <= Mathf.CeilToInt(openFieldLength / 6f); i++)
-            {
-                var z = i * 6f + 1.2f;
-                var sideOffset = 4.5f + Mathf.Sin(i * 1.77f) * 1.7f;
-                CreateCube(
-                    "Left Snow Sketch Tick",
-                    new Vector3(-sideOffset, 0.014f, z),
-                    new Vector3(1.1f, 0.018f, 0.052f),
-                    lineMaterial,
-                    worldRoot);
-                CreateCube(
-                    "Right Snow Sketch Tick",
-                    new Vector3(sideOffset * 1.08f, 0.014f, z + 2.6f),
-                    new Vector3(1.1f, 0.018f, 0.052f),
-                    lineMaterial,
-                    worldRoot);
-            }
 
             BuildOpenFieldObstacles(obstacleShadowMaterial, obstacleMaterial, obstacleTopMaterial, obstacleStrokeMaterial);
             BuildDebugMarkers();
@@ -354,11 +325,9 @@ namespace MannLab.Games.Walking
 
                 var radius = RandomRange(random, 0.42f, 0.82f);
                 var center = new Vector2(x, z);
-                fieldObstacles.Add(new FieldObstacle(center, radius));
-
                 var width = radius * RandomRange(random, 1.95f, 2.85f);
                 var depth = radius * RandomRange(random, 1.65f, 2.35f);
-                CreateIcebergObstacle(
+                var obstacleRoot = CreateIcebergObstacle(
                     center,
                     width,
                     depth,
@@ -369,10 +338,11 @@ namespace MannLab.Games.Walking
                     obstacleTopMaterial,
                     obstacleStrokeMaterial,
                     random);
+                fieldObstacles.Add(new FieldObstacle(center, radius, obstacleRoot));
             }
         }
 
-        private void CreateIcebergObstacle(
+        private Transform CreateIcebergObstacle(
             Vector2 center,
             float width,
             float depth,
@@ -435,6 +405,7 @@ namespace MannLab.Games.Walking
             CreateIcebergStroke(root, strokeMaterial, new Vector3(width * 0.20f, height * 0.52f, depth * 0.30f), new Vector3(width * 0.38f, 0.038f, depth * 0.038f), RandomRange(random, 13f, 30f));
             CreateIcebergStroke(root, strokeMaterial, new Vector3(width * -0.03f, height * 0.72f, depth * -0.30f), new Vector3(width * 0.26f, 0.034f, depth * 0.034f), RandomRange(random, -10f, 10f));
             CreateIcebergStroke(root, strokeMaterial, new Vector3(width * 0.36f, height * 0.28f, depth * -0.05f), new Vector3(width * 0.34f, 0.034f, depth * 0.034f), RandomRange(random, 42f, 58f));
+            return root;
         }
 
         private static void CreateIcebergStroke(Transform obstacle, Material material, Vector3 localPosition, Vector3 localScale, float yaw)
@@ -518,27 +489,6 @@ namespace MannLab.Games.Walking
             triangles.Add(a);
         }
 
-        private static Transform CreateHatchedShadow(string objectName, Material material, Transform parent)
-        {
-            var root = new GameObject(objectName).transform;
-            root.SetParent(parent, false);
-
-            for (var i = 0; i < 6; i++)
-            {
-                var x = Mathf.Lerp(-0.30f, 0.30f, i / 5f);
-                var bar = CreateCube(
-                    "Penguin Shadow Hatch",
-                    Vector3.zero,
-                    new Vector3(0.42f, 0.016f, 0.026f),
-                    material,
-                    root);
-                bar.transform.localPosition = new Vector3(x, 0f, Mathf.Sin(i * 1.7f) * 0.055f);
-                bar.transform.localRotation = Quaternion.Euler(0f, -28f, 0f);
-            }
-
-            return root;
-        }
-
         private void BuildPlayerAvatar()
         {
             if (playerRoot != null)
@@ -549,13 +499,11 @@ namespace MannLab.Games.Walking
             playerRoot = new GameObject("Thumbwaddle Player").transform;
             playerRoot.SetParent(worldRoot, false);
 
-            var shadowMaterial = CreateMaterial("Penguin Hatch Shadow", new Color32(211, 222, 220, 255));
             var bodyMaterial = CreateMaterial("Penguin Ink Body", new Color32(35, 38, 39, 255));
             var patchMaterial = CreateMaterial("Penguin Paper Patch", new Color32(255, 253, 247, 255));
             var beakMaterial = CreateMaterial("Penguin Beak", new Color32(247, 181, 71, 255));
             var footMaterial = CreateMaterial("Penguin Feet", new Color32(236, 143, 58, 255));
 
-            playerShadow = CreateHatchedShadow("Player Hatched Shadow", shadowMaterial, playerRoot);
             playerBody = CreateEllipsoid(
                 "Penguin Body",
                 Vector3.zero,
@@ -892,6 +840,15 @@ namespace MannLab.Games.Walking
             UpdateCandidate(foot);
             if (!foot.Candidate.IsValid)
             {
+                if (foot.Candidate.Reason == "obstacle" && DamageFieldObstacleAt(foot.Candidate.Position, WalkingRules.FootRadius))
+                {
+                    UpdateCandidate(foot);
+                    if (foot.Candidate.IsValid)
+                    {
+                        return TryLandFoot(foot);
+                    }
+                }
+
                 invalidPulse = 1f;
                 foot.StatusPulse = 1f;
                 PlayBump(0.35f);
@@ -907,10 +864,14 @@ namespace MannLab.Games.Walking
 
             if (IsCircleTouchingFieldObstacle(proposedBody, WalkingRules.BodyRadius))
             {
-                invalidPulse = 1f;
-                foot.StatusPulse = 1f;
-                PlayBump(0.45f);
-                return false;
+                var clearedObstacle = DamageFieldObstacleAt(proposedBody, WalkingRules.BodyRadius);
+                if (!clearedObstacle || IsCircleTouchingFieldObstacle(proposedBody, WalkingRules.BodyRadius))
+                {
+                    invalidPulse = 1f;
+                    foot.StatusPulse = 1f;
+                    PlayBump(0.45f);
+                    return false;
+                }
             }
 
             if (foot.Side == WalkingFootSide.Left)
@@ -968,6 +929,11 @@ namespace MannLab.Games.Walking
             for (var i = 0; i < fieldObstacles.Count; i++)
             {
                 var obstacle = fieldObstacles[i];
+                if (obstacle.Radius <= 0f)
+                {
+                    continue;
+                }
+
                 if (Vector2.Distance(center, obstacle.Center) <= radius + obstacle.Radius)
                 {
                     return true;
@@ -975,6 +941,67 @@ namespace MannLab.Games.Walking
             }
 
             return false;
+        }
+
+        private bool DamageFieldObstacleAt(Vector2 center, float radius)
+        {
+            var index = FindTouchedFieldObstacle(center, radius);
+            if (index < 0)
+            {
+                return false;
+            }
+
+            var obstacle = fieldObstacles[index];
+            obstacle.Hits++;
+            var remaining = Mathf.Clamp01(1f - obstacle.Hits / 3f);
+            obstacle.Radius *= remaining <= 0f ? 0f : 0.68f;
+            if (obstacle.Root != null)
+            {
+                if (remaining <= 0f)
+                {
+                    Destroy(obstacle.Root.gameObject);
+                }
+                else
+                {
+                    var wobble = obstacle.Hits % 2 == 0 ? -6f : 6f;
+                    obstacle.Root.localScale = Vector3.one * Mathf.Lerp(0.42f, 0.82f, remaining);
+                    obstacle.Root.localRotation *= Quaternion.Euler(0f, wobble, 0f);
+                }
+            }
+
+            if (remaining <= 0f)
+            {
+                fieldObstacles.RemoveAt(index);
+                return true;
+            }
+
+            fieldObstacles[index] = obstacle;
+            return false;
+        }
+
+        private int FindTouchedFieldObstacle(Vector2 center, float radius)
+        {
+            var bestIndex = -1;
+            var bestDistance = float.MaxValue;
+            for (var i = 0; i < fieldObstacles.Count; i++)
+            {
+                var obstacle = fieldObstacles[i];
+                if (obstacle.Radius <= 0f)
+                {
+                    continue;
+                }
+
+                var distance = Vector2.Distance(center, obstacle.Center);
+                if (distance > radius + obstacle.Radius || distance >= bestDistance)
+                {
+                    continue;
+                }
+
+                bestDistance = distance;
+                bestIndex = i;
+            }
+
+            return bestIndex;
         }
 
         private void EndRun()
@@ -1047,12 +1074,6 @@ namespace MannLab.Games.Walking
 
             playerRoot.position = rootTarget;
             playerRoot.rotation = targetRotation;
-
-            if (playerShadow != null)
-            {
-                playerShadow.localPosition = new Vector3(0f, 0.026f, -0.02f);
-                playerShadow.localScale = new Vector3(1f, 1f, 1f);
-            }
 
             if (playerBody != null)
             {
