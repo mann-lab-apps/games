@@ -233,12 +233,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: MannLab.Games.Walking::MannLab.Games.Walking.WalkingController
   debugFootMarkers: 0
   eyeHeight: 1.48
-  cameraMoveLerp: 9.5
+  cameraMoveLerp: 5.8
   cameraTurnLerp: 8
   stepBobStrength: 0.055
   thirdPersonDistance: 2.35
   thirdPersonHeight: 1.92
   thirdPersonLookAhead: 1.02
+  avatarMoveLerp: 5.4
+  avatarTurnLerp: 7.2
   wallHeight: 2.75
   wallInset: 0.02
 --- !u!4 &844571443

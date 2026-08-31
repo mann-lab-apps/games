@@ -85,7 +85,37 @@ namespace MannLab.Games.Walking.Tests
             var screen = new Vector2(1080f, 1920f);
 
             Assert.That(WalkingRules.IsReturnGesturePosition(new Vector2(540f, 420f), screen), Is.True);
+            Assert.That(WalkingRules.IsReturnGesturePosition(new Vector2(540f, 700f), screen), Is.False);
             Assert.That(WalkingRules.IsReturnGesturePosition(new Vector2(540f, 1240f), screen), Is.False);
+        }
+
+        [Test]
+        public void MiddleScreenTouchCanBuildValidStep()
+        {
+            var screen = new Vector2(1080f, 1920f);
+            var candidate = WalkingRules.BuildFootCandidate(
+                WalkingFootSide.Right,
+                Vector2.zero,
+                Vector2.up,
+                new Vector2(810f, 960f),
+                screen);
+            var placement = WalkingRules.ValidateFootPlacement(
+                WalkingFootSide.Right,
+                Vector2.zero,
+                candidate,
+                Vector2.up,
+                EmptyMaze());
+
+            Assert.That(WalkingRules.IsStepGesturePosition(new Vector2(810f, 960f), screen), Is.True);
+            Assert.That(placement.IsValid, Is.True);
+        }
+
+        [Test]
+        public void ReturnAreaIsNotStepGesture()
+        {
+            var screen = new Vector2(1080f, 1920f);
+
+            Assert.That(WalkingRules.IsStepGesturePosition(new Vector2(240f, 420f), screen), Is.False);
         }
 
         [Test]

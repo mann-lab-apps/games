@@ -20,7 +20,8 @@ Open this directory from Unity Hub and run `Assets/_Project/Scenes/Game.unity`.
 - Foot positions, support feet, candidate steps, and return gestures drive both movement and the visible character.
 - Set `debugFootMarkers` on `WalkingController` to show extra development-only candidate markers.
 - Screen-left input controls the left foot, screen-right input controls the right foot.
-- Touching high lands the foot immediately when stride, side clearance, and wall checks pass.
+- Touching outside the low return pocket lands the foot immediately when stride, side clearance, and wall checks pass.
+- The visible foot stamps first, then the paper-doll body and camera follow smoothly so cause and effect are readable.
 - After a foot lands, that same side must return near the body side of the screen before it can place another step; dragging the same thumb down can complete return, but return motion is ignored as movement.
 - The first-run rhythm is intentionally simple: stamp high, pull low, disappear, repeat.
 - The HUD and lower touch zones show step, blocked, pull-back, and returning states.

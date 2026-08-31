@@ -25,12 +25,14 @@ namespace MannLab.Games.Walking
 
         [Header("Camera")]
         [SerializeField] private float eyeHeight = 1.48f;
-        [SerializeField] private float cameraMoveLerp = 9.5f;
+        [SerializeField] private float cameraMoveLerp = 5.8f;
         [SerializeField] private float cameraTurnLerp = 8f;
         [SerializeField] private float stepBobStrength = 0.055f;
         [SerializeField] private float thirdPersonDistance = 2.35f;
         [SerializeField] private float thirdPersonHeight = 1.92f;
         [SerializeField] private float thirdPersonLookAhead = 1.02f;
+        [SerializeField] private float avatarMoveLerp = 5.4f;
+        [SerializeField] private float avatarTurnLerp = 7.2f;
 
         [Header("World")]
         [SerializeField] private float wallHeight = 2.75f;
@@ -79,18 +81,23 @@ namespace MannLab.Games.Walking
         private GUIStyle buttonStyle;
         private Texture2D circleTexture;
         private Texture2D ringTexture;
+        private readonly List<StepStamp> stepStamps = new List<StepStamp>();
 
         private Vector2 leftFootPosition;
         private Vector2 rightFootPosition;
         private Vector2 bodyPosition;
         private Vector2 previousBodyPosition;
         private Vector2 facing = Vector2.up;
+        private Vector2 visualBodyPosition;
+        private Vector2 visualFacing = Vector2.up;
         private Vector2 cameraBodyPosition;
         private float distanceMeters;
         private float bestDistanceMeters;
         private int steps;
         private float bobImpulse;
         private float invalidPulse;
+        private WalkingFootSide lastLandedSide = WalkingFootSide.Left;
+        private float bodyLeanPulse;
 
         private const string BestDistanceKey = "MannLab.Walking.BestDistance";
 
@@ -121,6 +128,14 @@ namespace MannLab.Games.Walking
             public float StatusPulse { get; set; }
         }
 
+        private sealed class StepStamp
+        {
+            public Transform Root { get; set; }
+            public Material Material { get; set; }
+            public Color Color { get; set; }
+            public float Age { get; set; }
+        }
+
         private void Awake()
         {
             MobileRuntime.ApplyDefaults();
@@ -137,11 +152,13 @@ namespace MannLab.Games.Walking
             HandleInput();
             UpdateCandidates();
             UpdatePlayerAvatar();
+            UpdateStepStamps();
             UpdateCamera();
             UpdateUi();
             UpdateDebugMarkers();
             bobImpulse = Mathf.MoveTowards(bobImpulse, 0f, Time.deltaTime * 4.5f);
             invalidPulse = Mathf.MoveTowards(invalidPulse, 0f, Time.deltaTime * 4f);
+            bodyLeanPulse = Mathf.MoveTowards(bodyLeanPulse, 0f, Time.deltaTime * 4.2f);
             leftFoot.StatusPulse = Mathf.MoveTowards(leftFoot.StatusPulse, 0f, Time.deltaTime * 4f);
             rightFoot.StatusPulse = Mathf.MoveTowards(rightFoot.StatusPulse, 0f, Time.deltaTime * 4f);
         }
@@ -156,12 +173,17 @@ namespace MannLab.Games.Walking
             leftFootPosition = bodyPosition + new Vector2(-WalkingRules.NaturalHalfStance, 0f);
             rightFootPosition = bodyPosition + new Vector2(WalkingRules.NaturalHalfStance, 0f);
             previousBodyPosition = bodyPosition;
-            cameraBodyPosition = bodyPosition;
             facing = Vector2.up;
+            visualBodyPosition = bodyPosition;
+            visualFacing = facing;
+            cameraBodyPosition = bodyPosition;
             distanceMeters = 0f;
             steps = 0;
             bobImpulse = 0f;
             invalidPulse = 0f;
+            bodyLeanPulse = 0f;
+            lastLandedSide = WalkingFootSide.Left;
+            ClearStepStamps();
             ResetFootRuntime(leftFoot);
             ResetFootRuntime(rightFoot);
             activeTouches.Clear();
@@ -270,7 +292,7 @@ namespace MannLab.Games.Walking
                     }
 
                     var world = maze.GridToWorld(x, y);
-                    var material = x <= 4 && y <= 4 ? startMaterial : lineMaterial;
+                    var material = x <= 5 && y <= 12 ? startMaterial : lineMaterial;
                     if (!maze.IsSolidGrid(x, y + 1))
                     {
                         CreateCube(
@@ -533,7 +555,7 @@ namespace MannLab.Games.Walking
                 return;
             }
 
-            if (WalkingRules.IsReturnGesturePosition(screenPosition, new Vector2(Screen.width, Screen.height)))
+            if (!WalkingRules.IsStepGesturePosition(screenPosition, new Vector2(Screen.width, Screen.height)))
             {
                 foot.Mode = InputMode.Ignored;
                 foot.StatusPulse = 1f;
@@ -663,7 +685,10 @@ namespace MannLab.Games.Walking
             steps++;
             foot.NeedsReturn = true;
             foot.StatusPulse = 1f;
+            lastLandedSide = foot.Side;
+            bodyLeanPulse = 1f;
             bobImpulse = Mathf.Min(1f, bobImpulse + stepBobStrength + Vector2.Distance(oldFoot, foot.Candidate.Position) * 0.04f);
+            CreateStepStamp(foot.Candidate.Position, foot.Side);
             PlayStep();
 
             if (WalkingRules.IsBodyColliding(bodyPosition, maze))
@@ -698,9 +723,9 @@ namespace MannLab.Games.Walking
             }
 
             var moveT = snap ? 1f : 1f - Mathf.Exp(-cameraMoveLerp * Time.deltaTime);
-            cameraBodyPosition = Vector2.Lerp(cameraBodyPosition, bodyPosition, moveT);
+            cameraBodyPosition = Vector2.Lerp(cameraBodyPosition, visualBodyPosition, moveT);
             var bob = Mathf.Sin((1f - bobImpulse) * Mathf.PI) * bobImpulse;
-            var forward3 = new Vector3(facing.x, 0f, facing.y);
+            var forward3 = new Vector3(visualFacing.x, 0f, visualFacing.y);
             if (forward3.sqrMagnitude < 0.001f)
             {
                 forward3 = Vector3.forward;
@@ -725,20 +750,25 @@ namespace MannLab.Games.Walking
                 return;
             }
 
-            var forward3 = new Vector3(facing.x, 0f, facing.y);
-            if (forward3.sqrMagnitude < 0.001f)
+            var moveT = snap ? 1f : 1f - Mathf.Exp(-avatarMoveLerp * Time.deltaTime);
+            var turnT = snap ? 1f : 1f - Mathf.Exp(-avatarTurnLerp * Time.deltaTime);
+            visualBodyPosition = Vector2.Lerp(visualBodyPosition, bodyPosition, moveT);
+            visualFacing = Vector2.Lerp(visualFacing, facing, turnT);
+            if (visualFacing.sqrMagnitude < 0.001f)
             {
-                forward3 = Vector3.forward;
+                visualFacing = Vector2.up;
             }
 
-            forward3.Normalize();
+            visualFacing.Normalize();
+            var forward3 = new Vector3(visualFacing.x, 0f, visualFacing.y);
             var targetRotation = Quaternion.LookRotation(forward3, Vector3.up);
-            var rootTarget = new Vector3(bodyPosition.x, 0f, bodyPosition.y);
+            var rootTarget = new Vector3(visualBodyPosition.x, 0f, visualBodyPosition.y);
             var bodyBob = Mathf.Sin((1f - bobImpulse) * Mathf.PI) * bobImpulse * 0.14f;
-            var t = snap ? 1f : 1f - Mathf.Exp(-18f * Time.deltaTime);
+            var landedSide = lastLandedSide == WalkingFootSide.Left ? -1f : 1f;
+            var lean = landedSide * bodyLeanPulse;
 
-            playerRoot.position = snap ? rootTarget : Vector3.Lerp(playerRoot.position, rootTarget, t);
-            playerRoot.rotation = snap ? targetRotation : Quaternion.Slerp(playerRoot.rotation, targetRotation, t);
+            playerRoot.position = rootTarget;
+            playerRoot.rotation = targetRotation;
 
             if (playerShadow != null)
             {
@@ -748,22 +778,22 @@ namespace MannLab.Games.Walking
 
             if (playerBody != null)
             {
-                playerBody.localPosition = new Vector3(0f, 0.44f + bodyBob, 0f);
-                playerBody.localRotation = Quaternion.identity;
-                playerBody.localScale = new Vector3(0.42f, 0.68f, 0.30f);
+                playerBody.localPosition = new Vector3(lean * 0.045f, 0.44f + bodyBob - bodyLeanPulse * 0.025f, 0f);
+                playerBody.localRotation = Quaternion.Euler(0f, 0f, -lean * 7f);
+                playerBody.localScale = new Vector3(0.42f + bodyLeanPulse * 0.025f, 0.68f - bodyLeanPulse * 0.035f, 0.30f);
             }
 
             if (playerBackMark != null)
             {
-                playerBackMark.localPosition = new Vector3(0f, 0.48f + bodyBob, -0.17f);
-                playerBackMark.localRotation = Quaternion.identity;
+                playerBackMark.localPosition = new Vector3(lean * 0.045f, 0.48f + bodyBob - bodyLeanPulse * 0.025f, -0.17f);
+                playerBackMark.localRotation = Quaternion.Euler(0f, 0f, -lean * 7f);
                 playerBackMark.localScale = new Vector3(0.29f, 0.34f, 0.026f);
             }
 
             if (playerHead != null)
             {
-                playerHead.localPosition = new Vector3(0f, 0.94f + bodyBob, 0.02f);
-                playerHead.localRotation = Quaternion.identity;
+                playerHead.localPosition = new Vector3(lean * 0.065f, 0.94f + bodyBob - bodyLeanPulse * 0.018f, 0.02f);
+                playerHead.localRotation = Quaternion.Euler(0f, 0f, -lean * 5f);
                 playerHead.localScale = new Vector3(0.30f, 0.30f, 0.30f);
             }
 
@@ -779,11 +809,86 @@ namespace MannLab.Games.Walking
             }
 
             var target = new Vector3(position.x, 0.055f + pulse * 0.035f, position.y);
-            var t = snap ? 1f : 1f - Mathf.Exp(-20f * Time.deltaTime);
+            var t = snap || pulse > 0.72f ? 1f : 1f - Mathf.Exp(-20f * Time.deltaTime);
             foot.position = snap ? target : Vector3.Lerp(foot.position, target, t);
             foot.rotation = snap ? rotation : Quaternion.Slerp(foot.rotation, rotation, t);
             var spread = 1f + Mathf.Clamp01(pulse) * 0.16f;
             foot.localScale = new Vector3(0.20f * spread, 0.055f, 0.38f * spread);
+        }
+
+        private void CreateStepStamp(Vector2 position, WalkingFootSide side)
+        {
+            if (worldRoot == null)
+            {
+                return;
+            }
+
+            var color = side == WalkingFootSide.Left ? Blue : Warm;
+            var material = CreateMaterial("Step Stamp Material", color);
+            var root = new GameObject("Step Ink Stamp").transform;
+            root.SetParent(worldRoot, false);
+            root.position = new Vector3(position.x, 0.075f, position.y);
+            var forward3 = new Vector3(facing.x, 0f, facing.y);
+            if (forward3.sqrMagnitude < 0.001f)
+            {
+                forward3 = Vector3.forward;
+            }
+
+            root.rotation = Quaternion.LookRotation(forward3.normalized, Vector3.up);
+            CreateStampBar(root, material, new Vector3(0f, 0f, 0.22f), new Vector3(0.30f, 0.018f, 0.045f));
+            CreateStampBar(root, material, new Vector3(0f, 0f, -0.22f), new Vector3(0.30f, 0.018f, 0.045f));
+            CreateStampBar(root, material, new Vector3(-0.17f, 0f, 0f), new Vector3(0.045f, 0.018f, 0.36f));
+            CreateStampBar(root, material, new Vector3(0.17f, 0f, 0f), new Vector3(0.045f, 0.018f, 0.36f));
+            stepStamps.Add(new StepStamp
+            {
+                Root = root,
+                Material = material,
+                Color = color,
+                Age = 0f
+            });
+        }
+
+        private void UpdateStepStamps()
+        {
+            const float lifetime = 0.38f;
+            for (var i = stepStamps.Count - 1; i >= 0; i--)
+            {
+                var stamp = stepStamps[i];
+                if (stamp.Root == null)
+                {
+                    stepStamps.RemoveAt(i);
+                    continue;
+                }
+
+                stamp.Age += Time.deltaTime;
+                var t = Mathf.Clamp01(stamp.Age / lifetime);
+                stamp.Root.localScale = Vector3.one * Mathf.Lerp(0.76f, 1.32f, Mathf.SmoothStep(0f, 1f, t));
+                SetMaterialColor(stamp.Material, Color.Lerp(stamp.Color, Paper, t * 0.82f));
+                if (stamp.Age >= lifetime)
+                {
+                    Destroy(stamp.Root.gameObject);
+                    stepStamps.RemoveAt(i);
+                }
+            }
+        }
+
+        private void ClearStepStamps()
+        {
+            for (var i = 0; i < stepStamps.Count; i++)
+            {
+                if (stepStamps[i].Root != null)
+                {
+                    Destroy(stepStamps[i].Root.gameObject);
+                }
+            }
+
+            stepStamps.Clear();
+        }
+
+        private static void CreateStampBar(Transform root, Material material, Vector3 localPosition, Vector3 localScale)
+        {
+            var bar = CreateCube("Step Stamp Stroke", Vector3.zero, localScale, material, root);
+            bar.transform.localPosition = localPosition;
         }
 
         private void UpdateUi()
@@ -864,8 +969,8 @@ namespace MannLab.Games.Walking
 
             DrawGuiRect(new Rect(0f, returnTop, Screen.width * 0.5f, lowHeight), leftLowColor);
             DrawGuiRect(new Rect(Screen.width * 0.5f, returnTop, Screen.width * 0.5f, lowHeight), rightLowColor);
-            DrawGuiRect(new Rect(Screen.width * 0.5f - 1f * scale, splitTop, 2f * scale, Screen.height - splitTop), new Color(Ink.r, Ink.g, Ink.b, 0.13f));
-            DrawGuiRect(new Rect(0f, returnTop, Screen.width, 2f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.12f));
+            DrawGuiRect(new Rect(Screen.width * 0.5f - 1f * scale, splitTop, 2f * scale, Screen.height - splitTop), new Color(Ink.r, Ink.g, Ink.b, 0.08f));
+            DrawGuiRect(new Rect(0f, returnTop, Screen.width, 2f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.08f));
 
             var suggestedSide = steps % 2 == 0 ? WalkingFootSide.Left : WalkingFootSide.Right;
             DrawTouchGlyph(leftFoot, new Rect(0f, splitTop, Screen.width * 0.5f, returnTop - splitTop), true, showLabels && suggestedSide == WalkingFootSide.Left && !leftFoot.NeedsReturn, scale);
@@ -890,7 +995,7 @@ namespace MannLab.Games.Walking
             var size = (active ? Mathf.Lerp(32f, 45f, phase) : 28f) * scale;
             var xJitter = invalid ? Mathf.Sin(Time.unscaledTime * 42f) * 5f * scale * Mathf.Clamp01(foot.StatusPulse + 0.25f) : 0f;
             var center = stepZone
-                ? new Vector2(zone.center.x + xJitter, Mathf.Lerp(zone.yMin + 42f * scale, zone.center.y, 0.35f))
+                ? new Vector2(zone.center.x + xJitter, Mathf.Lerp(zone.yMin + 76f * scale, zone.yMax - 66f * scale, 0.48f))
                 : new Vector2(zone.center.x + xJitter, zone.center.y);
             var rect = CenteredRect(center, size, size);
 
@@ -1341,6 +1446,25 @@ namespace MannLab.Games.Walking
             }
 
             return material;
+        }
+
+        private static void SetMaterialColor(Material material, Color color)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            material.color = color;
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", color);
+            }
+
+            if (material.HasProperty("_Color"))
+            {
+                material.SetColor("_Color", color);
+            }
         }
 
         private static Color WithAlpha(Color color, byte alpha)

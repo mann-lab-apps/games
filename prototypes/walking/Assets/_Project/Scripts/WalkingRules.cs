@@ -39,7 +39,7 @@ namespace MannLab.Games.Walking
         public const float NaturalHalfStance = 0.23f;
         public const float SideClearance = 0.12f;
         public const float MaxFootSeparation = 1.34f;
-        public const float ReturnGestureMaxScreenY = 0.42f;
+        public const float ReturnGestureMaxScreenY = 0.28f;
         public const int MazeCellColumns = 11;
         public const int MazeCellRows = 18;
 
@@ -59,8 +59,9 @@ namespace MannLab.Games.Walking
                 ? Mathf.Clamp01(screenPosition.x / halfWidth)
                 : Mathf.Clamp01((screenPosition.x - halfWidth) / halfWidth);
             var xControl = sideX * 2f - 1f;
-            var yControl = Mathf.Clamp01((screenPosition.y / safeHeight - 0.08f) / 0.84f);
-            var forwardDistance = Mathf.Lerp(MinStepDistance, MaxStepDistance, Mathf.Pow(yControl, 0.92f));
+            var stepRange = Mathf.Max(0.1f, 1f - ReturnGestureMaxScreenY);
+            var yControl = Mathf.Clamp01((screenPosition.y / safeHeight - ReturnGestureMaxScreenY) / stepRange);
+            var forwardDistance = Mathf.Lerp(MinStepDistance + 0.18f, MaxStepDistance, Mathf.Pow(yControl, 0.72f));
             var naturalSide = side == WalkingFootSide.Left ? -NaturalHalfStance : NaturalHalfStance;
             var lateralDistance = naturalSide + xControl * 0.34f;
 
@@ -138,6 +139,11 @@ namespace MannLab.Games.Walking
         {
             var safeHeight = Mathf.Max(1f, screenSize.y);
             return screenPosition.y / safeHeight <= ReturnGestureMaxScreenY;
+        }
+
+        public static bool IsStepGesturePosition(Vector2 screenPosition, Vector2 screenSize)
+        {
+            return !IsReturnGesturePosition(screenPosition, screenSize);
         }
 
         private static Vector2 SafeNormal(Vector2 value, Vector2 fallback)
