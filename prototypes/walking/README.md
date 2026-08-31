@@ -1,6 +1,6 @@
-# Thumbwalk
+# Thumbwaddle
 
-Unity mobile MVP for a thumb-driven open-field distance run controlled by left-foot and right-foot touches. The player-facing title is `Thumbwalk`; the project path and package keep the original `walking` identifier for build compatibility.
+Unity mobile MVP for a thumb-driven penguin waddle distance run controlled by left-foot and right-foot touches. The player-facing title and public URL are `Thumbwaddle` and `/thumbwaddle`; the Unity project path, namespace, package id, and some build scripts keep the original `walking` identifier for build compatibility.
 
 ## Project
 
@@ -34,7 +34,7 @@ Open this directory from Unity Hub and run `Assets/_Project/Scenes/Game.unity`.
 
 - Laptop testing is useful for smoke checks around camera, scoring, and state transitions, but not final thumb feel.
 - Real control feel must be judged on a mobile multitouch device.
-- Until Unity WebGL builds are available, `/walking` in the local web app may show a placeholder instead of the playable build.
+- The public web route is `/thumbwaddle`; `/walking` remains a legacy alias for old links.
 
 ## Tuning Candidates
 

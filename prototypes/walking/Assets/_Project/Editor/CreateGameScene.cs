@@ -35,7 +35,7 @@ namespace MannLab.Games.Walking.EditorTools
             };
 
             PlayerSettings.companyName = "Mann Lab";
-            PlayerSettings.productName = "Thumbwalk";
+            PlayerSettings.productName = "Thumbwaddle";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.mannlab.games.walking");
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, "com.mannlab.games.walking");
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;

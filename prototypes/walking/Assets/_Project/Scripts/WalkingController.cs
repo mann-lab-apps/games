@@ -380,7 +380,7 @@ namespace MannLab.Games.Walking
                 Destroy(playerRoot.gameObject);
             }
 
-            playerRoot = new GameObject("Thumbwalk Player").transform;
+            playerRoot = new GameObject("Thumbwaddle Player").transform;
             playerRoot.SetParent(worldRoot, false);
 
             var shadowMaterial = CreateMaterial("Penguin Sketch Shadow", new Color32(40, 39, 36, 255));
@@ -938,17 +938,17 @@ namespace MannLab.Games.Walking
             if (playerLeftArm != null)
             {
                 var swing = Mathf.Clamp01(rightFoot.StatusPulse + bobImpulse * 2.6f);
-                playerLeftArm.localPosition = new Vector3(-0.43f + lean * 0.035f, 0.50f + bodyBob * 0.55f, 0.00f + swing * 0.07f);
-                playerLeftArm.localRotation = Quaternion.Euler(8f + swing * 18f, 0f, 26f - lean * 4f);
-                playerLeftArm.localScale = new Vector3(0.16f, 0.48f, 0.16f);
+                playerLeftArm.localPosition = new Vector3(-0.42f + lean * 0.03f, 0.70f + bodyBob * 0.55f, -0.01f + swing * 0.055f);
+                playerLeftArm.localRotation = Quaternion.Euler(6f + swing * 14f, 0f, -31f - lean * 3f);
+                playerLeftArm.localScale = new Vector3(0.15f, 0.44f, 0.15f);
             }
 
             if (playerRightArm != null)
             {
                 var swing = Mathf.Clamp01(leftFoot.StatusPulse + bobImpulse * 2.6f);
-                playerRightArm.localPosition = new Vector3(0.43f + lean * 0.035f, 0.50f + bodyBob * 0.55f, 0.00f + swing * 0.07f);
-                playerRightArm.localRotation = Quaternion.Euler(8f + swing * 18f, 0f, -26f - lean * 4f);
-                playerRightArm.localScale = new Vector3(0.16f, 0.48f, 0.16f);
+                playerRightArm.localPosition = new Vector3(0.42f + lean * 0.03f, 0.70f + bodyBob * 0.55f, -0.01f + swing * 0.055f);
+                playerRightArm.localRotation = Quaternion.Euler(6f + swing * 14f, 0f, 31f - lean * 3f);
+                playerRightArm.localScale = new Vector3(0.15f, 0.44f, 0.15f);
             }
 
             SetAvatarFoot(playerLeftFoot, leftFootPosition, leftFoot.StatusPulse, targetRotation, snap);
@@ -1059,7 +1059,7 @@ namespace MannLab.Games.Walking
             var ready = state == WalkingGameState.Ready;
             titleText.gameObject.SetActive(ready);
             hintText.gameObject.SetActive(ready);
-            titleText.text = "Thumbwalk";
+            titleText.text = "Thumbwaddle";
             hintText.text = string.Empty;
 
             resultText.gameObject.SetActive(state == WalkingGameState.Result);
@@ -1174,7 +1174,7 @@ namespace MannLab.Games.Walking
         {
             var panel = new Rect(Screen.width * 0.10f, Screen.height * 0.18f, Screen.width * 0.80f, Screen.height * 0.42f);
             DrawGuiRect(panel, new Color(1f, 0.99f, 0.96f, 0.9f));
-            GUI.Label(new Rect(panel.x + 18f * scale, panel.y + 8f * scale, panel.width - 36f * scale, 34f * scale), "Thumbwalk", guideStyle);
+            GUI.Label(new Rect(panel.x + 18f * scale, panel.y + 8f * scale, panel.width - 36f * scale, 34f * scale), "Thumbwaddle", guideStyle);
 
             var gap = 18f * scale;
             var laneTop = panel.y + 48f * scale;
@@ -1384,8 +1384,8 @@ namespace MannLab.Games.Walking
                 return;
             }
 
-            circleTexture = CreateCircleTexture("Thumbwalk Circle", 64, 0f);
-            ringTexture = CreateCircleTexture("Thumbwalk Ring", 64, 0.64f);
+            circleTexture = CreateCircleTexture("Thumbwaddle Circle", 64, 0f);
+            ringTexture = CreateCircleTexture("Thumbwaddle Ring", 64, 0.64f);
         }
 
         private static Texture2D CreateCircleTexture(string textureName, int size, float innerRadius)
@@ -1645,7 +1645,7 @@ namespace MannLab.Games.Walking
 
             var mesh = new Mesh
             {
-                name = "Thumbwalk Rounded Mesh",
+                name = "Thumbwaddle Rounded Mesh",
                 vertices = vertices,
                 triangles = triangles
             };

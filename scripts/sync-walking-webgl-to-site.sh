@@ -3,11 +3,11 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source_dir="$repo_root/prototypes/walking/Builds/WebGL/walking"
-target_dir="$repo_root/web/mannlab-games/public/games/walking"
+target_dir="$repo_root/web/mannlab-games/public/games/thumbwaddle"
 
 if [[ ! -f "$source_dir/index.html" ]]; then
   cat >&2 <<MSG
-Walking WebGL build was not found at:
+Thumbwaddle WebGL build was not found at:
   $source_dir
 
 Build it from Unity with:
@@ -26,7 +26,7 @@ find "$target_dir" -name '*.gz' -print0 | while IFS= read -r -d '' compressed; d
 done
 
 if [[ -f "$target_dir/index.html" ]]; then
-  perl -0pi -e 's/\.data\.gz/.data/g; s/\.framework\.js\.gz/.framework.js/g; s/\.wasm\.gz/.wasm/g; s#(var loaderUrl = buildUrl \+ "/walking\.loader\.js")#$1 + "?v=thumbwalk-20260831a"#g; s#(dataUrl: buildUrl \+ "/walking\.data")#$1 + "?v=thumbwalk-20260831a"#g; s#(frameworkUrl: buildUrl \+ "/walking\.framework\.js")#$1 + "?v=thumbwalk-20260831a"#g; s#(codeUrl: buildUrl \+ "/walking\.wasm")#$1 + "?v=thumbwalk-20260831a"#g; s/canvas\.style\.width = "960px";/canvas.style.width = "100vw";/g; s/canvas\.style\.height = "600px";/canvas.style.height = "100vh";/g' "$target_dir/index.html"
+  perl -0pi -e 's/\.data\.gz/.data/g; s/\.framework\.js\.gz/.framework.js/g; s/\.wasm\.gz/.wasm/g; s#(var loaderUrl = buildUrl \+ "/walking\.loader\.js")#$1 + "?v=thumbwaddle-20260831b"#g; s#(dataUrl: buildUrl \+ "/walking\.data")#$1 + "?v=thumbwaddle-20260831b"#g; s#(frameworkUrl: buildUrl \+ "/walking\.framework\.js")#$1 + "?v=thumbwaddle-20260831b"#g; s#(codeUrl: buildUrl \+ "/walking\.wasm")#$1 + "?v=thumbwaddle-20260831b"#g; s/canvas\.style\.width = "960px";/canvas.style.width = "100vw";/g; s/canvas\.style\.height = "600px";/canvas.style.height = "100vh";/g' "$target_dir/index.html"
 fi
 
-echo "Walking WebGL copied to $target_dir."
+echo "Thumbwaddle WebGL copied to $target_dir."

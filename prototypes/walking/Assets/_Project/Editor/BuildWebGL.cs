@@ -20,7 +20,7 @@ namespace MannLab.Games.Walking.EditorTools
             EditorUserBuildSettings.allowDebugging = false;
 
             PlayerSettings.companyName = "Mann Lab";
-            PlayerSettings.productName = "Thumbwalk";
+            PlayerSettings.productName = "Thumbwaddle";
             PlayerSettings.bundleVersion = "1.0.5";
 
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
@@ -47,10 +47,11 @@ namespace MannLab.Games.Walking.EditorTools
                 return;
             }
 
-            const string marker = "/* Mann Lab responsive Thumbwalk shell */";
+            const string marker = "/* Mann Lab responsive Thumbwaddle shell */";
+            const string previousTitleMarker = "/* Mann Lab responsive Thumbwalk shell */";
             const string legacyMarker = "/* Mann Lab responsive Walking shell */";
             var style = File.ReadAllText(stylePath);
-            if (style.Contains(marker) || style.Contains(legacyMarker))
+            if (style.Contains(marker) || style.Contains(previousTitleMarker) || style.Contains(legacyMarker))
             {
                 return;
             }
@@ -59,7 +60,7 @@ namespace MannLab.Games.Walking.EditorTools
                 stylePath,
                 @"
 
-/* Mann Lab responsive Thumbwalk shell */
+/* Mann Lab responsive Thumbwaddle shell */
 html, body {
   width: 100%;
   height: 100%;

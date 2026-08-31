@@ -30,7 +30,7 @@ namespace MannLab.Games.Walking.EditorTools
 
             var buildNumber = GetBuildNumber();
             PlayerSettings.companyName = "Mann Lab";
-            PlayerSettings.productName = "Thumbwalk";
+            PlayerSettings.productName = "Thumbwaddle";
             PlayerSettings.bundleVersion = MarketingVersion;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleIdentifier);
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
