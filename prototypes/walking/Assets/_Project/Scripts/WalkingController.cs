@@ -273,7 +273,6 @@ namespace MannLab.Games.Walking
             worldRoot = new GameObject("Walking World").transform;
             var floorMaterial = CreateMaterial("Paper Floor", new Color32(255, 253, 247, 255));
             var lineMaterial = CreateMaterial("Floor Ink Lines", new Color32(186, 181, 170, 255));
-            var startMaterial = CreateMaterial("Start Ice Wash", new Color32(230, 243, 244, 255));
             var goalMaterial = CreateMaterial("Forward Ice Marks", new Color32(145, 197, 215, 255));
             var obstacleMaterial = CreateMaterial("Iceberg Body", new Color32(206, 232, 238, 255));
             var obstacleTopMaterial = CreateMaterial("Iceberg Sketch Edge", new Color32(118, 169, 187, 255));
@@ -289,10 +288,10 @@ namespace MannLab.Games.Walking
                 worldRoot);
 
             CreateCube(
-                "Start Wash",
-                new Vector3(0f, -0.002f, 4.4f),
-                new Vector3(fieldWidth * 0.34f, 0.018f, 8.8f),
-                startMaterial,
+                "Start Sketch Line",
+                new Vector3(0f, 0.006f, 0.22f),
+                new Vector3(fieldWidth * 0.20f, 0.012f, 0.065f),
+                goalMaterial,
                 worldRoot);
 
             for (var i = 0; i <= Mathf.CeilToInt(openFieldLength / 2f); i++)
@@ -349,25 +348,27 @@ namespace MannLab.Games.Walking
                 var center = new Vector2(x, z);
                 fieldObstacles.Add(new FieldObstacle(center, radius));
 
-                var height = RandomRange(random, 0.34f, 0.72f);
-                var width = radius * RandomRange(random, 1.8f, 2.7f);
-                var depth = radius * RandomRange(random, 1.5f, 2.45f);
+                var width = radius * RandomRange(random, 1.95f, 2.85f);
+                var depth = radius * RandomRange(random, 1.65f, 2.35f);
                 var obstacle = CreateEllipsoid(
-                    "Soft Iceberg",
-                    new Vector3(center.x, height * 0.48f, center.y),
-                    new Vector3(width, height, depth),
+                    "Flat Iceberg Wash",
+                    new Vector3(center.x, 0.025f, center.y),
+                    new Vector3(width, 0.055f, depth),
                     obstacleMaterial,
                     worldRoot);
-                obstacle.transform.rotation = Quaternion.Euler(0f, RandomRange(random, -28f, 28f), 0f);
+                obstacle.transform.rotation = Quaternion.Euler(0f, RandomRange(random, -18f, 18f), 0f);
 
-                var highlight = CreateEllipsoid(
-                    "Iceberg Sketch Ridge",
-                    new Vector3(center.x - width * 0.10f, height * 0.82f, center.y - depth * 0.08f),
-                    new Vector3(width * 0.48f, height * 0.11f, depth * 0.26f),
-                    obstacleTopMaterial,
-                    obstacle.transform);
-                highlight.transform.localRotation = Quaternion.Euler(0f, 0f, RandomRange(random, -8f, 8f));
+                CreateIcebergStroke(obstacle.transform, obstacleTopMaterial, new Vector3(-0.16f, 0.55f, -0.05f), new Vector3(0.46f, 0.35f, 0.055f), RandomRange(random, -18f, -8f));
+                CreateIcebergStroke(obstacle.transform, obstacleTopMaterial, new Vector3(0.13f, 0.57f, 0.08f), new Vector3(0.36f, 0.35f, 0.055f), RandomRange(random, 8f, 18f));
+                CreateIcebergStroke(obstacle.transform, obstacleTopMaterial, new Vector3(0f, 0.59f, -0.20f), new Vector3(0.26f, 0.35f, 0.05f), RandomRange(random, -5f, 5f));
             }
+        }
+
+        private static void CreateIcebergStroke(Transform obstacle, Material material, Vector3 localPosition, Vector3 localScale, float yaw)
+        {
+            var stroke = CreateCube("Iceberg Ink Stroke", Vector3.zero, localScale, material, obstacle);
+            stroke.transform.localPosition = localPosition;
+            stroke.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
         }
 
         private void BuildPlayerAvatar()
@@ -906,9 +907,9 @@ namespace MannLab.Games.Walking
 
             if (playerBackMark != null)
             {
-                playerBackMark.localPosition = new Vector3(lean * 0.045f, 0.48f + bodyBob - bodyLeanPulse * 0.025f, -0.235f);
+                playerBackMark.localPosition = new Vector3(lean * 0.045f, 0.40f + bodyBob - bodyLeanPulse * 0.025f, -0.238f);
                 playerBackMark.localRotation = Quaternion.Euler(0f, 0f, -lean * 7f);
-                playerBackMark.localScale = new Vector3(0.40f, 0.50f, 0.045f);
+                playerBackMark.localScale = new Vector3(0.24f, 0.16f, 0.035f);
             }
 
             if (playerHead != null)
@@ -920,15 +921,15 @@ namespace MannLab.Games.Walking
 
             if (playerFacePatch != null)
             {
-                playerFacePatch.localPosition = new Vector3(lean * 0.066f, 1.03f + bodyBob - bodyLeanPulse * 0.018f, -0.235f);
+                playerFacePatch.localPosition = new Vector3(lean * 0.066f, 1.03f + bodyBob - bodyLeanPulse * 0.018f, 0.238f);
                 playerFacePatch.localRotation = Quaternion.Euler(0f, 0f, -lean * 5f);
                 playerFacePatch.localScale = new Vector3(0.30f, 0.22f, 0.035f);
             }
 
             if (playerBeak != null)
             {
-                playerBeak.localPosition = new Vector3(lean * 0.066f, 0.99f + bodyBob - bodyLeanPulse * 0.018f, -0.295f);
-                playerBeak.localRotation = Quaternion.Euler(-4f, 0f, -lean * 5f);
+                playerBeak.localPosition = new Vector3(lean * 0.066f, 0.99f + bodyBob - bodyLeanPulse * 0.018f, 0.305f);
+                playerBeak.localRotation = Quaternion.Euler(4f, 0f, -lean * 5f);
                 playerBeak.localScale = new Vector3(0.15f, 0.08f, 0.18f);
             }
 
@@ -1542,7 +1543,10 @@ namespace MannLab.Games.Walking
             cube.transform.position = position;
             cube.transform.localScale = scale;
             cube.GetComponent<MeshFilter>().sharedMesh = CreateUnitCubeMesh();
-            cube.GetComponent<MeshRenderer>().sharedMaterial = material;
+            var renderer = cube.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
             return cube;
         }
 
@@ -1554,7 +1558,10 @@ namespace MannLab.Games.Walking
             ellipsoid.transform.position = position;
             ellipsoid.transform.localScale = scale;
             ellipsoid.GetComponent<MeshFilter>().sharedMesh = CreateUnitSphereMesh();
-            ellipsoid.GetComponent<MeshRenderer>().sharedMaterial = material;
+            var renderer = ellipsoid.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
             return ellipsoid;
         }
 
