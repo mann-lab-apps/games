@@ -59,9 +59,9 @@ namespace MannLab.Games.Walking
                 ? Mathf.Clamp01(screenPosition.x / halfWidth)
                 : Mathf.Clamp01((screenPosition.x - halfWidth) / halfWidth);
             var xControl = sideX * 2f - 1f;
-            var stepRange = Mathf.Max(0.1f, 1f - ReturnGestureMaxScreenY);
-            var yControl = Mathf.Clamp01((screenPosition.y / safeHeight - ReturnGestureMaxScreenY) / stepRange);
-            var forwardDistance = Mathf.Lerp(MinStepDistance + 0.18f, MaxStepDistance, Mathf.Pow(yControl, 0.72f));
+            var rawY = Mathf.Clamp01(screenPosition.y / safeHeight);
+            var yControl = Mathf.Pow(rawY, 0.58f);
+            var forwardDistance = Mathf.Lerp(MinStepDistance + 0.30f, MaxStepDistance, yControl);
             var naturalSide = side == WalkingFootSide.Left ? -NaturalHalfStance : NaturalHalfStance;
             var lateralDistance = naturalSide + xControl * 0.34f;
 

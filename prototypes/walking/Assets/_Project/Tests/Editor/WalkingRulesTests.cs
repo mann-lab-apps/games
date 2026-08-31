@@ -111,6 +111,28 @@ namespace MannLab.Games.Walking.Tests
         }
 
         [Test]
+        public void LowScreenTouchCanBuildValidStepWhenReturnIsNotRequired()
+        {
+            var screen = new Vector2(1080f, 1920f);
+            var candidate = WalkingRules.BuildFootCandidate(
+                WalkingFootSide.Left,
+                Vector2.zero,
+                Vector2.up,
+                new Vector2(270f, 260f),
+                screen);
+            var placement = WalkingRules.ValidateFootPlacement(
+                WalkingFootSide.Left,
+                Vector2.zero,
+                candidate,
+                Vector2.up,
+                EmptyMaze());
+
+            Assert.That(WalkingRules.IsReturnGesturePosition(new Vector2(270f, 260f), screen), Is.True);
+            Assert.That(WalkingRules.IsStepGesturePosition(new Vector2(270f, 260f), screen), Is.True);
+            Assert.That(placement.IsValid, Is.True);
+        }
+
+        [Test]
         public void RightHalfScreenTargetsRightFoot()
         {
             var screen = new Vector2(1080f, 1920f);

@@ -276,8 +276,10 @@ namespace MannLab.Games.Walking
             var floorMaterial = CreateMaterial("Paper Floor", new Color32(255, 253, 247, 255));
             var lineMaterial = CreateMaterial("Floor Ink Lines", new Color32(186, 181, 170, 255));
             var goalMaterial = CreateMaterial("Forward Ice Marks", new Color32(145, 197, 215, 255));
-            var obstacleMaterial = CreateMaterial("Iceberg Body", new Color32(206, 232, 238, 255));
-            var obstacleTopMaterial = CreateMaterial("Iceberg Sketch Edge", new Color32(118, 169, 187, 255));
+            var obstacleShadowMaterial = CreateMaterial("Iceberg Snow Shadow", new Color32(218, 232, 234, 255));
+            var obstacleMaterial = CreateMaterial("Iceberg Blue Face", new Color32(188, 226, 237, 255));
+            var obstacleTopMaterial = CreateMaterial("Iceberg Snow Face", new Color32(252, 254, 250, 255));
+            var obstacleStrokeMaterial = CreateMaterial("Iceberg Ink Cracks", new Color32(66, 126, 153, 255));
             var fieldWidth = openFieldHalfWidth * 2f;
             var fieldCenterZ = openFieldLength * 0.5f;
             fieldObstacles.Clear();
@@ -326,11 +328,15 @@ namespace MannLab.Games.Walking
                     worldRoot);
             }
 
-            BuildOpenFieldObstacles(obstacleMaterial, obstacleTopMaterial);
+            BuildOpenFieldObstacles(obstacleShadowMaterial, obstacleMaterial, obstacleTopMaterial, obstacleStrokeMaterial);
             BuildDebugMarkers();
         }
 
-        private void BuildOpenFieldObstacles(Material obstacleMaterial, Material obstacleTopMaterial)
+        private void BuildOpenFieldObstacles(
+            Material obstacleShadowMaterial,
+            Material obstacleMaterial,
+            Material obstacleTopMaterial,
+            Material obstacleStrokeMaterial)
         {
             var random = new System.Random(unchecked(System.DateTime.UtcNow.Millisecond * 92821 + steps * 97));
             var count = Mathf.Max(0, openFieldObstacleCount);
@@ -352,18 +358,83 @@ namespace MannLab.Games.Walking
 
                 var width = radius * RandomRange(random, 1.95f, 2.85f);
                 var depth = radius * RandomRange(random, 1.65f, 2.35f);
-                var obstacle = CreateEllipsoid(
-                    "Flat Iceberg Wash",
-                    new Vector3(center.x, 0.025f, center.y),
-                    new Vector3(width, 0.055f, depth),
+                CreateIcebergObstacle(
+                    center,
+                    width,
+                    depth,
+                    RandomRange(random, 1.12f, 1.58f),
+                    RandomRange(random, -18f, 18f),
+                    obstacleShadowMaterial,
                     obstacleMaterial,
-                    worldRoot);
-                obstacle.transform.rotation = Quaternion.Euler(0f, RandomRange(random, -18f, 18f), 0f);
-
-                CreateIcebergStroke(obstacle.transform, obstacleTopMaterial, new Vector3(-0.16f, 0.55f, -0.05f), new Vector3(0.46f, 0.35f, 0.055f), RandomRange(random, -18f, -8f));
-                CreateIcebergStroke(obstacle.transform, obstacleTopMaterial, new Vector3(0.13f, 0.57f, 0.08f), new Vector3(0.36f, 0.35f, 0.055f), RandomRange(random, 8f, 18f));
-                CreateIcebergStroke(obstacle.transform, obstacleTopMaterial, new Vector3(0f, 0.59f, -0.20f), new Vector3(0.26f, 0.35f, 0.05f), RandomRange(random, -5f, 5f));
+                    obstacleTopMaterial,
+                    obstacleStrokeMaterial,
+                    random);
             }
+        }
+
+        private void CreateIcebergObstacle(
+            Vector2 center,
+            float width,
+            float depth,
+            float height,
+            float yaw,
+            Material shadowMaterial,
+            Material bodyMaterial,
+            Material capMaterial,
+            Material strokeMaterial,
+            System.Random random)
+        {
+            var root = new GameObject("Sketch Iceberg").transform;
+            root.SetParent(worldRoot, false);
+            root.position = new Vector3(center.x, 0f, center.y);
+            root.rotation = Quaternion.Euler(0f, yaw, 0f);
+
+            var groundWash = CreateEllipsoid(
+                "Iceberg Ground Wash",
+                Vector3.zero,
+                new Vector3(width * 1.22f, 0.024f, depth * 1.08f),
+                shadowMaterial,
+                root);
+            groundWash.transform.localPosition = new Vector3(0.05f, 0.012f, -0.05f);
+
+            CreateIcebergShard(
+                "Iceberg Main Peak",
+                new Vector3(0f, 0.024f, 0f),
+                new Vector3(width * 0.92f, height, depth * 0.82f),
+                bodyMaterial,
+                root,
+                RandomRange(random, -8f, 8f),
+                RandomRange(random, -0.10f, 0.12f));
+            CreateIcebergShard(
+                "Iceberg Side Peak",
+                new Vector3(-width * 0.32f, 0.018f, depth * 0.10f),
+                new Vector3(width * 0.55f, height * 0.72f, depth * 0.58f),
+                bodyMaterial,
+                root,
+                RandomRange(random, -18f, -8f),
+                RandomRange(random, -0.14f, 0.04f));
+            CreateIcebergShard(
+                "Iceberg Rear Peak",
+                new Vector3(width * 0.30f, 0.016f, -depth * 0.12f),
+                new Vector3(width * 0.48f, height * 0.58f, depth * 0.50f),
+                bodyMaterial,
+                root,
+                RandomRange(random, 8f, 18f),
+                RandomRange(random, -0.02f, 0.16f));
+
+            CreateIcebergShard(
+                "Iceberg Snowy Tip",
+                new Vector3(-width * 0.02f, height * 0.64f, -depth * 0.02f),
+                new Vector3(width * 0.46f, height * 0.25f, depth * 0.40f),
+                capMaterial,
+                root,
+                RandomRange(random, -6f, 6f),
+                RandomRange(random, -0.04f, 0.08f));
+
+            CreateIcebergStroke(root, strokeMaterial, new Vector3(-width * 0.26f, height * 0.40f, -depth * 0.36f), new Vector3(width * 0.46f, 0.038f, depth * 0.038f), RandomRange(random, -30f, -14f));
+            CreateIcebergStroke(root, strokeMaterial, new Vector3(width * 0.20f, height * 0.52f, depth * 0.30f), new Vector3(width * 0.38f, 0.038f, depth * 0.038f), RandomRange(random, 13f, 30f));
+            CreateIcebergStroke(root, strokeMaterial, new Vector3(width * -0.03f, height * 0.72f, depth * -0.30f), new Vector3(width * 0.26f, 0.034f, depth * 0.034f), RandomRange(random, -10f, 10f));
+            CreateIcebergStroke(root, strokeMaterial, new Vector3(width * 0.36f, height * 0.28f, depth * -0.05f), new Vector3(width * 0.34f, 0.034f, depth * 0.034f), RandomRange(random, 42f, 58f));
         }
 
         private static void CreateIcebergStroke(Transform obstacle, Material material, Vector3 localPosition, Vector3 localScale, float yaw)
@@ -371,6 +442,101 @@ namespace MannLab.Games.Walking
             var stroke = CreateCube("Iceberg Ink Stroke", Vector3.zero, localScale, material, obstacle);
             stroke.transform.localPosition = localPosition;
             stroke.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+        }
+
+        private static GameObject CreateIcebergShard(
+            string objectName,
+            Vector3 localPosition,
+            Vector3 scale,
+            Material material,
+            Transform parent,
+            float yaw,
+            float peakLean)
+        {
+            var shard = new GameObject(objectName, typeof(MeshFilter), typeof(MeshRenderer));
+            shard.transform.SetParent(parent, false);
+            shard.transform.localPosition = localPosition;
+            shard.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            shard.transform.localScale = scale;
+            shard.GetComponent<MeshFilter>().sharedMesh = CreateIcebergShardMesh(peakLean);
+            var renderer = shard.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return shard;
+        }
+
+        private static Mesh CreateIcebergShardMesh(float peakLean)
+        {
+            var vertices = new[]
+            {
+                new Vector3(-0.50f, 0f, -0.30f),
+                new Vector3(-0.16f, 0f, -0.48f),
+                new Vector3(0.34f, 0f, -0.42f),
+                new Vector3(0.54f, 0f, -0.05f),
+                new Vector3(0.38f, 0f, 0.40f),
+                new Vector3(-0.10f, 0f, 0.50f),
+                new Vector3(-0.48f, 0f, 0.24f),
+                new Vector3(-0.56f, 0f, -0.10f),
+                new Vector3(-0.30f, 0.46f, -0.18f),
+                new Vector3(-0.08f, 0.54f, -0.30f),
+                new Vector3(0.24f, 0.50f, -0.24f),
+                new Vector3(0.33f, 0.46f, -0.02f),
+                new Vector3(0.24f, 0.52f, 0.25f),
+                new Vector3(-0.06f, 0.48f, 0.31f),
+                new Vector3(-0.30f, 0.44f, 0.14f),
+                new Vector3(-0.34f, 0.46f, -0.06f),
+                new Vector3(peakLean, 1f, 0.02f),
+            };
+            var triangles = new List<int>();
+            for (var i = 0; i < 8; i++)
+            {
+                var next = (i + 1) % 8;
+                AddDoubleSidedTriangle(triangles, i, i + 8, next + 8);
+                AddDoubleSidedTriangle(triangles, i, next + 8, next);
+                AddDoubleSidedTriangle(triangles, i + 8, 16, next + 8);
+            }
+
+            var mesh = new Mesh
+            {
+                name = "Thumbwaddle Iceberg Shard",
+                vertices = vertices,
+                triangles = triangles.ToArray()
+            };
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static void AddDoubleSidedTriangle(List<int> triangles, int a, int b, int c)
+        {
+            triangles.Add(a);
+            triangles.Add(b);
+            triangles.Add(c);
+            triangles.Add(c);
+            triangles.Add(b);
+            triangles.Add(a);
+        }
+
+        private static Transform CreateHatchedShadow(string objectName, Material material, Transform parent)
+        {
+            var root = new GameObject(objectName).transform;
+            root.SetParent(parent, false);
+
+            for (var i = 0; i < 6; i++)
+            {
+                var x = Mathf.Lerp(-0.30f, 0.30f, i / 5f);
+                var bar = CreateCube(
+                    "Penguin Shadow Hatch",
+                    Vector3.zero,
+                    new Vector3(0.42f, 0.016f, 0.026f),
+                    material,
+                    root);
+                bar.transform.localPosition = new Vector3(x, 0f, Mathf.Sin(i * 1.7f) * 0.055f);
+                bar.transform.localRotation = Quaternion.Euler(0f, -28f, 0f);
+            }
+
+            return root;
         }
 
         private void BuildPlayerAvatar()
@@ -383,18 +549,13 @@ namespace MannLab.Games.Walking
             playerRoot = new GameObject("Thumbwaddle Player").transform;
             playerRoot.SetParent(worldRoot, false);
 
-            var shadowMaterial = CreateMaterial("Penguin Sketch Shadow", new Color32(40, 39, 36, 255));
+            var shadowMaterial = CreateMaterial("Penguin Hatch Shadow", new Color32(211, 222, 220, 255));
             var bodyMaterial = CreateMaterial("Penguin Ink Body", new Color32(35, 38, 39, 255));
             var patchMaterial = CreateMaterial("Penguin Paper Patch", new Color32(255, 253, 247, 255));
             var beakMaterial = CreateMaterial("Penguin Beak", new Color32(247, 181, 71, 255));
             var footMaterial = CreateMaterial("Penguin Feet", new Color32(236, 143, 58, 255));
 
-            playerShadow = CreateEllipsoid(
-                "Player Shadow",
-                Vector3.zero,
-                new Vector3(0.72f, 0.022f, 0.54f),
-                shadowMaterial,
-                playerRoot).transform;
+            playerShadow = CreateHatchedShadow("Player Hatched Shadow", shadowMaterial, playerRoot);
             playerBody = CreateEllipsoid(
                 "Penguin Body",
                 Vector3.zero,
@@ -889,8 +1050,8 @@ namespace MannLab.Games.Walking
 
             if (playerShadow != null)
             {
-                playerShadow.localPosition = new Vector3(0f, 0.026f, 0f);
-                playerShadow.localScale = new Vector3(0.72f, 0.022f, 0.54f);
+                playerShadow.localPosition = new Vector3(0f, 0.026f, -0.02f);
+                playerShadow.localScale = new Vector3(1f, 1f, 1f);
             }
 
             if (playerBody != null)
@@ -931,17 +1092,17 @@ namespace MannLab.Games.Walking
             if (playerLeftArm != null)
             {
                 var swing = Mathf.Clamp01(rightFoot.StatusPulse + bobImpulse * 2.6f);
-                playerLeftArm.localPosition = new Vector3(-0.34f + lean * 0.026f, 0.66f + bodyBob * 0.55f, -0.025f + swing * 0.045f);
-                playerLeftArm.localRotation = Quaternion.Euler(6f + swing * 12f, 0f, -28f - lean * 3f);
-                playerLeftArm.localScale = new Vector3(0.18f, 0.43f, 0.16f);
+                playerLeftArm.localPosition = new Vector3(-0.255f + lean * 0.024f, 0.70f + bodyBob * 0.55f, -0.045f + swing * 0.035f);
+                playerLeftArm.localRotation = Quaternion.Euler(7f + swing * 10f, 0f, -38f - lean * 3f);
+                playerLeftArm.localScale = new Vector3(0.17f, 0.42f, 0.15f);
             }
 
             if (playerRightArm != null)
             {
                 var swing = Mathf.Clamp01(leftFoot.StatusPulse + bobImpulse * 2.6f);
-                playerRightArm.localPosition = new Vector3(0.34f + lean * 0.026f, 0.66f + bodyBob * 0.55f, -0.025f + swing * 0.045f);
-                playerRightArm.localRotation = Quaternion.Euler(6f + swing * 12f, 0f, 28f - lean * 3f);
-                playerRightArm.localScale = new Vector3(0.18f, 0.43f, 0.16f);
+                playerRightArm.localPosition = new Vector3(0.255f + lean * 0.024f, 0.70f + bodyBob * 0.55f, -0.045f + swing * 0.035f);
+                playerRightArm.localRotation = Quaternion.Euler(7f + swing * 10f, 0f, 38f - lean * 3f);
+                playerRightArm.localScale = new Vector3(0.17f, 0.42f, 0.15f);
             }
 
             SetAvatarFoot(playerLeftFoot, leftFootPosition, leftFoot.StatusPulse, targetRotation, snap);

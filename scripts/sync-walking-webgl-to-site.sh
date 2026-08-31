@@ -26,7 +26,7 @@ find "$target_dir" -name '*.gz' -print0 | while IFS= read -r -d '' compressed; d
 done
 
 if [[ -f "$target_dir/index.html" ]]; then
-  perl -0pi -e 's/\.data\.gz/.data/g; s/\.framework\.js\.gz/.framework.js/g; s/\.wasm\.gz/.wasm/g; s#(var loaderUrl = buildUrl \+ "/walking\.loader\.js")#$1 + "?v=thumbwaddle-20260831c"#g; s#(dataUrl: buildUrl \+ "/walking\.data")#$1 + "?v=thumbwaddle-20260831c"#g; s#(frameworkUrl: buildUrl \+ "/walking\.framework\.js")#$1 + "?v=thumbwaddle-20260831c"#g; s#(codeUrl: buildUrl \+ "/walking\.wasm")#$1 + "?v=thumbwaddle-20260831c"#g; s/canvas\.style\.width = "960px";/canvas.style.width = "100vw";/g; s/canvas\.style\.height = "600px";/canvas.style.height = "100vh";/g' "$target_dir/index.html"
+  perl -0pi -e 's/\.data\.gz/.data/g; s/\.framework\.js\.gz/.framework.js/g; s/\.wasm\.gz/.wasm/g; s#(var loaderUrl = buildUrl \+ "/walking\.loader\.js")#$1 + "?v=thumbwaddle-20260831d"#g; s#(dataUrl: buildUrl \+ "/walking\.data")#$1 + "?v=thumbwaddle-20260831d"#g; s#(frameworkUrl: buildUrl \+ "/walking\.framework\.js")#$1 + "?v=thumbwaddle-20260831d"#g; s#(codeUrl: buildUrl \+ "/walking\.wasm")#$1 + "?v=thumbwaddle-20260831d"#g; s/canvas\.style\.width = "960px";/canvas.style.width = "100vw";/g; s/canvas\.style\.height = "600px";/canvas.style.height = "100vh";/g' "$target_dir/index.html"
 fi
 
 echo "Thumbwaddle WebGL copied to $target_dir."

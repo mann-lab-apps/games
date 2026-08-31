@@ -27,7 +27,7 @@ Open this directory from Unity Hub and run `Assets/_Project/Scenes/Game.unity`.
 - The first-run rhythm is intentionally simple: stamp high, pull low, disappear, repeat.
 - The HUD and lower touch zones show step, blocked, pull-back, and returning states.
 - Distance accumulates from body-center movement during a short timed run.
-- The current MVP space is a broad paper field with sparse soft iceberg obstacles, not a maze.
+- The current MVP space is a broad paper field with sparse faceted iceberg obstacles, not a maze.
 - Obstacles block invalid landings and body overlap, but they do not end the run; the goal is still maximum distance before time runs out.
 
 ## Testing Notes
