@@ -21,7 +21,7 @@ namespace MannLab.Games.Walking.EditorTools
 
             PlayerSettings.companyName = "Mann Lab";
             PlayerSettings.productName = "Thumbwalk";
-            PlayerSettings.bundleVersion = "1.0";
+            PlayerSettings.bundleVersion = "1.0.5";
 
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {

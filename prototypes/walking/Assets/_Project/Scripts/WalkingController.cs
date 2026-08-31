@@ -19,6 +19,8 @@ namespace MannLab.Games.Walking
         private static readonly Color Green = new Color32(123, 168, 107, 255);
         private static readonly Color Red = new Color32(210, 74, 66, 255);
         private static readonly Color Blue = new Color32(88, 142, 181, 255);
+        private static Mesh sharedCubeMesh;
+        private static Mesh sharedSphereMesh;
 
         [Header("Debug")]
         [SerializeField] private bool debugFootMarkers = DefaultDebugFootMarkers;
@@ -38,7 +40,7 @@ namespace MannLab.Games.Walking
         [SerializeField] private float runDurationSeconds = 30f;
         [SerializeField] private float openFieldHalfWidth = 18f;
         [SerializeField] private float openFieldLength = 180f;
-        [SerializeField] private int openFieldObstacleCount = 18;
+        [SerializeField] private int openFieldObstacleCount = 12;
 
         private readonly FootRuntime leftFoot = new FootRuntime(WalkingFootSide.Left);
         private readonly FootRuntime rightFoot = new FootRuntime(WalkingFootSide.Right);
@@ -1542,7 +1544,7 @@ namespace MannLab.Games.Walking
             cube.transform.SetParent(parent, false);
             cube.transform.position = position;
             cube.transform.localScale = scale;
-            cube.GetComponent<MeshFilter>().sharedMesh = CreateUnitCubeMesh();
+            cube.GetComponent<MeshFilter>().sharedMesh = sharedCubeMesh ?? (sharedCubeMesh = CreateUnitCubeMesh());
             var renderer = cube.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -1557,7 +1559,7 @@ namespace MannLab.Games.Walking
             ellipsoid.transform.SetParent(parent, false);
             ellipsoid.transform.position = position;
             ellipsoid.transform.localScale = scale;
-            ellipsoid.GetComponent<MeshFilter>().sharedMesh = CreateUnitSphereMesh();
+            ellipsoid.GetComponent<MeshFilter>().sharedMesh = sharedSphereMesh ?? (sharedSphereMesh = CreateUnitSphereMesh());
             var renderer = ellipsoid.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

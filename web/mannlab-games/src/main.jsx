@@ -20,7 +20,7 @@ const games = [
     description: "두 엄지로 찍고 당겨서 걷는 1인칭 미로 산책 게임",
     route: "/walking",
     aliases: ["/sanchaek"],
-    embedHref: "/games/walking/index.html?v=webgl-imgui-20260830",
+    embedHref: "/games/walking/index.html?v=thumbwalk-20260831a",
     available: true,
   },
   {
