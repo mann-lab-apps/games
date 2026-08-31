@@ -636,13 +636,6 @@ namespace MannLab.Games.Walking
                 return;
             }
 
-            if (!WalkingRules.IsStepGesturePosition(screenPosition, new Vector2(Screen.width, Screen.height)))
-            {
-                foot.Mode = InputMode.Ignored;
-                foot.StatusPulse = 1f;
-                return;
-            }
-
             foot.Mode = InputMode.Placement;
             var landed = TryLandFoot(foot);
             if (state == WalkingGameState.Playing)
@@ -938,17 +931,17 @@ namespace MannLab.Games.Walking
             if (playerLeftArm != null)
             {
                 var swing = Mathf.Clamp01(rightFoot.StatusPulse + bobImpulse * 2.6f);
-                playerLeftArm.localPosition = new Vector3(-0.42f + lean * 0.03f, 0.70f + bodyBob * 0.55f, -0.01f + swing * 0.055f);
-                playerLeftArm.localRotation = Quaternion.Euler(6f + swing * 14f, 0f, -31f - lean * 3f);
-                playerLeftArm.localScale = new Vector3(0.15f, 0.44f, 0.15f);
+                playerLeftArm.localPosition = new Vector3(-0.34f + lean * 0.026f, 0.66f + bodyBob * 0.55f, -0.025f + swing * 0.045f);
+                playerLeftArm.localRotation = Quaternion.Euler(6f + swing * 12f, 0f, -28f - lean * 3f);
+                playerLeftArm.localScale = new Vector3(0.18f, 0.43f, 0.16f);
             }
 
             if (playerRightArm != null)
             {
                 var swing = Mathf.Clamp01(leftFoot.StatusPulse + bobImpulse * 2.6f);
-                playerRightArm.localPosition = new Vector3(0.42f + lean * 0.03f, 0.70f + bodyBob * 0.55f, -0.01f + swing * 0.055f);
-                playerRightArm.localRotation = Quaternion.Euler(6f + swing * 14f, 0f, 31f - lean * 3f);
-                playerRightArm.localScale = new Vector3(0.15f, 0.44f, 0.15f);
+                playerRightArm.localPosition = new Vector3(0.34f + lean * 0.026f, 0.66f + bodyBob * 0.55f, -0.025f + swing * 0.045f);
+                playerRightArm.localRotation = Quaternion.Euler(6f + swing * 12f, 0f, 28f - lean * 3f);
+                playerRightArm.localScale = new Vector3(0.18f, 0.43f, 0.16f);
             }
 
             SetAvatarFoot(playerLeftFoot, leftFootPosition, leftFoot.StatusPulse, targetRotation, snap);

@@ -143,7 +143,7 @@ namespace MannLab.Games.Walking
 
         public static bool IsStepGesturePosition(Vector2 screenPosition, Vector2 screenSize)
         {
-            return !IsReturnGesturePosition(screenPosition, screenSize);
+            return true;
         }
 
         public static WalkingFootSide FootSideForScreenPosition(Vector2 screenPosition, Vector2 screenSize)

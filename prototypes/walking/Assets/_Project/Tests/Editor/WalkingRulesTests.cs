@@ -121,11 +121,12 @@ namespace MannLab.Games.Walking.Tests
         }
 
         [Test]
-        public void ReturnAreaIsNotStepGesture()
+        public void ReturnAreaCanStillStartStepWhenReturnIsNotRequired()
         {
             var screen = new Vector2(1080f, 1920f);
 
-            Assert.That(WalkingRules.IsStepGesturePosition(new Vector2(240f, 420f), screen), Is.False);
+            Assert.That(WalkingRules.IsReturnGesturePosition(new Vector2(240f, 420f), screen), Is.True);
+            Assert.That(WalkingRules.IsStepGesturePosition(new Vector2(240f, 420f), screen), Is.True);
         }
 
         [Test]
