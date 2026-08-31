@@ -164,6 +164,11 @@ public static class VerifyWalkingRules
             return Fail("High step touch was incorrectly treated as return.");
         }
 
+        if (WalkingRules.FootSideForScreenPosition(new Vector2(820f, 960f), screen) != WalkingFootSide.Right)
+        {
+            return Fail("Right-half touch did not target the right foot.");
+        }
+
         Console.WriteLine("Walking rules verified.");
         return 0;
     }

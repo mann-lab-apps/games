@@ -111,6 +111,16 @@ namespace MannLab.Games.Walking.Tests
         }
 
         [Test]
+        public void RightHalfScreenTargetsRightFoot()
+        {
+            var screen = new Vector2(1080f, 1920f);
+
+            Assert.That(WalkingRules.FootSideForScreenPosition(new Vector2(260f, 960f), screen), Is.EqualTo(WalkingFootSide.Left));
+            Assert.That(WalkingRules.FootSideForScreenPosition(new Vector2(540f, 960f), screen), Is.EqualTo(WalkingFootSide.Right));
+            Assert.That(WalkingRules.FootSideForScreenPosition(new Vector2(820f, 960f), screen), Is.EqualTo(WalkingFootSide.Right));
+        }
+
+        [Test]
         public void ReturnAreaIsNotStepGesture()
         {
             var screen = new Vector2(1080f, 1920f);

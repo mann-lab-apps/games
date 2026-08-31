@@ -55,6 +55,8 @@ namespace MannLab.Games.Walking
         private Transform playerBody;
         private Transform playerBackMark;
         private Transform playerHead;
+        private Transform playerFacePatch;
+        private Transform playerBeak;
         private Transform playerLeftArm;
         private Transform playerRightArm;
         private Transform playerLeftFoot;
@@ -104,6 +106,7 @@ namespace MannLab.Games.Walking
         private float invalidPulse;
         private WalkingFootSide lastLandedSide = WalkingFootSide.Left;
         private float bodyLeanPulse;
+        private float suppressMouseInputUntil;
 
         private const string BestDistanceKey = "MannLab.Walking.BestDistance";
 
@@ -270,10 +273,10 @@ namespace MannLab.Games.Walking
             worldRoot = new GameObject("Walking World").transform;
             var floorMaterial = CreateMaterial("Paper Floor", new Color32(255, 253, 247, 255));
             var lineMaterial = CreateMaterial("Floor Ink Lines", new Color32(186, 181, 170, 255));
-            var startMaterial = CreateMaterial("Start Wash", new Color32(240, 246, 226, 255));
-            var goalMaterial = CreateMaterial("Forward Warm Marks", new Color32(236, 188, 91, 255));
-            var obstacleMaterial = CreateMaterial("Field Ink Obstacle", new Color32(45, 44, 40, 255));
-            var obstacleTopMaterial = CreateMaterial("Obstacle Paper Highlight", new Color32(71, 69, 63, 255));
+            var startMaterial = CreateMaterial("Start Ice Wash", new Color32(230, 243, 244, 255));
+            var goalMaterial = CreateMaterial("Forward Ice Marks", new Color32(145, 197, 215, 255));
+            var obstacleMaterial = CreateMaterial("Iceberg Body", new Color32(206, 232, 238, 255));
+            var obstacleTopMaterial = CreateMaterial("Iceberg Sketch Edge", new Color32(118, 169, 187, 255));
             var fieldWidth = openFieldHalfWidth * 2f;
             var fieldCenterZ = openFieldLength * 0.5f;
             fieldObstacles.Clear();
@@ -309,13 +312,13 @@ namespace MannLab.Games.Walking
                 var z = i * 6f + 1.2f;
                 var sideOffset = 4.5f + Mathf.Sin(i * 1.77f) * 1.7f;
                 CreateCube(
-                    "Left Field Sketch Tick",
+                    "Left Snow Sketch Tick",
                     new Vector3(-sideOffset, 0.014f, z),
                     new Vector3(1.1f, 0.018f, 0.052f),
                     lineMaterial,
                     worldRoot);
                 CreateCube(
-                    "Right Field Sketch Tick",
+                    "Right Snow Sketch Tick",
                     new Vector3(sideOffset * 1.08f, 0.014f, z + 2.6f),
                     new Vector3(1.1f, 0.018f, 0.052f),
                     lineMaterial,
@@ -346,11 +349,11 @@ namespace MannLab.Games.Walking
                 var center = new Vector2(x, z);
                 fieldObstacles.Add(new FieldObstacle(center, radius));
 
-                var height = RandomRange(random, 0.22f, 0.46f);
-                var width = radius * RandomRange(random, 1.45f, 2.1f);
-                var depth = radius * RandomRange(random, 1.35f, 2.0f);
+                var height = RandomRange(random, 0.34f, 0.72f);
+                var width = radius * RandomRange(random, 1.8f, 2.7f);
+                var depth = radius * RandomRange(random, 1.5f, 2.45f);
                 var obstacle = CreateEllipsoid(
-                    "Soft Ink Obstacle",
+                    "Soft Iceberg",
                     new Vector3(center.x, height * 0.48f, center.y),
                     new Vector3(width, height, depth),
                     obstacleMaterial,
@@ -358,9 +361,9 @@ namespace MannLab.Games.Walking
                 obstacle.transform.rotation = Quaternion.Euler(0f, RandomRange(random, -28f, 28f), 0f);
 
                 var highlight = CreateEllipsoid(
-                    "Obstacle Sketch Highlight",
-                    new Vector3(center.x - width * 0.12f, height * 0.82f, center.y - depth * 0.09f),
-                    new Vector3(width * 0.42f, height * 0.10f, depth * 0.24f),
+                    "Iceberg Sketch Ridge",
+                    new Vector3(center.x - width * 0.10f, height * 0.82f, center.y - depth * 0.08f),
+                    new Vector3(width * 0.48f, height * 0.11f, depth * 0.26f),
                     obstacleTopMaterial,
                     obstacle.transform);
                 highlight.transform.localRotation = Quaternion.Euler(0f, 0f, RandomRange(random, -8f, 8f));
@@ -377,12 +380,11 @@ namespace MannLab.Games.Walking
             playerRoot = new GameObject("Thumbwalk Player").transform;
             playerRoot.SetParent(worldRoot, false);
 
-            var shadowMaterial = CreateMaterial("Player Sketch Shadow", new Color32(40, 39, 36, 255));
-            var bodyMaterial = CreateMaterial("Player Paper Body", new Color32(255, 253, 247, 255));
-            var headMaterial = CreateMaterial("Player Warm Head", new Color32(247, 181, 71, 255));
-            var armMaterial = CreateMaterial("Player Warm Arms", new Color32(240, 196, 113, 255));
-            var leftFootMaterial = CreateMaterial("Player Left Foot", new Color32(88, 142, 181, 255));
-            var rightFootMaterial = CreateMaterial("Player Right Foot", new Color32(247, 181, 71, 255));
+            var shadowMaterial = CreateMaterial("Penguin Sketch Shadow", new Color32(40, 39, 36, 255));
+            var bodyMaterial = CreateMaterial("Penguin Ink Body", new Color32(35, 38, 39, 255));
+            var patchMaterial = CreateMaterial("Penguin Paper Patch", new Color32(255, 253, 247, 255));
+            var beakMaterial = CreateMaterial("Penguin Beak", new Color32(247, 181, 71, 255));
+            var footMaterial = CreateMaterial("Penguin Feet", new Color32(236, 143, 58, 255));
 
             playerShadow = CreateEllipsoid(
                 "Player Shadow",
@@ -391,46 +393,58 @@ namespace MannLab.Games.Walking
                 shadowMaterial,
                 playerRoot).transform;
             playerBody = CreateEllipsoid(
-                "Player Paper Body",
+                "Penguin Body",
                 Vector3.zero,
-                new Vector3(0.58f, 0.82f, 0.42f),
+                new Vector3(0.62f, 0.88f, 0.46f),
                 bodyMaterial,
                 playerRoot).transform;
             playerBackMark = CreateEllipsoid(
-                "Player Back Ink Mark",
+                "Penguin Back Patch",
                 Vector3.zero,
-                new Vector3(0.34f, 0.44f, 0.04f),
-                shadowMaterial,
+                new Vector3(0.40f, 0.50f, 0.045f),
+                patchMaterial,
                 playerRoot).transform;
             playerHead = CreateEllipsoid(
-                "Player Head",
+                "Penguin Head",
                 Vector3.zero,
-                new Vector3(0.42f, 0.36f, 0.40f),
-                headMaterial,
+                new Vector3(0.46f, 0.42f, 0.44f),
+                bodyMaterial,
+                playerRoot).transform;
+            playerFacePatch = CreateEllipsoid(
+                "Penguin Face Patch",
+                Vector3.zero,
+                new Vector3(0.30f, 0.22f, 0.035f),
+                patchMaterial,
+                playerRoot).transform;
+            playerBeak = CreateEllipsoid(
+                "Penguin Beak",
+                Vector3.zero,
+                new Vector3(0.15f, 0.08f, 0.18f),
+                beakMaterial,
                 playerRoot).transform;
             playerLeftArm = CreateEllipsoid(
-                "Player Left Arm",
+                "Penguin Left Flipper",
                 Vector3.zero,
-                new Vector3(0.18f, 0.42f, 0.18f),
-                armMaterial,
+                new Vector3(0.16f, 0.48f, 0.16f),
+                bodyMaterial,
                 playerRoot).transform;
             playerRightArm = CreateEllipsoid(
-                "Player Right Arm",
+                "Penguin Right Flipper",
                 Vector3.zero,
-                new Vector3(0.18f, 0.42f, 0.18f),
-                armMaterial,
+                new Vector3(0.16f, 0.48f, 0.16f),
+                bodyMaterial,
                 playerRoot).transform;
             playerLeftFoot = CreateEllipsoid(
-                "Player Left Foot",
+                "Penguin Left Foot",
                 Vector3.zero,
                 new Vector3(0.27f, 0.07f, 0.45f),
-                leftFootMaterial,
+                footMaterial,
                 playerRoot).transform;
             playerRightFoot = CreateEllipsoid(
-                "Player Right Foot",
+                "Penguin Right Foot",
                 Vector3.zero,
                 new Vector3(0.27f, 0.07f, 0.45f),
-                rightFootMaterial,
+                footMaterial,
                 playerRoot).transform;
         }
 
@@ -537,6 +551,7 @@ namespace MannLab.Games.Walking
         {
             if (Input.touchSupported && Input.touchCount > 0)
             {
+                suppressMouseInputUntil = Time.unscaledTime + 0.18f;
                 for (var i = 0; i < Input.touchCount; i++)
                 {
                     var touch = Input.GetTouch(i);
@@ -557,6 +572,11 @@ namespace MannLab.Games.Walking
                 }
             }
 
+            if (Time.unscaledTime < suppressMouseInputUntil)
+            {
+                return;
+            }
+
             if (Input.GetMouseButtonDown(0))
             {
                 BeginPointer(-10, Input.mousePosition);
@@ -573,6 +593,11 @@ namespace MannLab.Games.Walking
 
         private void BeginPointer(int pointerId, Vector2 screenPosition)
         {
+            if (activeTouches.TryGetValue(pointerId, out var previousFoot))
+            {
+                ReleasePointer(previousFoot, pointerId, false);
+            }
+
             if (state == WalkingGameState.Ready)
             {
                 state = WalkingGameState.Playing;
@@ -587,7 +612,8 @@ namespace MannLab.Games.Walking
                 return;
             }
 
-            var foot = screenPosition.x <= Screen.width * 0.5f ? leftFoot : rightFoot;
+            var side = WalkingRules.FootSideForScreenPosition(screenPosition, new Vector2(Screen.width, Screen.height));
+            var foot = side == WalkingFootSide.Left ? leftFoot : rightFoot;
             if (foot.Mode != InputMode.Idle)
             {
                 return;
@@ -656,12 +682,17 @@ namespace MannLab.Games.Walking
                 return;
             }
 
+            ReleasePointer(foot, pointerId, true);
+        }
+
+        private void ReleasePointer(FootRuntime foot, int pointerId, bool playFeedback)
+        {
             if (foot.Mode == InputMode.Return)
             {
                 foot.NeedsReturn = false;
                 foot.StatusPulse = 1f;
             }
-            else if (foot.Mode == InputMode.Ignored)
+            else if (playFeedback && foot.Mode == InputMode.Ignored)
             {
                 invalidPulse = 1f;
                 foot.StatusPulse = 1f;
@@ -870,37 +901,51 @@ namespace MannLab.Games.Walking
             {
                 playerBody.localPosition = new Vector3(lean * 0.045f, 0.45f + bodyBob - bodyLeanPulse * 0.025f, 0f);
                 playerBody.localRotation = Quaternion.Euler(0f, 0f, -lean * 7f);
-                playerBody.localScale = new Vector3(0.58f + bodyLeanPulse * 0.035f, 0.82f - bodyLeanPulse * 0.045f, 0.42f);
+                playerBody.localScale = new Vector3(0.62f + bodyLeanPulse * 0.035f, 0.88f - bodyLeanPulse * 0.045f, 0.46f);
             }
 
             if (playerBackMark != null)
             {
-                playerBackMark.localPosition = new Vector3(lean * 0.045f, 0.50f + bodyBob - bodyLeanPulse * 0.025f, -0.22f);
+                playerBackMark.localPosition = new Vector3(lean * 0.045f, 0.48f + bodyBob - bodyLeanPulse * 0.025f, -0.235f);
                 playerBackMark.localRotation = Quaternion.Euler(0f, 0f, -lean * 7f);
-                playerBackMark.localScale = new Vector3(0.34f, 0.44f, 0.04f);
+                playerBackMark.localScale = new Vector3(0.40f, 0.50f, 0.045f);
             }
 
             if (playerHead != null)
             {
-                playerHead.localPosition = new Vector3(lean * 0.065f, 1.00f + bodyBob - bodyLeanPulse * 0.018f, 0.03f);
+                playerHead.localPosition = new Vector3(lean * 0.065f, 1.03f + bodyBob - bodyLeanPulse * 0.018f, 0.02f);
                 playerHead.localRotation = Quaternion.Euler(0f, 0f, -lean * 5f);
-                playerHead.localScale = new Vector3(0.42f, 0.36f, 0.40f);
+                playerHead.localScale = new Vector3(0.46f, 0.42f, 0.44f);
+            }
+
+            if (playerFacePatch != null)
+            {
+                playerFacePatch.localPosition = new Vector3(lean * 0.066f, 1.03f + bodyBob - bodyLeanPulse * 0.018f, -0.235f);
+                playerFacePatch.localRotation = Quaternion.Euler(0f, 0f, -lean * 5f);
+                playerFacePatch.localScale = new Vector3(0.30f, 0.22f, 0.035f);
+            }
+
+            if (playerBeak != null)
+            {
+                playerBeak.localPosition = new Vector3(lean * 0.066f, 0.99f + bodyBob - bodyLeanPulse * 0.018f, -0.295f);
+                playerBeak.localRotation = Quaternion.Euler(-4f, 0f, -lean * 5f);
+                playerBeak.localScale = new Vector3(0.15f, 0.08f, 0.18f);
             }
 
             if (playerLeftArm != null)
             {
                 var swing = Mathf.Clamp01(rightFoot.StatusPulse + bobImpulse * 2.6f);
-                playerLeftArm.localPosition = new Vector3(-0.38f + lean * 0.035f, 0.49f + bodyBob * 0.55f, 0.02f + swing * 0.08f);
-                playerLeftArm.localRotation = Quaternion.Euler(12f + swing * 16f, 0f, 18f - lean * 4f);
-                playerLeftArm.localScale = new Vector3(0.18f, 0.42f, 0.18f);
+                playerLeftArm.localPosition = new Vector3(-0.43f + lean * 0.035f, 0.50f + bodyBob * 0.55f, 0.00f + swing * 0.07f);
+                playerLeftArm.localRotation = Quaternion.Euler(8f + swing * 18f, 0f, 26f - lean * 4f);
+                playerLeftArm.localScale = new Vector3(0.16f, 0.48f, 0.16f);
             }
 
             if (playerRightArm != null)
             {
                 var swing = Mathf.Clamp01(leftFoot.StatusPulse + bobImpulse * 2.6f);
-                playerRightArm.localPosition = new Vector3(0.38f + lean * 0.035f, 0.49f + bodyBob * 0.55f, 0.02f + swing * 0.08f);
-                playerRightArm.localRotation = Quaternion.Euler(12f + swing * 16f, 0f, -18f - lean * 4f);
-                playerRightArm.localScale = new Vector3(0.18f, 0.42f, 0.18f);
+                playerRightArm.localPosition = new Vector3(0.43f + lean * 0.035f, 0.50f + bodyBob * 0.55f, 0.00f + swing * 0.07f);
+                playerRightArm.localRotation = Quaternion.Euler(8f + swing * 18f, 0f, -26f - lean * 4f);
+                playerRightArm.localScale = new Vector3(0.16f, 0.48f, 0.16f);
             }
 
             SetAvatarFoot(playerLeftFoot, leftFootPosition, leftFoot.StatusPulse, targetRotation, snap);

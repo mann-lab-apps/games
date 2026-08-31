@@ -146,6 +146,12 @@ namespace MannLab.Games.Walking
             return !IsReturnGesturePosition(screenPosition, screenSize);
         }
 
+        public static WalkingFootSide FootSideForScreenPosition(Vector2 screenPosition, Vector2 screenSize)
+        {
+            var safeWidth = Mathf.Max(1f, screenSize.x);
+            return screenPosition.x < safeWidth * 0.5f ? WalkingFootSide.Left : WalkingFootSide.Right;
+        }
+
         private static Vector2 SafeNormal(Vector2 value, Vector2 fallback)
         {
             return value.sqrMagnitude < 0.0001f ? fallback.normalized : value.normalized;
