@@ -164,8 +164,8 @@ namespace MannLab.Games.Walking
 
         private static void ClearStartArea(bool[,] map)
         {
-            var maxX = Mathf.Min(4, map.GetLength(0) - 2);
-            var maxY = Mathf.Min(4, map.GetLength(1) - 2);
+            var maxX = Mathf.Min(5, map.GetLength(0) - 2);
+            var maxY = Mathf.Min(12, map.GetLength(1) - 2);
             for (var y = 1; y <= maxY; y++)
             {
                 for (var x = 1; x <= maxX; x++)

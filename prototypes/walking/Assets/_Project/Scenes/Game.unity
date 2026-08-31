@@ -236,6 +236,9 @@ MonoBehaviour:
   cameraMoveLerp: 9.5
   cameraTurnLerp: 8
   stepBobStrength: 0.055
+  thirdPersonDistance: 2.35
+  thirdPersonHeight: 1.92
+  thirdPersonLookAhead: 1.02
   wallHeight: 2.75
   wallInset: 0.02
 --- !u!4 &844571443

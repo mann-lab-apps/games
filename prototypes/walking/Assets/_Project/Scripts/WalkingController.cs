@@ -28,6 +28,9 @@ namespace MannLab.Games.Walking
         [SerializeField] private float cameraMoveLerp = 9.5f;
         [SerializeField] private float cameraTurnLerp = 8f;
         [SerializeField] private float stepBobStrength = 0.055f;
+        [SerializeField] private float thirdPersonDistance = 2.35f;
+        [SerializeField] private float thirdPersonHeight = 1.92f;
+        [SerializeField] private float thirdPersonLookAhead = 1.02f;
 
         [Header("World")]
         [SerializeField] private float wallHeight = 2.75f;
@@ -44,6 +47,13 @@ namespace MannLab.Games.Walking
         private Transform debugRoot;
         private Transform leftMarker;
         private Transform rightMarker;
+        private Transform playerRoot;
+        private Transform playerBody;
+        private Transform playerBackMark;
+        private Transform playerHead;
+        private Transform playerLeftFoot;
+        private Transform playerRightFoot;
+        private Transform playerShadow;
         private Canvas canvas;
         private Text titleText;
         private Text hintText;
@@ -126,6 +136,7 @@ namespace MannLab.Games.Walking
         {
             HandleInput();
             UpdateCandidates();
+            UpdatePlayerAvatar();
             UpdateCamera();
             UpdateUi();
             UpdateDebugMarkers();
@@ -141,7 +152,7 @@ namespace MannLab.Games.Walking
             maze = WalkingMaze.Generate(WalkingRules.MazeCellColumns, WalkingRules.MazeCellRows, seed, WalkingRules.TileSize);
             BuildWorld();
 
-            bodyPosition = maze.GridToWorld(2, 2);
+            bodyPosition = maze.GridToWorld(3, 2);
             leftFootPosition = bodyPosition + new Vector2(-WalkingRules.NaturalHalfStance, 0f);
             rightFootPosition = bodyPosition + new Vector2(WalkingRules.NaturalHalfStance, 0f);
             previousBodyPosition = bodyPosition;
@@ -155,6 +166,8 @@ namespace MannLab.Games.Walking
             ResetFootRuntime(rightFoot);
             activeTouches.Clear();
             state = WalkingGameState.Ready;
+            BuildPlayerAvatar();
+            UpdatePlayerAvatar(true);
             UpdateCamera(true);
             UpdateUi();
             UpdateDebugMarkers(true);
@@ -183,7 +196,7 @@ namespace MannLab.Games.Walking
 
             gameCamera.clearFlags = CameraClearFlags.SolidColor;
             gameCamera.backgroundColor = Paper;
-            gameCamera.fieldOfView = 66f;
+            gameCamera.fieldOfView = 58f;
             gameCamera.nearClipPlane = 0.04f;
             gameCamera.farClipPlane = 95f;
             if (gameCamera.GetComponent<AudioListener>() == null)
@@ -291,6 +304,60 @@ namespace MannLab.Games.Walking
             }
 
             BuildDebugMarkers();
+        }
+
+        private void BuildPlayerAvatar()
+        {
+            if (playerRoot != null)
+            {
+                Destroy(playerRoot.gameObject);
+            }
+
+            playerRoot = new GameObject("Thumbwalk Player").transform;
+            playerRoot.SetParent(worldRoot, false);
+
+            var shadowMaterial = CreateMaterial("Player Sketch Shadow", new Color32(40, 39, 36, 255));
+            var bodyMaterial = CreateMaterial("Player Paper Body", new Color32(255, 253, 247, 255));
+            var headMaterial = CreateMaterial("Player Warm Head", new Color32(247, 181, 71, 255));
+            var leftFootMaterial = CreateMaterial("Player Left Foot", new Color32(88, 142, 181, 255));
+            var rightFootMaterial = CreateMaterial("Player Right Foot", new Color32(247, 181, 71, 255));
+
+            playerShadow = CreateCube(
+                "Player Shadow",
+                Vector3.zero,
+                new Vector3(0.62f, 0.018f, 0.46f),
+                shadowMaterial,
+                playerRoot).transform;
+            playerBody = CreateCube(
+                "Player Paper Body",
+                Vector3.zero,
+                new Vector3(0.42f, 0.68f, 0.30f),
+                bodyMaterial,
+                playerRoot).transform;
+            playerBackMark = CreateCube(
+                "Player Back Ink Mark",
+                Vector3.zero,
+                new Vector3(0.29f, 0.34f, 0.026f),
+                shadowMaterial,
+                playerRoot).transform;
+            playerHead = CreateCube(
+                "Player Head",
+                Vector3.zero,
+                new Vector3(0.30f, 0.30f, 0.30f),
+                headMaterial,
+                playerRoot).transform;
+            playerLeftFoot = CreateCube(
+                "Player Left Foot",
+                Vector3.zero,
+                new Vector3(0.20f, 0.055f, 0.38f),
+                leftFootMaterial,
+                playerRoot).transform;
+            playerRightFoot = CreateCube(
+                "Player Right Foot",
+                Vector3.zero,
+                new Vector3(0.20f, 0.055f, 0.38f),
+                rightFootMaterial,
+                playerRoot).transform;
         }
 
         private void BuildDebugMarkers()
@@ -633,8 +700,30 @@ namespace MannLab.Games.Walking
             var moveT = snap ? 1f : 1f - Mathf.Exp(-cameraMoveLerp * Time.deltaTime);
             cameraBodyPosition = Vector2.Lerp(cameraBodyPosition, bodyPosition, moveT);
             var bob = Mathf.Sin((1f - bobImpulse) * Mathf.PI) * bobImpulse;
-            var targetPosition = new Vector3(cameraBodyPosition.x, eyeHeight + bob, cameraBodyPosition.y);
+            var forward3 = new Vector3(facing.x, 0f, facing.y);
+            if (forward3.sqrMagnitude < 0.001f)
+            {
+                forward3 = Vector3.forward;
+            }
+
+            forward3.Normalize();
+            var basePosition = new Vector3(cameraBodyPosition.x, 0f, cameraBodyPosition.y);
+            var targetPosition = basePosition - forward3 * thirdPersonDistance + Vector3.up * (thirdPersonHeight + bob * 0.42f);
+            var lookTarget = basePosition + forward3 * thirdPersonLookAhead + Vector3.up * Mathf.Max(0.82f, eyeHeight * 0.54f);
             gameCamera.transform.position = targetPosition;
+
+            var targetRotation = Quaternion.LookRotation((lookTarget - targetPosition).normalized, Vector3.up);
+            gameCamera.transform.rotation = snap
+                ? targetRotation
+                : Quaternion.Slerp(gameCamera.transform.rotation, targetRotation, 1f - Mathf.Exp(-cameraTurnLerp * Time.deltaTime));
+        }
+
+        private void UpdatePlayerAvatar(bool snap = false)
+        {
+            if (playerRoot == null)
+            {
+                return;
+            }
 
             var forward3 = new Vector3(facing.x, 0f, facing.y);
             if (forward3.sqrMagnitude < 0.001f)
@@ -642,10 +731,59 @@ namespace MannLab.Games.Walking
                 forward3 = Vector3.forward;
             }
 
-            var targetRotation = Quaternion.LookRotation(forward3.normalized, Vector3.up);
-            gameCamera.transform.rotation = snap
-                ? targetRotation
-                : Quaternion.Slerp(gameCamera.transform.rotation, targetRotation, 1f - Mathf.Exp(-cameraTurnLerp * Time.deltaTime));
+            forward3.Normalize();
+            var targetRotation = Quaternion.LookRotation(forward3, Vector3.up);
+            var rootTarget = new Vector3(bodyPosition.x, 0f, bodyPosition.y);
+            var bodyBob = Mathf.Sin((1f - bobImpulse) * Mathf.PI) * bobImpulse * 0.14f;
+            var t = snap ? 1f : 1f - Mathf.Exp(-18f * Time.deltaTime);
+
+            playerRoot.position = snap ? rootTarget : Vector3.Lerp(playerRoot.position, rootTarget, t);
+            playerRoot.rotation = snap ? targetRotation : Quaternion.Slerp(playerRoot.rotation, targetRotation, t);
+
+            if (playerShadow != null)
+            {
+                playerShadow.localPosition = new Vector3(0f, 0.026f, 0f);
+                playerShadow.localScale = new Vector3(0.62f, 0.018f, 0.46f);
+            }
+
+            if (playerBody != null)
+            {
+                playerBody.localPosition = new Vector3(0f, 0.44f + bodyBob, 0f);
+                playerBody.localRotation = Quaternion.identity;
+                playerBody.localScale = new Vector3(0.42f, 0.68f, 0.30f);
+            }
+
+            if (playerBackMark != null)
+            {
+                playerBackMark.localPosition = new Vector3(0f, 0.48f + bodyBob, -0.17f);
+                playerBackMark.localRotation = Quaternion.identity;
+                playerBackMark.localScale = new Vector3(0.29f, 0.34f, 0.026f);
+            }
+
+            if (playerHead != null)
+            {
+                playerHead.localPosition = new Vector3(0f, 0.94f + bodyBob, 0.02f);
+                playerHead.localRotation = Quaternion.identity;
+                playerHead.localScale = new Vector3(0.30f, 0.30f, 0.30f);
+            }
+
+            SetAvatarFoot(playerLeftFoot, leftFootPosition, leftFoot.StatusPulse, targetRotation, snap);
+            SetAvatarFoot(playerRightFoot, rightFootPosition, rightFoot.StatusPulse, targetRotation, snap);
+        }
+
+        private static void SetAvatarFoot(Transform foot, Vector2 position, float pulse, Quaternion rotation, bool snap)
+        {
+            if (foot == null)
+            {
+                return;
+            }
+
+            var target = new Vector3(position.x, 0.055f + pulse * 0.035f, position.y);
+            var t = snap ? 1f : 1f - Mathf.Exp(-20f * Time.deltaTime);
+            foot.position = snap ? target : Vector3.Lerp(foot.position, target, t);
+            foot.rotation = snap ? rotation : Quaternion.Slerp(foot.rotation, rotation, t);
+            var spread = 1f + Mathf.Clamp01(pulse) * 0.16f;
+            foot.localScale = new Vector3(0.20f * spread, 0.055f, 0.38f * spread);
         }
 
         private void UpdateUi()

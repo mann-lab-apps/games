@@ -11,9 +11,9 @@ namespace MannLab.Games.Walking.Tests
         {
             var maze = WalkingMaze.Generate(11, 18, 1234, WalkingRules.TileSize);
 
-            for (var y = 1; y <= 4; y++)
+            for (var y = 1; y <= 12; y++)
             {
-                for (var x = 1; x <= 4; x++)
+                for (var x = 1; x <= 5; x++)
                 {
                     Assert.That(maze.IsSolidGrid(x, y), Is.False, $"Start tile {x},{y} should be open.");
                 }
