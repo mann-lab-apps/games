@@ -258,6 +258,55 @@ public static class VerifyWalkingRules
             return Fail("Small iceberg collision should shrink faster than normal iceberg collision.");
         }
 
+        var assistedCross = WalkingRules.BuildAssistedFootPlacement(
+            WalkingFootSide.Left,
+            Vector2.zero,
+            Vector2.up * 0.80f + Vector2.right * 0.28f,
+            Vector2.up,
+            emptyMaze,
+            1f);
+        if (!assistedCross.IsValid || assistedCross.Position.x >= -WalkingRules.SideClearance)
+        {
+            return Fail("Early assist did not correct a crossed left step.");
+        }
+
+        var assistedLong = WalkingRules.BuildAssistedFootPlacement(
+            WalkingFootSide.Right,
+            Vector2.zero,
+            Vector2.up * (WalkingRules.MaxStepDistance + 0.5f) + Vector2.right * 0.22f,
+            Vector2.up,
+            emptyMaze,
+            1f);
+        if (!assistedLong.IsValid)
+        {
+            return Fail("Early assist did not correct an overlong step.");
+        }
+
+        if (WalkingRules.FishCollectionRadius(3, 0.8f) <= WalkingRules.FishCollectionRadius(0, 0f))
+        {
+            return Fail("Fish Magnet/rhythm did not increase collection radius.");
+        }
+
+        if (WalkingRules.ObstacleFishReward(WalkingObstacleKind.Iceberg) <= WalkingRules.ObstacleFishReward(WalkingObstacleKind.SmallIceberg))
+        {
+            return Fail("Large icebergs should pay more fish than small icebergs.");
+        }
+
+        if (WalkingRules.ObstacleDamagePerHit(4) <= WalkingRules.ObstacleDamagePerHit(0))
+        {
+            return Fail("Icebreaker Feet did not increase obstacle damage.");
+        }
+
+        if (WalkingRules.RhythmFishBonus(2, 6) <= WalkingRules.RhythmFishBonus(0, 2))
+        {
+            return Fail("Rhythm bonus did not reward sustained combo.");
+        }
+
+        if (WalkingRules.UpgradeCost(WalkingUpgradeKind.FishMagnet, 2) <= WalkingRules.UpgradeCost(WalkingUpgradeKind.FishMagnet, 0))
+        {
+            return Fail("Upgrade cost should rise by level.");
+        }
+
         Console.WriteLine("Walking rules verified.");
         return 0;
     }
