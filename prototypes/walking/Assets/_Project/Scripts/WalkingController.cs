@@ -454,19 +454,28 @@ namespace MannLab.Games.Walking
                 cameraBackdropRoot = null;
             }
 
-            if (gameCamera == null || skyCloudsSprite == null)
+            if (worldRoot == null || skyCloudsSprite == null)
             {
                 return;
             }
 
-            cameraBackdropRoot = new GameObject("Thumbwaddle Sky Doodles").transform;
-            cameraBackdropRoot.SetParent(gameCamera.transform, false);
-            cameraBackdropRoot.localPosition = new Vector3(0f, 10.2f, 28f);
-            cameraBackdropRoot.localRotation = Quaternion.identity;
-            cameraBackdropRoot.localScale = Vector3.one * 2.9f;
-            var renderer = CreateWorldSprite("Sky Cloud Doodles", skyCloudsSprite, cameraBackdropRoot, -20);
-            renderer.color = new Color(1f, 1f, 1f, 0.72f);
-            renderer.transform.localPosition = Vector3.zero;
+            cameraBackdropRoot = new GameObject("Thumbwaddle World Sky Doodles").transform;
+            cameraBackdropRoot.SetParent(worldRoot, false);
+
+            var random = new System.Random(90817);
+            var layers = Mathf.Max(4, Mathf.CeilToInt(openFieldLength / 42f));
+            for (var i = 0; i < layers; i++)
+            {
+                var renderer = CreateWorldSprite("World Cloud Doodle", skyCloudsSprite, cameraBackdropRoot, -20);
+                var z = 20f + i * 38f + RandomRange(random, -5f, 7f);
+                var x = RandomRange(random, -openFieldHalfWidth * 0.72f, openFieldHalfWidth * 0.72f);
+                var y = RandomRange(random, 5.8f, 8.6f);
+                var scale = RandomRange(random, 0.95f, 1.55f);
+                renderer.color = new Color(1f, 1f, 1f, RandomRange(random, 0.34f, 0.56f));
+                renderer.transform.position = new Vector3(x, y, z);
+                renderer.transform.localScale = Vector3.one * scale;
+                scenicBillboards.Add(renderer);
+            }
         }
 
         private void BuildFieldDressing()
@@ -1830,7 +1839,7 @@ namespace MannLab.Games.Walking
 
             var scale = Mathf.Clamp(Screen.width / 720f, 0.8f, 1.55f);
             var margin = 22f * scale;
-            var topHeight = 68f * scale;
+            var topHeight = 82f * scale;
             if (state == WalkingGameState.Playing)
             {
                 DrawInputGuide(scale, steps < 5 || leftFoot.NeedsReturn || rightFoot.NeedsReturn);
@@ -1843,9 +1852,13 @@ namespace MannLab.Games.Walking
             }
 
             DrawGuiRect(new Rect(margin, margin, Screen.width - margin * 2f, topHeight), new Color(1f, 0.99f, 0.96f, 0.72f));
-            GUI.Label(new Rect(margin + 18f * scale, margin + 12f * scale, 240f * scale, topHeight), $"{distanceMeters:0.0} m", hudStyle);
-            GUI.Label(new Rect(Screen.width * 0.5f - 64f * scale, margin + 12f * scale, 128f * scale, topHeight), $"{Mathf.CeilToInt(runTimeRemaining)}s", smallHudStyle);
-            GUI.Label(new Rect(Screen.width - margin - 180f * scale, margin + 12f * scale, 160f * scale, topHeight), $"{bestDistanceMeters:0.0} m", smallHudStyle);
+            var secondsLeft = Mathf.CeilToInt(runTimeRemaining);
+            var timerColor = secondsLeft <= 5 ? new Color(Red.r, Red.g, Red.b, 0.18f) : new Color(Warm.r, Warm.g, Warm.b, 0.18f);
+            DrawCircle(CenteredRect(new Vector2(Screen.width * 0.5f, margin + topHeight * 0.5f), 74f * scale, 74f * scale), timerColor);
+            DrawRing(CenteredRect(new Vector2(Screen.width * 0.5f, margin + topHeight * 0.5f), 78f * scale, 78f * scale), secondsLeft <= 5 ? new Color(Red.r, Red.g, Red.b, 0.62f) : new Color(Warm.r, Warm.g, Warm.b, 0.52f));
+            GUI.Label(new Rect(margin + 20f * scale, margin + 6f * scale, 300f * scale, topHeight), $"{distanceMeters:0.0} m", hudStyle);
+            GUI.Label(new Rect(Screen.width * 0.5f - 80f * scale, margin + 7f * scale, 160f * scale, topHeight), $"{secondsLeft}s", smallHudStyle);
+            GUI.Label(new Rect(Screen.width - margin - 210f * scale, margin + 10f * scale, 190f * scale, topHeight), $"BEST {bestDistanceMeters:0.0}", guideStyle);
 
             if (state == WalkingGameState.Playing && (steps < 5 || leftFoot.NeedsReturn || rightFoot.NeedsReturn || leftFoot.Mode != InputMode.Idle || rightFoot.Mode != InputMode.Idle))
             {
@@ -2032,14 +2045,14 @@ namespace MannLab.Games.Walking
             hudStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleLeft,
-                fontSize = Mathf.RoundToInt(30f),
+                fontSize = Mathf.RoundToInt(42f),
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Ink }
             };
             smallHudStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = Mathf.RoundToInt(18f),
+                fontSize = Mathf.RoundToInt(36f),
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Ink }
             };
@@ -2060,7 +2073,7 @@ namespace MannLab.Games.Walking
             guideStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = Mathf.RoundToInt(15f),
+                fontSize = Mathf.RoundToInt(18f),
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Ink }
             };
