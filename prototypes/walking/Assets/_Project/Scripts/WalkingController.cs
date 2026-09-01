@@ -103,6 +103,7 @@ namespace MannLab.Games.Walking
         private Sprite icebergIntactSprite;
         private Sprite icebergCrackedOneSprite;
         private Sprite icebergCrackedTwoSprite;
+        private Sprite icebergBrokenSprite;
         private Sprite polarBackdropSprite;
         private Sprite snowPuffSprite;
         private Sprite iceFloeSprite;
@@ -194,12 +195,14 @@ namespace MannLab.Games.Walking
             {
                 Center = center;
                 Radius = radius;
+                BaseRadius = radius;
                 Root = root;
                 Renderer = renderer;
             }
 
             public Vector2 Center { get; }
             public float Radius { get; set; }
+            public float BaseRadius { get; }
             public Transform Root { get; }
             public SpriteRenderer Renderer { get; }
             public int Hits { get; set; }
@@ -364,6 +367,7 @@ namespace MannLab.Games.Walking
             icebergIntactSprite = LoadSprite("Thumbwaddle/iceberg_intact", 340f);
             icebergCrackedOneSprite = LoadSprite("Thumbwaddle/iceberg_cracked_1", 340f);
             icebergCrackedTwoSprite = LoadSprite("Thumbwaddle/iceberg_cracked_2", 340f);
+            icebergBrokenSprite = LoadSprite("Thumbwaddle/iceberg_broken", 340f);
             polarBackdropSprite = LoadSprite("Thumbwaddle/polar_backdrop", 300f);
             snowPuffSprite = LoadSprite("Thumbwaddle/snow_puff", 260f);
             iceFloeSprite = LoadSprite("Thumbwaddle/ice_floe_small", 260f);
@@ -1183,13 +1187,20 @@ namespace MannLab.Games.Walking
 
             var obstacle = fieldObstacles[index];
             obstacle.Hits++;
-            var remaining = Mathf.Clamp01(1f - obstacle.Hits / 3f);
-            obstacle.Radius *= remaining <= 0f ? 0f : 0.68f;
+            var cleared = obstacle.Hits >= 3;
+            obstacle.Radius = cleared ? 0f : obstacle.BaseRadius * GetIcebergCollisionScale(obstacle.Hits);
             if (obstacle.Root != null)
             {
-                if (remaining <= 0f)
+                var visualScale = GetIcebergVisualScale(obstacle.Hits);
+                if (cleared)
                 {
-                    Destroy(obstacle.Root.gameObject);
+                    if (obstacle.Renderer != null)
+                    {
+                        obstacle.Renderer.sprite = icebergBrokenSprite ?? icebergCrackedTwoSprite ?? icebergCrackedOneSprite ?? icebergIntactSprite;
+                    }
+
+                    obstacle.Root.localScale = Vector3.one * visualScale;
+                    Destroy(obstacle.Root.gameObject, 0.38f);
                 }
                 else if (obstacle.Renderer != null)
                 {
@@ -1197,18 +1208,18 @@ namespace MannLab.Games.Walking
                         ? icebergCrackedOneSprite ?? icebergIntactSprite
                         : icebergCrackedTwoSprite ?? icebergCrackedOneSprite ?? icebergIntactSprite;
                     var wobble = obstacle.Hits % 2 == 0 ? -4f : 4f;
-                    obstacle.Root.localScale = Vector3.one * Mathf.Lerp(0.70f, 0.98f, remaining);
+                    obstacle.Root.localScale = Vector3.one * visualScale;
                     obstacle.Root.localRotation *= Quaternion.Euler(0f, wobble, 0f);
                 }
                 else
                 {
                     var wobble = obstacle.Hits % 2 == 0 ? -6f : 6f;
-                    obstacle.Root.localScale = Vector3.one * Mathf.Lerp(0.42f, 0.82f, remaining);
+                    obstacle.Root.localScale = Vector3.one * visualScale;
                     obstacle.Root.localRotation *= Quaternion.Euler(0f, wobble, 0f);
                 }
             }
 
-            if (remaining <= 0f)
+            if (cleared)
             {
                 fieldObstacles.RemoveAt(index);
                 brokenIcebergs++;
@@ -1234,6 +1245,26 @@ namespace MannLab.Games.Walking
                     { "distance_m", distanceMeters.ToString("0.0") }
                 });
             return false;
+        }
+
+        private static float GetIcebergVisualScale(int hits)
+        {
+            if (hits <= 0)
+            {
+                return 1f;
+            }
+
+            return hits == 1 ? 0.95f : hits == 2 ? 0.90f : 0.85f;
+        }
+
+        private static float GetIcebergCollisionScale(int hits)
+        {
+            if (hits <= 0)
+            {
+                return 1f;
+            }
+
+            return hits == 1 ? 0.82f : 0.55f;
         }
 
         private int FindTouchedFieldObstacle(Vector2 center, float radius)

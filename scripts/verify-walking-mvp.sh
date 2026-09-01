@@ -43,6 +43,7 @@ for asset in \
   iceberg_intact.png \
   iceberg_cracked_1.png \
   iceberg_cracked_2.png \
+  iceberg_broken.png \
   ice_field_background.png \
   polar_backdrop.png \
   snow_puff.png \
