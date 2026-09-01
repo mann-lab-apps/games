@@ -20,7 +20,7 @@ const games = [
     description: "두 엄지로 펭귄을 뒤뚱뒤뚱 멀리 보내는 터치 게임",
     route: "/thumbwaddle",
     aliases: ["/walking", "/sanchaek"],
-    embedHref: "/games/thumbwaddle/index.html?v=thumbwaddle-20260831e",
+    embedHref: "/games/thumbwaddle/index.html?v=06e9c48cee6e",
     available: true,
   },
   {
@@ -328,8 +328,9 @@ function PrivacyStage() {
           <h2>Overview</h2>
           <p>
             Mannlab Games publishes small games including Mannlab 10000,
-            Best Ramyeon, Dopamine Swap, 2048 Crash, and 2048 Blink. The mobile
-            app versions do not require account creation.
+            Best Ramyeon, Dopamine Swap, 2048 Crash, 2048 Blink, and
+            Thumbwaddle. The mobile app versions do not require account
+            creation.
           </p>
         </section>
 
@@ -341,20 +342,20 @@ function PrivacyStage() {
             local gameplay state is not sent to Mannlab.
           </p>
           <p>
-            2048 Crash, 2048 Blink, Best Ramyeon, Gather & Shot, and Wind Gull
-            may use Firebase Analytics to understand app launches and gameplay
-            interactions, and Firebase Crashlytics to diagnose crashes and
-            stability issues. This may
+            2048 Crash, 2048 Blink, Best Ramyeon, Gather & Shot, Wind Gull,
+            and Thumbwaddle may use Firebase Analytics to understand app
+            launches and gameplay interactions, and Firebase Crashlytics to
+            diagnose crashes and stability issues. This may
             include device identifiers, product interaction data, crash data,
             and performance diagnostics.
           </p>
           <p>
-            2048 Crash, 2048 Blink, Best Ramyeon, and Gather & Shot may use
-            Google AdMob to show third-party advertising at natural breaks, such
-            as after a game over. Google AdMob may collect or share data such as
-            device identifiers, advertising identifiers where available,
-            approximate location inferred from IP address, product interaction
-            data, advertising interaction data, and
+            2048 Crash, 2048 Blink, Best Ramyeon, Gather & Shot, and
+            Thumbwaddle may use Google AdMob to show third-party advertising at
+            natural breaks, such as after a game over. Google AdMob may collect
+            or share data such as device identifiers, advertising identifiers
+            where available, approximate location inferred from IP address,
+            product interaction data, advertising interaction data, and
             diagnostics for advertising, analytics, fraud prevention, security,
             and performance purposes.
           </p>

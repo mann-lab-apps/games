@@ -2,7 +2,8 @@
   "name": "MannLab.Games.Walking",
   "rootNamespace": "MannLab.Games.Walking",
   "references": [
-    "MannLab.HyperCasual.Core"
+    "MannLab.HyperCasual.Core",
+    "MannLab.Ads.Core"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

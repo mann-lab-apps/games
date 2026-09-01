@@ -13,6 +13,8 @@ ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.t
 nunit="$unity_root/Resources/PackageManager/BuiltInPackages/com.unity.ext.nunit/net40/unity-custom/nunit.framework.dll"
 project="$repo_root/prototypes/walking"
 shared_runtime="$repo_root/shared/unity-packages/com.mannlab.hypercasual-core/Runtime"
+shared_ads_runtime="$repo_root/shared/unity-packages/com.mannlab.admob-core/Runtime"
+thumbwaddle_assets="$project/Assets/Resources/Thumbwaddle"
 tmpdir="$(mktemp -d)"
 
 runtime_dll="$tmpdir/WalkingRuntime.dll"
@@ -32,6 +34,26 @@ if [[ ! -f "$ios_xcode" ]]; then
   ios_xcode="$(find "$unity_root" -name 'UnityEditor.iOS.Extensions.Xcode.dll' | head -n 1)"
 fi
 
+for asset in \
+  penguin_back_idle.png \
+  penguin_back_left_step.png \
+  penguin_back_right_step.png \
+  penguin_back_stumble.png \
+  penguin_back_happy.png \
+  iceberg_intact.png \
+  iceberg_cracked_1.png \
+  iceberg_cracked_2.png \
+  ice_field_background.png \
+  polar_backdrop.png \
+  snow_puff.png \
+  ice_floe_small.png \
+  ice_chip.png; do
+  if [[ ! -f "$thumbwaddle_assets/$asset" ]]; then
+    echo "Missing Thumbwaddle doodle asset: $thumbwaddle_assets/$asset" >&2
+    exit 1
+  fi
+done
+
 "$mono" "$csc" -target:library -nologo -nostdlib -out:"$runtime_dll" \
   -r:"$mono_lib/mscorlib.dll" \
   -r:"$mono_lib/System.dll" \
@@ -47,6 +69,7 @@ fi
   -r:"$unity/UnityEngine.JSONSerializeModule.dll" \
   -r:"$ugui" \
   "$shared_runtime"/*.cs \
+  "$shared_ads_runtime"/*.cs \
   "$project"/Assets/_Project/Scripts/*.cs
 
 "$mono" "$csc" -target:library -nologo -nostdlib -out:"$editor_dll" \

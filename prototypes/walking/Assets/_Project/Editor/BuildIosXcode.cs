@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Build;
@@ -12,7 +13,13 @@ namespace MannLab.Games.Walking.EditorTools
     {
         private const string ScenePath = "Assets/_Project/Scenes/Game.unity";
         private const string OutputPath = "Builds/iOS/Xcode";
+        private const string CrashlyticsTestOutputPath = "Builds/iOS/CrashlyticsTestXcode";
+        private const string AdMobTestOutputPath = "Builds/iOS/AdMobTestXcode";
         private const string BundleIdentifier = "com.mannlab.games.walking";
+        private const string AdMobIosAppIdEnv = "MANNLAB_THUMBWADDLE_ADMOB_IOS_APP_ID";
+        private const string AdMobIosAppId = "";
+        private const string AdMobIosTestAppId = "ca-app-pub-3940256099942544~1458002511";
+        private const string ForceAdMobTestAdsDefine = "MANNLAB_ADMOB_FORCE_TEST_ADS";
         private const string BuildNumberEnv = "MANNLAB_WALKING_IOS_BUILD_NUMBER";
         private const string DefaultBuildNumber = "1";
         private const string MarketingVersion = "0.1";
@@ -21,12 +28,32 @@ namespace MannLab.Games.Walking.EditorTools
 
         public static void Build()
         {
+            BuildRelease();
+        }
+
+        public static void BuildRelease()
+        {
+            BuildIos(OutputPath, false, false);
+        }
+
+        public static void BuildCrashlyticsTest()
+        {
+            BuildIos(CrashlyticsTestOutputPath, true, false);
+        }
+
+        public static void BuildAdMobTest()
+        {
+            BuildIos(AdMobTestOutputPath, false, true);
+        }
+
+        private static void BuildIos(string outputPath, bool developmentBuild, bool forceAdMobTestAds)
+        {
             CreateGameScene.Create();
-            Directory.CreateDirectory(OutputPath);
+            Directory.CreateDirectory(outputPath);
 
             EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.iOS, BuildTarget.iOS);
-            EditorUserBuildSettings.development = false;
-            EditorUserBuildSettings.allowDebugging = false;
+            EditorUserBuildSettings.development = developmentBuild;
+            EditorUserBuildSettings.allowDebugging = developmentBuild;
 
             var buildNumber = GetBuildNumber();
             PlayerSettings.companyName = "Mann Lab";
@@ -41,23 +68,58 @@ namespace MannLab.Games.Walking.EditorTools
             ApplyAppIcon();
             ApplySigningHint();
 
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            var namedBuildTarget = NamedBuildTarget.iOS;
+            var previousDefines = PlayerSettings.GetScriptingDefineSymbols(namedBuildTarget);
+            try
             {
-                scenes = new[] { ScenePath },
-                locationPathName = OutputPath,
-                target = BuildTarget.iOS,
-                options = BuildOptions.None
-            });
+                PlayerSettings.SetScriptingDefineSymbols(
+                    namedBuildTarget,
+                    SetScriptingDefine(previousDefines, ForceAdMobTestAdsDefine, forceAdMobTestAds));
 
-            if (report.summary.result != BuildResult.Succeeded)
+                var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                {
+                    scenes = new[] { ScenePath },
+                    locationPathName = outputPath,
+                    target = BuildTarget.iOS,
+                    options = developmentBuild ? BuildOptions.Development | BuildOptions.AllowDebugging : BuildOptions.None
+                });
+
+                if (report.summary.result != BuildResult.Succeeded)
+                {
+                    throw new InvalidOperationException($"iOS Xcode project build failed: {report.summary.result}");
+                }
+            }
+            finally
             {
-                throw new InvalidOperationException($"iOS Xcode project build failed: {report.summary.result}");
+                PlayerSettings.SetScriptingDefineSymbols(namedBuildTarget, previousDefines);
             }
 
-            AddMarketingIconToXcodeProject(OutputPath);
-            AddSimpleLaunchScreensToXcodeProject(OutputPath);
-            ConfigureInfoPlist(OutputPath, buildNumber);
-            ConfigureXcodeProject(OutputPath, buildNumber);
+            AddMarketingIconToXcodeProject(outputPath);
+            AddSimpleLaunchScreensToXcodeProject(outputPath);
+            ConfigureInfoPlist(outputPath, buildNumber, forceAdMobTestAds);
+            ConfigureXcodeProject(outputPath, buildNumber);
+        }
+
+        private static string SetScriptingDefine(string currentDefines, string define, bool enabled)
+        {
+            var symbols = new List<string>();
+            foreach (var rawSymbol in currentDefines.Split(';'))
+            {
+                var symbol = rawSymbol.Trim();
+                if (string.IsNullOrEmpty(symbol) || symbol == define)
+                {
+                    continue;
+                }
+
+                symbols.Add(symbol);
+            }
+
+            if (enabled)
+            {
+                symbols.Add(define);
+            }
+
+            return string.Join(";", symbols);
         }
 
         private static string GetBuildNumber()
@@ -211,7 +273,7 @@ namespace MannLab.Games.Walking.EditorTools
 ");
         }
 
-        private static void ConfigureInfoPlist(string outputPath, string buildNumber)
+        private static void ConfigureInfoPlist(string outputPath, string buildNumber, bool forceAdMobTestAds)
         {
             var plistPath = Path.Combine(outputPath, "Info.plist");
             if (!File.Exists(plistPath))
@@ -223,7 +285,35 @@ namespace MannLab.Games.Walking.EditorTools
             plist.ReadFromFile(plistPath);
             plist.root.SetString("CFBundleShortVersionString", MarketingVersion);
             plist.root.SetString("CFBundleVersion", buildNumber);
+            var adMobIosAppId = GetAdMobIosAppId(forceAdMobTestAds);
+            if (!string.IsNullOrWhiteSpace(adMobIosAppId))
+            {
+                plist.root.SetString("GADApplicationIdentifier", adMobIosAppId);
+                plist.root.SetBoolean("GADIsAdManagerApp", false);
+            }
+            else
+            {
+                plist.root.values.Remove("GADApplicationIdentifier");
+                plist.root.values.Remove("GADIsAdManagerApp");
+            }
+
             plist.WriteToFile(plistPath);
+        }
+
+        private static string GetAdMobIosAppId(bool forceAdMobTestAds)
+        {
+            if (forceAdMobTestAds)
+            {
+                return AdMobIosTestAppId;
+            }
+
+            var configured = Environment.GetEnvironmentVariable(AdMobIosAppIdEnv);
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                return configured;
+            }
+
+            return AdMobIosAppId;
         }
 
         private static void ConfigureXcodeProject(string outputPath, string buildNumber)

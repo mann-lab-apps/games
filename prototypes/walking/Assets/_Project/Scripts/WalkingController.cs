@@ -1,4 +1,7 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using MannLab.Ads;
 using MannLab.HyperCasual;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -63,6 +66,9 @@ namespace MannLab.Games.Walking
         private Transform playerRightArm;
         private Transform playerLeftFoot;
         private Transform playerRightFoot;
+        private SpriteRenderer playerSpriteRenderer;
+        private Transform cameraBackdropRoot;
+        private readonly List<SpriteRenderer> scenicBillboards = new List<SpriteRenderer>();
         private Canvas canvas;
         private Text titleText;
         private Text hintText;
@@ -88,6 +94,20 @@ namespace MannLab.Games.Walking
         private GUIStyle buttonStyle;
         private Texture2D circleTexture;
         private Texture2D ringTexture;
+        private Texture2D iceFieldTexture;
+        private Sprite penguinIdleSprite;
+        private Sprite penguinLeftStepSprite;
+        private Sprite penguinRightStepSprite;
+        private Sprite penguinStumbleSprite;
+        private Sprite penguinHappySprite;
+        private Sprite icebergIntactSprite;
+        private Sprite icebergCrackedOneSprite;
+        private Sprite icebergCrackedTwoSprite;
+        private Sprite polarBackdropSprite;
+        private Sprite snowPuffSprite;
+        private Sprite iceFloeSprite;
+        private Sprite iceChipSprite;
+        private bool doodleAssetsLoaded;
         private readonly List<StepStamp> stepStamps = new List<StepStamp>();
         private readonly List<FieldObstacle> fieldObstacles = new List<FieldObstacle>();
 
@@ -108,8 +128,29 @@ namespace MannLab.Games.Walking
         private WalkingFootSide lastLandedSide = WalkingFootSide.Left;
         private float bodyLeanPulse;
         private float suppressMouseInputUntil;
+        private bool runStarted;
+        private bool bestUpdatedThisRun;
+        private int brokenIcebergs;
 
         private const string BestDistanceKey = "MannLab.Walking.BestDistance";
+        private const string ProductionIosInterstitialAdUnitId = "";
+        private const string ProductionAndroidInterstitialAdUnitId = "";
+#if MANNLAB_ADMOB_FORCE_TEST_ADS
+        private const int GameOverInterstitialInterval = 1;
+#else
+        private const int GameOverInterstitialInterval = 3;
+#endif
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private const string CrashlyticsTestArgument = "--mannlab-force-crashlytics-test";
+        private const string CrashlyticsTestEnvironmentVariable = "MANNLAB_FORCE_CRASHLYTICS_TEST";
+        private const int CrashlyticsTestTapCount = 7;
+        private const float CrashlyticsTestTapWindowSeconds = 2.5f;
+        private const float CrashlyticsTestTapZoneSize = 220f;
+#endif
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private int crashlyticsTestTapCount;
+        private float crashlyticsTestTapDeadline;
+#endif
 
         private enum InputMode
         {
@@ -143,21 +184,24 @@ namespace MannLab.Games.Walking
             public Transform Root { get; set; }
             public Material Material { get; set; }
             public Color Color { get; set; }
+            public Vector3 BaseScale { get; set; }
             public float Age { get; set; }
         }
 
         private sealed class FieldObstacle
         {
-            public FieldObstacle(Vector2 center, float radius, Transform root)
+            public FieldObstacle(Vector2 center, float radius, Transform root, SpriteRenderer renderer)
             {
                 Center = center;
                 Radius = radius;
                 Root = root;
+                Renderer = renderer;
             }
 
             public Vector2 Center { get; }
             public float Radius { get; set; }
             public Transform Root { get; }
+            public SpriteRenderer Renderer { get; }
             public int Hits { get; set; }
         }
 
@@ -169,17 +213,31 @@ namespace MannLab.Games.Walking
             bestDistanceMeters = PlayerPrefs.GetFloat(BestDistanceKey, 0f);
             EnsureSceneObjects();
             BuildUi();
+            InitializeTelemetryAndAds();
             ResetRun();
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (ShouldForceCrashlyticsTestOnLaunch())
+            {
+                StartCoroutine(ForceCrashlyticsTestAfterStartup());
+            }
+#endif
         }
 
         private void Update()
         {
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (HandleCrashlyticsTestTrigger())
+            {
+                return;
+            }
+#endif
             HandleInput();
             UpdateRunTimer();
             UpdateCandidates();
             UpdatePlayerAvatar();
             UpdateStepStamps();
             UpdateCamera();
+            UpdateBillboards();
             UpdateUi();
             UpdateDebugMarkers();
             bobImpulse = Mathf.MoveTowards(bobImpulse, 0f, Time.deltaTime * 4.5f);
@@ -191,6 +249,18 @@ namespace MannLab.Games.Walking
 
         private void ResetRun()
         {
+            if (runStarted)
+            {
+                FirebaseTelemetry.LogEvent(
+                    "restart",
+                    new Dictionary<string, string>
+                    {
+                        { "distance_m", distanceMeters.ToString("0.0") },
+                        { "best_distance_m", bestDistanceMeters.ToString("0.0") },
+                        { "steps", steps.ToString() }
+                    });
+            }
+
             maze = null;
             BuildWorld();
 
@@ -205,6 +275,8 @@ namespace MannLab.Games.Walking
             distanceMeters = 0f;
             runTimeRemaining = runDurationSeconds;
             steps = 0;
+            brokenIcebergs = 0;
+            bestUpdatedThisRun = false;
             bobImpulse = 0f;
             invalidPulse = 0f;
             bodyLeanPulse = 0f;
@@ -213,12 +285,21 @@ namespace MannLab.Games.Walking
             ResetFootRuntime(leftFoot);
             ResetFootRuntime(rightFoot);
             activeTouches.Clear();
+            runStarted = true;
             state = WalkingGameState.Ready;
             BuildPlayerAvatar();
             UpdatePlayerAvatar(true);
             UpdateCamera(true);
             UpdateUi();
             UpdateDebugMarkers(true);
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "run_start",
+                new Dictionary<string, string>
+                {
+                    { "best_distance_m", bestDistanceMeters.ToString("0.0") },
+                    { "duration_s", Mathf.RoundToInt(runDurationSeconds).ToString() }
+                });
         }
 
         private void ResetFootRuntime(FootRuntime foot)
@@ -267,6 +348,44 @@ namespace MannLab.Games.Walking
             }
         }
 
+        private void LoadDoodleAssets()
+        {
+            if (doodleAssetsLoaded)
+            {
+                return;
+            }
+
+            doodleAssetsLoaded = true;
+            penguinIdleSprite = LoadSprite("Thumbwaddle/penguin_back_idle", 500f);
+            penguinLeftStepSprite = LoadSprite("Thumbwaddle/penguin_back_left_step", 500f);
+            penguinRightStepSprite = LoadSprite("Thumbwaddle/penguin_back_right_step", 500f);
+            penguinStumbleSprite = LoadSprite("Thumbwaddle/penguin_back_stumble", 500f);
+            penguinHappySprite = LoadSprite("Thumbwaddle/penguin_back_happy", 500f);
+            icebergIntactSprite = LoadSprite("Thumbwaddle/iceberg_intact", 340f);
+            icebergCrackedOneSprite = LoadSprite("Thumbwaddle/iceberg_cracked_1", 340f);
+            icebergCrackedTwoSprite = LoadSprite("Thumbwaddle/iceberg_cracked_2", 340f);
+            polarBackdropSprite = LoadSprite("Thumbwaddle/polar_backdrop", 300f);
+            snowPuffSprite = LoadSprite("Thumbwaddle/snow_puff", 260f);
+            iceFloeSprite = LoadSprite("Thumbwaddle/ice_floe_small", 260f);
+            iceChipSprite = LoadSprite("Thumbwaddle/ice_chip", 240f);
+            iceFieldTexture = Resources.Load<Texture2D>("Thumbwaddle/ice_field_background");
+        }
+
+        private static Sprite LoadSprite(string resourcePath, float pixelsPerUnit)
+        {
+            var texture = Resources.Load<Texture2D>(resourcePath);
+            if (texture == null)
+            {
+                return null;
+            }
+
+            return Sprite.Create(
+                texture,
+                new Rect(0f, 0f, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f),
+                pixelsPerUnit);
+        }
+
         private void BuildWorld()
         {
             if (worldRoot != null)
@@ -274,6 +393,7 @@ namespace MannLab.Games.Walking
                 Destroy(worldRoot.gameObject);
             }
 
+            LoadDoodleAssets();
             worldRoot = new GameObject("Walking World").transform;
             var floorMaterial = CreateMaterial("Paper Floor", new Color32(255, 253, 247, 255));
             var goalMaterial = CreateMaterial("Start Ice Line", new Color32(145, 197, 215, 255));
@@ -284,23 +404,94 @@ namespace MannLab.Games.Walking
             var fieldWidth = openFieldHalfWidth * 2f;
             var fieldCenterZ = openFieldLength * 0.5f;
             fieldObstacles.Clear();
+            scenicBillboards.Clear();
+            BuildCameraBackdrop();
 
-            CreateCube(
-                "Open Paper Field",
-                new Vector3(0f, -0.035f, fieldCenterZ),
-                new Vector3(fieldWidth, 0.06f, openFieldLength + 18f),
-                floorMaterial,
-                worldRoot);
+            if (iceFieldTexture != null)
+            {
+                CreateTexturedGround(
+                    "Sketch Ice Field",
+                    new Vector3(0f, -0.032f, fieldCenterZ),
+                    fieldWidth,
+                    openFieldLength + 18f,
+                    iceFieldTexture,
+                    worldRoot);
+            }
+            else
+            {
+                CreateCube(
+                    "Open Paper Field",
+                    new Vector3(0f, -0.035f, fieldCenterZ),
+                    new Vector3(fieldWidth, 0.06f, openFieldLength + 18f),
+                    floorMaterial,
+                    worldRoot);
 
-            CreateCube(
-                "Start Sketch Line",
-                new Vector3(0f, 0.006f, 0.22f),
-                new Vector3(fieldWidth * 0.20f, 0.012f, 0.065f),
-                goalMaterial,
-                worldRoot);
+                CreateCube(
+                    "Start Sketch Line",
+                    new Vector3(0f, 0.006f, 0.22f),
+                    new Vector3(fieldWidth * 0.20f, 0.012f, 0.065f),
+                    goalMaterial,
+                    worldRoot);
+            }
 
             BuildOpenFieldObstacles(obstacleShadowMaterial, obstacleMaterial, obstacleTopMaterial, obstacleStrokeMaterial);
+            BuildFieldDressing();
             BuildDebugMarkers();
+        }
+
+        private void BuildCameraBackdrop()
+        {
+            if (cameraBackdropRoot != null)
+            {
+                Destroy(cameraBackdropRoot.gameObject);
+                cameraBackdropRoot = null;
+            }
+
+            if (gameCamera == null || polarBackdropSprite == null)
+            {
+                return;
+            }
+
+            cameraBackdropRoot = new GameObject("Polar Doodle Backdrop").transform;
+            cameraBackdropRoot.SetParent(gameCamera.transform, false);
+            cameraBackdropRoot.localPosition = new Vector3(0f, 0.82f, 28f);
+            cameraBackdropRoot.localRotation = Quaternion.identity;
+            cameraBackdropRoot.localScale = Vector3.one * 6.25f;
+            var renderer = CreateWorldSprite("Polar Backdrop Art", polarBackdropSprite, cameraBackdropRoot, -10);
+            renderer.transform.localPosition = Vector3.zero;
+        }
+
+        private void BuildFieldDressing()
+        {
+            if (snowPuffSprite == null && iceFloeSprite == null)
+            {
+                return;
+            }
+
+            var random = new System.Random(unchecked(System.DateTime.UtcNow.DayOfYear * 13891 + 411));
+            var decorRoot = new GameObject("Thumbwaddle Field Dressing").transform;
+            decorRoot.SetParent(worldRoot, false);
+
+            for (var i = 0; i < 24; i++)
+            {
+                var sprite = i % 3 == 0 ? iceFloeSprite : snowPuffSprite;
+                if (sprite == null)
+                {
+                    continue;
+                }
+
+                var x = RandomRange(random, -openFieldHalfWidth + 1.2f, openFieldHalfWidth - 1.2f);
+                var z = RandomRange(random, 5f, openFieldLength - 4f);
+                if (z < 24f && Mathf.Abs(x) < 3.2f)
+                {
+                    x += x < 0f ? -4.2f : 4.2f;
+                }
+
+                var renderer = CreateWorldSprite("Sketch Snow Field Detail", sprite, decorRoot, -1);
+                renderer.transform.position = new Vector3(x, RandomRange(random, 0.07f, 0.22f), z);
+                renderer.transform.localScale = Vector3.one * RandomRange(random, 0.45f, 1.25f);
+                scenicBillboards.Add(renderer);
+            }
         }
 
         private void BuildOpenFieldObstacles(
@@ -338,7 +529,7 @@ namespace MannLab.Games.Walking
                     obstacleTopMaterial,
                     obstacleStrokeMaterial,
                     random);
-                fieldObstacles.Add(new FieldObstacle(center, radius, obstacleRoot));
+                fieldObstacles.Add(new FieldObstacle(center, radius, obstacleRoot, obstacleRoot.GetComponentInChildren<SpriteRenderer>()));
             }
         }
 
@@ -358,6 +549,16 @@ namespace MannLab.Games.Walking
             root.SetParent(worldRoot, false);
             root.position = new Vector3(center.x, 0f, center.y);
             root.rotation = Quaternion.Euler(0f, yaw, 0f);
+
+            if (icebergIntactSprite != null)
+            {
+                var sprite = CreateWorldSprite("Iceberg Doodle", icebergIntactSprite, root, 0);
+                var spriteTransform = sprite.transform;
+                spriteTransform.localPosition = new Vector3(0f, height * 0.47f, 0f);
+                var spriteScale = width / Mathf.Max(0.01f, sprite.bounds.size.x);
+                spriteTransform.localScale = Vector3.one * spriteScale;
+                return root;
+            }
 
             var groundWash = CreateEllipsoid(
                 "Iceberg Ground Wash",
@@ -496,8 +697,27 @@ namespace MannLab.Games.Walking
                 Destroy(playerRoot.gameObject);
             }
 
+            playerBody = null;
+            playerBackMark = null;
+            playerHead = null;
+            playerFacePatch = null;
+            playerBeak = null;
+            playerLeftArm = null;
+            playerRightArm = null;
+            playerLeftFoot = null;
+            playerRightFoot = null;
+            playerSpriteRenderer = null;
             playerRoot = new GameObject("Thumbwaddle Player").transform;
             playerRoot.SetParent(worldRoot, false);
+
+            if (penguinIdleSprite != null)
+            {
+                playerSpriteRenderer = CreateWorldSprite("Penguin Doodle Back", penguinIdleSprite, playerRoot, 0);
+                playerSpriteRenderer.transform.localPosition = new Vector3(0f, 0.74f, -0.03f);
+                playerSpriteRenderer.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                playerSpriteRenderer.transform.localScale = Vector3.one * 1.04f;
+                return;
+            }
 
             var bodyMaterial = CreateMaterial("Penguin Ink Body", new Color32(35, 38, 39, 255));
             var patchMaterial = CreateMaterial("Penguin Paper Patch", new Color32(255, 253, 247, 255));
@@ -906,6 +1126,17 @@ namespace MannLab.Games.Walking
             bobImpulse = Mathf.Min(1f, bobImpulse + stepBobStrength + Vector2.Distance(oldFoot, foot.Candidate.Position) * 0.04f);
             CreateStepStamp(foot.Candidate.Position, foot.Side);
             PlayStep();
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "step",
+                new Dictionary<string, string>
+                {
+                    { "side", foot.Side.ToString().ToLowerInvariant() },
+                    { "distance_m", distanceMeters.ToString("0.0") },
+                    { "step_m", traveled.ToString("0.00") },
+                    { "steps", steps.ToString() },
+                    { "time_remaining_s", Mathf.CeilToInt(runTimeRemaining).ToString() }
+                });
 
             return true;
         }
@@ -961,6 +1192,15 @@ namespace MannLab.Games.Walking
                 {
                     Destroy(obstacle.Root.gameObject);
                 }
+                else if (obstacle.Renderer != null)
+                {
+                    obstacle.Renderer.sprite = obstacle.Hits <= 1
+                        ? icebergCrackedOneSprite ?? icebergIntactSprite
+                        : icebergCrackedTwoSprite ?? icebergCrackedOneSprite ?? icebergIntactSprite;
+                    var wobble = obstacle.Hits % 2 == 0 ? -4f : 4f;
+                    obstacle.Root.localScale = Vector3.one * Mathf.Lerp(0.70f, 0.98f, remaining);
+                    obstacle.Root.localRotation *= Quaternion.Euler(0f, wobble, 0f);
+                }
                 else
                 {
                     var wobble = obstacle.Hits % 2 == 0 ? -6f : 6f;
@@ -972,10 +1212,28 @@ namespace MannLab.Games.Walking
             if (remaining <= 0f)
             {
                 fieldObstacles.RemoveAt(index);
+                brokenIcebergs++;
+                CreateIceChipBurst(obstacle.Center);
+                FirebaseTelemetry.LogEvent(
+                    "obstacle_chip",
+                    new Dictionary<string, string>
+                    {
+                        { "cleared", "true" },
+                        { "hits", obstacle.Hits.ToString() },
+                        { "distance_m", distanceMeters.ToString("0.0") }
+                    });
                 return true;
             }
 
             fieldObstacles[index] = obstacle;
+            FirebaseTelemetry.LogEvent(
+                "obstacle_chip",
+                new Dictionary<string, string>
+                {
+                    { "cleared", "false" },
+                    { "hits", obstacle.Hits.ToString() },
+                    { "distance_m", distanceMeters.ToString("0.0") }
+                });
             return false;
         }
 
@@ -1011,6 +1269,7 @@ namespace MannLab.Games.Walking
             if (distanceMeters > bestDistanceMeters)
             {
                 bestDistanceMeters = distanceMeters;
+                bestUpdatedThisRun = true;
                 PlayerPrefs.SetFloat(BestDistanceKey, bestDistanceMeters);
                 PlayerPrefs.Save();
             }
@@ -1018,7 +1277,173 @@ namespace MannLab.Games.Walking
             activeTouches.Clear();
             ResetFootRuntime(leftFoot);
             ResetFootRuntime(rightFoot);
+            UpdateTelemetryContext();
+            FirebaseTelemetry.LogEvent(
+                "run_end",
+                new Dictionary<string, string>
+                {
+                    { "distance_m", distanceMeters.ToString("0.0") },
+                    { "best_distance_m", bestDistanceMeters.ToString("0.0") },
+                    { "steps", steps.ToString() },
+                    { "duration_s", Mathf.RoundToInt(runDurationSeconds).ToString() },
+                    { "broken_icebergs", brokenIcebergs.ToString() },
+                    { "new_best", bestUpdatedThisRun ? "true" : "false" },
+                    { "obstacles_remaining", CountRemainingObstacles().ToString() }
+                });
+            MannLabAdMob.TryShowGameOverInterstitial();
         }
+
+        private static void InitializeTelemetryAndAds()
+        {
+            try
+            {
+                FirebaseTelemetry.Initialize();
+                FirebaseTelemetry.SetContext("game", "thumbwaddle");
+                FirebaseTelemetry.LogEvent("app_open");
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Thumbwaddle] Firebase initialization skipped: {exception.GetType().Name}");
+            }
+
+            try
+            {
+                MannLabAdMob.InitializeGameOverInterstitial(
+                    "thumbwaddle",
+                    ProductionIosInterstitialAdUnitId,
+                    GameOverInterstitialInterval,
+                    ProductionAndroidInterstitialAdUnitId);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Thumbwaddle] AdMob initialization skipped: {exception.GetType().Name}");
+            }
+        }
+
+        private void UpdateTelemetryContext()
+        {
+            FirebaseTelemetry.SetContext("distance_m", distanceMeters.ToString("0.0"));
+            FirebaseTelemetry.SetContext("best_distance_m", bestDistanceMeters.ToString("0.0"));
+            FirebaseTelemetry.SetContext("steps", steps.ToString());
+            FirebaseTelemetry.SetContext("time_remaining_s", Mathf.CeilToInt(runTimeRemaining).ToString());
+            FirebaseTelemetry.SetContext("obstacles_remaining", CountRemainingObstacles().ToString());
+            FirebaseTelemetry.SetContext("state", state.ToString());
+        }
+
+        private int CountRemainingObstacles()
+        {
+            var count = 0;
+            for (var i = 0; i < fieldObstacles.Count; i++)
+            {
+                if (fieldObstacles[i].Radius > 0f)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        private IEnumerator ForceCrashlyticsTestAfterStartup()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            TriggerCrashlyticsTest("launch_flag");
+        }
+
+        private bool HandleCrashlyticsTestTrigger()
+        {
+            if (!TryReadCrashlyticsTestTap(out var position))
+            {
+                return false;
+            }
+
+            if (position.x > CrashlyticsTestTapZoneSize || position.y < Screen.height - CrashlyticsTestTapZoneSize)
+            {
+                return false;
+            }
+
+            if (Time.unscaledTime > crashlyticsTestTapDeadline)
+            {
+                crashlyticsTestTapCount = 0;
+            }
+
+            crashlyticsTestTapDeadline = Time.unscaledTime + CrashlyticsTestTapWindowSeconds;
+            crashlyticsTestTapCount++;
+
+            if (crashlyticsTestTapCount < CrashlyticsTestTapCount)
+            {
+                return true;
+            }
+
+            crashlyticsTestTapCount = 0;
+            TriggerCrashlyticsTest("hidden_tap");
+            return true;
+        }
+
+        private void TriggerCrashlyticsTest(string trigger)
+        {
+            FirebaseTelemetry.SetContext("crashlytics_test", trigger);
+            FirebaseTelemetry.LogEvent(
+                "crashlytics_test_trigger",
+                new Dictionary<string, string>
+                {
+                    { "trigger", trigger },
+                    { "distance_m", distanceMeters.ToString("0.0") },
+                    { "best_distance_m", bestDistanceMeters.ToString("0.0") },
+                    { "steps", steps.ToString() },
+                    { "time_remaining_s", Mathf.CeilToInt(runTimeRemaining).ToString() }
+                });
+            FirebaseTelemetry.ForceCrashForTesting();
+        }
+
+        private static bool TryReadCrashlyticsTestTap(out Vector2 position)
+        {
+            if (Input.touchCount > 0)
+            {
+                var touch = Input.GetTouch(0);
+                if (touch.phase == TouchPhase.Began)
+                {
+                    position = touch.position;
+                    return true;
+                }
+            }
+
+            if (Input.GetMouseButtonDown(0))
+            {
+                position = Input.mousePosition;
+                return true;
+            }
+
+            position = Vector2.zero;
+            return false;
+        }
+
+        private static bool ShouldForceCrashlyticsTestOnLaunch()
+        {
+            if (IsTruthy(Environment.GetEnvironmentVariable(CrashlyticsTestEnvironmentVariable)))
+            {
+                return true;
+            }
+
+            foreach (var argument in Environment.GetCommandLineArgs())
+            {
+                if (string.Equals(argument, CrashlyticsTestArgument, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsTruthy(string value)
+        {
+            return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
+        }
+#endif
 
         private void UpdateCamera(bool snap = false)
         {
@@ -1048,6 +1473,49 @@ namespace MannLab.Games.Walking
                 : Quaternion.Slerp(gameCamera.transform.rotation, targetRotation, 1f - Mathf.Exp(-cameraTurnLerp * Time.deltaTime));
         }
 
+        private void UpdateBillboards()
+        {
+            if (gameCamera == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < fieldObstacles.Count; i++)
+            {
+                var renderer = fieldObstacles[i].Renderer;
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                FaceCameraYaw(renderer.transform, gameCamera);
+            }
+
+            for (var i = scenicBillboards.Count - 1; i >= 0; i--)
+            {
+                var renderer = scenicBillboards[i];
+                if (renderer == null)
+                {
+                    scenicBillboards.RemoveAt(i);
+                    continue;
+                }
+
+                FaceCameraYaw(renderer.transform, gameCamera);
+            }
+        }
+
+        private static void FaceCameraYaw(Transform target, Camera camera)
+        {
+            var toCamera = camera.transform.position - target.position;
+            toCamera.y = 0f;
+            if (toCamera.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
+
+            target.rotation = Quaternion.LookRotation(toCamera.normalized, Vector3.up);
+        }
+
         private void UpdatePlayerAvatar(bool snap = false)
         {
             if (playerRoot == null)
@@ -1074,6 +1542,12 @@ namespace MannLab.Games.Walking
 
             playerRoot.position = rootTarget;
             playerRoot.rotation = targetRotation;
+
+            if (playerSpriteRenderer != null)
+            {
+                UpdatePenguinSprite(lean, bodyBob);
+                return;
+            }
 
             if (playerBody != null)
             {
@@ -1130,6 +1604,33 @@ namespace MannLab.Games.Walking
             SetAvatarFoot(playerRightFoot, rightFootPosition, rightFoot.StatusPulse, targetRotation, snap);
         }
 
+        private void UpdatePenguinSprite(float lean, float bodyBob)
+        {
+            var sprite = penguinIdleSprite;
+            if (state == WalkingGameState.Result && penguinHappySprite != null)
+            {
+                sprite = penguinHappySprite;
+            }
+            else if (invalidPulse > 0.05f && penguinStumbleSprite != null)
+            {
+                sprite = penguinStumbleSprite;
+            }
+            else if (bodyLeanPulse > 0.05f)
+            {
+                sprite = lastLandedSide == WalkingFootSide.Left
+                    ? penguinLeftStepSprite ?? penguinIdleSprite
+                    : penguinRightStepSprite ?? penguinIdleSprite;
+            }
+
+            playerSpriteRenderer.sprite = sprite;
+            var spriteTransform = playerSpriteRenderer.transform;
+            var wobble = invalidPulse > 0.05f ? Mathf.Sin(Time.time * 34f) * invalidPulse * 0.045f : 0f;
+            var celebrate = state == WalkingGameState.Result && bestUpdatedThisRun ? Mathf.Sin(Time.time * 8f) * 0.025f : 0f;
+            spriteTransform.localPosition = new Vector3(lean * 0.035f + wobble, 0.74f + bodyBob * 0.75f - bodyLeanPulse * 0.025f + celebrate, -0.03f);
+            spriteTransform.localRotation = Quaternion.Euler(0f, 180f, -lean * 5f - wobble * 120f);
+            spriteTransform.localScale = Vector3.one * (1.04f + bodyLeanPulse * 0.035f + Mathf.Abs(celebrate));
+        }
+
         private static void SetAvatarFoot(Transform foot, Vector2 position, float pulse, Quaternion rotation, bool snap)
         {
             if (foot == null)
@@ -1173,8 +1674,35 @@ namespace MannLab.Games.Walking
                 Root = root,
                 Material = material,
                 Color = color,
+                BaseScale = Vector3.one,
                 Age = 0f
             });
+        }
+
+        private void CreateIceChipBurst(Vector2 position)
+        {
+            if (worldRoot == null || iceChipSprite == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < 4; i++)
+            {
+                var renderer = CreateWorldSprite("Ice Chip Burst", iceChipSprite, worldRoot, 1);
+                var angle = (i / 4f) * Mathf.PI * 2f + (Time.time % 1f);
+                var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (0.18f + i * 0.08f);
+                renderer.transform.position = new Vector3(position.x + offset.x, 0.18f + i * 0.035f, position.y + offset.y);
+                renderer.transform.localScale = Vector3.one * (0.32f + i * 0.05f);
+                scenicBillboards.Add(renderer);
+                stepStamps.Add(new StepStamp
+                {
+                    Root = renderer.transform,
+                    Material = null,
+                    Color = Color.white,
+                    BaseScale = renderer.transform.localScale,
+                    Age = 0.10f * i
+                });
+            }
         }
 
         private void UpdateStepStamps()
@@ -1191,8 +1719,20 @@ namespace MannLab.Games.Walking
 
                 stamp.Age += Time.deltaTime;
                 var t = Mathf.Clamp01(stamp.Age / lifetime);
-                stamp.Root.localScale = Vector3.one * Mathf.Lerp(0.76f, 1.32f, Mathf.SmoothStep(0f, 1f, t));
-                SetMaterialColor(stamp.Material, Color.Lerp(stamp.Color, Paper, t * 0.82f));
+                var baseScale = stamp.BaseScale == Vector3.zero ? Vector3.one : stamp.BaseScale;
+                stamp.Root.localScale = baseScale * Mathf.Lerp(0.76f, 1.32f, Mathf.SmoothStep(0f, 1f, t));
+                if (stamp.Material != null)
+                {
+                    SetMaterialColor(stamp.Material, Color.Lerp(stamp.Color, Paper, t * 0.82f));
+                }
+                else
+                {
+                    var renderer = stamp.Root.GetComponent<SpriteRenderer>();
+                    if (renderer != null)
+                    {
+                        renderer.color = Color.Lerp(Color.white, new Color(1f, 1f, 1f, 0f), t);
+                    }
+                }
                 if (stamp.Age >= lifetime)
                 {
                     Destroy(stamp.Root.gameObject);
@@ -1241,7 +1781,8 @@ namespace MannLab.Games.Walking
             restartButton.gameObject.SetActive(state == WalkingGameState.Result);
             if (state == WalkingGameState.Result)
             {
-                resultText.text = $"Result\n{distanceMeters:0.0} m\nBest {bestDistanceMeters:0.0} m";
+                var bestLine = bestUpdatedThisRun ? "New Best!" : $"Best {bestDistanceMeters:0.0} m";
+                resultText.text = $"Result\n{distanceMeters:0.0} m\n{bestLine}\n{steps} steps  {brokenIcebergs} ice";
             }
 
             ApplyFootStatus(leftFoot, leftStatusText, leftStatusBadge, leftTouchZone);
@@ -1274,9 +1815,10 @@ namespace MannLab.Games.Walking
             }
             else if (state == WalkingGameState.Result)
             {
-                DrawGuiRect(new Rect(Screen.width * 0.18f, Screen.height * 0.27f, Screen.width * 0.64f, 240f * scale), new Color(1f, 0.99f, 0.96f, 0.9f));
-                GUI.Label(new Rect(Screen.width * 0.18f, Screen.height * 0.28f, Screen.width * 0.64f, 128f * scale), $"Result\n{distanceMeters:0.0} m\nBest {bestDistanceMeters:0.0} m", titleStyle);
-                if (GUI.Button(new Rect(Screen.width * 0.35f, Screen.height * 0.43f, Screen.width * 0.3f, 56f * scale), "Restart", buttonStyle))
+                var bestLine = bestUpdatedThisRun ? "New Best!" : $"Best {bestDistanceMeters:0.0} m";
+                DrawGuiRect(new Rect(Screen.width * 0.16f, Screen.height * 0.25f, Screen.width * 0.68f, 280f * scale), new Color(1f, 0.99f, 0.96f, 0.9f));
+                GUI.Label(new Rect(Screen.width * 0.16f, Screen.height * 0.265f, Screen.width * 0.68f, 172f * scale), $"Result\n{distanceMeters:0.0} m\n{bestLine}\n{steps} steps  {brokenIcebergs} ice", titleStyle);
+                if (GUI.Button(new Rect(Screen.width * 0.35f, Screen.height * 0.465f, Screen.width * 0.3f, 56f * scale), "Restart", buttonStyle))
                 {
                     ResetRun();
                 }
@@ -1725,6 +2267,78 @@ namespace MannLab.Games.Walking
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             return cube;
+        }
+
+        private static SpriteRenderer CreateWorldSprite(string objectName, Sprite sprite, Transform parent, int sortingOrder)
+        {
+            var spriteObject = new GameObject(objectName, typeof(SpriteRenderer));
+            spriteObject.transform.SetParent(parent, false);
+            var renderer = spriteObject.GetComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.color = Color.white;
+            renderer.sortingOrder = sortingOrder;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return renderer;
+        }
+
+        private static GameObject CreateTexturedGround(
+            string objectName,
+            Vector3 position,
+            float width,
+            float length,
+            Texture texture,
+            Transform parent)
+        {
+            var ground = new GameObject(objectName, typeof(MeshFilter), typeof(MeshRenderer));
+            ground.transform.SetParent(parent, false);
+            ground.transform.position = position;
+            ground.GetComponent<MeshFilter>().sharedMesh = CreateGroundQuadMesh(width, length);
+            var renderer = ground.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = CreateTexturedMaterial(objectName + " Material", texture);
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return ground;
+        }
+
+        private static Material CreateTexturedMaterial(string materialName, Texture texture)
+        {
+            var shader = Shader.Find("Unlit/Texture") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Standard");
+            var material = new Material(shader)
+            {
+                name = materialName,
+                mainTexture = texture,
+                color = Color.white
+            };
+            return material;
+        }
+
+        private static Mesh CreateGroundQuadMesh(float width, float length)
+        {
+            var halfWidth = width * 0.5f;
+            var halfLength = length * 0.5f;
+            var mesh = new Mesh
+            {
+                name = "Thumbwaddle Textured Ground",
+                vertices = new[]
+                {
+                    new Vector3(-halfWidth, 0f, -halfLength),
+                    new Vector3(halfWidth, 0f, -halfLength),
+                    new Vector3(halfWidth, 0f, halfLength),
+                    new Vector3(-halfWidth, 0f, halfLength),
+                },
+                triangles = new[] { 0, 2, 1, 0, 3, 2 },
+                uv = new[]
+                {
+                    new Vector2(0f, 0f),
+                    new Vector2(1f, 0f),
+                    new Vector2(1f, 1f),
+                    new Vector2(0f, 1f),
+                }
+            };
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         private static GameObject CreateEllipsoid(string objectName, Vector3 position, Vector3 scale, Material material, Transform parent)
