@@ -16,6 +16,7 @@ namespace MannLab.Games.Walking
         public const bool DefaultDebugFootMarkers = false;
 
         private static readonly Color Paper = new Color32(250, 247, 239, 255);
+        private static readonly Color Sky = new Color32(226, 246, 250, 255);
         private static readonly Color Ink = new Color32(40, 39, 36, 255);
         private static readonly Color FadedInk = new Color32(102, 97, 90, 255);
         private static readonly Color Warm = new Color32(247, 181, 71, 255);
@@ -105,6 +106,7 @@ namespace MannLab.Games.Walking
         private Sprite icebergCrackedTwoSprite;
         private Sprite icebergBrokenSprite;
         private Sprite polarBackdropSprite;
+        private Sprite skyCloudsSprite;
         private Sprite snowPuffSprite;
         private Sprite iceFloeSprite;
         private Sprite iceChipSprite;
@@ -327,7 +329,7 @@ namespace MannLab.Games.Walking
             }
 
             gameCamera.clearFlags = CameraClearFlags.SolidColor;
-            gameCamera.backgroundColor = Paper;
+            gameCamera.backgroundColor = Sky;
             gameCamera.fieldOfView = 58f;
             gameCamera.nearClipPlane = 0.04f;
             gameCamera.farClipPlane = 180f;
@@ -369,6 +371,7 @@ namespace MannLab.Games.Walking
             icebergCrackedTwoSprite = LoadSprite("Thumbwaddle/iceberg_cracked_2", 340f);
             icebergBrokenSprite = LoadSprite("Thumbwaddle/iceberg_broken", 340f);
             polarBackdropSprite = LoadSprite("Thumbwaddle/polar_backdrop", 300f);
+            skyCloudsSprite = LoadSprite("Thumbwaddle/sky_clouds", 520f);
             snowPuffSprite = LoadSprite("Thumbwaddle/snow_puff", 260f);
             iceFloeSprite = LoadSprite("Thumbwaddle/ice_floe_small", 260f);
             iceChipSprite = LoadSprite("Thumbwaddle/ice_chip", 240f);
@@ -439,6 +442,7 @@ namespace MannLab.Games.Walking
 
             BuildOpenFieldObstacles(obstacleShadowMaterial, obstacleMaterial, obstacleTopMaterial, obstacleStrokeMaterial);
             BuildFieldDressing();
+            BuildCameraBackdrop();
             BuildDebugMarkers();
         }
 
@@ -450,17 +454,18 @@ namespace MannLab.Games.Walking
                 cameraBackdropRoot = null;
             }
 
-            if (gameCamera == null || polarBackdropSprite == null)
+            if (gameCamera == null || skyCloudsSprite == null)
             {
                 return;
             }
 
-            cameraBackdropRoot = new GameObject("Polar Doodle Backdrop").transform;
+            cameraBackdropRoot = new GameObject("Thumbwaddle Sky Doodles").transform;
             cameraBackdropRoot.SetParent(gameCamera.transform, false);
-            cameraBackdropRoot.localPosition = new Vector3(0f, 0.82f, 28f);
+            cameraBackdropRoot.localPosition = new Vector3(0f, 10.2f, 28f);
             cameraBackdropRoot.localRotation = Quaternion.identity;
-            cameraBackdropRoot.localScale = Vector3.one * 6.25f;
-            var renderer = CreateWorldSprite("Polar Backdrop Art", polarBackdropSprite, cameraBackdropRoot, -10);
+            cameraBackdropRoot.localScale = Vector3.one * 2.9f;
+            var renderer = CreateWorldSprite("Sky Cloud Doodles", skyCloudsSprite, cameraBackdropRoot, -20);
+            renderer.color = new Color(1f, 1f, 1f, 0.72f);
             renderer.transform.localPosition = Vector3.zero;
         }
 

@@ -45,6 +45,7 @@ for asset in \
   iceberg_cracked_2.png \
   iceberg_broken.png \
   ice_field_background.png \
+  sky_clouds.png \
   polar_backdrop.png \
   snow_puff.png \
   ice_floe_small.png \
