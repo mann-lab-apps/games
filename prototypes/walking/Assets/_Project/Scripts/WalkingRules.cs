@@ -22,15 +22,6 @@ namespace MannLab.Games.Walking
         LowShard
     }
 
-    public enum WalkingUpgradeKind
-    {
-        BiggerFeet,
-        BetterBalance,
-        IcebreakerFeet,
-        FishMagnet,
-        RhythmBonus
-    }
-
     public readonly struct WalkingFootPlacement
     {
         public WalkingFootPlacement(Vector2 position, bool isValid, string reason)
@@ -162,63 +153,6 @@ namespace MannLab.Games.Walking
             return true;
         }
 
-        public static bool IsAssistableInvalidReason(string reason)
-        {
-            return reason == "short"
-                || reason == "long"
-                || reason == "wide"
-                || reason == "cross";
-        }
-
-        public static Vector2 RecommendedFootPosition(WalkingFootSide side, Vector2 supportFoot, Vector2 facingForward)
-        {
-            var forward = SafeNormal(facingForward, Vector2.up);
-            var right = new Vector2(forward.y, -forward.x);
-            var naturalSide = side == WalkingFootSide.Left ? -NaturalHalfStance : NaturalHalfStance;
-            return supportFoot + forward * 0.82f + right * naturalSide;
-        }
-
-        public static WalkingFootPlacement BuildAssistedFootPlacement(
-            WalkingFootSide side,
-            Vector2 supportFoot,
-            Vector2 candidate,
-            Vector2 facingForward,
-            WalkingMaze maze,
-            float assistStrength)
-        {
-            var original = ValidateFootPlacement(side, supportFoot, candidate, facingForward, maze);
-            if (original.IsValid || !IsAssistableInvalidReason(original.Reason))
-            {
-                return original;
-            }
-
-            var forward = SafeNormal(facingForward, Vector2.up);
-            var right = new Vector2(forward.y, -forward.x);
-            var delta = candidate - supportFoot;
-            var forwardDistance = Vector2.Dot(delta, forward);
-            var lateralDistance = Vector2.Dot(delta, right);
-            var naturalSide = side == WalkingFootSide.Left ? -NaturalHalfStance : NaturalHalfStance;
-            var strength = Mathf.Clamp01(assistStrength);
-            var lateralWindow = Mathf.Lerp(0.16f, 0.44f, strength);
-            var correctedForward = Mathf.Clamp(forwardDistance, MinStepDistance + 0.24f, MaxStepDistance - 0.12f);
-            var correctedLateral = Mathf.Clamp(lateralDistance, naturalSide - lateralWindow, naturalSide + lateralWindow);
-            var minClearance = SideClearance + Mathf.Lerp(0.03f, 0.10f, strength);
-            correctedLateral = side == WalkingFootSide.Left
-                ? Mathf.Min(correctedLateral, -minClearance)
-                : Mathf.Max(correctedLateral, minClearance);
-
-            var corrected = supportFoot + forward * correctedForward + right * correctedLateral;
-            var placement = ValidateFootPlacement(side, supportFoot, corrected, facingForward, maze);
-            if (placement.IsValid)
-            {
-                return placement;
-            }
-
-            corrected = RecommendedFootPosition(side, supportFoot, facingForward);
-            placement = ValidateFootPlacement(side, supportFoot, corrected, facingForward, maze);
-            return placement.IsValid ? placement : original;
-        }
-
         public static float BestMarkerDistance(float bestDistance, float fieldLength)
         {
             if (bestDistance < 1f)
@@ -337,49 +271,6 @@ namespace MannLab.Games.Walking
                 default:
                     return hits == 1 ? 0.84f : 0.68f;
             }
-        }
-
-        public static int ObstacleFishReward(WalkingObstacleKind kind)
-        {
-            switch (kind)
-            {
-                case WalkingObstacleKind.LowShard:
-                    return 2;
-                case WalkingObstacleKind.SmallIceberg:
-                    return 6;
-                default:
-                    return 12;
-            }
-        }
-
-        public static int ObstacleDamagePerHit(int icebreakerFeetLevel)
-        {
-            return 1 + Mathf.Clamp(icebreakerFeetLevel, 0, 4) / 2;
-        }
-
-        public static float FishCollectionRadius(int fishMagnetLevel, float rhythmQuality)
-        {
-            return 0.78f + Mathf.Clamp(fishMagnetLevel, 0, 12) * 0.12f + Mathf.Clamp01(rhythmQuality) * 0.22f;
-        }
-
-        public static int RhythmFishBonus(int rhythmBonusLevel, int comboCount)
-        {
-            if (comboCount < 3)
-            {
-                return 0;
-            }
-
-            return 1 + Mathf.Clamp(rhythmBonusLevel, 0, 10) / 2 + Mathf.Clamp(comboCount / 5, 0, 3);
-        }
-
-        public static int UpgradeCost(WalkingUpgradeKind kind, int currentLevel)
-        {
-            var baseCost = kind == WalkingUpgradeKind.BiggerFeet ? 12
-                : kind == WalkingUpgradeKind.BetterBalance ? 14
-                : kind == WalkingUpgradeKind.IcebreakerFeet ? 16
-                : kind == WalkingUpgradeKind.FishMagnet ? 14
-                : 18;
-            return baseCost + Mathf.Max(0, currentLevel) * 10;
         }
 
         public static WalkingFootSide FootSideForScreenPosition(Vector2 screenPosition, Vector2 screenSize)

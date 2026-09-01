@@ -20,30 +20,10 @@ namespace MannLab.Games.Walking
         private static readonly Color Ink = new Color32(40, 39, 36, 255);
         private static readonly Color FadedInk = new Color32(102, 97, 90, 255);
         private static readonly Color Warm = new Color32(247, 181, 71, 255);
-        private static readonly Color FishGold = new Color32(239, 156, 58, 255);
         private static readonly Color Green = new Color32(123, 168, 107, 255);
         private static readonly Color Red = new Color32(210, 74, 66, 255);
         private static readonly Color Blue = new Color32(88, 142, 181, 255);
         private static readonly float[] GoalMarkerDistances = { 10f, 25f, 50f, 90f };
-        private const int UpgradeCount = 5;
-        private static readonly string[] UpgradeNames =
-        {
-            "Bigger Feet",
-            "Better Balance",
-            "Icebreaker Feet",
-            "Fish Magnet",
-            "Rhythm Bonus"
-        };
-
-        private static readonly string[] UpgradeShortNames =
-        {
-            "Feet",
-            "Balance",
-            "Break",
-            "Magnet",
-            "Rhythm"
-        };
-
         private static Mesh sharedCubeMesh;
         private static Mesh sharedSphereMesh;
 
@@ -90,11 +70,6 @@ namespace MannLab.Games.Walking
         private Transform playerRightFoot;
         private SpriteRenderer playerSpriteRenderer;
         private Transform cameraBackdropRoot;
-        private Transform ghostGuideRoot;
-        private Transform leftGhostFoot;
-        private Transform rightGhostFoot;
-        private Material leftGhostMaterial;
-        private Material rightGhostMaterial;
         private readonly List<SpriteRenderer> scenicBillboards = new List<SpriteRenderer>();
         private Canvas canvas;
         private Text titleText;
@@ -144,8 +119,6 @@ namespace MannLab.Games.Walking
         private readonly List<StepStamp> stepStamps = new List<StepStamp>();
         private readonly List<FieldObstacle> fieldObstacles = new List<FieldObstacle>();
         private readonly List<GoalMarkerRuntime> goalMarkers = new List<GoalMarkerRuntime>();
-        private readonly List<FishCoinRuntime> fishCoins = new List<FishCoinRuntime>();
-        private readonly int[] upgradeLevels = new int[UpgradeCount];
 
         private Vector2 leftFootPosition;
         private Vector2 rightFootPosition;
@@ -166,45 +139,23 @@ namespace MannLab.Games.Walking
         private float obstacleBumpPulse;
         private float milestonePulse;
         private float bestPassPulse;
-        private float fishRewardPulse;
-        private float comboPulse;
-        private float assistPulse;
-        private float offerPulse;
         private float rhythmQuality;
         private float rhythmPulse;
         private float lastSuccessfulStepTime = -1f;
         private float rhythmQualitySum;
         private int rhythmSamples;
         private int highRhythmSteps;
-        private int comboCount;
-        private int comboPeak;
         private WalkingFootSide lastLandedSide = WalkingFootSide.Left;
         private float bodyLeanPulse;
         private float suppressMouseInputUntil;
         private bool runStarted;
         private bool bestUpdatedThisRun;
         private bool bestMarkerPassedThisRun;
-        private bool firstRewardLoggedThisRun;
-        private bool tutorialCompleteLogged;
-        private bool doubledFishThisResult;
-        private bool bonusChestClaimedThisResult;
-        private bool firstFreeUpgradeClaimed;
         private int nextGoalMarkerIndex;
         private int reachedGoalMarkers;
         private int brokenIcebergs;
-        private int runFish;
-        private int lastRunFish;
-        private int totalFish;
-        private int lifetimeRunCount;
-        private int currentRunNumber;
-        private int selectedUpgradeIndex;
-        private float sessionStartRealtime;
 
         private const string BestDistanceKey = "MannLab.Walking.BestDistance";
-        private const string TotalFishKey = "MannLab.Walking.TotalFish";
-        private const string LifetimeRunCountKey = "MannLab.Walking.RunCount";
-        private const string FirstFreeUpgradeKey = "MannLab.Walking.FirstFreeUpgradeClaimed";
-        private const string UpgradeKeyPrefix = "MannLab.Walking.Upgrade.";
         private const string ProductionIosInterstitialAdUnitId = "";
         private const string ProductionAndroidInterstitialAdUnitId = "";
 #if MANNLAB_ADMOB_FORCE_TEST_ADS
@@ -302,43 +253,12 @@ namespace MannLab.Games.Walking
             public bool Reached { get; set; }
         }
 
-        private sealed class FishCoinRuntime
-        {
-            public FishCoinRuntime(Vector2 center, float radius, int value, Transform root, Material material, bool isChest)
-            {
-                Center = center;
-                Radius = radius;
-                Value = value;
-                Root = root;
-                Material = material;
-                IsChest = isChest;
-            }
-
-            public Vector2 Center { get; }
-            public float Radius { get; }
-            public int Value { get; }
-            public Transform Root { get; }
-            public Material Material { get; }
-            public bool IsChest { get; }
-            public bool Collected { get; set; }
-        }
-
         private void Awake()
         {
             MobileRuntime.ApplyDefaults();
             Input.multiTouchEnabled = true;
 
             bestDistanceMeters = PlayerPrefs.GetFloat(BestDistanceKey, 0f);
-            totalFish = PlayerPrefs.GetInt(TotalFishKey, 0);
-            lifetimeRunCount = PlayerPrefs.GetInt(LifetimeRunCountKey, 0);
-            firstFreeUpgradeClaimed = PlayerPrefs.GetInt(FirstFreeUpgradeKey, 0) == 1;
-            for (var i = 0; i < upgradeLevels.Length; i++)
-            {
-                upgradeLevels[i] = PlayerPrefs.GetInt(UpgradeKeyPrefix + i, 0);
-            }
-
-            selectedUpgradeIndex = NextAffordableOrRecommendedUpgradeIndex();
-            sessionStartRealtime = Time.realtimeSinceStartup;
             EnsureSceneObjects();
             BuildUi();
             InitializeTelemetryAndAds();
@@ -364,11 +284,9 @@ namespace MannLab.Games.Walking
             UpdateCandidates();
             UpdatePlayerAvatar();
             UpdateStepStamps();
-            UpdateFishCoins();
             UpdateCamera();
             UpdateBillboards();
             UpdateGoalMarkers();
-            UpdateGhostFootGuide();
             UpdateUi();
             UpdateDebugMarkers();
             bobImpulse = Mathf.MoveTowards(bobImpulse, 0f, Time.deltaTime * 4.5f);
@@ -376,10 +294,6 @@ namespace MannLab.Games.Walking
             obstacleBumpPulse = Mathf.MoveTowards(obstacleBumpPulse, 0f, Time.deltaTime * 3.2f);
             milestonePulse = Mathf.MoveTowards(milestonePulse, 0f, Time.deltaTime * 3.4f);
             bestPassPulse = Mathf.MoveTowards(bestPassPulse, 0f, Time.deltaTime * 2.4f);
-            fishRewardPulse = Mathf.MoveTowards(fishRewardPulse, 0f, Time.deltaTime * 3.4f);
-            comboPulse = Mathf.MoveTowards(comboPulse, 0f, Time.deltaTime * 2.6f);
-            assistPulse = Mathf.MoveTowards(assistPulse, 0f, Time.deltaTime * 3.8f);
-            offerPulse = Mathf.MoveTowards(offerPulse, 0f, Time.deltaTime * 2.2f);
             rhythmPulse = Mathf.MoveTowards(rhythmPulse, 0f, Time.deltaTime * 2.8f);
             if (state == WalkingGameState.Playing && lastSuccessfulStepTime > 0f && Time.time - lastSuccessfulStepTime > 1.35f)
             {
@@ -395,7 +309,7 @@ namespace MannLab.Games.Walking
         {
             if (runStarted)
             {
-                LogGameEvent(
+                FirebaseTelemetry.LogEvent(
                     "restart",
                     new Dictionary<string, string>
                     {
@@ -406,9 +320,6 @@ namespace MannLab.Games.Walking
             }
 
             maze = null;
-            lifetimeRunCount++;
-            currentRunNumber = lifetimeRunCount;
-            PlayerPrefs.SetInt(LifetimeRunCountKey, lifetimeRunCount);
             bestDistanceAtRunStart = bestDistanceMeters;
             bestMarkerDistanceThisRun = WalkingRules.BestMarkerDistance(bestDistanceAtRunStart, openFieldLength);
             BuildWorld();
@@ -425,15 +336,8 @@ namespace MannLab.Games.Walking
             runTimeRemaining = runDurationSeconds;
             steps = 0;
             brokenIcebergs = 0;
-            runFish = 0;
-            comboCount = 0;
-            comboPeak = 0;
             bestUpdatedThisRun = false;
             bestMarkerPassedThisRun = false;
-            firstRewardLoggedThisRun = false;
-            tutorialCompleteLogged = false;
-            doubledFishThisResult = false;
-            bonusChestClaimedThisResult = false;
             nextGoalMarkerIndex = 0;
             reachedGoalMarkers = 0;
             bobImpulse = 0f;
@@ -441,10 +345,6 @@ namespace MannLab.Games.Walking
             obstacleBumpPulse = 0f;
             milestonePulse = 0f;
             bestPassPulse = 0f;
-            fishRewardPulse = 0f;
-            comboPulse = 0f;
-            assistPulse = 0f;
-            offerPulse = 0f;
             rhythmQuality = 0f;
             rhythmPulse = 0f;
             lastSuccessfulStepTime = -1f;
@@ -465,17 +365,13 @@ namespace MannLab.Games.Walking
             UpdateUi();
             UpdateDebugMarkers(true);
             UpdateTelemetryContext();
-            LogGameEvent(
+            FirebaseTelemetry.LogEvent(
                 "run_start",
                 new Dictionary<string, string>
                 {
                     { "best_distance_m", bestDistanceMeters.ToString("0.0") },
                     { "duration_s", Mathf.RoundToInt(runDurationSeconds).ToString() }
                 });
-            if (currentRunNumber == 1)
-            {
-                LogGameEvent("tutorial_start", null);
-            }
         }
 
         private void ResetFootRuntime(FootRuntime foot)
@@ -586,12 +482,6 @@ namespace MannLab.Games.Walking
             fieldObstacles.Clear();
             scenicBillboards.Clear();
             goalMarkers.Clear();
-            fishCoins.Clear();
-            ghostGuideRoot = null;
-            leftGhostFoot = null;
-            rightGhostFoot = null;
-            leftGhostMaterial = null;
-            rightGhostMaterial = null;
 
             if (iceFieldTexture != null)
             {
@@ -621,10 +511,8 @@ namespace MannLab.Games.Walking
             }
 
             BuildOpenFieldObstacles(obstacleShadowMaterial, obstacleMaterial, obstacleTopMaterial, obstacleStrokeMaterial);
-            BuildFishCoins();
             BuildFieldDressing();
             BuildDistanceGoalMarkers();
-            BuildGhostFootGuide();
             BuildCameraBackdrop();
             BuildDebugMarkers();
         }
@@ -668,180 +556,6 @@ namespace MannLab.Games.Walking
                     bestRoot);
                 var marker = CreateGoalDistanceMark(root, bestDistance, 1f, bestMaterial, true);
                 goalMarkers.Add(new GoalMarkerRuntime(bestDistance, marker, bestMaterial, Warm, true));
-            }
-        }
-
-        private void BuildFishCoins()
-        {
-            if (worldRoot == null)
-            {
-                return;
-            }
-
-            var root = new GameObject("Thumbwaddle Fish Rewards").transform;
-            root.SetParent(worldRoot, false);
-            var fishMaterial = CreateMaterial("Fish Reward Gold", FishGold);
-            var fishStrokeMaterial = CreateMaterial("Fish Reward Ink", WithAlpha(Ink, 215));
-            var chestMaterial = CreateMaterial("Bonus Chest Warm", Warm);
-            var chestStrokeMaterial = CreateMaterial("Bonus Chest Ink", WithAlpha(Ink, 210));
-            var random = new System.Random(unchecked(1391 + currentRunNumber * 97));
-
-            var earlyRows = new[]
-            {
-                new Vector2(-0.28f, 1.4f),
-                new Vector2(0.42f, 2.6f),
-                new Vector2(-0.55f, 4.1f),
-                new Vector2(0.55f, 5.8f),
-                new Vector2(0f, 7.4f)
-            };
-            for (var i = 0; i < earlyRows.Length; i++)
-            {
-                CreateFishCoin(root, earlyRows[i], 1, 0.38f, fishMaterial, fishStrokeMaterial, false);
-            }
-
-            for (var i = 0; i < 22; i++)
-            {
-                var z = 8f + i * 5.4f + RandomRange(random, -0.8f, 0.9f);
-                var lane = (i % 5) - 2;
-                var x = lane * 0.86f + RandomRange(random, -0.18f, 0.18f);
-                if (z > 28f && i % 6 == 0)
-                {
-                    x += RandomRange(random, -1.4f, 1.4f);
-                }
-
-                var center = KeepFishClear(new Vector2(x, z));
-                CreateFishCoin(root, center, i % 7 == 0 ? 2 : 1, 0.34f, fishMaterial, fishStrokeMaterial, false);
-            }
-
-            var chestPosition = KeepFishClear(new Vector2(0f, 38f));
-            CreateFishCoin(root, chestPosition, 14, 0.62f, chestMaterial, chestStrokeMaterial, true);
-        }
-
-        private Vector2 KeepFishClear(Vector2 position)
-        {
-            for (var i = 0; i < fieldObstacles.Count; i++)
-            {
-                var obstacle = fieldObstacles[i];
-                var away = position - obstacle.Center;
-                var minDistance = obstacle.Radius + 0.74f;
-                if (away.sqrMagnitude >= minDistance * minDistance)
-                {
-                    continue;
-                }
-
-                var direction = away.sqrMagnitude < 0.001f ? Vector2.right : away.normalized;
-                position = obstacle.Center + direction * minDistance;
-                position.x = Mathf.Clamp(position.x, -openFieldHalfWidth + 1.4f, openFieldHalfWidth - 1.4f);
-            }
-
-            return position;
-        }
-
-        private void CreateFishCoin(
-            Transform parent,
-            Vector2 center,
-            int value,
-            float radius,
-            Material fillMaterial,
-            Material strokeMaterial,
-            bool isChest)
-        {
-            var root = new GameObject(isChest ? "Bonus Fish Chest" : "Fish Coin").transform;
-            root.SetParent(parent, false);
-            root.position = new Vector3(center.x, 0.22f, center.y);
-
-            if (isChest)
-            {
-                CreateCube("Chest Body", Vector3.zero, new Vector3(0.54f, 0.06f, 0.36f), fillMaterial, root).transform.localPosition = new Vector3(0f, 0f, 0f);
-                CreateCube("Chest Lid", Vector3.zero, new Vector3(0.58f, 0.05f, 0.08f), strokeMaterial, root).transform.localPosition = new Vector3(0f, 0.045f, -0.08f);
-                CreateCube("Chest Strap", Vector3.zero, new Vector3(0.08f, 0.07f, 0.40f), strokeMaterial, root).transform.localPosition = Vector3.zero;
-            }
-            else
-            {
-                CreateEllipsoid("Fish Body", Vector3.zero, new Vector3(0.36f, 0.055f, 0.20f), fillMaterial, root).transform.localPosition = Vector3.zero;
-                var tail = CreateCube("Fish Tail", Vector3.zero, new Vector3(0.14f, 0.045f, 0.14f), fillMaterial, root).transform;
-                tail.localPosition = new Vector3(-0.22f, 0f, 0f);
-                tail.localRotation = Quaternion.Euler(0f, 45f, 0f);
-                var eye = CreateCube("Fish Eye Ink", Vector3.zero, new Vector3(0.035f, 0.012f, 0.035f), strokeMaterial, root).transform;
-                eye.localPosition = new Vector3(0.12f, 0.035f, -0.03f);
-            }
-
-            fishCoins.Add(new FishCoinRuntime(center, radius, value, root, fillMaterial, isChest));
-        }
-
-        private void BuildGhostFootGuide()
-        {
-            if (worldRoot == null)
-            {
-                return;
-            }
-
-            ghostGuideRoot = new GameObject("First Steps Ghost Guide").transform;
-            ghostGuideRoot.SetParent(worldRoot, false);
-            leftGhostMaterial = CreateMaterial("Left Ghost Step Ink", WithAlpha(Blue, 120));
-            rightGhostMaterial = CreateMaterial("Right Ghost Step Ink", WithAlpha(Warm, 120));
-            leftGhostFoot = CreateGhostFoot("Left Ghost Foot", leftGhostMaterial);
-            rightGhostFoot = CreateGhostFoot("Right Ghost Foot", rightGhostMaterial);
-            UpdateGhostFootGuide(true);
-        }
-
-        private Transform CreateGhostFoot(string objectName, Material material)
-        {
-            var root = new GameObject(objectName).transform;
-            root.SetParent(ghostGuideRoot, false);
-            CreateStampBar(root, material, new Vector3(0f, 0f, 0.20f), new Vector3(0.24f, 0.012f, 0.040f));
-            CreateStampBar(root, material, new Vector3(0f, 0f, -0.20f), new Vector3(0.24f, 0.012f, 0.040f));
-            CreateStampBar(root, material, new Vector3(-0.14f, 0f, 0f), new Vector3(0.040f, 0.012f, 0.30f));
-            CreateStampBar(root, material, new Vector3(0.14f, 0f, 0f), new Vector3(0.040f, 0.012f, 0.30f));
-            return root;
-        }
-
-        private void UpdateGhostFootGuide(bool snap = false)
-        {
-            if (ghostGuideRoot == null || leftGhostFoot == null || rightGhostFoot == null)
-            {
-                return;
-            }
-
-            var active = state == WalkingGameState.Ready || (state == WalkingGameState.Playing && steps < 12);
-            ghostGuideRoot.gameObject.SetActive(active);
-            if (!active)
-            {
-                return;
-            }
-
-            var suggestedSide = SuggestedStepSide();
-            UpdateGhostFoot(leftGhostFoot, leftGhostMaterial, WalkingFootSide.Left, suggestedSide == WalkingFootSide.Left, snap);
-            UpdateGhostFoot(rightGhostFoot, rightGhostMaterial, WalkingFootSide.Right, suggestedSide == WalkingFootSide.Right, snap);
-        }
-
-        private WalkingFootSide SuggestedStepSide()
-        {
-            var alternating = steps % 2 == 0 ? WalkingFootSide.Left : WalkingFootSide.Right;
-            var preferred = alternating == WalkingFootSide.Left ? leftFoot : rightFoot;
-            var other = alternating == WalkingFootSide.Left ? rightFoot : leftFoot;
-            if (!preferred.NeedsReturn)
-            {
-                return alternating;
-            }
-
-            return other.NeedsReturn ? alternating : other.Side;
-        }
-
-        private void UpdateGhostFoot(Transform marker, Material material, WalkingFootSide side, bool highlighted, bool snap)
-        {
-            var support = side == WalkingFootSide.Left ? rightFootPosition : leftFootPosition;
-            var target = WalkingRules.RecommendedFootPosition(side, support, facing);
-            var target3 = new Vector3(target.x, 0.082f, target.y);
-            var t = snap ? 1f : 1f - Mathf.Exp(-11f * Time.deltaTime);
-            marker.position = snap ? target3 : Vector3.Lerp(marker.position, target3, t);
-            marker.rotation = Quaternion.LookRotation(new Vector3(facing.x, 0f, facing.y).normalized, Vector3.up);
-            var pulse = highlighted ? Pulse01(Time.time * 1.6f) : 0f;
-            marker.localScale = Vector3.one * (highlighted ? 1.02f + pulse * 0.12f : 0.82f);
-            if (material != null)
-            {
-                var baseColor = side == WalkingFootSide.Left ? Blue : Warm;
-                SetMaterialColor(material, new Color(baseColor.r, baseColor.g, baseColor.b, highlighted ? 0.34f + pulse * 0.22f : 0.13f));
             }
         }
 
@@ -964,26 +678,6 @@ namespace MannLab.Games.Walking
             var random = new System.Random(unchecked(System.DateTime.UtcNow.Millisecond * 92821 + steps * 97));
             var count = Mathf.Max(0, openFieldObstacleCount);
             var usableLength = Mathf.Max(20f, openFieldLength - 18f);
-
-            var firstRewardCenter = new Vector2(0.95f, 11.5f);
-            var firstRewardRoot = CreateIcebergObstacle(
-                firstRewardCenter,
-                0.92f,
-                0.72f,
-                0.82f,
-                7f,
-                obstacleShadowMaterial,
-                obstacleMaterial,
-                obstacleTopMaterial,
-                obstacleStrokeMaterial,
-                random);
-            var firstRenderer = firstRewardRoot.GetComponentInChildren<SpriteRenderer>();
-            if (firstRenderer != null)
-            {
-                firstRenderer.color = ObstacleTint(WalkingObstacleKind.LowShard);
-            }
-
-            fieldObstacles.Add(new FieldObstacle(firstRewardCenter, 0.28f, WalkingObstacleKind.LowShard, firstRewardRoot, firstRenderer));
 
             for (var i = 0; i < count; i++)
             {
@@ -1567,11 +1261,6 @@ namespace MannLab.Games.Walking
             UpdateCandidate(foot);
             if (!foot.Candidate.IsValid)
             {
-                TryApplyAssistedFootPlacement(foot);
-            }
-
-            if (!foot.Candidate.IsValid)
-            {
                 if (foot.Candidate.Reason == "obstacle" && DamageFieldObstacleAt(foot.Candidate.Position, WalkingRules.FootRadius))
                 {
                     UpdateCandidate(foot);
@@ -1584,7 +1273,6 @@ namespace MannLab.Games.Walking
                 invalidPulse = foot.Candidate.Reason == "obstacle" ? 0.55f : 1f;
                 foot.StatusPulse = 1f;
                 RegisterRhythmBreak(foot.Candidate.Reason == "obstacle" ? 0.16f : 0.28f);
-                LogInvalidStepReason(foot.Candidate.Reason, false);
                 PlayBump(0.35f);
                 return false;
             }
@@ -1604,7 +1292,6 @@ namespace MannLab.Games.Walking
                     invalidPulse = 0.58f;
                     foot.StatusPulse = 1f;
                     RegisterRhythmBreak(0.20f);
-                    LogInvalidStepReason("obstacle_body", false);
                     PlayBump(0.45f);
                     return false;
                 }
@@ -1639,13 +1326,6 @@ namespace MannLab.Games.Walking
             var alternated = lastSuccessfulStepTime < 0f || foot.Side != lastLandedSide;
             RegisterSuccessfulRhythm(alternated, stepInterval);
             CheckGoalProgress();
-            CollectFishNear(bodyPosition);
-            if (!tutorialCompleteLogged && steps >= 12)
-            {
-                tutorialCompleteLogged = true;
-                LogGameEvent("tutorial_complete", null);
-            }
-
             foot.NeedsReturn = true;
             foot.StatusPulse = 1f;
             lastLandedSide = foot.Side;
@@ -1655,7 +1335,7 @@ namespace MannLab.Games.Walking
             CreateStepStamp(foot.Candidate.Position, foot.Side);
             PlayStep();
             UpdateTelemetryContext();
-            LogGameEvent(
+            FirebaseTelemetry.LogEvent(
                 "step",
                 new Dictionary<string, string>
                 {
@@ -1670,93 +1350,12 @@ namespace MannLab.Games.Walking
             return true;
         }
 
-        private bool TryApplyAssistedFootPlacement(FootRuntime foot)
-        {
-            if (!IsEarlyAssistActive() || !WalkingRules.IsAssistableInvalidReason(foot.Candidate.Reason))
-            {
-                return false;
-            }
-
-            var originalReason = foot.Candidate.Reason;
-            var support = foot.Side == WalkingFootSide.Left ? rightFootPosition : leftFootPosition;
-            var assistStrength = EarlyAssistStrength();
-            var assisted = WalkingRules.BuildAssistedFootPlacement(
-                foot.Side,
-                support,
-                foot.Candidate.Position,
-                facing,
-                maze,
-                assistStrength);
-            if (!assisted.IsValid || IsCircleTouchingFieldObstacle(assisted.Position, WalkingRules.FootRadius))
-            {
-                LogInvalidStepReason(originalReason, false);
-                return false;
-            }
-
-            foot.Candidate = assisted;
-            assistPulse = 1f;
-            invalidPulse = Mathf.Max(invalidPulse, 0.22f);
-            LogInvalidStepReason(originalReason, true);
-            return true;
-        }
-
-        private bool IsEarlyAssistActive()
-        {
-            var elapsed = runDurationSeconds - runTimeRemaining;
-            var hasBalanceUpgrade = GetUpgradeLevel(WalkingUpgradeKind.BiggerFeet) + GetUpgradeLevel(WalkingUpgradeKind.BetterBalance) > 0;
-            return state == WalkingGameState.Playing && (elapsed <= 20f || steps < 12 || hasBalanceUpgrade);
-        }
-
-        private float EarlyAssistStrength()
-        {
-            var elapsed = runDurationSeconds - runTimeRemaining;
-            var baseAssist = elapsed <= 20f || steps < 12 ? 0.72f : 0.22f;
-            return Mathf.Clamp01(baseAssist
-                + GetUpgradeLevel(WalkingUpgradeKind.BiggerFeet) * 0.07f
-                + GetUpgradeLevel(WalkingUpgradeKind.BetterBalance) * 0.09f);
-        }
-
-        private void LogInvalidStepReason(string reason, bool corrected)
-        {
-            LogGameEvent(
-                "step_invalid_reason",
-                new Dictionary<string, string>
-                {
-                    { "reason", string.IsNullOrEmpty(reason) ? "unknown" : reason },
-                    { "corrected", corrected ? "true" : "false" }
-                });
-        }
-
         private void RegisterSuccessfulRhythm(bool alternated, float stepInterval)
         {
             rhythmQuality = WalkingRules.RhythmQualityAfterStep(rhythmQuality, alternated, stepInterval);
             rhythmPulse = Mathf.Max(rhythmPulse, alternated ? Mathf.Lerp(0.25f, 1f, rhythmQuality) : 0.18f);
             rhythmQualitySum += rhythmQuality;
             rhythmSamples++;
-            if (alternated && rhythmQuality >= 0.52f)
-            {
-                comboCount++;
-                comboPulse = Mathf.Max(comboPulse, Mathf.Lerp(0.32f, 1f, rhythmQuality));
-                if (comboCount > comboPeak)
-                {
-                    comboPeak = comboCount;
-                    if (comboPeak >= 3 && comboPeak % 3 == 0)
-                    {
-                        LogGameEvent("combo_peak", new Dictionary<string, string> { { "combo", comboPeak.ToString() } });
-                    }
-                }
-
-                var rhythmFish = WalkingRules.RhythmFishBonus(GetUpgradeLevel(WalkingUpgradeKind.RhythmBonus), comboCount);
-                if (rhythmFish > 0 && comboCount % 3 == 0)
-                {
-                    AwardFish(rhythmFish, "perfect_waddle");
-                }
-            }
-            else
-            {
-                comboCount = Mathf.Max(0, comboCount - 1);
-            }
-
             if (rhythmQuality >= 0.66f)
             {
                 highRhythmSteps++;
@@ -1766,7 +1365,6 @@ namespace MannLab.Games.Walking
         private void RegisterRhythmBreak(float severity)
         {
             rhythmQuality = WalkingRules.RhythmQualityAfterBreak(rhythmQuality, severity);
-            comboCount = 0;
             rhythmPulse = Mathf.Max(rhythmPulse, 0.12f);
         }
 
@@ -1795,7 +1393,7 @@ namespace MannLab.Games.Walking
                 CreateGoalBurst(bodyPosition, true);
                 MarkGoalReached(bestMarkerDistanceThisRun, true);
                 PlayReward(true);
-                LogGameEvent(
+                FirebaseTelemetry.LogEvent(
                     "best_marker_passed",
                     new Dictionary<string, string>
                     {
@@ -1819,100 +1417,6 @@ namespace MannLab.Games.Walking
                 marker.Reached = true;
                 return;
             }
-        }
-
-        private void UpdateFishCoins()
-        {
-            for (var i = fishCoins.Count - 1; i >= 0; i--)
-            {
-                var coin = fishCoins[i];
-                if (coin.Root == null)
-                {
-                    fishCoins.RemoveAt(i);
-                    continue;
-                }
-
-                if (coin.Collected)
-                {
-                    continue;
-                }
-
-                var bob = Mathf.Sin(Time.time * (coin.IsChest ? 2.2f : 3.1f) + coin.Center.y) * (coin.IsChest ? 0.028f : 0.038f);
-                coin.Root.position = new Vector3(coin.Center.x, (coin.IsChest ? 0.28f : 0.23f) + bob, coin.Center.y);
-                coin.Root.localRotation = Quaternion.Euler(0f, Mathf.Sin(Time.time * 1.4f + coin.Center.x) * 7f, 0f);
-                var pulse = fishRewardPulse > 0.01f && Vector2.Distance(coin.Center, bodyPosition) < 2.2f
-                    ? fishRewardPulse * 0.12f
-                    : 0f;
-                coin.Root.localScale = Vector3.one * (coin.IsChest ? 1.24f + pulse : 1f + pulse);
-            }
-        }
-
-        private void CollectFishNear(Vector2 center)
-        {
-            var radius = WalkingRules.FishCollectionRadius(GetUpgradeLevel(WalkingUpgradeKind.FishMagnet), rhythmQuality);
-            for (var i = 0; i < fishCoins.Count; i++)
-            {
-                var coin = fishCoins[i];
-                if (coin.Collected || coin.Root == null)
-                {
-                    continue;
-                }
-
-                if (Vector2.Distance(center, coin.Center) > radius + coin.Radius)
-                {
-                    continue;
-                }
-
-                coin.Collected = true;
-                var value = ApplyFishRewardMultiplier(coin.Value);
-                AwardFish(value, coin.IsChest ? "bonus_chest_world" : "fish_coin");
-                CreateGoalBurst(coin.Center, coin.IsChest);
-                Destroy(coin.Root.gameObject, 0.08f);
-            }
-        }
-
-        private int ApplyFishRewardMultiplier(int amount)
-        {
-            var multiplier = 1f + rhythmQuality * 0.18f + GetUpgradeLevel(WalkingUpgradeKind.RhythmBonus) * 0.04f;
-            if (comboCount >= 6)
-            {
-                multiplier += 0.12f;
-            }
-
-            return Mathf.Max(1, Mathf.RoundToInt(amount * multiplier));
-        }
-
-        private void AwardFish(int amount, string source)
-        {
-            if (amount <= 0)
-            {
-                return;
-            }
-
-            runFish += amount;
-            totalFish += amount;
-            PlayerPrefs.SetInt(TotalFishKey, totalFish);
-            PlayerPrefs.Save();
-            selectedUpgradeIndex = NextAffordableOrRecommendedUpgradeIndex();
-            fishRewardPulse = 1f;
-            milestonePulse = Mathf.Max(milestonePulse, 0.35f);
-            PlayReward(false);
-
-            if (!firstRewardLoggedThisRun)
-            {
-                firstRewardLoggedThisRun = true;
-                LogGameEvent("first_reward", new Dictionary<string, string> { { "source", source } });
-            }
-
-            LogGameEvent(
-                "currency_earned",
-                new Dictionary<string, string>
-                {
-                    { "source", source },
-                    { "amount", amount.ToString() },
-                    { "run_fish", runFish.ToString() },
-                    { "total_fish", totalFish.ToString() }
-                });
         }
 
         private void UpdateRunTimer()
@@ -1970,7 +1474,7 @@ namespace MannLab.Games.Walking
             }
 
             var obstacle = fieldObstacles[index];
-            obstacle.Hits += WalkingRules.ObstacleDamagePerHit(GetUpgradeLevel(WalkingUpgradeKind.IcebreakerFeet));
+            obstacle.Hits++;
             obstacleBumpPulse = 1f;
             bodyLeanPulse = Mathf.Max(bodyLeanPulse, 0.62f);
             var cleared = obstacle.Hits >= obstacle.Durability;
@@ -2011,29 +1515,26 @@ namespace MannLab.Games.Walking
             {
                 fieldObstacles.RemoveAt(index);
                 brokenIcebergs++;
-                AwardFish(ApplyFishRewardMultiplier(WalkingRules.ObstacleFishReward(obstacle.Kind)), "iceberg");
                 CreateIceChipBurst(obstacle.Center);
                 rhythmPulse = Mathf.Max(rhythmPulse, 0.45f);
-                LogGameEvent(
+                FirebaseTelemetry.LogEvent(
                     "obstacle_chip",
                     new Dictionary<string, string>
                     {
                         { "cleared", "true" },
                         { "hits", obstacle.Hits.ToString() },
-                        { "kind", obstacle.Kind.ToString().ToLowerInvariant() },
                         { "distance_m", distanceMeters.ToString("0.0") }
                     });
                 return true;
             }
 
             fieldObstacles[index] = obstacle;
-            LogGameEvent(
+            FirebaseTelemetry.LogEvent(
                 "obstacle_chip",
                 new Dictionary<string, string>
                 {
                     { "cleared", "false" },
                     { "hits", obstacle.Hits.ToString() },
-                    { "kind", obstacle.Kind.ToString().ToLowerInvariant() },
                     { "distance_m", distanceMeters.ToString("0.0") }
                 });
             return false;
@@ -2068,7 +1569,6 @@ namespace MannLab.Games.Walking
         {
             state = WalkingGameState.Result;
             PlayBump(1f);
-            lastRunFish = runFish;
             if (distanceMeters > bestDistanceMeters)
             {
                 bestDistanceMeters = distanceMeters;
@@ -2081,7 +1581,7 @@ namespace MannLab.Games.Walking
             ResetFootRuntime(leftFoot);
             ResetFootRuntime(rightFoot);
             UpdateTelemetryContext();
-            LogGameEvent(
+            FirebaseTelemetry.LogEvent(
                 "run_end",
                 new Dictionary<string, string>
                 {
@@ -2093,22 +1593,10 @@ namespace MannLab.Games.Walking
                     { "goal_markers", reachedGoalMarkers.ToString() },
                     { "rhythm", AverageRhythmQuality().ToString("0.00") },
                     { "high_rhythm_steps", highRhythmSteps.ToString() },
-                    { "combo_peak", comboPeak.ToString() },
-                    { "fish_earned", lastRunFish.ToString() },
                     { "new_best", bestUpdatedThisRun ? "true" : "false" },
-                    { "obstacles_remaining", CountRemainingObstacles().ToString() },
-                    { "run_end_reason", "time_up" }
+                    { "obstacles_remaining", CountRemainingObstacles().ToString() }
                 });
-            LogGameEvent("run_end_reason", new Dictionary<string, string> { { "reason", "time_up" } });
-            if (CanShowForcedInterstitial())
-            {
-                MannLabAdMob.TryShowGameOverInterstitial();
-            }
-        }
-
-        private bool CanShowForcedInterstitial()
-        {
-            return currentRunNumber > 3 && Time.realtimeSinceStartup - sessionStartRealtime >= 180f;
+            MannLabAdMob.TryShowGameOverInterstitial();
         }
 
         private static void InitializeTelemetryAndAds()
@@ -2140,9 +1628,6 @@ namespace MannLab.Games.Walking
 
         private void UpdateTelemetryContext()
         {
-            FirebaseTelemetry.SetContext("game", "thumbwaddle");
-            FirebaseTelemetry.SetContext("run_number", currentRunNumber.ToString());
-            FirebaseTelemetry.SetContext("session_time_s", Mathf.RoundToInt(Time.realtimeSinceStartup - sessionStartRealtime).ToString());
             FirebaseTelemetry.SetContext("distance_m", distanceMeters.ToString("0.0"));
             FirebaseTelemetry.SetContext("best_distance_m", bestDistanceMeters.ToString("0.0"));
             FirebaseTelemetry.SetContext("steps", steps.ToString());
@@ -2150,53 +1635,7 @@ namespace MannLab.Games.Walking
             FirebaseTelemetry.SetContext("obstacles_remaining", CountRemainingObstacles().ToString());
             FirebaseTelemetry.SetContext("goal_markers", reachedGoalMarkers.ToString());
             FirebaseTelemetry.SetContext("rhythm", rhythmQuality.ToString("0.00"));
-            FirebaseTelemetry.SetContext("combo", comboCount.ToString());
-            FirebaseTelemetry.SetContext("fish_run", runFish.ToString());
-            FirebaseTelemetry.SetContext("fish_total", totalFish.ToString());
-            FirebaseTelemetry.SetContext("upgrades", UpgradeSummary());
             FirebaseTelemetry.SetContext("state", state.ToString());
-        }
-
-        private void LogGameEvent(string eventName, Dictionary<string, string> values)
-        {
-            var payload = new Dictionary<string, string>
-            {
-                { "game", "thumbwaddle" },
-                { "run_number", currentRunNumber.ToString() },
-                { "session_time_s", Mathf.RoundToInt(Time.realtimeSinceStartup - sessionStartRealtime).ToString() },
-                { "distance_m", distanceMeters.ToString("0.0") },
-                { "fish_run", runFish.ToString() },
-                { "fish_total", totalFish.ToString() },
-                { "upgrades", UpgradeSummary() }
-            };
-
-            if (values != null)
-            {
-                foreach (var pair in values)
-                {
-                    payload[pair.Key] = pair.Value;
-                }
-            }
-
-            FirebaseTelemetry.LogEvent(eventName, payload);
-        }
-
-        private string UpgradeSummary()
-        {
-            return upgradeLevels[0] + "."
-                + upgradeLevels[1] + "."
-                + upgradeLevels[2] + "."
-                + upgradeLevels[3] + "."
-                + upgradeLevels[4];
-        }
-
-        private string UpgradeLevelLine()
-        {
-            return UpgradeShortNames[0] + " " + upgradeLevels[0]
-                + "  " + UpgradeShortNames[1] + " " + upgradeLevels[1]
-                + "  " + UpgradeShortNames[2] + " " + upgradeLevels[2]
-                + "  " + UpgradeShortNames[3] + " " + upgradeLevels[3]
-                + "  " + UpgradeShortNames[4] + " " + upgradeLevels[4];
         }
 
         private int CountRemainingObstacles()
@@ -2211,121 +1650,6 @@ namespace MannLab.Games.Walking
             }
 
             return count;
-        }
-
-        private int GetUpgradeLevel(WalkingUpgradeKind kind)
-        {
-            return upgradeLevels[Mathf.Clamp((int)kind, 0, upgradeLevels.Length - 1)];
-        }
-
-        private int NextAffordableOrRecommendedUpgradeIndex()
-        {
-            if (!firstFreeUpgradeClaimed)
-            {
-                return (int)WalkingUpgradeKind.BiggerFeet;
-            }
-
-            var bestIndex = 0;
-            var lowestLevel = int.MaxValue;
-            for (var i = 0; i < upgradeLevels.Length; i++)
-            {
-                var cost = WalkingRules.UpgradeCost((WalkingUpgradeKind)i, upgradeLevels[i]);
-                if (totalFish >= cost)
-                {
-                    return i;
-                }
-
-                if (upgradeLevels[i] < lowestLevel)
-                {
-                    lowestLevel = upgradeLevels[i];
-                    bestIndex = i;
-                }
-            }
-
-            return bestIndex;
-        }
-
-        private bool CanBuySelectedUpgrade()
-        {
-            if (!firstFreeUpgradeClaimed && state == WalkingGameState.Result)
-            {
-                return true;
-            }
-
-            var kind = (WalkingUpgradeKind)Mathf.Clamp(selectedUpgradeIndex, 0, upgradeLevels.Length - 1);
-            return totalFish >= WalkingRules.UpgradeCost(kind, upgradeLevels[selectedUpgradeIndex]);
-        }
-
-        private bool TryPurchaseSelectedUpgrade()
-        {
-            selectedUpgradeIndex = Mathf.Clamp(selectedUpgradeIndex, 0, upgradeLevels.Length - 1);
-            var kind = (WalkingUpgradeKind)selectedUpgradeIndex;
-            var cost = WalkingRules.UpgradeCost(kind, upgradeLevels[selectedUpgradeIndex]);
-            var free = !firstFreeUpgradeClaimed;
-            if (!free && totalFish < cost)
-            {
-                offerPulse = 1f;
-                return false;
-            }
-
-            if (!free)
-            {
-                totalFish -= cost;
-            }
-            else
-            {
-                firstFreeUpgradeClaimed = true;
-                PlayerPrefs.SetInt(FirstFreeUpgradeKey, 1);
-            }
-
-            upgradeLevels[selectedUpgradeIndex]++;
-            PlayerPrefs.SetInt(TotalFishKey, totalFish);
-            PlayerPrefs.SetInt(UpgradeKeyPrefix + selectedUpgradeIndex, upgradeLevels[selectedUpgradeIndex]);
-            PlayerPrefs.Save();
-            offerPulse = 1f;
-            fishRewardPulse = 1f;
-            PlayReward(true);
-            LogGameEvent(
-                "upgrade_purchase",
-                new Dictionary<string, string>
-                {
-                    { "upgrade", kind.ToString() },
-                    { "level", upgradeLevels[selectedUpgradeIndex].ToString() },
-                    { "cost", free ? "free" : cost.ToString() }
-                });
-            selectedUpgradeIndex = NextAffordableOrRecommendedUpgradeIndex();
-            UpdateTelemetryContext();
-            return true;
-        }
-
-        private void ClaimRewardedOffer(string offer)
-        {
-            LogGameEvent("rewarded_offer_shown", new Dictionary<string, string> { { "offer", offer } });
-            if (offer == "2x_fish")
-            {
-                if (doubledFishThisResult || lastRunFish <= 0)
-                {
-                    offerPulse = 1f;
-                    return;
-                }
-
-                doubledFishThisResult = true;
-                AwardFish(lastRunFish, "rewarded_2x_fish");
-            }
-            else if (offer == "bonus_chest")
-            {
-                if (bonusChestClaimedThisResult)
-                {
-                    offerPulse = 1f;
-                    return;
-                }
-
-                bonusChestClaimedThisResult = true;
-                AwardFish(18 + Mathf.Min(20, currentRunNumber * 2), "rewarded_bonus_chest");
-            }
-
-            offerPulse = 1f;
-            LogGameEvent("rewarded_offer_completed", new Dictionary<string, string> { { "offer", offer } });
         }
 
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
@@ -2368,7 +1692,7 @@ namespace MannLab.Games.Walking
         private void TriggerCrashlyticsTest(string trigger)
         {
             FirebaseTelemetry.SetContext("crashlytics_test", trigger);
-            LogGameEvent(
+            FirebaseTelemetry.LogEvent(
                 "crashlytics_test_trigger",
                 new Dictionary<string, string>
                 {
@@ -2873,23 +2197,9 @@ namespace MannLab.Games.Walking
             DrawRing(CenteredRect(new Vector2(Screen.width * 0.5f, margin + topHeight * 0.5f), timerSize + 4f * scale, timerSize + 4f * scale), secondsLeft <= 5 ? new Color(Red.r, Red.g, Red.b, 0.62f + lastSecondsPulse * 0.18f) : new Color(Warm.r, Warm.g, Warm.b, 0.52f));
             GUI.Label(new Rect(margin + 20f * scale, margin + 6f * scale, 300f * scale, topHeight), $"{distanceMeters:0.0} m", hudStyle);
             GUI.Label(new Rect(Screen.width * 0.5f - 80f * scale, margin + 7f * scale, 160f * scale, topHeight), $"{secondsLeft}s", smallHudStyle);
-            GUI.Label(new Rect(Screen.width - margin - 230f * scale, margin + 3f * scale, 210f * scale, 30f * scale), $"FISH {runFish} / {totalFish}", guideStyle);
-            GUI.Label(new Rect(Screen.width - margin - 230f * scale, margin + 36f * scale, 210f * scale, 28f * scale), $"BEST {bestDistanceMeters:0.0}", guideStyle);
+            GUI.Label(new Rect(Screen.width - margin - 210f * scale, margin + 10f * scale, 190f * scale, topHeight), $"BEST {bestDistanceMeters:0.0}", guideStyle);
             DrawProgressDots(new Rect(margin + 22f * scale, margin + topHeight - 17f * scale, 156f * scale, 9f * scale), scale);
             DrawRhythmDots(new Rect(Screen.width * 0.5f - 46f * scale, margin + topHeight - 16f * scale, 92f * scale, 9f * scale), scale);
-
-            if (comboPulse > 0.04f && comboCount >= 3)
-            {
-                var comboWidth = 214f * scale;
-                var y = margin + topHeight + 18f * scale;
-                DrawGuiRect(new Rect(Screen.width * 0.5f - comboWidth * 0.5f, y, comboWidth, 34f * scale), new Color(Warm.r, Warm.g, Warm.b, 0.14f + comboPulse * 0.10f));
-                GUI.Label(new Rect(Screen.width * 0.5f - comboWidth * 0.5f, y - 2f * scale, comboWidth, 38f * scale), "Perfect Waddle", guideStyle);
-            }
-
-            if (assistPulse > 0.05f)
-            {
-                DrawRing(CenteredRect(new Vector2(Screen.width * 0.5f, Screen.height * 0.80f), (42f + assistPulse * 20f) * scale, (42f + assistPulse * 20f) * scale), new Color(Blue.r, Blue.g, Blue.b, 0.16f + assistPulse * 0.16f));
-            }
 
             if (state == WalkingGameState.Playing && (steps < 5 || leftFoot.NeedsReturn || rightFoot.NeedsReturn || leftFoot.Mode != InputMode.Idle || rightFoot.Mode != InputMode.Idle))
             {
@@ -2905,57 +2215,18 @@ namespace MannLab.Games.Walking
 
         private void DrawResultOverlay(float scale)
         {
-            selectedUpgradeIndex = NextAffordableOrRecommendedUpgradeIndex();
-            var panel = new Rect(Screen.width * 0.10f, Screen.height * 0.18f, Screen.width * 0.80f, Mathf.Min(Screen.height * 0.66f, 500f * scale));
+            var panel = new Rect(Screen.width * 0.14f, Screen.height * 0.235f, Screen.width * 0.72f, 292f * scale);
             DrawGuiRect(panel, new Color(1f, 0.99f, 0.96f, 0.90f));
             DrawGuiRect(new Rect(panel.x, panel.y, panel.width, 7f * scale), bestUpdatedThisRun ? new Color(Warm.r, Warm.g, Warm.b, 0.78f) : new Color(Blue.r, Blue.g, Blue.b, 0.34f));
-            GUI.Label(new Rect(panel.x, panel.y + 14f * scale, panel.width, 36f * scale), ResultRating(), titleStyle);
-            GUI.Label(new Rect(panel.x, panel.y + 54f * scale, panel.width, 64f * scale), $"+{lastRunFish} Fish", resultMetricStyle);
+            GUI.Label(new Rect(panel.x, panel.y + 18f * scale, panel.width, 42f * scale), ResultRating(), titleStyle);
+            GUI.Label(new Rect(panel.x, panel.y + 72f * scale, panel.width, 62f * scale), $"{distanceMeters:0.0} m", resultMetricStyle);
             var bestLine = bestUpdatedThisRun ? "NEW BEST" : $"BEST {bestDistanceMeters:0.0} m";
-            GUI.Label(new Rect(panel.x, panel.y + 116f * scale, panel.width, 28f * scale), bestLine, guideStyle);
+            GUI.Label(new Rect(panel.x, panel.y + 138f * scale, panel.width, 30f * scale), bestLine, guideStyle);
             var rhythmPercent = Mathf.RoundToInt(AverageRhythmQuality() * 100f);
-            GUI.Label(new Rect(panel.x, panel.y + 146f * scale, panel.width, 28f * scale), $"{distanceMeters:0.0} m  {steps} steps  {brokenIcebergs} ice  {rhythmPercent}% rhythm", resultDetailStyle);
-
-            var upgradeKind = (WalkingUpgradeKind)Mathf.Clamp(selectedUpgradeIndex, 0, upgradeLevels.Length - 1);
-            var upgradeLevel = upgradeLevels[selectedUpgradeIndex];
-            var cost = WalkingRules.UpgradeCost(upgradeKind, upgradeLevel);
-            var canBuy = CanBuySelectedUpgrade();
-            var free = !firstFreeUpgradeClaimed;
-            var upgradePanel = new Rect(panel.x + 30f * scale, panel.y + 188f * scale, panel.width - 60f * scale, 78f * scale);
-            DrawGuiRect(upgradePanel, canBuy ? new Color(Warm.r, Warm.g, Warm.b, 0.20f + offerPulse * 0.10f) : new Color(Blue.r, Blue.g, Blue.b, 0.09f));
-            GUI.Label(new Rect(upgradePanel.x + 12f * scale, upgradePanel.y + 4f * scale, upgradePanel.width * 0.56f, 30f * scale), UpgradeNames[selectedUpgradeIndex], guideStyle);
-            GUI.Label(new Rect(upgradePanel.x + 12f * scale, upgradePanel.y + 34f * scale, upgradePanel.width * 0.56f, 28f * scale), $"Lv {upgradeLevel}  {(free ? "FREE" : cost + " Fish")}", resultDetailStyle);
-            var upgradeButton = new Rect(upgradePanel.x + upgradePanel.width * 0.62f, upgradePanel.y + 14f * scale, upgradePanel.width * 0.33f, 48f * scale);
-            if (GUI.Button(upgradeButton, free ? "Free Up" : "Upgrade", buttonStyle))
+            GUI.Label(new Rect(panel.x, panel.y + 176f * scale, panel.width, 32f * scale), $"{steps} steps  {brokenIcebergs} ice  {reachedGoalMarkers} marks  {rhythmPercent}% rhythm", resultDetailStyle);
+            var buttonRect = new Rect(panel.x + panel.width * 0.28f, panel.y + panel.height - 66f * scale, panel.width * 0.44f, 50f * scale);
+            if (GUI.Button(buttonRect, "Restart", buttonStyle))
             {
-                TryPurchaseSelectedUpgrade();
-            }
-
-            GUI.Label(new Rect(panel.x + 30f * scale, panel.y + 266f * scale, panel.width - 60f * scale, 22f * scale), UpgradeLevelLine(), resultDetailStyle);
-
-            var offerY = panel.y + 284f * scale;
-            var offerWidth = (panel.width - 78f * scale) * 0.5f;
-            GUI.enabled = lastRunFish > 0 && !doubledFishThisResult;
-            if (GUI.Button(new Rect(panel.x + 30f * scale, offerY, offerWidth, 42f * scale), "2x Fish", buttonStyle))
-            {
-                ClaimRewardedOffer("2x_fish");
-            }
-
-            GUI.enabled = currentRunNumber >= 3 && !bonusChestClaimedThisResult;
-            if (GUI.Button(new Rect(panel.x + 48f * scale + offerWidth, offerY, offerWidth, 42f * scale), "Chest", buttonStyle))
-            {
-                ClaimRewardedOffer("bonus_chest");
-            }
-
-            GUI.enabled = true;
-            var buttonRect = new Rect(panel.x + panel.width * 0.26f, panel.y + panel.height - 62f * scale, panel.width * 0.48f, 50f * scale);
-            if (GUI.Button(buttonRect, "Next Run", buttonStyle))
-            {
-                if (!firstFreeUpgradeClaimed)
-                {
-                    TryPurchaseSelectedUpgrade();
-                }
-
                 ResetRun();
             }
         }
