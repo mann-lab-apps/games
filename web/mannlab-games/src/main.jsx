@@ -20,7 +20,7 @@ const games = [
     description: "두 엄지로 펭귄을 뒤뚱뒤뚱 멀리 보내는 터치 게임",
     route: "/thumbwaddle",
     aliases: ["/walking", "/sanchaek"],
-    embedHref: "/games/thumbwaddle/index.html?v=7b2974a2f2d0",
+    embedHref: "/games/thumbwaddle/index.html?v=dbe1ff40efca",
     available: true,
   },
   {

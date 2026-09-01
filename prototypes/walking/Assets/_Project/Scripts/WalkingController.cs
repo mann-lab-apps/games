@@ -139,6 +139,12 @@ namespace MannLab.Games.Walking
         private float obstacleBumpPulse;
         private float milestonePulse;
         private float bestPassPulse;
+        private float rhythmQuality;
+        private float rhythmPulse;
+        private float lastSuccessfulStepTime = -1f;
+        private float rhythmQualitySum;
+        private int rhythmSamples;
+        private int highRhythmSteps;
         private WalkingFootSide lastLandedSide = WalkingFootSide.Left;
         private float bodyLeanPulse;
         private float suppressMouseInputUntil;
@@ -207,11 +213,13 @@ namespace MannLab.Games.Walking
 
         private sealed class FieldObstacle
         {
-            public FieldObstacle(Vector2 center, float radius, Transform root, SpriteRenderer renderer)
+            public FieldObstacle(Vector2 center, float radius, WalkingObstacleKind kind, Transform root, SpriteRenderer renderer)
             {
                 Center = center;
                 Radius = radius;
                 BaseRadius = radius;
+                Kind = kind;
+                Durability = WalkingRules.ObstacleDurability(kind);
                 Root = root;
                 Renderer = renderer;
             }
@@ -219,6 +227,8 @@ namespace MannLab.Games.Walking
             public Vector2 Center { get; }
             public float Radius { get; set; }
             public float BaseRadius { get; }
+            public WalkingObstacleKind Kind { get; }
+            public int Durability { get; }
             public Transform Root { get; }
             public SpriteRenderer Renderer { get; }
             public int Hits { get; set; }
@@ -284,6 +294,12 @@ namespace MannLab.Games.Walking
             obstacleBumpPulse = Mathf.MoveTowards(obstacleBumpPulse, 0f, Time.deltaTime * 3.2f);
             milestonePulse = Mathf.MoveTowards(milestonePulse, 0f, Time.deltaTime * 3.4f);
             bestPassPulse = Mathf.MoveTowards(bestPassPulse, 0f, Time.deltaTime * 2.4f);
+            rhythmPulse = Mathf.MoveTowards(rhythmPulse, 0f, Time.deltaTime * 2.8f);
+            if (state == WalkingGameState.Playing && lastSuccessfulStepTime > 0f && Time.time - lastSuccessfulStepTime > 1.35f)
+            {
+                rhythmQuality = Mathf.MoveTowards(rhythmQuality, 0f, Time.deltaTime * 0.22f);
+            }
+
             bodyLeanPulse = Mathf.MoveTowards(bodyLeanPulse, 0f, Time.deltaTime * 3.2f);
             leftFoot.StatusPulse = Mathf.MoveTowards(leftFoot.StatusPulse, 0f, Time.deltaTime * 4f);
             rightFoot.StatusPulse = Mathf.MoveTowards(rightFoot.StatusPulse, 0f, Time.deltaTime * 4f);
@@ -329,6 +345,12 @@ namespace MannLab.Games.Walking
             obstacleBumpPulse = 0f;
             milestonePulse = 0f;
             bestPassPulse = 0f;
+            rhythmQuality = 0f;
+            rhythmPulse = 0f;
+            lastSuccessfulStepTime = -1f;
+            rhythmQualitySum = 0f;
+            rhythmSamples = 0;
+            highRhythmSteps = 0;
             bodyLeanPulse = 0f;
             lastLandedSide = WalkingFootSide.Left;
             ClearStepStamps();
@@ -657,21 +679,40 @@ namespace MannLab.Games.Walking
                 }
 
                 var radius = RandomRange(random, 0.42f, 0.82f);
+                var kind = WalkingRules.ObstacleKindFor(radius, (float)random.NextDouble());
+                if (z < 45f && kind == WalkingObstacleKind.Iceberg)
+                {
+                    kind = WalkingObstacleKind.SmallIceberg;
+                    radius = Mathf.Min(radius, 0.58f);
+                }
+
+                if (z > 118f && kind == WalkingObstacleKind.LowShard)
+                {
+                    kind = WalkingObstacleKind.SmallIceberg;
+                }
+
                 var center = new Vector2(x, z);
-                var width = radius * RandomRange(random, 1.95f, 2.85f);
-                var depth = radius * RandomRange(random, 1.65f, 2.35f);
+                var roleScale = kind == WalkingObstacleKind.LowShard ? 0.72f : kind == WalkingObstacleKind.SmallIceberg ? 0.86f : 1f;
+                var width = radius * RandomRange(random, 1.95f, 2.85f) * roleScale;
+                var depth = radius * RandomRange(random, 1.65f, 2.35f) * roleScale;
                 var obstacleRoot = CreateIcebergObstacle(
                     center,
                     width,
                     depth,
-                    RandomRange(random, 1.12f, 1.58f),
+                    RandomRange(random, 1.12f, 1.58f) * roleScale,
                     RandomRange(random, -18f, 18f),
                     obstacleShadowMaterial,
                     obstacleMaterial,
                     obstacleTopMaterial,
                     obstacleStrokeMaterial,
                     random);
-                fieldObstacles.Add(new FieldObstacle(center, radius, obstacleRoot, obstacleRoot.GetComponentInChildren<SpriteRenderer>()));
+                var renderer = obstacleRoot.GetComponentInChildren<SpriteRenderer>();
+                if (renderer != null)
+                {
+                    renderer.color = ObstacleTint(kind);
+                }
+
+                fieldObstacles.Add(new FieldObstacle(center, radius * roleScale, kind, obstacleRoot, renderer));
             }
         }
 
@@ -1090,6 +1131,7 @@ namespace MannLab.Games.Walking
             var foot = side == WalkingFootSide.Left ? leftFoot : rightFoot;
             if (foot.Mode != InputMode.Idle)
             {
+                RegisterRhythmBreak(0.08f);
                 return;
             }
 
@@ -1104,6 +1146,11 @@ namespace MannLab.Games.Walking
                     ? InputMode.Return
                     : InputMode.Ignored;
                 foot.StatusPulse = 1f;
+                if (foot.Mode == InputMode.Ignored)
+                {
+                    RegisterRhythmBreak(0.14f);
+                }
+
                 return;
             }
 
@@ -1213,6 +1260,7 @@ namespace MannLab.Games.Walking
 
                 invalidPulse = foot.Candidate.Reason == "obstacle" ? 0.55f : 1f;
                 foot.StatusPulse = 1f;
+                RegisterRhythmBreak(foot.Candidate.Reason == "obstacle" ? 0.16f : 0.28f);
                 PlayBump(0.35f);
                 return false;
             }
@@ -1231,6 +1279,7 @@ namespace MannLab.Games.Walking
                 {
                     invalidPulse = 0.58f;
                     foot.StatusPulse = 1f;
+                    RegisterRhythmBreak(0.20f);
                     PlayBump(0.45f);
                     return false;
                 }
@@ -1261,12 +1310,16 @@ namespace MannLab.Games.Walking
             var traveled = Vector2.Distance(oldBody, bodyPosition);
             distanceMeters += traveled;
             steps++;
+            var stepInterval = lastSuccessfulStepTime < 0f ? -1f : Time.time - lastSuccessfulStepTime;
+            var alternated = lastSuccessfulStepTime < 0f || foot.Side != lastLandedSide;
+            RegisterSuccessfulRhythm(alternated, stepInterval);
             CheckGoalProgress();
             foot.NeedsReturn = true;
             foot.StatusPulse = 1f;
             lastLandedSide = foot.Side;
+            lastSuccessfulStepTime = Time.time;
             bodyLeanPulse = 1f;
-            bobImpulse = Mathf.Min(1f, bobImpulse + stepBobStrength + Vector2.Distance(oldFoot, foot.Candidate.Position) * 0.04f);
+            bobImpulse = Mathf.Min(1f, bobImpulse + stepBobStrength + Vector2.Distance(oldFoot, foot.Candidate.Position) * 0.04f + rhythmQuality * 0.035f);
             CreateStepStamp(foot.Candidate.Position, foot.Side);
             PlayStep();
             UpdateTelemetryContext();
@@ -1278,10 +1331,29 @@ namespace MannLab.Games.Walking
                     { "distance_m", distanceMeters.ToString("0.0") },
                     { "step_m", traveled.ToString("0.00") },
                     { "steps", steps.ToString() },
+                    { "rhythm", rhythmQuality.ToString("0.00") },
                     { "time_remaining_s", Mathf.CeilToInt(runTimeRemaining).ToString() }
                 });
 
             return true;
+        }
+
+        private void RegisterSuccessfulRhythm(bool alternated, float stepInterval)
+        {
+            rhythmQuality = WalkingRules.RhythmQualityAfterStep(rhythmQuality, alternated, stepInterval);
+            rhythmPulse = Mathf.Max(rhythmPulse, alternated ? Mathf.Lerp(0.25f, 1f, rhythmQuality) : 0.18f);
+            rhythmQualitySum += rhythmQuality;
+            rhythmSamples++;
+            if (rhythmQuality >= 0.66f)
+            {
+                highRhythmSteps++;
+            }
+        }
+
+        private void RegisterRhythmBreak(float severity)
+        {
+            rhythmQuality = WalkingRules.RhythmQualityAfterBreak(rhythmQuality, severity);
+            rhythmPulse = Mathf.Max(rhythmPulse, 0.12f);
         }
 
         private void CheckGoalProgress()
@@ -1368,6 +1440,19 @@ namespace MannLab.Games.Walking
             return false;
         }
 
+        private static Color ObstacleTint(WalkingObstacleKind kind)
+        {
+            switch (kind)
+            {
+                case WalkingObstacleKind.LowShard:
+                    return new Color(0.84f, 0.96f, 1f, 0.78f);
+                case WalkingObstacleKind.SmallIceberg:
+                    return new Color(0.92f, 0.98f, 1f, 0.92f);
+                default:
+                    return Color.white;
+            }
+        }
+
         private bool DamageFieldObstacleAt(Vector2 center, float radius)
         {
             var index = FindTouchedFieldObstacle(center, radius);
@@ -1380,16 +1465,17 @@ namespace MannLab.Games.Walking
             obstacle.Hits++;
             obstacleBumpPulse = 1f;
             bodyLeanPulse = Mathf.Max(bodyLeanPulse, 0.62f);
-            var cleared = obstacle.Hits >= 3;
-            obstacle.Radius = cleared ? 0f : obstacle.BaseRadius * GetIcebergCollisionScale(obstacle.Hits);
+            var cleared = obstacle.Hits >= obstacle.Durability;
+            obstacle.Radius = cleared ? 0f : obstacle.BaseRadius * WalkingRules.ObstacleCollisionScale(obstacle.Kind, obstacle.Hits);
             if (obstacle.Root != null)
             {
-                var visualScale = GetIcebergVisualScale(obstacle.Hits);
+                var visualScale = WalkingRules.ObstacleVisualScale(obstacle.Kind, obstacle.Hits);
                 if (cleared)
                 {
                     if (obstacle.Renderer != null)
                     {
                         obstacle.Renderer.sprite = icebergBrokenSprite ?? icebergCrackedTwoSprite ?? icebergCrackedOneSprite ?? icebergIntactSprite;
+                        obstacle.Renderer.color = Color.Lerp(ObstacleTint(obstacle.Kind), Paper, 0.08f);
                     }
 
                     obstacle.Root.localScale = Vector3.one * visualScale;
@@ -1403,6 +1489,7 @@ namespace MannLab.Games.Walking
                     var wobble = obstacle.Hits % 2 == 0 ? -4f : 4f;
                     obstacle.Root.localScale = Vector3.one * visualScale;
                     obstacle.Root.localRotation *= Quaternion.Euler(0f, wobble, 0f);
+                    obstacle.Renderer.color = Color.Lerp(ObstacleTint(obstacle.Kind), Warm, obstacle.Kind == WalkingObstacleKind.LowShard ? 0.10f : 0.04f * obstacle.Hits);
                 }
                 else
                 {
@@ -1417,6 +1504,7 @@ namespace MannLab.Games.Walking
                 fieldObstacles.RemoveAt(index);
                 brokenIcebergs++;
                 CreateIceChipBurst(obstacle.Center);
+                rhythmPulse = Mathf.Max(rhythmPulse, 0.45f);
                 FirebaseTelemetry.LogEvent(
                     "obstacle_chip",
                     new Dictionary<string, string>
@@ -1438,26 +1526,6 @@ namespace MannLab.Games.Walking
                     { "distance_m", distanceMeters.ToString("0.0") }
                 });
             return false;
-        }
-
-        private static float GetIcebergVisualScale(int hits)
-        {
-            if (hits <= 0)
-            {
-                return 1f;
-            }
-
-            return hits == 1 ? 0.84f : hits == 2 ? 0.68f : 0.46f;
-        }
-
-        private static float GetIcebergCollisionScale(int hits)
-        {
-            if (hits <= 0)
-            {
-                return 1f;
-            }
-
-            return hits == 1 ? 0.56f : 0.24f;
         }
 
         private int FindTouchedFieldObstacle(Vector2 center, float radius)
@@ -1511,6 +1579,8 @@ namespace MannLab.Games.Walking
                     { "duration_s", Mathf.RoundToInt(runDurationSeconds).ToString() },
                     { "broken_icebergs", brokenIcebergs.ToString() },
                     { "goal_markers", reachedGoalMarkers.ToString() },
+                    { "rhythm", AverageRhythmQuality().ToString("0.00") },
+                    { "high_rhythm_steps", highRhythmSteps.ToString() },
                     { "new_best", bestUpdatedThisRun ? "true" : "false" },
                     { "obstacles_remaining", CountRemainingObstacles().ToString() }
                 });
@@ -1552,6 +1622,7 @@ namespace MannLab.Games.Walking
             FirebaseTelemetry.SetContext("time_remaining_s", Mathf.CeilToInt(runTimeRemaining).ToString());
             FirebaseTelemetry.SetContext("obstacles_remaining", CountRemainingObstacles().ToString());
             FirebaseTelemetry.SetContext("goal_markers", reachedGoalMarkers.ToString());
+            FirebaseTelemetry.SetContext("rhythm", rhythmQuality.ToString("0.00"));
             FirebaseTelemetry.SetContext("state", state.ToString());
         }
 
@@ -1677,7 +1748,8 @@ namespace MannLab.Games.Walking
                 return;
             }
 
-            var moveT = snap ? 1f : 1f - Mathf.Exp(-cameraMoveLerp * Time.deltaTime);
+            var flow = state == WalkingGameState.Playing ? rhythmQuality : 0f;
+            var moveT = snap ? 1f : 1f - Mathf.Exp((-(cameraMoveLerp + flow * 1.2f)) * Time.deltaTime);
             cameraBodyPosition = Vector2.Lerp(cameraBodyPosition, visualBodyPosition, moveT);
             var bob = Mathf.Sin((1f - bobImpulse) * Mathf.PI) * bobImpulse;
             var forward3 = new Vector3(visualFacing.x, 0f, visualFacing.y);
@@ -1688,8 +1760,8 @@ namespace MannLab.Games.Walking
 
             forward3.Normalize();
             var basePosition = new Vector3(cameraBodyPosition.x, 0f, cameraBodyPosition.y);
-            var targetPosition = basePosition - forward3 * thirdPersonDistance + Vector3.up * (thirdPersonHeight + bob * 0.42f);
-            var lookTarget = basePosition + forward3 * thirdPersonLookAhead + Vector3.up * Mathf.Max(0.82f, eyeHeight * 0.54f);
+            var targetPosition = basePosition - forward3 * (thirdPersonDistance + flow * 0.10f) + Vector3.up * (thirdPersonHeight + bob * (0.42f + flow * 0.10f));
+            var lookTarget = basePosition + forward3 * (thirdPersonLookAhead + flow * 0.24f) + Vector3.up * Mathf.Max(0.82f, eyeHeight * 0.54f);
             gameCamera.transform.position = targetPosition;
 
             var targetRotation = Quaternion.LookRotation((lookTarget - targetPosition).normalized, Vector3.up);
@@ -1789,9 +1861,9 @@ namespace MannLab.Games.Walking
             var forward3 = new Vector3(visualFacing.x, 0f, visualFacing.y);
             var targetRotation = Quaternion.LookRotation(forward3, Vector3.up);
             var rootTarget = new Vector3(visualBodyPosition.x, 0f, visualBodyPosition.y);
-            var bodyBob = Mathf.Sin((1f - bobImpulse) * Mathf.PI) * bobImpulse * 0.14f;
+            var bodyBob = Mathf.Sin((1f - bobImpulse) * Mathf.PI) * bobImpulse * Mathf.Lerp(0.14f, 0.20f, rhythmQuality);
             var landedSide = lastLandedSide == WalkingFootSide.Left ? -1f : 1f;
-            var lean = landedSide * bodyLeanPulse;
+            var lean = landedSide * bodyLeanPulse * Mathf.Lerp(1f, 1.18f, rhythmQuality);
 
             playerRoot.position = rootTarget;
             playerRoot.rotation = targetRotation;
@@ -1886,9 +1958,10 @@ namespace MannLab.Games.Walking
             }
 
             var hop = Mathf.Sin((1f - celebrate) * Mathf.PI) * celebrate * 0.08f;
-            spriteTransform.localPosition = new Vector3(lean * 0.035f + wobble, 0.74f + bodyBob * 0.75f - bodyLeanPulse * 0.025f + hop, -0.03f);
-            spriteTransform.localRotation = Quaternion.Euler(0f, 180f, -lean * 5f - wobble * 120f);
-            spriteTransform.localScale = Vector3.one * (1.04f + bodyLeanPulse * 0.045f + celebrate * 0.055f);
+            var rhythmHop = Mathf.Sin(Time.time * 10.5f) * rhythmQuality * Mathf.Clamp01(rhythmPulse + bodyLeanPulse) * 0.018f;
+            spriteTransform.localPosition = new Vector3(lean * 0.035f + wobble, 0.74f + bodyBob * 0.75f - bodyLeanPulse * 0.025f + hop + rhythmHop, -0.03f);
+            spriteTransform.localRotation = Quaternion.Euler(0f, 180f, -lean * (5f + rhythmQuality * 1.8f) - wobble * 120f);
+            spriteTransform.localScale = Vector3.one * (1.04f + bodyLeanPulse * 0.045f + celebrate * 0.055f + rhythmQuality * rhythmPulse * 0.025f);
         }
 
         private static void SetAvatarFoot(Transform foot, Vector2 position, float pulse, Quaternion rotation, bool snap)
@@ -2099,7 +2172,7 @@ namespace MannLab.Games.Walking
 
             var aheadOfBestPace = IsAheadOfBestPace();
             var hudTint = aheadOfBestPace
-                ? new Color(Warm.r, Warm.g, Warm.b, 0.13f + bestPassPulse * 0.12f)
+                ? new Color(Warm.r, Warm.g, Warm.b, 0.13f + bestPassPulse * 0.12f + rhythmQuality * 0.055f)
                 : new Color(Blue.r, Blue.g, Blue.b, 0.10f);
             DrawGuiRect(new Rect(margin, margin, Screen.width - margin * 2f, topHeight), new Color(1f, 0.99f, 0.96f, 0.72f));
             DrawGuiRect(new Rect(margin, margin, Screen.width - margin * 2f, topHeight), hudTint);
@@ -2113,6 +2186,7 @@ namespace MannLab.Games.Walking
             GUI.Label(new Rect(Screen.width * 0.5f - 80f * scale, margin + 7f * scale, 160f * scale, topHeight), $"{secondsLeft}s", smallHudStyle);
             GUI.Label(new Rect(Screen.width - margin - 210f * scale, margin + 10f * scale, 190f * scale, topHeight), $"BEST {bestDistanceMeters:0.0}", guideStyle);
             DrawProgressDots(new Rect(margin + 22f * scale, margin + topHeight - 17f * scale, 156f * scale, 9f * scale), scale);
+            DrawRhythmDots(new Rect(Screen.width * 0.5f - 46f * scale, margin + topHeight - 16f * scale, 92f * scale, 9f * scale), scale);
 
             if (state == WalkingGameState.Playing && (steps < 5 || leftFoot.NeedsReturn || rightFoot.NeedsReturn || leftFoot.Mode != InputMode.Idle || rightFoot.Mode != InputMode.Idle))
             {
@@ -2135,7 +2209,8 @@ namespace MannLab.Games.Walking
             GUI.Label(new Rect(panel.x, panel.y + 72f * scale, panel.width, 62f * scale), $"{distanceMeters:0.0} m", resultMetricStyle);
             var bestLine = bestUpdatedThisRun ? "NEW BEST" : $"BEST {bestDistanceMeters:0.0} m";
             GUI.Label(new Rect(panel.x, panel.y + 138f * scale, panel.width, 30f * scale), bestLine, guideStyle);
-            GUI.Label(new Rect(panel.x, panel.y + 176f * scale, panel.width, 32f * scale), $"{steps} steps  {brokenIcebergs} ice  {reachedGoalMarkers} flags", resultDetailStyle);
+            var rhythmPercent = Mathf.RoundToInt(AverageRhythmQuality() * 100f);
+            GUI.Label(new Rect(panel.x, panel.y + 176f * scale, panel.width, 32f * scale), $"{steps} steps  {brokenIcebergs} ice  {reachedGoalMarkers} flags  {rhythmPercent}% rhythm", resultDetailStyle);
             var buttonRect = new Rect(panel.x + panel.width * 0.28f, panel.y + panel.height - 66f * scale, panel.width * 0.44f, 50f * scale);
             if (GUI.Button(buttonRect, "Restart", buttonStyle))
             {
@@ -2162,6 +2237,21 @@ namespace MannLab.Games.Walking
                 return "Best Waddle!";
             }
 
+            if (bestDistanceAtRunStart > 1f && distanceMeters >= bestDistanceAtRunStart * 0.88f)
+            {
+                return "Close Call";
+            }
+
+            if (brokenIcebergs >= 4)
+            {
+                return "Ice Breaker";
+            }
+
+            if (AverageRhythmQuality() >= 0.58f || highRhythmSteps >= Mathf.Max(4, steps / 2))
+            {
+                return "Steady Waddle";
+            }
+
             if (distanceMeters >= 75f)
             {
                 return "Long March";
@@ -2173,6 +2263,11 @@ namespace MannLab.Games.Walking
             }
 
             return "Tiny Waddle";
+        }
+
+        private float AverageRhythmQuality()
+        {
+            return rhythmSamples <= 0 ? 0f : Mathf.Clamp01(rhythmQualitySum / rhythmSamples);
         }
 
         private void DrawProgressDots(Rect rect, float scale)
@@ -2190,6 +2285,23 @@ namespace MannLab.Games.Walking
                     ? new Color(Warm.r, Warm.g, Warm.b, 0.78f)
                     : new Color(Ink.r, Ink.g, Ink.b, 0.18f);
                 DrawCircle(CenteredRect(new Vector2(rect.x + gap * i, rect.center.y), 7f * scale, 7f * scale), color);
+            }
+        }
+
+        private void DrawRhythmDots(Rect rect, float scale)
+        {
+            const int dotCount = 4;
+            var filled = Mathf.CeilToInt(rhythmQuality * dotCount - 0.02f);
+            var gap = rect.width / Mathf.Max(1, dotCount - 1);
+            for (var i = 0; i < dotCount; i++)
+            {
+                var active = i < filled;
+                var pulse = active && i == filled - 1 ? rhythmPulse * 0.35f : 0f;
+                var size = (active ? 7f + pulse * 4f : 5f) * scale;
+                var color = active
+                    ? new Color(Warm.r, Warm.g, Warm.b, 0.56f + pulse * 0.28f)
+                    : new Color(Ink.r, Ink.g, Ink.b, 0.12f);
+                DrawCircle(CenteredRect(new Vector2(rect.x + gap * i, rect.center.y), size, size), color);
             }
         }
 
@@ -2637,7 +2749,10 @@ namespace MannLab.Games.Walking
         {
             if (audioSource != null && stepClip != null)
             {
-                audioSource.PlayOneShot(stepClip, 0.34f);
+                var previousPitch = audioSource.pitch;
+                audioSource.pitch = Mathf.Lerp(1f, 1.16f, rhythmQuality);
+                audioSource.PlayOneShot(stepClip, Mathf.Lerp(0.30f, 0.42f, rhythmQuality));
+                audioSource.pitch = previousPitch;
             }
         }
 

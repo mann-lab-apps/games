@@ -225,6 +225,39 @@ public static class VerifyWalkingRules
             return Fail("Warmup center lane rejected distance/lateral bounds incorrectly.");
         }
 
+        var rhythm = WalkingRules.RhythmQualityAfterStep(0.1f, true, 0.62f);
+        if (rhythm <= 0.35f)
+        {
+            return Fail("Alternating on-beat step did not raise rhythm quality.");
+        }
+
+        var repeatedRhythm = WalkingRules.RhythmQualityAfterStep(rhythm, false, 0.62f);
+        if (repeatedRhythm >= rhythm)
+        {
+            return Fail("Repeated same-side step did not lower rhythm quality.");
+        }
+
+        var brokenRhythm = WalkingRules.RhythmQualityAfterBreak(rhythm, 0.6f);
+        if (brokenRhythm >= rhythm)
+        {
+            return Fail("Invalid input did not lower rhythm quality.");
+        }
+
+        if (WalkingRules.ObstacleDurability(WalkingObstacleKind.LowShard) != 1)
+        {
+            return Fail("Low ice shard durability should be one hit.");
+        }
+
+        if (WalkingRules.ObstacleDurability(WalkingObstacleKind.SmallIceberg) >= WalkingRules.ObstacleDurability(WalkingObstacleKind.Iceberg))
+        {
+            return Fail("Small icebergs should be easier to break than normal icebergs.");
+        }
+
+        if (WalkingRules.ObstacleCollisionScale(WalkingObstacleKind.SmallIceberg, 1) >= WalkingRules.ObstacleCollisionScale(WalkingObstacleKind.Iceberg, 1))
+        {
+            return Fail("Small iceberg collision should shrink faster than normal iceberg collision.");
+        }
+
         Console.WriteLine("Walking rules verified.");
         return 0;
     }

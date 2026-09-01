@@ -15,6 +15,13 @@ namespace MannLab.Games.Walking
         Right
     }
 
+    public enum WalkingObstacleKind
+    {
+        SmallIceberg,
+        Iceberg,
+        LowShard
+    }
+
     public readonly struct WalkingFootPlacement
     {
         public WalkingFootPlacement(Vector2 position, bool isValid, string reason)
@@ -178,6 +185,92 @@ namespace MannLab.Games.Walking
         public static bool IsWarmupCenterLane(float forwardDistance, float lateralDistance)
         {
             return forwardDistance < 40f && Mathf.Abs(lateralDistance) < 2.2f;
+        }
+
+        public static float RhythmQualityAfterStep(float currentQuality, bool alternated, float secondsSincePreviousStep)
+        {
+            var current = Mathf.Clamp01(currentQuality);
+            var timing = secondsSincePreviousStep < 0f
+                ? 0.55f
+                : Mathf.InverseLerp(1.20f, 0.32f, Mathf.Abs(secondsSincePreviousStep - 0.62f) + 0.32f);
+            var target = alternated ? Mathf.Lerp(0.52f, 1f, timing) : 0.18f;
+            return Mathf.Clamp01(Mathf.Lerp(current, target, alternated ? 0.42f : 0.58f));
+        }
+
+        public static float RhythmQualityAfterBreak(float currentQuality, float severity)
+        {
+            return Mathf.Clamp01(currentQuality - Mathf.Clamp01(severity) * 0.34f);
+        }
+
+        public static WalkingObstacleKind ObstacleKindFor(float radius, float roll)
+        {
+            if (roll < 0.20f)
+            {
+                return WalkingObstacleKind.LowShard;
+            }
+
+            return radius < 0.56f || roll < 0.48f
+                ? WalkingObstacleKind.SmallIceberg
+                : WalkingObstacleKind.Iceberg;
+        }
+
+        public static int ObstacleDurability(WalkingObstacleKind kind)
+        {
+            switch (kind)
+            {
+                case WalkingObstacleKind.LowShard:
+                    return 1;
+                case WalkingObstacleKind.SmallIceberg:
+                    return 2;
+                default:
+                    return 3;
+            }
+        }
+
+        public static float ObstacleCollisionScale(WalkingObstacleKind kind, int hits)
+        {
+            if (hits <= 0)
+            {
+                return 1f;
+            }
+
+            if (hits >= ObstacleDurability(kind))
+            {
+                return 0f;
+            }
+
+            switch (kind)
+            {
+                case WalkingObstacleKind.LowShard:
+                    return 0f;
+                case WalkingObstacleKind.SmallIceberg:
+                    return 0.30f;
+                default:
+                    return hits == 1 ? 0.56f : 0.24f;
+            }
+        }
+
+        public static float ObstacleVisualScale(WalkingObstacleKind kind, int hits)
+        {
+            if (hits <= 0)
+            {
+                return kind == WalkingObstacleKind.LowShard ? 0.72f : 1f;
+            }
+
+            if (hits >= ObstacleDurability(kind))
+            {
+                return kind == WalkingObstacleKind.LowShard ? 0.34f : 0.46f;
+            }
+
+            switch (kind)
+            {
+                case WalkingObstacleKind.LowShard:
+                    return 0.34f;
+                case WalkingObstacleKind.SmallIceberg:
+                    return 0.62f;
+                default:
+                    return hits == 1 ? 0.84f : 0.68f;
+            }
         }
 
         public static WalkingFootSide FootSideForScreenPosition(Vector2 screenPosition, Vector2 screenSize)
