@@ -405,7 +405,6 @@ namespace MannLab.Games.Walking
             var fieldCenterZ = openFieldLength * 0.5f;
             fieldObstacles.Clear();
             scenicBillboards.Clear();
-            BuildCameraBackdrop();
 
             if (iceFieldTexture != null)
             {
@@ -472,7 +471,7 @@ namespace MannLab.Games.Walking
             var decorRoot = new GameObject("Thumbwaddle Field Dressing").transform;
             decorRoot.SetParent(worldRoot, false);
 
-            for (var i = 0; i < 24; i++)
+            for (var i = 0; i < 10; i++)
             {
                 var sprite = i % 3 == 0 ? iceFloeSprite : snowPuffSprite;
                 if (sprite == null)
@@ -489,7 +488,7 @@ namespace MannLab.Games.Walking
 
                 var renderer = CreateWorldSprite("Sketch Snow Field Detail", sprite, decorRoot, -1);
                 renderer.transform.position = new Vector3(x, RandomRange(random, 0.07f, 0.22f), z);
-                renderer.transform.localScale = Vector3.one * RandomRange(random, 0.45f, 1.25f);
+                renderer.transform.localScale = Vector3.one * RandomRange(random, 0.34f, 0.82f);
                 scenicBillboards.Add(renderer);
             }
         }
@@ -1772,8 +1771,8 @@ namespace MannLab.Games.Walking
             stepText.text = state == WalkingGameState.Playing ? steps.ToString() : string.Empty;
 
             var ready = state == WalkingGameState.Ready;
-            titleText.gameObject.SetActive(ready);
-            hintText.gameObject.SetActive(ready);
+            titleText.gameObject.SetActive(false);
+            hintText.gameObject.SetActive(false);
             titleText.text = "Thumbwaddle";
             hintText.text = string.Empty;
 
@@ -1796,24 +1795,29 @@ namespace MannLab.Games.Walking
             var scale = Mathf.Clamp(Screen.width / 720f, 0.8f, 1.55f);
             var margin = 22f * scale;
             var topHeight = 68f * scale;
-            if (state != WalkingGameState.Result)
+            if (state == WalkingGameState.Playing)
             {
-                DrawInputGuide(scale, state == WalkingGameState.Ready || steps < 8 || leftFoot.NeedsReturn || rightFoot.NeedsReturn);
+                DrawInputGuide(scale, steps < 5 || leftFoot.NeedsReturn || rightFoot.NeedsReturn);
             }
-
-            DrawGuiRect(new Rect(margin, margin, Screen.width - margin * 2f, topHeight), new Color(1f, 0.99f, 0.96f, 0.82f));
-            GUI.Label(new Rect(margin + 18f * scale, margin + 12f * scale, 240f * scale, topHeight), $"{distanceMeters:0.0} m", hudStyle);
-            GUI.Label(new Rect(Screen.width * 0.5f - 64f * scale, margin + 12f * scale, 128f * scale, topHeight), $"{Mathf.CeilToInt(runTimeRemaining)}s", smallHudStyle);
-            GUI.Label(new Rect(Screen.width - margin - 180f * scale, margin + 12f * scale, 160f * scale, topHeight), $"{bestDistanceMeters:0.0} m", smallHudStyle);
-
-            DrawFootSignal(leftFoot, new Rect(margin, Screen.height - 90f * scale, 108f * scale, 54f * scale), scale);
-            DrawFootSignal(rightFoot, new Rect(Screen.width - margin - 108f * scale, Screen.height - 90f * scale, 108f * scale, 54f * scale), scale);
 
             if (state == WalkingGameState.Ready)
             {
                 DrawReadyCoach(scale);
+                return;
             }
-            else if (state == WalkingGameState.Result)
+
+            DrawGuiRect(new Rect(margin, margin, Screen.width - margin * 2f, topHeight), new Color(1f, 0.99f, 0.96f, 0.72f));
+            GUI.Label(new Rect(margin + 18f * scale, margin + 12f * scale, 240f * scale, topHeight), $"{distanceMeters:0.0} m", hudStyle);
+            GUI.Label(new Rect(Screen.width * 0.5f - 64f * scale, margin + 12f * scale, 128f * scale, topHeight), $"{Mathf.CeilToInt(runTimeRemaining)}s", smallHudStyle);
+            GUI.Label(new Rect(Screen.width - margin - 180f * scale, margin + 12f * scale, 160f * scale, topHeight), $"{bestDistanceMeters:0.0} m", smallHudStyle);
+
+            if (state == WalkingGameState.Playing && (steps < 5 || leftFoot.NeedsReturn || rightFoot.NeedsReturn || leftFoot.Mode != InputMode.Idle || rightFoot.Mode != InputMode.Idle))
+            {
+                DrawFootSignal(leftFoot, new Rect(margin, Screen.height - 82f * scale, 88f * scale, 42f * scale), scale * 0.82f);
+                DrawFootSignal(rightFoot, new Rect(Screen.width - margin - 88f * scale, Screen.height - 82f * scale, 88f * scale, 42f * scale), scale * 0.82f);
+            }
+
+            if (state == WalkingGameState.Result)
             {
                 var bestLine = bestUpdatedThisRun ? "New Best!" : $"Best {bestDistanceMeters:0.0} m";
                 DrawGuiRect(new Rect(Screen.width * 0.16f, Screen.height * 0.25f, Screen.width * 0.68f, 280f * scale), new Color(1f, 0.99f, 0.96f, 0.9f));
@@ -1839,10 +1843,18 @@ namespace MannLab.Games.Walking
                 ? new Color(Blue.r, Blue.g, Blue.b, 0.12f)
                 : new Color(Blue.r, Blue.g, Blue.b, 0.045f);
 
-            DrawGuiRect(new Rect(0f, returnTop, Screen.width * 0.5f, lowHeight), leftLowColor);
-            DrawGuiRect(new Rect(Screen.width * 0.5f, returnTop, Screen.width * 0.5f, lowHeight), rightLowColor);
-            DrawGuiRect(new Rect(Screen.width * 0.5f - 1f * scale, splitTop, 2f * scale, Screen.height - splitTop), new Color(Ink.r, Ink.g, Ink.b, 0.08f));
-            DrawGuiRect(new Rect(0f, returnTop, Screen.width, 2f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.08f));
+            if (leftLowActive)
+            {
+                DrawGuiRect(new Rect(0f, returnTop, Screen.width * 0.5f, lowHeight), leftLowColor);
+            }
+
+            if (rightLowActive)
+            {
+                DrawGuiRect(new Rect(Screen.width * 0.5f, returnTop, Screen.width * 0.5f, lowHeight), rightLowColor);
+            }
+
+            DrawGuiRect(new Rect(Screen.width * 0.5f - 1f * scale, splitTop, 2f * scale, Screen.height - splitTop), new Color(Ink.r, Ink.g, Ink.b, 0.035f));
+            DrawGuiRect(new Rect(0f, returnTop, Screen.width, 2f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.035f));
 
             var suggestedSide = steps % 2 == 0 ? WalkingFootSide.Left : WalkingFootSide.Right;
             DrawTouchGlyph(leftFoot, new Rect(0f, splitTop, Screen.width * 0.5f, returnTop - splitTop), true, showLabels && suggestedSide == WalkingFootSide.Left && !leftFoot.NeedsReturn, scale);
@@ -1889,13 +1901,12 @@ namespace MannLab.Games.Walking
 
         private void DrawReadyCoach(float scale)
         {
-            var panel = new Rect(Screen.width * 0.10f, Screen.height * 0.18f, Screen.width * 0.80f, Screen.height * 0.42f);
-            DrawGuiRect(panel, new Color(1f, 0.99f, 0.96f, 0.9f));
-            GUI.Label(new Rect(panel.x + 18f * scale, panel.y + 8f * scale, panel.width - 36f * scale, 34f * scale), "Thumbwaddle", guideStyle);
+            var panel = new Rect(Screen.width * 0.24f, Screen.height * 0.70f, Screen.width * 0.52f, 116f * scale);
+            DrawGuiRect(panel, new Color(1f, 0.99f, 0.96f, 0.46f));
 
-            var gap = 18f * scale;
-            var laneTop = panel.y + 48f * scale;
-            var laneHeight = panel.height - 66f * scale;
+            var gap = 16f * scale;
+            var laneTop = panel.y + 10f * scale;
+            var laneHeight = panel.height - 20f * scale;
             var laneWidth = (panel.width - gap * 3f) * 0.5f;
             var leftLane = new Rect(panel.x + gap, laneTop, laneWidth, laneHeight);
             var rightLane = new Rect(panel.x + gap * 2f + laneWidth, laneTop, laneWidth, laneHeight);
@@ -1905,17 +1916,15 @@ namespace MannLab.Games.Walking
 
         private void DrawThumbLoop(Rect lane, WalkingFootSide side, float phaseOffset, float scale)
         {
-            DrawGuiRect(lane, new Color(Ink.r, Ink.g, Ink.b, 0.045f));
-
-            var topCenter = new Vector2(lane.center.x, lane.y + 55f * scale);
-            var bottomCenter = new Vector2(lane.center.x, lane.yMax - 48f * scale);
+            var topCenter = new Vector2(lane.center.x, lane.y + 31f * scale);
+            var bottomCenter = new Vector2(lane.center.x, lane.yMax - 22f * scale);
             var loop = Mathf.Repeat(Time.unscaledTime * 0.82f + phaseOffset, 1f);
             var stampPulse = loop < 0.28f ? 1f - loop / 0.28f : Mathf.Clamp01(1f - (loop - 0.28f) / 0.52f);
             var pocketPulse = loop > 0.34f && loop < 0.78f ? Pulse01((loop - 0.34f) * 2.2f) : 0.15f;
 
-            DrawRing(CenteredRect(topCenter, (52f + stampPulse * 18f) * scale, (52f + stampPulse * 18f) * scale), new Color(Warm.r, Warm.g, Warm.b, 0.34f + stampPulse * 0.36f));
-            DrawFootprint(topCenter, side, scale * (0.86f + stampPulse * 0.12f), new Color(Warm.r, Warm.g, Warm.b, 0.34f + stampPulse * 0.48f));
-            DrawReturnPocket(bottomCenter, 94f * scale, 28f * scale, 5f * scale, new Color(Blue.r, Blue.g, Blue.b, 0.30f + pocketPulse * 0.28f));
+            DrawRing(CenteredRect(topCenter, (34f + stampPulse * 10f) * scale, (34f + stampPulse * 10f) * scale), new Color(Warm.r, Warm.g, Warm.b, 0.28f + stampPulse * 0.26f));
+            DrawFootprint(topCenter, side, scale * (0.58f + stampPulse * 0.08f), new Color(Warm.r, Warm.g, Warm.b, 0.30f + stampPulse * 0.35f));
+            DrawReturnPocket(bottomCenter, 72f * scale, 18f * scale, 4f * scale, new Color(Blue.r, Blue.g, Blue.b, 0.24f + pocketPulse * 0.22f));
 
             if (loop >= 0.10f && loop < 0.74f)
             {
@@ -1924,24 +1933,11 @@ namespace MannLab.Games.Walking
                 var center = Vector2.Lerp(topCenter, bottomCenter, eased);
                 var fade = 1f - Mathf.SmoothStep(0.58f, 0.74f, loop);
                 var pullColor = Color.Lerp(Warm, Blue, Mathf.Clamp01(t));
-                DrawThumb(CenteredRect(center, 42f * scale, 50f * scale), new Color(pullColor.r, pullColor.g, pullColor.b, 0.88f * fade));
-
-                var ghostCount = 3;
-                for (var i = 1; i <= ghostCount; i++)
-                {
-                    var ghostT = Mathf.Clamp01(eased - i * 0.15f);
-                    if (ghostT <= 0f)
-                    {
-                        continue;
-                    }
-
-                    var ghostCenter = Vector2.Lerp(topCenter, bottomCenter, ghostT);
-                    DrawCircle(CenteredRect(ghostCenter, 8f * scale, 8f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.06f * fade));
-                }
+                DrawThumb(CenteredRect(center, 28f * scale, 34f * scale), new Color(pullColor.r, pullColor.g, pullColor.b, 0.72f * fade));
             }
             else if (loop < 0.10f)
             {
-                DrawThumb(CenteredRect(topCenter, 46f * scale, 54f * scale), new Color(Warm.r, Warm.g, Warm.b, 0.95f));
+                DrawThumb(CenteredRect(topCenter, 30f * scale, 36f * scale), new Color(Warm.r, Warm.g, Warm.b, 0.78f));
             }
         }
 

@@ -252,18 +252,18 @@ def iceberg(level: int) -> list[list[Color]]:
 
 def ice_field_background() -> list[list[Color]]:
     img = canvas(1600, 1600, PAPER)
-    rect(img, 0, 0, 1600, 1600, ICE)
-    for i in range(18):
+    rect(img, 0, 0, 1600, 1600, (235, 249, 251, 255))
+    for i in range(10):
         y = 110 + i * 92 + LINE_NOISE.randint(-18, 18)
-        color = (190, 221, 224, 145 if i % 3 else 90)
-        sketch_line(img, -80, y, 1680, y + LINE_NOISE.randint(-30, 30), color, 5, 1, 18)
-    for i in range(13):
-        x = 80 + i * 132 + LINE_NOISE.randint(-24, 24)
-        sketch_line(img, x, -90, x + LINE_NOISE.randint(-60, 60), 1690, (181, 213, 216, 105), 4, 1, 22)
-    for _ in range(70):
+        color = (189, 220, 224, 54 if i % 3 else 34)
+        sketch_line(img, -80, y, 1680, y + LINE_NOISE.randint(-22, 22), color, 3, 1, 14)
+    for i in range(7):
+        x = 120 + i * 220 + LINE_NOISE.randint(-30, 30)
+        sketch_line(img, x, -90, x + LINE_NOISE.randint(-46, 46), 1690, (180, 214, 218, 42), 3, 1, 18)
+    for _ in range(26):
         x = LINE_NOISE.randint(40, 1560)
         y = LINE_NOISE.randint(40, 1560)
-        length = LINE_NOISE.randint(22, 88)
+        length = LINE_NOISE.randint(18, 58)
         angle = LINE_NOISE.uniform(-0.8, 0.8)
         sketch_line(
             img,
@@ -271,15 +271,15 @@ def ice_field_background() -> list[list[Color]]:
             y,
             int(x + math.cos(angle) * length),
             int(y + math.sin(angle) * length),
-            (128, 176, 187, LINE_NOISE.randint(70, 130)),
-            LINE_NOISE.randint(3, 6),
+            (126, 177, 189, LINE_NOISE.randint(30, 62)),
+            LINE_NOISE.randint(2, 3),
             1,
-            8,
+            6,
         )
-    for _ in range(36):
+    for _ in range(18):
         x = LINE_NOISE.randint(40, 1560)
         y = LINE_NOISE.randint(40, 1560)
-        sketch_line(img, x, y, x + LINE_NOISE.randint(8, 26), y + LINE_NOISE.randint(-18, 18), SNOW, 5, 1, 5)
+        sketch_line(img, x, y, x + LINE_NOISE.randint(8, 24), y + LINE_NOISE.randint(-16, 16), (252, 254, 250, 125), 4, 1, 4)
     return img
 
 
@@ -335,6 +335,9 @@ def ice_chip() -> list[list[Color]]:
 
 
 def write_meta(path: Path, guid: str) -> None:
+    if path.exists():
+        return
+
     path.write_text(
         f"""fileFormatVersion: 2
 guid: {guid}
@@ -429,7 +432,11 @@ TextureImporter:
 
 
 def write_folder_meta(path: Path, guid: str) -> None:
-    path.with_suffix(path.suffix + ".meta").write_text(
+    meta_path = path.with_suffix(path.suffix + ".meta")
+    if meta_path.exists():
+        return
+
+    meta_path.write_text(
         f"""fileFormatVersion: 2
 guid: {guid}
 folderAsset: yes
