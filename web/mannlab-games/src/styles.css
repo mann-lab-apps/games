@@ -50,6 +50,7 @@ a {
 
 .brand-link,
 .game-choice,
+.android-beta-card,
 .mannlab-card {
   border: 2px solid #27241f;
   border-radius: 8px;
@@ -77,6 +78,7 @@ a {
 
 .brand-link strong,
 .game-choice strong,
+.android-beta-card strong,
 .mannlab-card strong {
   display: block;
 }
@@ -127,6 +129,38 @@ a {
 
 .mannlab-card {
   padding: 16px;
+}
+
+.android-beta-card {
+  padding: 16px;
+  background: #e7f3f4;
+  box-shadow: inset 0 -5px 0 #7fb3bd;
+}
+
+.android-beta-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: #465b60;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.android-beta-card p {
+  margin: 8px 0 0;
+  color: #4c463d;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.android-beta-card a {
+  display: inline-flex;
+  margin-top: 14px;
+  padding: 9px 12px;
+  border: 2px solid #27241f;
+  border-radius: 999px;
+  background: #f8f5eb;
+  font-weight: 800;
 }
 
 .mannlab-card {
@@ -189,6 +223,47 @@ a {
   font-size: clamp(34px, 5vw, 64px);
   line-height: 1.02;
   letter-spacing: 0;
+}
+
+.beta-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 2px solid #27241f;
+  border-radius: 8px;
+  background: #e7f3f4;
+  box-shadow: inset 0 -5px 0 #7fb3bd;
+}
+
+.beta-strip span {
+  display: block;
+  margin-bottom: 5px;
+  color: #465b60;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.beta-strip strong {
+  display: block;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.beta-strip a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 9px 12px;
+  border: 2px solid #27241f;
+  border-radius: 999px;
+  background: #f8f5eb;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .home-games {
@@ -298,6 +373,39 @@ a {
   font-weight: 800;
 }
 
+.game-beta-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 38px;
+  padding: 7px 12px;
+  border-bottom: 2px solid #27241f;
+  background: #e7f3f4;
+  color: #27241f;
+  font-size: 13px;
+}
+
+.game-beta-bar span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-beta-bar a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 9px;
+  border: 1.5px solid #27241f;
+  border-radius: 999px;
+  background: #f8f5eb;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .game-viewport {
   width: 100%;
   height: 100%;
@@ -322,6 +430,98 @@ a {
   min-width: 0;
   align-self: center;
   justify-self: center;
+}
+
+.android-beta-stage {
+  width: min(100%, 820px);
+  min-width: 0;
+  align-self: center;
+  justify-self: center;
+}
+
+.android-beta-document {
+  padding: clamp(24px, 5vw, 56px);
+  border: 2px solid #27241f;
+  border-radius: 8px;
+  background: #fdf9ed;
+  box-shadow: inset 0 -6px 0 #7fb3bd;
+}
+
+.android-beta-document > span {
+  display: block;
+  margin-bottom: 8px;
+  color: #465b60;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.android-beta-document h1,
+.android-beta-document p {
+  margin: 0;
+}
+
+.android-beta-document h1 {
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 1.03;
+  letter-spacing: 0;
+}
+
+.android-beta-document p {
+  margin-top: 12px;
+  color: #4c463d;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.beta-note {
+  margin-top: 22px;
+  padding: 18px;
+  border: 2px solid #27241f;
+  border-radius: 8px;
+  background: #e7f3f4;
+}
+
+.beta-note strong {
+  display: block;
+  font-size: 18px;
+}
+
+.beta-note ul {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  color: #4c463d;
+  line-height: 1.7;
+}
+
+.beta-policy-note {
+  font-weight: 700;
+}
+
+.beta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.beta-primary-link,
+.beta-secondary-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 2px solid #27241f;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.beta-primary-link {
+  background: #f4b24f;
+}
+
+.beta-secondary-link {
+  background: #f8f5eb;
 }
 
 .privacy-document {
@@ -402,6 +602,10 @@ a {
     order: -1;
   }
 
+  .app-shell.is-beta-route .android-beta-stage {
+    order: -1;
+  }
+
   .hub-panel {
     display: grid;
     grid-template-columns: 1fr;
@@ -432,6 +636,33 @@ a {
 
   .mannlab-card {
     margin-top: 0;
+  }
+
+  .beta-strip {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .beta-strip a {
+    justify-content: center;
+    width: 100%;
+    white-space: normal;
+  }
+
+  .game-beta-bar {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .game-beta-bar span {
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .game-beta-bar a {
+    justify-content: center;
+    width: 100%;
   }
 
   .mannlab-card .privacy-link {

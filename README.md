@@ -17,12 +17,13 @@ games/
 ## Recommended Flow
 
 1. Start from the workflow in `docs/production-workflow.md`.
-2. Use `docs/classic-casual-twist-strategy.md` when choosing small classic-casual variants.
-3. Create new concepts in `prototypes/`.
-4. Promote promising projects into `releases/`.
-5. Keep common code in `shared/unity-packages/`.
-6. Treat every game directory as its own Unity project.
-7. Use the shared hand-drawn sketch visual direction in `docs/visual-direction.md`.
+2. For new ad-enabled Unity iOS games, read `docs/unity-ios-admob-crashlytics-template.md` and start from `prototypes/_unity-ios-admob-template/`.
+3. Use `docs/classic-casual-twist-strategy.md` when choosing small classic-casual variants.
+4. Create new concepts in `prototypes/`.
+5. Promote promising projects into `releases/`.
+6. Keep common code in `shared/unity-packages/`.
+7. Treat every game directory as its own Unity project.
+8. Use the shared hand-drawn sketch visual direction in `docs/visual-direction.md`.
 
 ```sh
 ./scripts/new-unity-game.sh prototypes stack-jump
@@ -30,14 +31,25 @@ games/
 
 Then open the generated directory from Unity Hub and let Unity import the project.
 
-## Current Prototypes
+## Current Project Status
 
-- `2048-blink`: 2048 memory variant with alternating odd/even curtain cells, see `docs/2048-blink-game-design.md`.
-- `2048-crash`: static special-block variant of 2048, see `docs/2048-crash-game-design.md`.
-- `10000`: see `docs/10000-game-design.md` and `docs/10000-worklog.md`.
-- `dopamine-swap`: candidate card comparison game, see `docs/dopamine-swap-game-design.md`.
-- `drum-duel`: candidate/archive rhythm echo prototype, see `docs/drum-duel-game-design.md`.
-- `flying-bird`: Wind Gull, energy-limited flap/glide distance prototype, see `docs/flying-bird-game-design.md`.
+See `docs/project-inventory.md` for the full cleanup inventory and legacy policy.
+
+| Project | Status | Notes |
+| --- | --- | --- |
+| `10000` | active/live | Fast number-search puzzle, see `docs/10000-game-design.md` and `docs/10000-worklog.md`. |
+| `gather-and-shot` | priority candidate | Sketch survival prototype and current top improvement candidate, see `docs/gather-and-shot-game-design.md`. |
+| `standing` | candidate | Strong marketability hook, see `docs/standing-game-design.md`. |
+| `yacht-rush` | candidate | Dice/contract prototype with good implementation depth. |
+| `2048-crash` | release experiment | Stable 2048 variant with release-readiness docs, see `docs/2048-crash-game-design.md`. |
+| `walking` / `Thumbwaddle` | MVP, rename cleanup | `walking` remains the Unity/internal project; public name is `Thumbwaddle`. Do not delete as scratch. |
+| `2048-blink` | prototype | Memory-heavy 2048 variant, see `docs/2048-blink-game-design.md`. |
+| `best-ramyeon` | prototype | Web-first timing prototype. |
+| `flying-bird` / `Wind Gull` | prototype | Energy-limited flap/glide distance prototype, see `docs/flying-bird-game-design.md`. |
+| `rainwalker` | prototype | Rain defense mini-game prototype. |
+| `dopamine-swap` | low-priority prototype | Retheme needed before further production, see `docs/dopamine-swap-game-design.md`. |
+| `drum-duel` | archive | Rhythm echo prototype retained as source/archive; hidden from the public catalog. |
+| `_unity-ios-admob-template` | template | Starter layer for ad-enabled Unity iOS games. |
 
 ## Baseline
 

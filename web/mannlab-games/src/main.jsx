@@ -3,6 +3,11 @@ import { createRoot } from "react-dom/client";
 import { initGoogleAnalytics, trackAnalyticsEvent } from "./analytics";
 import "./styles.css";
 
+const androidBetaFormUrl =
+  import.meta.env.VITE_ANDROID_BETA_FORM_URL?.trim() ?? "";
+const androidBetaContactEmail =
+  import.meta.env.VITE_ANDROID_BETA_CONTACT_EMAIL?.trim() ?? "hello@mannlab.app";
+
 const games = [
   {
     id: "best-ramyeon",
@@ -53,11 +58,12 @@ const games = [
   {
     id: "drum-duel",
     title: "Drum Duel",
-    status: "Candidate",
+    status: "Archived",
     description: "4틱 리듬을 듣고 따라 치는 보관 후보 프로토타입",
     route: "/drum-duel",
     embedHref: "/games/drum-duel/",
     available: true,
+    visible: false,
   },
   {
     id: "dopamine-swap",
@@ -114,6 +120,7 @@ const games = [
     description: "짧은 리듬으로 이어지는 다음 실험",
     route: "#",
     available: false,
+    visible: false,
   },
   {
     id: "one-more",
@@ -122,8 +129,11 @@ const games = [
     description: "한 판만 더 하게 만드는 미니게임",
     route: "#",
     available: false,
+    visible: false,
   },
 ];
+
+const catalogGames = games.filter((game) => game.visible !== false);
 
 function createFeedbackUrl(game) {
   const title = `[${game.title}] 피드백: `;
@@ -145,6 +155,26 @@ function createFeedbackUrl(game) {
   return `https://github.com/mann-lab-apps/games/issues/new?${params.toString()}`;
 }
 
+function createAndroidBetaUrl() {
+  if (androidBetaFormUrl) {
+    return androidBetaFormUrl;
+  }
+
+  const params = new URLSearchParams({
+    subject: "Mannlab Games Android beta waitlist",
+    body: [
+      "Android beta test waitlist",
+      "",
+      "Google account email:",
+      "Android device model:",
+      "Game you played:",
+      "Feedback channel I can use:",
+    ].join("\n"),
+  });
+
+  return `mailto:${androidBetaContactEmail}?${params.toString()}`;
+}
+
 initGoogleAnalytics();
 
 function App() {
@@ -153,31 +183,49 @@ function App() {
     (game) => game.route === pathname || game.aliases?.includes(pathname),
   );
   const isPrivacyRoute = pathname === "/privacy";
+  const isAndroidBetaRoute = pathname === "/android-beta";
   const isPlayRoute = Boolean(activeGame);
   const selectedGame = activeGame ?? games[0];
   const feedbackUrl = createFeedbackUrl(selectedGame);
+  const androidBetaUrl = createAndroidBetaUrl();
   const routeClassName = isPlayRoute
     ? " is-play-route"
     : isPrivacyRoute
       ? " is-privacy-route"
-      : " is-home-route";
+      : isAndroidBetaRoute
+        ? " is-beta-route"
+        : " is-home-route";
 
   return (
     <main className={`app-shell${routeClassName}`}>
-      <HubPanel activeGame={selectedGame} isPlayRoute={isPlayRoute} />
+      <HubPanel
+        activeGame={selectedGame}
+        androidBetaUrl={androidBetaUrl}
+        catalogGames={catalogGames}
+        isPlayRoute={isPlayRoute}
+      />
 
       {isPrivacyRoute ? (
         <PrivacyStage />
+      ) : isAndroidBetaRoute ? (
+        <AndroidBetaStage androidBetaUrl={androidBetaUrl} />
       ) : isPlayRoute ? (
-        <GameStage game={selectedGame} feedbackUrl={feedbackUrl} />
+        <GameStage
+          androidBetaUrl={androidBetaUrl}
+          game={selectedGame}
+          feedbackUrl={feedbackUrl}
+        />
       ) : (
-        <HomeStage />
+        <HomeStage
+          androidBetaUrl={androidBetaUrl}
+          catalogGames={catalogGames}
+        />
       )}
     </main>
   );
 }
 
-function HubPanel({ activeGame, isPlayRoute }) {
+function HubPanel({ activeGame, androidBetaUrl, catalogGames, isPlayRoute }) {
   return (
     <section className="hub-panel" aria-label="Mannlab Games">
       <a className="brand-link" href="/" aria-label="만랩 게임즈 홈으로 이동">
@@ -190,7 +238,7 @@ function HubPanel({ activeGame, isPlayRoute }) {
 
       {isPlayRoute ? (
         <nav className="game-list" aria-label="게임 선택">
-          {games.map((game) => {
+          {catalogGames.map((game) => {
             const isActive = game.id === activeGame.id;
 
             return (
@@ -223,6 +271,8 @@ function HubPanel({ activeGame, isPlayRoute }) {
         </nav>
       ) : null}
 
+      <AndroidBetaCard androidBetaUrl={androidBetaUrl} />
+
       <div className="mannlab-card">
         <span>Mannlab</span>
         <strong>만랩의 다른 작업 구경하기</strong>
@@ -233,7 +283,30 @@ function HubPanel({ activeGame, isPlayRoute }) {
   );
 }
 
-function HomeStage() {
+function AndroidBetaCard({ androidBetaUrl }) {
+  return (
+    <aside className="android-beta-card" aria-label="Android beta waitlist">
+      <span>Android Beta</span>
+      <strong>앱 버전 먼저 해볼 사람 기록해두기</strong>
+      <p>지금은 대기명단만 작게 받습니다.</p>
+      <a
+        href="/android-beta"
+        onClick={() => {
+          trackAnalyticsEvent("select_android_beta_waitlist", {
+            source: "hub_card",
+            destination: androidBetaUrl.startsWith("mailto:")
+              ? "email"
+              : "form",
+          });
+        }}
+      >
+        자세히 보기
+      </a>
+    </aside>
+  );
+}
+
+function HomeStage({ androidBetaUrl, catalogGames }) {
   return (
     <section className="home-stage" aria-label="만랩 게임즈 홈">
       <div className="home-copy">
@@ -241,8 +314,28 @@ function HomeStage() {
         <h1>짧게 해보는 작은 게임들</h1>
       </div>
 
+      <section className="beta-strip" aria-label="Android beta waitlist">
+        <div>
+          <span>Android beta waitlist</span>
+          <strong>방문자가 충분해지면 앱 테스트 모집을 열어볼게요.</strong>
+        </div>
+        <a
+          href="/android-beta"
+          onClick={() => {
+            trackAnalyticsEvent("select_android_beta_waitlist", {
+              source: "home_strip",
+              destination: androidBetaUrl.startsWith("mailto:")
+                ? "email"
+                : "form",
+            });
+          }}
+        >
+          신청 의사 남기기
+        </a>
+      </section>
+
       <div className="home-games" aria-label="게임 목록">
-        {games.map((game) => (
+        {catalogGames.map((game) => (
           <a
             key={game.id}
             className={`home-game-card${game.available ? "" : " is-disabled"}`}
@@ -270,7 +363,7 @@ function HomeStage() {
   );
 }
 
-function GameStage({ game, feedbackUrl }) {
+function GameStage({ androidBetaUrl, game, feedbackUrl }) {
   return (
     <section className="play-area" aria-label={`${game.title} 플레이`}>
       <section className="game-window" aria-label={game.title}>
@@ -297,6 +390,24 @@ function GameStage({ game, feedbackUrl }) {
             피드백
           </a>
         </div>
+        <div className="game-beta-bar">
+          <span>Android 앱 베타 대기명단을 받고 있어요.</span>
+          <a
+            href="/android-beta"
+            onClick={() => {
+              trackAnalyticsEvent("select_android_beta_waitlist", {
+                source: "game_bar",
+                game_id: game.id,
+                game_title: game.title,
+                destination: androidBetaUrl.startsWith("mailto:")
+                  ? "email"
+                  : "form",
+              });
+            }}
+          >
+            신청 의사 남기기
+          </a>
+        </div>
         <div className="game-viewport">
           <iframe
             title={game.title}
@@ -312,6 +423,57 @@ function GameStage({ game, feedbackUrl }) {
           />
         </div>
       </section>
+    </section>
+  );
+}
+
+function AndroidBetaStage({ androidBetaUrl }) {
+  const destination = androidBetaUrl.startsWith("mailto:") ? "email" : "form";
+
+  return (
+    <section className="android-beta-stage" aria-label="Android beta waitlist">
+      <article className="android-beta-document">
+        <span>Android Beta</span>
+        <h1>앱 버전 테스트 대기명단</h1>
+        <p>
+          Mannlab Games를 Android 앱으로도 내보낼 수 있을지 보기 위해,
+          관심 있는 분들만 조용히 모아두고 있습니다.
+        </p>
+
+        <div className="beta-note">
+          <strong>필요한 건 이 정도예요.</strong>
+          <ul>
+            <li>Android 기기로 설치 테스트가 가능할 것</li>
+            <li>Google 계정 이메일을 공유할 수 있을 것</li>
+            <li>14일 동안 가끔 한 판씩 플레이해볼 수 있을 것</li>
+          </ul>
+        </div>
+
+        <p className="beta-policy-note">
+          평점이나 리뷰를 요청하지 않습니다. 테스트 참여 여부와 피드백만
+          확인합니다.
+        </p>
+
+        <div className="beta-actions">
+          <a
+            className="beta-primary-link"
+            href={androidBetaUrl}
+            target={destination === "form" ? "_blank" : undefined}
+            rel={destination === "form" ? "noreferrer" : undefined}
+            onClick={() => {
+              trackAnalyticsEvent("submit_android_beta_waitlist", {
+                source: "android_beta_page",
+                destination,
+              });
+            }}
+          >
+            대기명단 신청하기
+          </a>
+          <a className="beta-secondary-link" href="/">
+            게임으로 돌아가기
+          </a>
+        </div>
+      </article>
     </section>
   );
 }

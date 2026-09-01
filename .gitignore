@@ -16,6 +16,7 @@ tmp/
 .env
 .env.*
 !.env.example
+*.p8
 
 # Android / Gradle
 .gradle/
@@ -31,6 +32,19 @@ captures/
 *.keystore
 *.jks
 **/Signing/
+
+# iOS / Xcode
+Pods/
+DerivedData*/
+Archives/
+**/Archives/
+*.xcarchive/
+*.dSYM/
+xcuserdata/
+*.xcuserstate
+*.mobileprovision
+*.provisionprofile
+*.p12
 
 # IntelliJ / Android Studio
 .idea/
@@ -92,4 +106,3 @@ export_presets.cfg
 node_modules/
 dist/
 .next/
-.vite/
