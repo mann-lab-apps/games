@@ -215,6 +215,16 @@ public static class VerifyWalkingRules
             return Fail("Best marker was not clamped inside the field.");
         }
 
+        if (!WalkingRules.IsWarmupCenterLane(20f, 0.8f))
+        {
+            return Fail("Warmup center lane was not detected.");
+        }
+
+        if (WalkingRules.IsWarmupCenterLane(45f, 0.8f) || WalkingRules.IsWarmupCenterLane(20f, 3.1f))
+        {
+            return Fail("Warmup center lane rejected distance/lateral bounds incorrectly.");
+        }
+
         Console.WriteLine("Walking rules verified.");
         return 0;
     }

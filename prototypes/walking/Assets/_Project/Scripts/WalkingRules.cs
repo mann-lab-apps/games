@@ -175,6 +175,11 @@ namespace MannLab.Games.Walking
             return count;
         }
 
+        public static bool IsWarmupCenterLane(float forwardDistance, float lateralDistance)
+        {
+            return forwardDistance < 40f && Mathf.Abs(lateralDistance) < 2.2f;
+        }
+
         public static WalkingFootSide FootSideForScreenPosition(Vector2 screenPosition, Vector2 screenSize)
         {
             var safeWidth = Mathf.Max(1f, screenSize.x);

@@ -23,7 +23,7 @@ namespace MannLab.Games.Walking
         private static readonly Color Green = new Color32(123, 168, 107, 255);
         private static readonly Color Red = new Color32(210, 74, 66, 255);
         private static readonly Color Blue = new Color32(88, 142, 181, 255);
-        private static readonly float[] GoalMarkerDistances = { 10f, 25f, 50f, 75f, 100f, 140f };
+        private static readonly float[] GoalMarkerDistances = { 10f, 25f, 50f, 90f };
         private static Mesh sharedCubeMesh;
         private static Mesh sharedSphereMesh;
 
@@ -88,11 +88,15 @@ namespace MannLab.Games.Walking
         private AudioSource audioSource;
         private AudioClip stepClip;
         private AudioClip bumpClip;
+        private AudioClip rewardClip;
+        private AudioClip bestClip;
         private GUIStyle hudStyle;
         private GUIStyle smallHudStyle;
         private GUIStyle titleStyle;
         private GUIStyle hintStyle;
         private GUIStyle guideStyle;
+        private GUIStyle resultMetricStyle;
+        private GUIStyle resultDetailStyle;
         private GUIStyle buttonStyle;
         private Texture2D circleTexture;
         private Texture2D ringTexture;
@@ -132,6 +136,7 @@ namespace MannLab.Games.Walking
         private int steps;
         private float bobImpulse;
         private float invalidPulse;
+        private float obstacleBumpPulse;
         private float milestonePulse;
         private float bestPassPulse;
         private WalkingFootSide lastLandedSide = WalkingFootSide.Left;
@@ -276,9 +281,10 @@ namespace MannLab.Games.Walking
             UpdateDebugMarkers();
             bobImpulse = Mathf.MoveTowards(bobImpulse, 0f, Time.deltaTime * 4.5f);
             invalidPulse = Mathf.MoveTowards(invalidPulse, 0f, Time.deltaTime * 4f);
+            obstacleBumpPulse = Mathf.MoveTowards(obstacleBumpPulse, 0f, Time.deltaTime * 3.2f);
             milestonePulse = Mathf.MoveTowards(milestonePulse, 0f, Time.deltaTime * 3.4f);
             bestPassPulse = Mathf.MoveTowards(bestPassPulse, 0f, Time.deltaTime * 2.4f);
-            bodyLeanPulse = Mathf.MoveTowards(bodyLeanPulse, 0f, Time.deltaTime * 4.2f);
+            bodyLeanPulse = Mathf.MoveTowards(bodyLeanPulse, 0f, Time.deltaTime * 3.2f);
             leftFoot.StatusPulse = Mathf.MoveTowards(leftFoot.StatusPulse, 0f, Time.deltaTime * 4f);
             rightFoot.StatusPulse = Mathf.MoveTowards(rightFoot.StatusPulse, 0f, Time.deltaTime * 4f);
         }
@@ -320,6 +326,7 @@ namespace MannLab.Games.Walking
             reachedGoalMarkers = 0;
             bobImpulse = 0f;
             invalidPulse = 0f;
+            obstacleBumpPulse = 0f;
             milestonePulse = 0f;
             bestPassPulse = 0f;
             bodyLeanPulse = 0f;
@@ -384,6 +391,8 @@ namespace MannLab.Games.Walking
 
             stepClip = CreateTone("Walking Step", 180f, 0.055f, 0.16f);
             bumpClip = CreateTone("Walking Bump", 76f, 0.12f, 0.22f);
+            rewardClip = CreateTone("Thumbwaddle Goal", 360f, 0.075f, 0.18f);
+            bestClip = CreateTone("Thumbwaddle Best", 520f, 0.11f, 0.20f);
 
             if (FindFirstObjectByType<EventSystem>() == null)
             {
@@ -605,7 +614,7 @@ namespace MannLab.Games.Walking
             var decorRoot = new GameObject("Thumbwaddle Field Dressing").transform;
             decorRoot.SetParent(worldRoot, false);
 
-            for (var i = 0; i < 10; i++)
+            for (var i = 0; i < 7; i++)
             {
                 var sprite = i % 3 == 0 ? iceFloeSprite : snowPuffSprite;
                 if (sprite == null)
@@ -622,7 +631,7 @@ namespace MannLab.Games.Walking
 
                 var renderer = CreateWorldSprite("Sketch Snow Field Detail", sprite, decorRoot, -1);
                 renderer.transform.position = new Vector3(x, RandomRange(random, 0.07f, 0.22f), z);
-                renderer.transform.localScale = Vector3.one * RandomRange(random, 0.34f, 0.82f);
+                renderer.transform.localScale = Vector3.one * RandomRange(random, 0.26f, 0.58f);
                 scenicBillboards.Add(renderer);
             }
         }
@@ -642,9 +651,9 @@ namespace MannLab.Games.Walking
                 var lane = i / (float)Mathf.Max(1, count - 1);
                 var z = 13f + lane * usableLength + RandomRange(random, -2.4f, 2.4f);
                 var x = RandomRange(random, -openFieldHalfWidth + 2.4f, openFieldHalfWidth - 2.4f);
-                if (z < 40f && Mathf.Abs(x) < 2.2f)
+                if (WalkingRules.IsWarmupCenterLane(z, x))
                 {
-                    x += x < 0f ? -3.2f : 3.2f;
+                    x += x < 0f ? -3.8f : 3.8f;
                 }
 
                 var radius = RandomRange(random, 0.42f, 0.82f);
@@ -1202,7 +1211,7 @@ namespace MannLab.Games.Walking
                     }
                 }
 
-                invalidPulse = 1f;
+                invalidPulse = foot.Candidate.Reason == "obstacle" ? 0.55f : 1f;
                 foot.StatusPulse = 1f;
                 PlayBump(0.35f);
                 return false;
@@ -1220,7 +1229,7 @@ namespace MannLab.Games.Walking
                 var clearedObstacle = DamageFieldObstacleAt(proposedBody, WalkingRules.BodyRadius);
                 if (!clearedObstacle || IsCircleTouchingFieldObstacle(proposedBody, WalkingRules.BodyRadius))
                 {
-                    invalidPulse = 1f;
+                    invalidPulse = 0.58f;
                     foot.StatusPulse = 1f;
                     PlayBump(0.45f);
                     return false;
@@ -1285,6 +1294,7 @@ namespace MannLab.Games.Walking
                 bobImpulse = Mathf.Min(1f, bobImpulse + 0.20f);
                 CreateGoalBurst(bodyPosition, false);
                 MarkGoalReached(GoalMarkerDistances[nextGoalMarkerIndex], false);
+                PlayReward(false);
                 nextGoalMarkerIndex++;
             }
 
@@ -1298,7 +1308,7 @@ namespace MannLab.Games.Walking
                 bobImpulse = Mathf.Min(1f, bobImpulse + 0.32f);
                 CreateGoalBurst(bodyPosition, true);
                 MarkGoalReached(bestMarkerDistanceThisRun, true);
-                PlayStep();
+                PlayReward(true);
                 FirebaseTelemetry.LogEvent(
                     "best_marker_passed",
                     new Dictionary<string, string>
@@ -1368,6 +1378,8 @@ namespace MannLab.Games.Walking
 
             var obstacle = fieldObstacles[index];
             obstacle.Hits++;
+            obstacleBumpPulse = 1f;
+            bodyLeanPulse = Mathf.Max(bodyLeanPulse, 0.62f);
             var cleared = obstacle.Hits >= 3;
             obstacle.Radius = cleared ? 0f : obstacle.BaseRadius * GetIcebergCollisionScale(obstacle.Hits);
             if (obstacle.Root != null)
@@ -1435,7 +1447,7 @@ namespace MannLab.Games.Walking
                 return 1f;
             }
 
-            return hits == 1 ? 0.95f : hits == 2 ? 0.90f : 0.85f;
+            return hits == 1 ? 0.84f : hits == 2 ? 0.68f : 0.46f;
         }
 
         private static float GetIcebergCollisionScale(int hits)
@@ -1445,7 +1457,7 @@ namespace MannLab.Games.Walking
                 return 1f;
             }
 
-            return hits == 1 ? 0.82f : 0.55f;
+            return hits == 1 ? 0.56f : 0.24f;
         }
 
         private int FindTouchedFieldObstacle(Vector2 center, float radius)
@@ -1852,7 +1864,7 @@ namespace MannLab.Games.Walking
             {
                 sprite = penguinHappySprite;
             }
-            else if (invalidPulse > 0.05f && penguinStumbleSprite != null)
+            else if (Mathf.Max(invalidPulse, obstacleBumpPulse) > 0.05f && penguinStumbleSprite != null)
             {
                 sprite = penguinStumbleSprite;
             }
@@ -1865,11 +1877,18 @@ namespace MannLab.Games.Walking
 
             playerSpriteRenderer.sprite = sprite;
             var spriteTransform = playerSpriteRenderer.transform;
-            var wobble = invalidPulse > 0.05f ? Mathf.Sin(Time.time * 34f) * invalidPulse * 0.045f : 0f;
-            var celebrate = state == WalkingGameState.Result && bestUpdatedThisRun ? Mathf.Sin(Time.time * 8f) * 0.025f : 0f;
-            spriteTransform.localPosition = new Vector3(lean * 0.035f + wobble, 0.74f + bodyBob * 0.75f - bodyLeanPulse * 0.025f + celebrate, -0.03f);
+            var stumble = Mathf.Max(invalidPulse, obstacleBumpPulse);
+            var wobble = stumble > 0.05f ? Mathf.Sin(Time.time * 34f) * stumble * 0.048f : 0f;
+            var celebrate = Mathf.Max(bestPassPulse, milestonePulse * 0.45f);
+            if (state == WalkingGameState.Result && bestUpdatedThisRun)
+            {
+                celebrate = Mathf.Max(celebrate, 0.45f + Pulse01(Time.time * 1.3f) * 0.28f);
+            }
+
+            var hop = Mathf.Sin((1f - celebrate) * Mathf.PI) * celebrate * 0.08f;
+            spriteTransform.localPosition = new Vector3(lean * 0.035f + wobble, 0.74f + bodyBob * 0.75f - bodyLeanPulse * 0.025f + hop, -0.03f);
             spriteTransform.localRotation = Quaternion.Euler(0f, 180f, -lean * 5f - wobble * 120f);
-            spriteTransform.localScale = Vector3.one * (1.04f + bodyLeanPulse * 0.035f + Mathf.Abs(celebrate));
+            spriteTransform.localScale = Vector3.one * (1.04f + bodyLeanPulse * 0.045f + celebrate * 0.055f);
         }
 
         private static void SetAvatarFoot(Transform foot, Vector2 position, float pulse, Quaternion rotation, bool snap)
@@ -1927,13 +1946,13 @@ namespace MannLab.Games.Walking
                 return;
             }
 
-            for (var i = 0; i < 4; i++)
+            for (var i = 0; i < 3; i++)
             {
                 var renderer = CreateWorldSprite("Ice Chip Burst", iceChipSprite, worldRoot, 1);
-                var angle = (i / 4f) * Mathf.PI * 2f + (Time.time % 1f);
-                var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (0.18f + i * 0.08f);
-                renderer.transform.position = new Vector3(position.x + offset.x, 0.18f + i * 0.035f, position.y + offset.y);
-                renderer.transform.localScale = Vector3.one * (0.32f + i * 0.05f);
+                var angle = (i / 3f) * Mathf.PI * 2f + (Time.time % 1f);
+                var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (0.15f + i * 0.06f);
+                renderer.transform.position = new Vector3(position.x + offset.x, 0.16f + i * 0.03f, position.y + offset.y);
+                renderer.transform.localScale = Vector3.one * (0.24f + i * 0.04f);
                 scenicBillboards.Add(renderer);
                 stepStamps.Add(new StepStamp
                 {
@@ -1954,10 +1973,10 @@ namespace MannLab.Games.Walking
             }
 
             var color = best ? Warm : Green;
-            var material = CreateMaterial(best ? "Best Burst Ink" : "Goal Burst Ink", color);
-            var count = best ? 8 : 5;
+            var count = best ? 6 : 3;
             for (var i = 0; i < count; i++)
             {
+                var material = CreateMaterial((best ? "Best Burst Ink " : "Goal Burst Ink ") + i, color);
                 var root = new GameObject(best ? "Best Waddle Burst" : "Goal Waddle Burst").transform;
                 root.SetParent(worldRoot, false);
                 var angle = (i / (float)count) * Mathf.PI * 2f;
@@ -2085,9 +2104,11 @@ namespace MannLab.Games.Walking
             DrawGuiRect(new Rect(margin, margin, Screen.width - margin * 2f, topHeight), new Color(1f, 0.99f, 0.96f, 0.72f));
             DrawGuiRect(new Rect(margin, margin, Screen.width - margin * 2f, topHeight), hudTint);
             var secondsLeft = Mathf.CeilToInt(runTimeRemaining);
-            var timerColor = secondsLeft <= 5 ? new Color(Red.r, Red.g, Red.b, 0.18f) : new Color(Warm.r, Warm.g, Warm.b, 0.18f);
-            DrawCircle(CenteredRect(new Vector2(Screen.width * 0.5f, margin + topHeight * 0.5f), 74f * scale, 74f * scale), timerColor);
-            DrawRing(CenteredRect(new Vector2(Screen.width * 0.5f, margin + topHeight * 0.5f), 78f * scale, 78f * scale), secondsLeft <= 5 ? new Color(Red.r, Red.g, Red.b, 0.62f) : new Color(Warm.r, Warm.g, Warm.b, 0.52f));
+            var lastSecondsPulse = secondsLeft <= 5 ? Pulse01(Time.unscaledTime * 4.2f) : 0f;
+            var timerColor = secondsLeft <= 5 ? new Color(Red.r, Red.g, Red.b, 0.18f + lastSecondsPulse * 0.12f) : new Color(Warm.r, Warm.g, Warm.b, 0.18f);
+            var timerSize = (74f + lastSecondsPulse * 7f) * scale;
+            DrawCircle(CenteredRect(new Vector2(Screen.width * 0.5f, margin + topHeight * 0.5f), timerSize, timerSize), timerColor);
+            DrawRing(CenteredRect(new Vector2(Screen.width * 0.5f, margin + topHeight * 0.5f), timerSize + 4f * scale, timerSize + 4f * scale), secondsLeft <= 5 ? new Color(Red.r, Red.g, Red.b, 0.62f + lastSecondsPulse * 0.18f) : new Color(Warm.r, Warm.g, Warm.b, 0.52f));
             GUI.Label(new Rect(margin + 20f * scale, margin + 6f * scale, 300f * scale, topHeight), $"{distanceMeters:0.0} m", hudStyle);
             GUI.Label(new Rect(Screen.width * 0.5f - 80f * scale, margin + 7f * scale, 160f * scale, topHeight), $"{secondsLeft}s", smallHudStyle);
             GUI.Label(new Rect(Screen.width - margin - 210f * scale, margin + 10f * scale, 190f * scale, topHeight), $"BEST {bestDistanceMeters:0.0}", guideStyle);
@@ -2101,13 +2122,24 @@ namespace MannLab.Games.Walking
 
             if (state == WalkingGameState.Result)
             {
-                var bestLine = bestUpdatedThisRun ? "New Best!" : $"Best {bestDistanceMeters:0.0} m";
-                DrawGuiRect(new Rect(Screen.width * 0.16f, Screen.height * 0.25f, Screen.width * 0.68f, 280f * scale), new Color(1f, 0.99f, 0.96f, 0.9f));
-                GUI.Label(new Rect(Screen.width * 0.16f, Screen.height * 0.265f, Screen.width * 0.68f, 172f * scale), $"{ResultRating()}\n{distanceMeters:0.0} m\n{bestLine}\n{steps} steps  {brokenIcebergs} ice  {reachedGoalMarkers} flags", titleStyle);
-                if (GUI.Button(new Rect(Screen.width * 0.35f, Screen.height * 0.465f, Screen.width * 0.3f, 56f * scale), "Restart", buttonStyle))
-                {
-                    ResetRun();
-                }
+                DrawResultOverlay(scale);
+            }
+        }
+
+        private void DrawResultOverlay(float scale)
+        {
+            var panel = new Rect(Screen.width * 0.14f, Screen.height * 0.235f, Screen.width * 0.72f, 292f * scale);
+            DrawGuiRect(panel, new Color(1f, 0.99f, 0.96f, 0.90f));
+            DrawGuiRect(new Rect(panel.x, panel.y, panel.width, 7f * scale), bestUpdatedThisRun ? new Color(Warm.r, Warm.g, Warm.b, 0.78f) : new Color(Blue.r, Blue.g, Blue.b, 0.34f));
+            GUI.Label(new Rect(panel.x, panel.y + 18f * scale, panel.width, 42f * scale), ResultRating(), titleStyle);
+            GUI.Label(new Rect(panel.x, panel.y + 72f * scale, panel.width, 62f * scale), $"{distanceMeters:0.0} m", resultMetricStyle);
+            var bestLine = bestUpdatedThisRun ? "NEW BEST" : $"BEST {bestDistanceMeters:0.0} m";
+            GUI.Label(new Rect(panel.x, panel.y + 138f * scale, panel.width, 30f * scale), bestLine, guideStyle);
+            GUI.Label(new Rect(panel.x, panel.y + 176f * scale, panel.width, 32f * scale), $"{steps} steps  {brokenIcebergs} ice  {reachedGoalMarkers} flags", resultDetailStyle);
+            var buttonRect = new Rect(panel.x + panel.width * 0.28f, panel.y + panel.height - 66f * scale, panel.width * 0.44f, 50f * scale);
+            if (GUI.Button(buttonRect, "Restart", buttonStyle))
+            {
+                ResetRun();
             }
         }
 
@@ -2169,11 +2201,11 @@ namespace MannLab.Games.Walking
             var leftLowActive = leftFoot.NeedsReturn || leftFoot.Mode == InputMode.Return;
             var rightLowActive = rightFoot.NeedsReturn || rightFoot.Mode == InputMode.Return;
             var leftLowColor = leftLowActive
-                ? new Color(Blue.r, Blue.g, Blue.b, 0.12f)
-                : new Color(Blue.r, Blue.g, Blue.b, 0.045f);
+                ? new Color(Blue.r, Blue.g, Blue.b, 0.085f)
+                : new Color(Blue.r, Blue.g, Blue.b, 0.018f);
             var rightLowColor = rightLowActive
-                ? new Color(Blue.r, Blue.g, Blue.b, 0.12f)
-                : new Color(Blue.r, Blue.g, Blue.b, 0.045f);
+                ? new Color(Blue.r, Blue.g, Blue.b, 0.085f)
+                : new Color(Blue.r, Blue.g, Blue.b, 0.018f);
 
             if (leftLowActive)
             {
@@ -2185,8 +2217,8 @@ namespace MannLab.Games.Walking
                 DrawGuiRect(new Rect(Screen.width * 0.5f, returnTop, Screen.width * 0.5f, lowHeight), rightLowColor);
             }
 
-            DrawGuiRect(new Rect(Screen.width * 0.5f - 1f * scale, splitTop, 2f * scale, Screen.height - splitTop), new Color(Ink.r, Ink.g, Ink.b, 0.035f));
-            DrawGuiRect(new Rect(0f, returnTop, Screen.width, 2f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.035f));
+            DrawGuiRect(new Rect(Screen.width * 0.5f - 1f * scale, splitTop, 2f * scale, Screen.height - splitTop), new Color(Ink.r, Ink.g, Ink.b, 0.024f));
+            DrawGuiRect(new Rect(0f, returnTop, Screen.width, 2f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.026f));
 
             var suggestedSide = steps % 2 == 0 ? WalkingFootSide.Left : WalkingFootSide.Right;
             DrawTouchGlyph(leftFoot, new Rect(0f, splitTop, Screen.width * 0.5f, returnTop - splitTop), true, showLabels && suggestedSide == WalkingFootSide.Left && !leftFoot.NeedsReturn, scale);
@@ -2207,8 +2239,8 @@ namespace MannLab.Games.Walking
                 : stepZone
                     ? Warm
                     : Blue;
-            var alpha = active ? Mathf.Lerp(0.34f, 0.62f, phase) : 0.16f;
-            var size = (active ? Mathf.Lerp(32f, 45f, phase) : 28f) * scale;
+            var alpha = active ? Mathf.Lerp(0.28f, 0.50f, phase) : 0.08f;
+            var size = (active ? Mathf.Lerp(30f, 42f, phase) : 24f) * scale;
             var xJitter = invalid ? Mathf.Sin(Time.unscaledTime * 42f) * 5f * scale * Mathf.Clamp01(foot.StatusPulse + 0.25f) : 0f;
             var center = stepZone
                 ? new Vector2(zone.center.x + xJitter, Mathf.Lerp(zone.yMin + 76f * scale, zone.yMax - 66f * scale, 0.48f))
@@ -2233,13 +2265,14 @@ namespace MannLab.Games.Walking
 
         private void DrawReadyCoach(float scale)
         {
-            var goalPanel = new Rect(Screen.width * 0.18f, Screen.height * 0.16f, Screen.width * 0.64f, 150f * scale);
-            DrawGuiRect(goalPanel, new Color(1f, 0.99f, 0.96f, 0.58f));
+            var goalPanel = new Rect(Screen.width * 0.16f, Screen.height * 0.15f, Screen.width * 0.68f, 150f * scale);
+            DrawGuiRect(goalPanel, new Color(1f, 0.99f, 0.96f, 0.18f));
             GUI.Label(new Rect(goalPanel.x, goalPanel.y + 10f * scale, goalPanel.width, 42f * scale), "GO FAR IN 30s", smallHudStyle);
             DrawReadyGoalLine(goalPanel, scale);
+            DrawReadyPenguinDemo(new Rect(Screen.width * 0.30f, Screen.height * 0.39f, Screen.width * 0.40f, 120f * scale), scale);
 
             var panel = new Rect(Screen.width * 0.24f, Screen.height * 0.70f, Screen.width * 0.52f, 116f * scale);
-            DrawGuiRect(panel, new Color(1f, 0.99f, 0.96f, 0.46f));
+            DrawGuiRect(panel, new Color(1f, 0.99f, 0.96f, 0.22f));
 
             var gap = 16f * scale;
             var laneTop = panel.y + 10f * scale;
@@ -2249,6 +2282,21 @@ namespace MannLab.Games.Walking
             var rightLane = new Rect(panel.x + gap * 2f + laneWidth, laneTop, laneWidth, laneHeight);
             DrawThumbLoop(leftLane, leftFoot.Side, 0f, scale);
             DrawThumbLoop(rightLane, rightFoot.Side, 0.5f, scale);
+        }
+
+        private void DrawReadyPenguinDemo(Rect rect, float scale)
+        {
+            var loop = Mathf.Repeat(Time.unscaledTime * 0.72f, 1f);
+            var side = loop < 0.5f ? -1f : 1f;
+            var pulse = Pulse01(loop * 2f);
+            var center = new Vector2(rect.center.x + side * Mathf.Lerp(2f, 12f, pulse) * scale, rect.center.y);
+            DrawCircle(CenteredRect(center + new Vector2(0f, 16f * scale), 42f * scale, 34f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.72f));
+            DrawCircle(CenteredRect(center + new Vector2(0f, -8f * scale), 54f * scale, 64f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.74f));
+            DrawCircle(CenteredRect(center + new Vector2(0f, -10f * scale), 24f * scale, 28f * scale), new Color(Paper.r, Paper.g, Paper.b, 0.80f));
+            DrawCircle(CenteredRect(center + new Vector2(-13f * scale, -43f * scale), 24f * scale, 10f * scale), new Color(Warm.r, Warm.g, Warm.b, 0.78f));
+            DrawCircle(CenteredRect(center + new Vector2(13f * scale, -43f * scale), 24f * scale, 10f * scale), new Color(Warm.r, Warm.g, Warm.b, 0.78f));
+            DrawRing(CenteredRect(center + new Vector2(side * 34f * scale, 6f * scale), 18f * scale, 18f * scale), new Color(Warm.r, Warm.g, Warm.b, 0.36f + pulse * 0.24f));
+            DrawGuiRect(new Rect(rect.x + rect.width * 0.18f, rect.yMax - 2f * scale, rect.width * 0.64f, 3f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.16f));
         }
 
         private void DrawReadyGoalLine(Rect panel, float scale)
@@ -2381,6 +2429,20 @@ namespace MannLab.Games.Walking
                 fontSize = Mathf.RoundToInt(18f),
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Ink }
+            };
+            resultMetricStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = Mathf.RoundToInt(52f),
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = Ink }
+            };
+            resultDetailStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = Mathf.RoundToInt(19f),
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = FadedInk }
             };
             buttonStyle = new GUIStyle(GUI.skin.button)
             {
@@ -2585,6 +2647,22 @@ namespace MannLab.Games.Walking
             {
                 audioSource.PlayOneShot(bumpClip, Mathf.Clamp01(volume) * 0.45f);
             }
+        }
+
+        private void PlayReward(bool best)
+        {
+            var clip = best ? bestClip : rewardClip;
+            if (audioSource != null && clip != null)
+            {
+                audioSource.PlayOneShot(clip, best ? 0.42f : 0.30f);
+            }
+
+#if !UNITY_WEBGL && !UNITY_EDITOR
+            if (best)
+            {
+                Handheld.Vibrate();
+            }
+#endif
         }
 
         private static AudioClip CreateTone(string clipName, float frequency, float duration, float volume)
