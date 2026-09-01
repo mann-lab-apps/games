@@ -146,6 +146,35 @@ namespace MannLab.Games.Walking
             return true;
         }
 
+        public static float BestMarkerDistance(float bestDistance, float fieldLength)
+        {
+            if (bestDistance < 1f)
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp(bestDistance, 3f, Mathf.Max(3f, fieldLength - 6f));
+        }
+
+        public static int CountReachedGoalMarkers(float distance, float[] markerDistances)
+        {
+            if (markerDistances == null)
+            {
+                return 0;
+            }
+
+            var count = 0;
+            for (var i = 0; i < markerDistances.Length; i++)
+            {
+                if (distance >= markerDistances[i])
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
         public static WalkingFootSide FootSideForScreenPosition(Vector2 screenPosition, Vector2 screenSize)
         {
             var safeWidth = Mathf.Max(1f, screenSize.x);

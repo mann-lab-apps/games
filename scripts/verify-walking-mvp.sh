@@ -194,6 +194,27 @@ public static class VerifyWalkingRules
             return Fail("Right-half touch did not target the right foot.");
         }
 
+        var goals = new[] { 10f, 25f, 50f, 75f };
+        if (WalkingRules.CountReachedGoalMarkers(49.9f, goals) != 2)
+        {
+            return Fail("Reached goal marker count was incorrect before a threshold.");
+        }
+
+        if (WalkingRules.CountReachedGoalMarkers(75f, goals) != 4)
+        {
+            return Fail("Reached goal marker count was incorrect on a threshold.");
+        }
+
+        if (WalkingRules.BestMarkerDistance(0.2f, 180f) != 0f)
+        {
+            return Fail("Tiny best distance should not create a best marker.");
+        }
+
+        if (WalkingRules.BestMarkerDistance(220f, 180f) > 174f)
+        {
+            return Fail("Best marker was not clamped inside the field.");
+        }
+
         Console.WriteLine("Walking rules verified.");
         return 0;
     }

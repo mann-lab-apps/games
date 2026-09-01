@@ -23,6 +23,7 @@ namespace MannLab.Games.Walking
         private static readonly Color Green = new Color32(123, 168, 107, 255);
         private static readonly Color Red = new Color32(210, 74, 66, 255);
         private static readonly Color Blue = new Color32(88, 142, 181, 255);
+        private static readonly float[] GoalMarkerDistances = { 10f, 25f, 50f, 75f, 100f, 140f };
         private static Mesh sharedCubeMesh;
         private static Mesh sharedSphereMesh;
 
@@ -113,6 +114,7 @@ namespace MannLab.Games.Walking
         private bool doodleAssetsLoaded;
         private readonly List<StepStamp> stepStamps = new List<StepStamp>();
         private readonly List<FieldObstacle> fieldObstacles = new List<FieldObstacle>();
+        private readonly List<GoalMarkerRuntime> goalMarkers = new List<GoalMarkerRuntime>();
 
         private Vector2 leftFootPosition;
         private Vector2 rightFootPosition;
@@ -123,16 +125,23 @@ namespace MannLab.Games.Walking
         private Vector2 visualFacing = Vector2.up;
         private Vector2 cameraBodyPosition;
         private float distanceMeters;
+        private float bestDistanceAtRunStart;
+        private float bestMarkerDistanceThisRun;
         private float bestDistanceMeters;
         private float runTimeRemaining;
         private int steps;
         private float bobImpulse;
         private float invalidPulse;
+        private float milestonePulse;
+        private float bestPassPulse;
         private WalkingFootSide lastLandedSide = WalkingFootSide.Left;
         private float bodyLeanPulse;
         private float suppressMouseInputUntil;
         private bool runStarted;
         private bool bestUpdatedThisRun;
+        private bool bestMarkerPassedThisRun;
+        private int nextGoalMarkerIndex;
+        private int reachedGoalMarkers;
         private int brokenIcebergs;
 
         private const string BestDistanceKey = "MannLab.Walking.BestDistance";
@@ -210,6 +219,25 @@ namespace MannLab.Games.Walking
             public int Hits { get; set; }
         }
 
+        private sealed class GoalMarkerRuntime
+        {
+            public GoalMarkerRuntime(float distance, Transform root, Material material, Color baseColor, bool isBest)
+            {
+                Distance = distance;
+                Root = root;
+                Material = material;
+                BaseColor = baseColor;
+                IsBest = isBest;
+            }
+
+            public float Distance { get; }
+            public Transform Root { get; }
+            public Material Material { get; }
+            public Color BaseColor { get; }
+            public bool IsBest { get; }
+            public bool Reached { get; set; }
+        }
+
         private void Awake()
         {
             MobileRuntime.ApplyDefaults();
@@ -243,10 +271,13 @@ namespace MannLab.Games.Walking
             UpdateStepStamps();
             UpdateCamera();
             UpdateBillboards();
+            UpdateGoalMarkers();
             UpdateUi();
             UpdateDebugMarkers();
             bobImpulse = Mathf.MoveTowards(bobImpulse, 0f, Time.deltaTime * 4.5f);
             invalidPulse = Mathf.MoveTowards(invalidPulse, 0f, Time.deltaTime * 4f);
+            milestonePulse = Mathf.MoveTowards(milestonePulse, 0f, Time.deltaTime * 3.4f);
+            bestPassPulse = Mathf.MoveTowards(bestPassPulse, 0f, Time.deltaTime * 2.4f);
             bodyLeanPulse = Mathf.MoveTowards(bodyLeanPulse, 0f, Time.deltaTime * 4.2f);
             leftFoot.StatusPulse = Mathf.MoveTowards(leftFoot.StatusPulse, 0f, Time.deltaTime * 4f);
             rightFoot.StatusPulse = Mathf.MoveTowards(rightFoot.StatusPulse, 0f, Time.deltaTime * 4f);
@@ -267,6 +298,8 @@ namespace MannLab.Games.Walking
             }
 
             maze = null;
+            bestDistanceAtRunStart = bestDistanceMeters;
+            bestMarkerDistanceThisRun = WalkingRules.BestMarkerDistance(bestDistanceAtRunStart, openFieldLength);
             BuildWorld();
 
             bodyPosition = new Vector2(0f, 0.4f);
@@ -282,8 +315,13 @@ namespace MannLab.Games.Walking
             steps = 0;
             brokenIcebergs = 0;
             bestUpdatedThisRun = false;
+            bestMarkerPassedThisRun = false;
+            nextGoalMarkerIndex = 0;
+            reachedGoalMarkers = 0;
             bobImpulse = 0f;
             invalidPulse = 0f;
+            milestonePulse = 0f;
+            bestPassPulse = 0f;
             bodyLeanPulse = 0f;
             lastLandedSide = WalkingFootSide.Left;
             ClearStepStamps();
@@ -412,6 +450,7 @@ namespace MannLab.Games.Walking
             var fieldCenterZ = openFieldLength * 0.5f;
             fieldObstacles.Clear();
             scenicBillboards.Clear();
+            goalMarkers.Clear();
 
             if (iceFieldTexture != null)
             {
@@ -442,8 +481,85 @@ namespace MannLab.Games.Walking
 
             BuildOpenFieldObstacles(obstacleShadowMaterial, obstacleMaterial, obstacleTopMaterial, obstacleStrokeMaterial);
             BuildFieldDressing();
+            BuildDistanceGoalMarkers();
             BuildCameraBackdrop();
             BuildDebugMarkers();
+        }
+
+        private void BuildDistanceGoalMarkers()
+        {
+            if (worldRoot == null)
+            {
+                return;
+            }
+
+            var root = new GameObject("Thumbwaddle Distance Goals").transform;
+            root.SetParent(worldRoot, false);
+            var poleMaterial = CreateMaterial("Goal Marker Ink", new Color32(76, 91, 97, 255));
+            for (var i = 0; i < GoalMarkerDistances.Length; i++)
+            {
+                var distance = GoalMarkerDistances[i];
+                if (distance >= openFieldLength - 6f)
+                {
+                    continue;
+                }
+
+                var side = i % 2 == 0 ? -1f : 1f;
+                var color = i % 3 == 0 ? Warm : i % 3 == 1 ? Blue : Green;
+                var material = CreateMaterial("Goal Marker Flag " + i, WithAlpha(color, 235));
+                var marker = CreateGoalFlag(root, new Vector3(side * 3.9f, 0f, distance), side, poleMaterial, material, false);
+                goalMarkers.Add(new GoalMarkerRuntime(distance, marker, material, color, false));
+            }
+
+            var bestDistance = bestMarkerDistanceThisRun;
+            if (bestDistance > 0f)
+            {
+                var bestMaterial = CreateMaterial("Best Marker Warm Ink", new Color32(247, 181, 71, 225));
+                var bestRoot = new GameObject("Thumbwaddle Best Marker").transform;
+                bestRoot.SetParent(root, false);
+                bestRoot.position = new Vector3(0f, 0.012f, bestDistance);
+                CreateCube(
+                    "Best Marker Ice Line",
+                    new Vector3(0f, 0.014f, bestDistance),
+                    new Vector3(openFieldHalfWidth * 0.58f, 0.018f, 0.055f),
+                    bestMaterial,
+                    bestRoot);
+                var marker = CreateGoalFlag(root, new Vector3(openFieldHalfWidth - 2.4f, 0f, bestDistance), 1f, poleMaterial, bestMaterial, true);
+                goalMarkers.Add(new GoalMarkerRuntime(bestDistance, marker, bestMaterial, Warm, true));
+            }
+        }
+
+        private static Transform CreateGoalFlag(
+            Transform parent,
+            Vector3 position,
+            float side,
+            Material poleMaterial,
+            Material flagMaterial,
+            bool isBest)
+        {
+            var flagRoot = new GameObject(isBest ? "Best Flag Doodle" : "Goal Flag Doodle").transform;
+            flagRoot.SetParent(parent, false);
+            flagRoot.position = position;
+            var height = isBest ? 0.68f : 0.48f;
+            CreateCube(
+                "Goal Flag Pole",
+                position + new Vector3(0f, height * 0.5f, 0f),
+                new Vector3(0.035f, height, 0.035f),
+                poleMaterial,
+                flagRoot);
+            CreateCube(
+                "Goal Flag Cloth",
+                position + new Vector3(side * 0.18f, height * 0.78f, 0f),
+                new Vector3(0.32f, isBest ? 0.20f : 0.16f, 0.032f),
+                flagMaterial,
+                flagRoot);
+            CreateCube(
+                "Goal Flag Base",
+                position + new Vector3(0f, 0.018f, 0f),
+                new Vector3(0.44f, 0.018f, 0.11f),
+                flagMaterial,
+                flagRoot);
+            return flagRoot;
         }
 
         private void BuildCameraBackdrop()
@@ -1136,6 +1252,7 @@ namespace MannLab.Games.Walking
             var traveled = Vector2.Distance(oldBody, bodyPosition);
             distanceMeters += traveled;
             steps++;
+            CheckGoalProgress();
             foot.NeedsReturn = true;
             foot.StatusPulse = 1f;
             lastLandedSide = foot.Side;
@@ -1156,6 +1273,56 @@ namespace MannLab.Games.Walking
                 });
 
             return true;
+        }
+
+        private void CheckGoalProgress()
+        {
+            while (nextGoalMarkerIndex < GoalMarkerDistances.Length
+                && distanceMeters >= GoalMarkerDistances[nextGoalMarkerIndex])
+            {
+                reachedGoalMarkers++;
+                milestonePulse = 1f;
+                bobImpulse = Mathf.Min(1f, bobImpulse + 0.20f);
+                CreateGoalBurst(bodyPosition, false);
+                MarkGoalReached(GoalMarkerDistances[nextGoalMarkerIndex], false);
+                nextGoalMarkerIndex++;
+            }
+
+            if (!bestMarkerPassedThisRun
+                && bestDistanceAtRunStart >= 1f
+                && distanceMeters >= bestDistanceAtRunStart)
+            {
+                bestMarkerPassedThisRun = true;
+                bestPassPulse = 1f;
+                milestonePulse = 1f;
+                bobImpulse = Mathf.Min(1f, bobImpulse + 0.32f);
+                CreateGoalBurst(bodyPosition, true);
+                MarkGoalReached(bestMarkerDistanceThisRun, true);
+                PlayStep();
+                FirebaseTelemetry.LogEvent(
+                    "best_marker_passed",
+                    new Dictionary<string, string>
+                    {
+                        { "distance_m", distanceMeters.ToString("0.0") },
+                        { "best_distance_m", bestDistanceAtRunStart.ToString("0.0") },
+                        { "steps", steps.ToString() }
+                    });
+            }
+        }
+
+        private void MarkGoalReached(float distance, bool best)
+        {
+            for (var i = 0; i < goalMarkers.Count; i++)
+            {
+                var marker = goalMarkers[i];
+                if (marker.IsBest != best || Mathf.Abs(marker.Distance - distance) > 0.08f)
+                {
+                    continue;
+                }
+
+                marker.Reached = true;
+                return;
+            }
         }
 
         private void UpdateRunTimer()
@@ -1331,6 +1498,7 @@ namespace MannLab.Games.Walking
                     { "steps", steps.ToString() },
                     { "duration_s", Mathf.RoundToInt(runDurationSeconds).ToString() },
                     { "broken_icebergs", brokenIcebergs.ToString() },
+                    { "goal_markers", reachedGoalMarkers.ToString() },
                     { "new_best", bestUpdatedThisRun ? "true" : "false" },
                     { "obstacles_remaining", CountRemainingObstacles().ToString() }
                 });
@@ -1371,6 +1539,7 @@ namespace MannLab.Games.Walking
             FirebaseTelemetry.SetContext("steps", steps.ToString());
             FirebaseTelemetry.SetContext("time_remaining_s", Mathf.CeilToInt(runTimeRemaining).ToString());
             FirebaseTelemetry.SetContext("obstacles_remaining", CountRemainingObstacles().ToString());
+            FirebaseTelemetry.SetContext("goal_markers", reachedGoalMarkers.ToString());
             FirebaseTelemetry.SetContext("state", state.ToString());
         }
 
@@ -1545,6 +1714,34 @@ namespace MannLab.Games.Walking
                 }
 
                 FaceCameraYaw(renderer.transform, gameCamera);
+            }
+        }
+
+        private void UpdateGoalMarkers()
+        {
+            for (var i = 0; i < goalMarkers.Count; i++)
+            {
+                var marker = goalMarkers[i];
+                if (marker.Root == null)
+                {
+                    continue;
+                }
+
+                var reachedScale = marker.Reached ? 1.10f : 1f;
+                var pulse = marker.IsBest ? bestPassPulse : marker.Reached ? milestonePulse * 0.18f : 0f;
+                marker.Root.localScale = Vector3.one * (reachedScale + pulse * 0.18f);
+                if (marker.Material != null)
+                {
+                    var target = marker.Reached
+                        ? Color.Lerp(marker.BaseColor, Paper, marker.IsBest ? 0.08f : 0.28f)
+                        : marker.BaseColor;
+                    if (marker.IsBest && !marker.Reached)
+                    {
+                        target = Color.Lerp(Warm, Paper, 0.18f + Pulse01(Time.time * 1.4f) * 0.12f);
+                    }
+
+                    SetMaterialColor(marker.Material, target);
+                }
             }
         }
 
@@ -1749,6 +1946,36 @@ namespace MannLab.Games.Walking
             }
         }
 
+        private void CreateGoalBurst(Vector2 position, bool best)
+        {
+            if (worldRoot == null)
+            {
+                return;
+            }
+
+            var color = best ? Warm : Green;
+            var material = CreateMaterial(best ? "Best Burst Ink" : "Goal Burst Ink", color);
+            var count = best ? 8 : 5;
+            for (var i = 0; i < count; i++)
+            {
+                var root = new GameObject(best ? "Best Waddle Burst" : "Goal Waddle Burst").transform;
+                root.SetParent(worldRoot, false);
+                var angle = (i / (float)count) * Mathf.PI * 2f;
+                var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (best ? 0.46f : 0.32f);
+                root.position = new Vector3(position.x + offset.x, 0.11f + i * 0.006f, position.y + offset.y);
+                root.rotation = Quaternion.Euler(0f, -angle * Mathf.Rad2Deg, 0f);
+                CreateStampBar(root, material, Vector3.zero, new Vector3(best ? 0.20f : 0.14f, 0.014f, 0.035f));
+                stepStamps.Add(new StepStamp
+                {
+                    Root = root,
+                    Material = material,
+                    Color = color,
+                    BaseScale = Vector3.one,
+                    Age = i * 0.018f
+                });
+            }
+        }
+
         private void UpdateStepStamps()
         {
             const float lifetime = 0.38f;
@@ -1826,7 +2053,7 @@ namespace MannLab.Games.Walking
             if (state == WalkingGameState.Result)
             {
                 var bestLine = bestUpdatedThisRun ? "New Best!" : $"Best {bestDistanceMeters:0.0} m";
-                resultText.text = $"Result\n{distanceMeters:0.0} m\n{bestLine}\n{steps} steps  {brokenIcebergs} ice";
+                resultText.text = $"{ResultRating()}\n{distanceMeters:0.0} m\n{bestLine}\n{steps} steps  {brokenIcebergs} ice";
             }
 
             ApplyFootStatus(leftFoot, leftStatusText, leftStatusBadge, leftTouchZone);
@@ -1851,7 +2078,12 @@ namespace MannLab.Games.Walking
                 return;
             }
 
+            var aheadOfBestPace = IsAheadOfBestPace();
+            var hudTint = aheadOfBestPace
+                ? new Color(Warm.r, Warm.g, Warm.b, 0.13f + bestPassPulse * 0.12f)
+                : new Color(Blue.r, Blue.g, Blue.b, 0.10f);
             DrawGuiRect(new Rect(margin, margin, Screen.width - margin * 2f, topHeight), new Color(1f, 0.99f, 0.96f, 0.72f));
+            DrawGuiRect(new Rect(margin, margin, Screen.width - margin * 2f, topHeight), hudTint);
             var secondsLeft = Mathf.CeilToInt(runTimeRemaining);
             var timerColor = secondsLeft <= 5 ? new Color(Red.r, Red.g, Red.b, 0.18f) : new Color(Warm.r, Warm.g, Warm.b, 0.18f);
             DrawCircle(CenteredRect(new Vector2(Screen.width * 0.5f, margin + topHeight * 0.5f), 74f * scale, 74f * scale), timerColor);
@@ -1859,6 +2091,7 @@ namespace MannLab.Games.Walking
             GUI.Label(new Rect(margin + 20f * scale, margin + 6f * scale, 300f * scale, topHeight), $"{distanceMeters:0.0} m", hudStyle);
             GUI.Label(new Rect(Screen.width * 0.5f - 80f * scale, margin + 7f * scale, 160f * scale, topHeight), $"{secondsLeft}s", smallHudStyle);
             GUI.Label(new Rect(Screen.width - margin - 210f * scale, margin + 10f * scale, 190f * scale, topHeight), $"BEST {bestDistanceMeters:0.0}", guideStyle);
+            DrawProgressDots(new Rect(margin + 22f * scale, margin + topHeight - 17f * scale, 156f * scale, 9f * scale), scale);
 
             if (state == WalkingGameState.Playing && (steps < 5 || leftFoot.NeedsReturn || rightFoot.NeedsReturn || leftFoot.Mode != InputMode.Idle || rightFoot.Mode != InputMode.Idle))
             {
@@ -1870,11 +2103,61 @@ namespace MannLab.Games.Walking
             {
                 var bestLine = bestUpdatedThisRun ? "New Best!" : $"Best {bestDistanceMeters:0.0} m";
                 DrawGuiRect(new Rect(Screen.width * 0.16f, Screen.height * 0.25f, Screen.width * 0.68f, 280f * scale), new Color(1f, 0.99f, 0.96f, 0.9f));
-                GUI.Label(new Rect(Screen.width * 0.16f, Screen.height * 0.265f, Screen.width * 0.68f, 172f * scale), $"Result\n{distanceMeters:0.0} m\n{bestLine}\n{steps} steps  {brokenIcebergs} ice", titleStyle);
+                GUI.Label(new Rect(Screen.width * 0.16f, Screen.height * 0.265f, Screen.width * 0.68f, 172f * scale), $"{ResultRating()}\n{distanceMeters:0.0} m\n{bestLine}\n{steps} steps  {brokenIcebergs} ice  {reachedGoalMarkers} flags", titleStyle);
                 if (GUI.Button(new Rect(Screen.width * 0.35f, Screen.height * 0.465f, Screen.width * 0.3f, 56f * scale), "Restart", buttonStyle))
                 {
                     ResetRun();
                 }
+            }
+        }
+
+        private bool IsAheadOfBestPace()
+        {
+            if (bestDistanceAtRunStart < 1f || state != WalkingGameState.Playing)
+            {
+                return true;
+            }
+
+            var elapsed = Mathf.Clamp(runDurationSeconds - runTimeRemaining, 0.35f, runDurationSeconds);
+            var projectedDistance = distanceMeters / elapsed * runDurationSeconds;
+            return projectedDistance >= bestDistanceAtRunStart * 0.98f;
+        }
+
+        private string ResultRating()
+        {
+            if (bestUpdatedThisRun)
+            {
+                return "Best Waddle!";
+            }
+
+            if (distanceMeters >= 75f)
+            {
+                return "Long March";
+            }
+
+            if (distanceMeters >= 35f)
+            {
+                return "Good Slide";
+            }
+
+            return "Tiny Waddle";
+        }
+
+        private void DrawProgressDots(Rect rect, float scale)
+        {
+            if (GoalMarkerDistances.Length == 0)
+            {
+                return;
+            }
+
+            var gap = rect.width / Mathf.Max(1, GoalMarkerDistances.Length - 1);
+            for (var i = 0; i < GoalMarkerDistances.Length; i++)
+            {
+                var reached = i < reachedGoalMarkers;
+                var color = reached
+                    ? new Color(Warm.r, Warm.g, Warm.b, 0.78f)
+                    : new Color(Ink.r, Ink.g, Ink.b, 0.18f);
+                DrawCircle(CenteredRect(new Vector2(rect.x + gap * i, rect.center.y), 7f * scale, 7f * scale), color);
             }
         }
 
@@ -1950,6 +2233,11 @@ namespace MannLab.Games.Walking
 
         private void DrawReadyCoach(float scale)
         {
+            var goalPanel = new Rect(Screen.width * 0.18f, Screen.height * 0.16f, Screen.width * 0.64f, 150f * scale);
+            DrawGuiRect(goalPanel, new Color(1f, 0.99f, 0.96f, 0.58f));
+            GUI.Label(new Rect(goalPanel.x, goalPanel.y + 10f * scale, goalPanel.width, 42f * scale), "GO FAR IN 30s", smallHudStyle);
+            DrawReadyGoalLine(goalPanel, scale);
+
             var panel = new Rect(Screen.width * 0.24f, Screen.height * 0.70f, Screen.width * 0.52f, 116f * scale);
             DrawGuiRect(panel, new Color(1f, 0.99f, 0.96f, 0.46f));
 
@@ -1961,6 +2249,23 @@ namespace MannLab.Games.Walking
             var rightLane = new Rect(panel.x + gap * 2f + laneWidth, laneTop, laneWidth, laneHeight);
             DrawThumbLoop(leftLane, leftFoot.Side, 0f, scale);
             DrawThumbLoop(rightLane, rightFoot.Side, 0.5f, scale);
+        }
+
+        private void DrawReadyGoalLine(Rect panel, float scale)
+        {
+            var y = panel.y + panel.height * 0.66f;
+            var start = panel.x + panel.width * 0.22f;
+            var end = panel.x + panel.width * 0.78f;
+            DrawGuiRect(new Rect(start, y, end - start, 5f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.22f));
+            DrawCircle(CenteredRect(new Vector2(start, y + 2f * scale), 22f * scale, 22f * scale), new Color(Warm.r, Warm.g, Warm.b, 0.60f));
+            DrawGuiRect(new Rect(end, y - 34f * scale, 5f * scale, 40f * scale), new Color(Ink.r, Ink.g, Ink.b, 0.42f));
+            DrawGuiRect(new Rect(end + 5f * scale, y - 34f * scale, 38f * scale, 20f * scale), new Color(Warm.r, Warm.g, Warm.b, 0.62f));
+            if (bestDistanceAtRunStart > 1f)
+            {
+                var t = Mathf.Clamp01(bestDistanceAtRunStart / Mathf.Max(1f, GoalMarkerDistances[GoalMarkerDistances.Length - 1]));
+                var x = Mathf.Lerp(start, end, t);
+                DrawRing(CenteredRect(new Vector2(x, y + 2f * scale), 27f * scale, 27f * scale), new Color(Blue.r, Blue.g, Blue.b, 0.46f));
+            }
         }
 
         private void DrawThumbLoop(Rect lane, WalkingFootSide side, float phaseOffset, float scale)
