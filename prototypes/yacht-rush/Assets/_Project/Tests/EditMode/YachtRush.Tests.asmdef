@@ -1,0 +1,22 @@
+{
+  "name": "MannLab.Games.YachtRush.Tests",
+  "rootNamespace": "MannLab.Games.YachtRush.Tests",
+  "references": [
+    "MannLab.Games.YachtRush"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -2,6 +2,7 @@ using System;
 #if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS
 using GoogleMobileAds.Api;
 using GoogleMobileAds.Common;
+using GoogleMobileAds.Ump.Api;
 #endif
 using UnityEngine;
 
@@ -17,6 +18,8 @@ namespace MannLab.Ads
         private static int gameOverInterval = 3;
         public static string DiagnosticSummary { get; private set; } = "ads: not initialized";
 #if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS
+        private static bool consentFlowCompleted;
+        private static bool mobileAdsInitialized;
         private static bool loadingInterstitial;
         private static bool showInterstitialWhenLoaded;
         private static bool usingTestAds;
@@ -42,6 +45,18 @@ namespace MannLab.Ads
             {
 #if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS
                 return loadingInterstitial;
+#else
+                return false;
+#endif
+            }
+        }
+
+        public static bool IsPrivacyOptionsRequired
+        {
+            get
+            {
+#if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS
+                return ConsentInformation.PrivacyOptionsRequirementStatus == PrivacyOptionsRequirementStatus.Required;
 #else
                 return false;
 #endif
@@ -80,21 +95,8 @@ namespace MannLab.Ads
 
                 Debug.Log(
                     $"[Ads] Game-over interstitial configured. mode={(usingTestAds ? "test" : "production")}, interval={gameOverInterval}.");
-                SetDiagnosticSummary($"ads: configured mode={(usingTestAds ? "test" : "production")} interval={gameOverInterval}");
-                MobileAds.SetiOSAppPauseOnBackground(true);
-                MobileAds.Initialize(status =>
-                {
-                    if (status == null)
-                    {
-                        Debug.LogWarning("[Ads] Google Mobile Ads initialization returned no status.");
-                        SetDiagnosticSummary("ads: init returned no status");
-                        return;
-                    }
-
-                    Debug.Log("[Ads] Google Mobile Ads initialized.");
-                    SetDiagnosticSummary("ads: initialized, loading");
-                    MobileAdsEventExecutor.ExecuteInUpdate(LoadInterstitial);
-                });
+                SetDiagnosticSummary($"ads: consent update mode={(usingTestAds ? "test" : "production")}");
+                GatherConsentThenInitializeAds();
             }
             catch (Exception exception)
             {
@@ -188,11 +190,136 @@ namespace MannLab.Ads
 #endif
         }
 
+        public static void ShowPrivacyOptionsForm()
+        {
 #if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS
+            if (!initialized)
+            {
+                SetDiagnosticSummary("ads: privacy options before init");
+                return;
+            }
+
+            try
+            {
+                ConsentForm.ShowPrivacyOptionsForm(error =>
+                {
+                    MobileAdsEventExecutor.ExecuteInUpdate(() =>
+                    {
+                        if (error != null)
+                        {
+                            Debug.LogWarning($"[Ads] Privacy options form failed: {ShortError(error)}");
+                            SetDiagnosticSummary($"ads: privacy form failed {ShortError(error)}");
+                            return;
+                        }
+
+                        Debug.Log("[Ads] Privacy options form dismissed.");
+                        SetDiagnosticSummary("ads: privacy form dismissed");
+                        InitializeMobileAdsIfAllowed();
+                    });
+                });
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Ads] Privacy options form could not open: {exception.GetType().Name}");
+                SetDiagnosticSummary($"ads: privacy form failed {exception.GetType().Name}");
+            }
+#else
+            SetDiagnosticSummary("ads: SDK not installed");
+#endif
+        }
+
+#if MANNLAB_ADMOB_GOOGLE_MOBILE_ADS
+        private static void GatherConsentThenInitializeAds()
+        {
+            try
+            {
+                var request = new ConsentRequestParameters();
+                ConsentInformation.Update(request, updateError =>
+                {
+                    MobileAdsEventExecutor.ExecuteInUpdate(() =>
+                    {
+                        if (updateError != null)
+                        {
+                            Debug.LogWarning($"[Ads] Consent information update failed: {ShortError(updateError)}");
+                            SetDiagnosticSummary($"ads: consent update failed {ShortError(updateError)}");
+                            InitializeMobileAdsIfAllowed();
+                            return;
+                        }
+
+                        Debug.Log("[Ads] Consent information updated.");
+                        SetDiagnosticSummary("ads: consent form check");
+                        ConsentForm.LoadAndShowConsentFormIfRequired(showError =>
+                        {
+                            MobileAdsEventExecutor.ExecuteInUpdate(() =>
+                            {
+                                consentFlowCompleted = true;
+                                if (showError != null)
+                                {
+                                    Debug.LogWarning($"[Ads] Consent form failed: {ShortError(showError)}");
+                                    SetDiagnosticSummary($"ads: consent form failed {ShortError(showError)}");
+                                    InitializeMobileAdsIfAllowed();
+                                    return;
+                                }
+
+                                Debug.Log("[Ads] Consent flow completed.");
+                                InitializeMobileAdsIfAllowed();
+                            });
+                        });
+                    });
+                });
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Ads] Consent flow could not start: {exception.GetType().Name}");
+                SetDiagnosticSummary($"ads: consent failed {exception.GetType().Name}");
+                InitializeMobileAdsIfAllowed();
+            }
+        }
+
+        private static void InitializeMobileAdsIfAllowed()
+        {
+            if (mobileAdsInitialized)
+            {
+                return;
+            }
+
+            if (!ConsentInformation.CanRequestAds())
+            {
+                Debug.Log("[Ads] Consent flow has not allowed ad requests yet.");
+                SetDiagnosticSummary($"ads: waiting for consent status={ConsentInformation.ConsentStatus}");
+                return;
+            }
+
+            mobileAdsInitialized = true;
+            MobileAds.SetiOSAppPauseOnBackground(true);
+            MobileAds.Initialize(status =>
+            {
+                MobileAdsEventExecutor.ExecuteInUpdate(() =>
+                {
+                    if (status == null)
+                    {
+                        Debug.LogWarning("[Ads] Google Mobile Ads initialization returned no status.");
+                        SetDiagnosticSummary("ads: init returned no status");
+                        return;
+                    }
+
+                    Debug.Log("[Ads] Google Mobile Ads initialized.");
+                    SetDiagnosticSummary($"ads: initialized, loading consent={consentFlowCompleted}");
+                    LoadInterstitial();
+                });
+            });
+        }
+
         private static void LoadInterstitial()
         {
             if (loadingInterstitial || interstitialAd != null || string.IsNullOrWhiteSpace(interstitialAdUnitId))
             {
+                return;
+            }
+
+            if (!mobileAdsInitialized || !ConsentInformation.CanRequestAds())
+            {
+                SetDiagnosticSummary("ads: load waiting for consent");
                 return;
             }
 

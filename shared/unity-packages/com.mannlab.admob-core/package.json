@@ -1,8 +1,8 @@
 {
   "name": "com.mannlab.admob-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "MannLab AdMob Core",
-  "description": "Shared AdMob interstitial bridge for MannLab games. Game projects provide app-specific ad unit IDs.",
+  "description": "Shared AdMob interstitial and UMP consent bridge for MannLab games. Game projects provide app-specific ad unit IDs.",
   "unity": "6000.0",
   "dependencies": {
     "com.google.ads.mobile": "11.4.0"

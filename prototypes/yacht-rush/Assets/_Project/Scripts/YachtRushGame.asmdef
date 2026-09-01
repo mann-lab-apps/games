@@ -1,0 +1,17 @@
+{
+  "name": "MannLab.Games.YachtRush",
+  "rootNamespace": "MannLab.Games.YachtRush",
+  "references": [
+    "MannLab.Ads.Core",
+    "MannLab.HyperCasual.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
