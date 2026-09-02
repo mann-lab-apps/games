@@ -2,13 +2,17 @@
 
 ## Review Notes Draft
 
-Gather & Shot has been updated as a distinct stop-to-gather survival game.
+Gather & Shot build 1.0.1 (5) has been updated as a distinct stop-to-gather survival game.
+
+Gameplay preview video:
+https://drive.google.com/file/d/1oVT2ZDbGm-QbwXpHPiQEv80qAfqSQjdn/view?usp=sharing
 
 The core rule is unique to this app: the player moves with one joystick to stay safe, but snow ammo only gathers while the player stops. When enemies enter range, the character automatically throws snowballs without manual aiming. This creates a repeated risk decision: keep moving to avoid enemies, or stop briefly to build ammo.
 
 Key gameplay features available during review:
 
-- Stop-to-gather ammo loop with a visible charging ring, snow cloud, and packed snowballs around the player.
+- Stop-to-gather ammo loop with a visible charging ring, snow cloud, and a small representative snowball stack around the player.
+- The latest build reduces duplicate ammo UI: the charging feedback is shown primarily around the character, while the top-right Snow counter remains a compact exact ammo count.
 - Automatic snowball throwing when enemies enter range.
 - Snow Coin currency earned from enemy defeats, pickups, wave survival, and mission completion.
 - Persistent upgrade progression through the Snow Workshop.
@@ -39,8 +43,9 @@ Analytics and stability:
 
 Reviewer checklist:
 
+- If possible, watch the linked gameplay preview video first to see the first-run loop without relying on text instructions.
 - Start a run and move with the joystick.
-- Release input to see the stop-to-gather charging ring and snow ammo stack.
+- Release input to see the stop-to-gather charging ring, snow cloud, and compact snow ammo stack.
 - Let an enemy enter range to see automatic throwing.
 - Defeat enemies to receive Snow Coin popups.
 - End the run and open Snow Workshop from the result screen.
