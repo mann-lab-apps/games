@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 
@@ -34,12 +35,19 @@ namespace MannLab.Games.GatherAndShot.EditorTools
 
         private static void PatchWebGLShell()
         {
+            EnsureUncompressedBuildFile("gather-and-shot.data");
+            EnsureUncompressedBuildFile("gather-and-shot.framework.js");
+            EnsureUncompressedBuildFile("gather-and-shot.wasm");
+
             var indexPath = Path.Combine(OutputPath, "index.html");
             if (File.Exists(indexPath))
             {
                 var html = File.ReadAllText(indexPath)
                     .Replace("Unity Web Player | Gather _ Shot", "Gather & Shot")
                     .Replace("Gather _ Shot", "Gather & Shot")
+                    .Replace("gather-and-shot.data.gz", "gather-and-shot.data")
+                    .Replace("gather-and-shot.framework.js.gz", "gather-and-shot.framework.js")
+                    .Replace("gather-and-shot.wasm.gz", "gather-and-shot.wasm")
                     .Replace("<canvas id=\"unity-canvas\" width=960 height=600 tabindex=\"-1\"></canvas>", "<canvas id=\"unity-canvas\" width=540 height=960 tabindex=\"-1\"></canvas>")
                     .Replace("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">", "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover\">")
                     .Replace("canvas.style.width = \"960px\";", "canvas.style.width = \"540px\";")
@@ -145,6 +153,22 @@ namespace MannLab.Games.GatherAndShot.EditorTools
   font-size: 14px;
 }
 ");
+        }
+
+        private static void EnsureUncompressedBuildFile(string fileName)
+        {
+            var buildDirectory = Path.Combine(OutputPath, "Build");
+            var destinationPath = Path.Combine(buildDirectory, fileName);
+            var compressedPath = destinationPath + ".gz";
+            if (!File.Exists(compressedPath))
+            {
+                return;
+            }
+
+            using var source = File.OpenRead(compressedPath);
+            using var gzip = new GZipStream(source, CompressionMode.Decompress);
+            using var destination = File.Create(destinationPath);
+            gzip.CopyTo(destination);
         }
     }
 }
