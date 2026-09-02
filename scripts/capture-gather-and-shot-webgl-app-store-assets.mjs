@@ -18,7 +18,7 @@ const devices = [
 const shots = [
   { file: "01-snowfield-start.png", waitMs: 1800, moves: [] },
   { file: "02-gathering-snow.png", waitMs: 500, moves: [{ dx: -0.16, dy: -0.16, ms: 900 }] },
-  { file: "03-auto-snowball-throw.png", waitMs: 800, moves: [{ dx: 0.16, dy: 0.08, ms: 800 }, { dx: 0.2, dy: -0.06, ms: 650 }] },
+  { file: "03-auto-snowball-throw.png", waitMs: 120, captureDuringMove: true, moves: [{ dx: 0.16, dy: 0.08, ms: 1000, captureAtMs: 460 }, { dx: 0.2, dy: -0.06, ms: 1300 }] },
   { file: "04-enemy-pressure.png", waitMs: 2600, moves: [{ dx: -0.16, dy: 0.08, ms: 700 }, { dx: 0.18, dy: 0.12, ms: 700 }] },
 ];
 
@@ -253,12 +253,13 @@ async function applyPageCleanups(client) {
   });
 }
 
-async function drag(client, device, move) {
+async function drag(client, device, move, captureNow = null) {
   const startX = Math.round(device.width * 0.5);
   const startY = Math.round(device.height * 0.5);
   const endX = Math.round(startX + device.width * move.dx);
   const endY = Math.round(startY + device.height * move.dy);
   const steps = Math.max(6, Math.round(move.ms / 110));
+  let captured = false;
   await client.send("Input.dispatchTouchEvent", {
     type: "touchStart",
     touchPoints: [{ x: startX, y: startY, radiusX: 12, radiusY: 12, force: 1, id: 1 }],
@@ -277,9 +278,16 @@ async function drag(client, device, move) {
       }],
     });
     await delay(Math.round(move.ms / steps));
+    const elapsed = Math.round((move.ms / steps) * step);
+    if (captureNow && !captured && move.captureAtMs && elapsed >= move.captureAtMs) {
+      captured = true;
+      await delay(80);
+      await captureNow();
+    }
   }
   await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await delay(280);
+  return captured;
 }
 
 async function capture(client, device, fileName) {
@@ -314,14 +322,28 @@ async function captureDevice(client, device, appUrl) {
     screenHeight: device.height,
   });
 
-  for (const [index, shot] of shots.entries()) {
-    const separator = appUrl.includes("?") ? "&" : "?";
-    await client.send("Page.navigate", { url: `${appUrl}${separator}captureShot=${index + 1}&cacheBust=${Date.now()}` });
-    await waitForGame(client);
-    await applyPageCleanups(client);
-    for (const move of shot.moves) await drag(client, device, move);
-    await delay(shot.waitMs);
-    await capture(client, device, shot.file);
+  const separator = appUrl.includes("?") ? "&" : "?";
+  await client.send("Page.navigate", { url: `${appUrl}${separator}captureRun=appStore&cacheBust=${Date.now()}` });
+  await waitForGame(client);
+  await applyPageCleanups(client);
+
+  for (const shot of shots) {
+    let captured = false;
+    for (const move of shot.moves) {
+      captured = await drag(
+        client,
+        device,
+        move,
+        shot.captureDuringMove && !captured ? async () => {
+          await capture(client, device, shot.file);
+        } : null,
+      ) || captured;
+    }
+
+    if (!captured) {
+      await delay(shot.waitMs);
+      await capture(client, device, shot.file);
+    }
   }
 }
 
