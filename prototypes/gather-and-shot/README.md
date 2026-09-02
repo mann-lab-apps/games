@@ -17,9 +17,20 @@ Mobile portrait snowball survival prototype built around a stop-to-reload risk l
 - Rare snowballs, snowdrifts, and big snowdrifts act as emergency bonus refills.
 - Automatically throw snowballs at the nearest enemy in range.
 - Each hit can defeat or damage enemies.
-- Defeated enemies add score.
+- Defeated enemies add score and Snow Coin.
 - Enemy contact drains Warmth and knocks the player back.
-- The run ends when Warmth reaches zero.
+- The run ends when Warmth reaches zero, then Snow Coin connects into upgrades and the next run.
+
+## Casual Growth Loop
+
+- First 10 seconds: three Walker enemies enter from screen edges; moving gives immediate escape, stopping starts the gather ring, and auto-fire/first coin reward can happen before the opening pressure closes.
+- First 60 seconds: enemy kills, ammo shortage, a timed big snowdrift, a weapon cache, first mini-goal reward, and the first free upgrade are all surfaced.
+- Persistent Snow Coin is saved in PlayerPrefs and shown as run coins plus owned coins.
+- Six upgrades are saved persistently: Ammo Capacity, Gather Speed, Throw Rate, Snowball Damage, Warm Coat, and Coin Magnet.
+- Weapon growth keeps auto-fire intact: Big Snowball, Split Snowball, Ice Shot, Snow Burst, and Rapid Throw appear through pickups, mini goals, or upgrade progression.
+- Wave staging is time-based: Walker focus before 60s, Runner intro from 60s, Heavy intro from 120s, mixed pressure after 240s.
+- Result screen prioritizes Snow Coin earned, upgrade availability, rewarded 2x Coin, Revive, Bonus Chest, and Next Run.
+- Forced game-over interstitials stay blocked for the first 3 runs and the first 3 minutes.
 
 ## Gathering And Bonus Refills
 
@@ -80,9 +91,19 @@ Capture App Store screenshots from the WebGL build:
 node scripts/capture-gather-and-shot-webgl-app-store-assets.mjs
 ```
 
+Serve the local WebGL build:
+
+```sh
+./scripts/serve-gather-and-shot-webgl.sh
+```
+
+Open `http://127.0.0.1:8091/`. The generated WebGL shell is patched during build to use a portrait 9:16 canvas and hide Unity's default footer controls.
+
 ## Firebase Notes
 
-The runtime calls `FirebaseTelemetry` for `app_open`, `run_start`, `restart`, `gather_start`, `bonus_pickup`, `run_end`, and `crashlytics_test_trigger` breadcrumbs. It also forwards unhandled exceptions and Unity exception logs to Crashlytics when the Firebase Unity SDK is present.
+The runtime calls `FirebaseTelemetry` for `app_open`, `run_start`, `restart`, `first_action`, `first_reward`, `first_upgrade`, `currency_earned`, `upgrade_purchase`, `weapon_unlocked`, `wave_start`, `enemy_defeated`, `ammo_empty`, `gather_start`, `gather_complete`, `bonus_pickup`, `rewarded_offer_shown`, `rewarded_offer_completed`, `run_end`, `run_end_reason`, and `crashlytics_test_trigger` breadcrumbs. It also forwards unhandled exceptions and Unity exception logs to Crashlytics when the Firebase Unity SDK is present.
+
+When the Firebase Analytics SDK exposes the string parameter overload, telemetry forwards common run parameters such as game, run number, session time, survival time, kills, ammo, Warmth, coins, upgrade levels, current weapon, enemy count, and end reason.
 
 Firebase app config must be added per platform before real Crashlytics testing:
 
@@ -111,4 +132,4 @@ Default iOS versioning is `0.1 (1)`. Override with `MANNLAB_GATHER_AND_SHOT_IOS_
 
 ## Deferred
 
-Weapon levels, upgrade choices, and store metadata are intentionally deferred until the simple score-chase loop proves worth continuing.
+Selectable upgrade shop layout, production rewarded ad SDK calls, deeper bosses/regions, and store metadata remain deferred after this first growth-loop pass.

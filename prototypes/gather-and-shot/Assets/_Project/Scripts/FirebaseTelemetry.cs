@@ -53,7 +53,7 @@ namespace MannLab.Games.GatherAndShot
                 ? $"[Telemetry] {eventName}"
                 : $"[Telemetry] {eventName} {parameterText}");
 
-            InvokeAnalyticsLogEvent(eventName);
+            InvokeAnalyticsLogEvent(eventName, parameters);
             LogCrashlyticsMessage(string.IsNullOrEmpty(parameterText)
                 ? eventName
                 : $"{eventName} {parameterText}");
@@ -90,9 +90,14 @@ namespace MannLab.Games.GatherAndShot
             throw new InvalidOperationException("Crashlytics forced test crash fallback.");
         }
 
-        private static void InvokeAnalyticsLogEvent(string eventName)
+        private static void InvokeAnalyticsLogEvent(string eventName, IDictionary<string, string> parameters)
         {
             if (analyticsType == null)
+            {
+                return;
+            }
+
+            if (TryInvokeAnalyticsLogEventWithParameters(eventName, parameters))
             {
                 return;
             }
@@ -105,6 +110,56 @@ namespace MannLab.Games.GatherAndShot
                 null);
 
             InvokeFirebaseMethod(method, eventName);
+        }
+
+        private static bool TryInvokeAnalyticsLogEventWithParameters(string eventName, IDictionary<string, string> parameters)
+        {
+            if (parameters == null || parameters.Count == 0)
+            {
+                return false;
+            }
+
+            var parameterType = FindType("Firebase.Analytics.Parameter");
+            if (parameterType == null)
+            {
+                return false;
+            }
+
+            var constructor = parameterType.GetConstructor(new[] { typeof(string), typeof(string) });
+            if (constructor == null)
+            {
+                return false;
+            }
+
+            var parameterArray = Array.CreateInstance(parameterType, parameters.Count);
+            var index = 0;
+            foreach (var pair in parameters)
+            {
+                parameterArray.SetValue(constructor.Invoke(new object[] { pair.Key, pair.Value ?? string.Empty }), index);
+                index++;
+            }
+
+            var method = analyticsType.GetMethod(
+                "LogEvent",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { typeof(string), parameterArray.GetType() },
+                null);
+            if (method == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                method.Invoke(null, new object[] { eventName, parameterArray });
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Telemetry] Firebase parameter event failed: {exception.GetType().Name}");
+                return false;
+            }
         }
 
         private static void LogCrashlyticsMessage(string message)

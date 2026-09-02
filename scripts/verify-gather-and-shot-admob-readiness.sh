@@ -12,7 +12,7 @@ gma_settings="$project/Assets/GoogleMobileAds/Resources/GoogleMobileAdsSettings.
 gma_linker="$project/Assets/GoogleMobileAds/link.xml"
 admob_package="$repo_root/shared/unity-packages/com.mannlab.admob-core/package.json"
 admob_bridge="$repo_root/shared/unity-packages/com.mannlab.admob-core/Runtime/MannLabAdMob.cs"
-privacy="$repo_root/web/mannlab-games/src/main.jsx"
+privacy="$repo_root/docs/privacy-policy.md"
 readme="$project/README.md"
 design_doc="$repo_root/docs/gather-and-shot-game-design.md"
 failures=0
@@ -59,7 +59,8 @@ require_text "$ios_build" "AdMobIosAppId = \"ca-app-pub-4525914685149405~6036634
 require_text "$gma_settings" "adMobIOSAppId: ca-app-pub-4525914685149405~6036634116"
 require_text "$gma_linker" "GoogleMobileAds.iOS"
 require_text "$gma_linker" "GoogleMobileAds.Android"
-require_text "$privacy" "Gather & Shot may use Google AdMob"
+require_text "$privacy" "Best Ramyeon, and Gather & Shot may use"
+require_text "$privacy" "Google AdMob"
 require_text "$readme" "AdMob readiness"
 require_text "$design_doc" "AdMob is wired"
 

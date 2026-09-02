@@ -21,9 +21,9 @@ namespace MannLab.Games.GatherAndShot.EditorTools
         private const string AdMobIosAppId = "ca-app-pub-4525914685149405~6036634116";
         private const string AdMobIosTestAppId = "ca-app-pub-3940256099942544~1458002511";
         private const string MarketingVersionEnv = "MANNLAB_GATHER_AND_SHOT_IOS_MARKETING_VERSION";
-        private const string DefaultMarketingVersion = "0.1";
+        private const string DefaultMarketingVersion = "1.0.1";
         private const string BuildNumberEnv = "MANNLAB_GATHER_AND_SHOT_IOS_BUILD_NUMBER";
-        private const string DefaultBuildNumber = "1";
+        private const string DefaultBuildNumber = "4";
         private const string AppleTeamIdEnv = "MANNLAB_APPLE_TEAM_ID";
         private const string DefaultAppleTeamId = "ZRA4DHHKQ4";
         private const string ProvisioningProfileEnv = "MANNLAB_GATHER_AND_SHOT_IOS_APP_STORE_PROFILE_SPECIFIER";

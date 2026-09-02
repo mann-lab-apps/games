@@ -60,37 +60,40 @@ public static class VerifyGatherAndShotRules
 {
     public static int Main()
     {
-        var maxAmmo = GatherAndShotBalance.MaxAmmo;
-        if (maxAmmo != 10)
+        var maxAmmo = GatherAndShotBalance.MaxAmmoForLevel(0);
+        if (maxAmmo != 10 || GatherAndShotBalance.MaxAmmoForLevel(2) <= maxAmmo)
         {
-            Console.Error.WriteLine("Ammo cap drifted from the MVP design.");
+            Console.Error.WriteLine("Ammo capacity growth drifted from the market loop design.");
             return 1;
         }
 
         if (GatherAndShotBalance.StationaryGatherDelaySeconds <= 0f
             || GatherAndShotBalance.StationaryGatherAmmo != 1
-            || GatherAndShotBalance.StationaryGatherCycleSeconds(0f) <= GatherAndShotBalance.StationaryGatherCycleSeconds(180f))
+            || GatherAndShotBalance.StationaryGatherCycleSeconds(0f, 0) <= GatherAndShotBalance.StationaryGatherCycleSeconds(180f, 0)
+            || GatherAndShotBalance.StationaryGatherCycleSeconds(0f, 0) <= GatherAndShotBalance.StationaryGatherCycleSeconds(0f, 2))
         {
-            Console.Error.WriteLine("Stationary snow gathering should be active and improve slightly over time.");
+            Console.Error.WriteLine("Stationary snow gathering should be active and improve with time/upgrades.");
             return 1;
         }
 
         if (GatherAndShotBalance.PickupAmmo("Ball") != 2
             || GatherAndShotBalance.PickupAmmo("Drift") != 4
             || GatherAndShotBalance.PickupAmmo("BigSnowdrift") != 6
-            || GatherAndShotBalance.PickupAmmo(PickupKind.BigSnowdrift) != 6)
+            || GatherAndShotBalance.PickupAmmo(PickupKind.BigSnowdrift) != 6
+            || GatherAndShotBalance.PickupAmmo(PickupKind.WeaponCache) < 1)
         {
             Console.Error.WriteLine("Emergency bonus pickup ammo values are wrong.");
             return 1;
         }
 
-        if (GatherAndShotBalance.PickupRadius(PickupKind.BigSnowdrift) <= GatherAndShotBalance.PickupRadius(PickupKind.Snowball))
+        if (GatherAndShotBalance.PickupRadius(PickupKind.BigSnowdrift) <= GatherAndShotBalance.PickupRadius(PickupKind.Snowball)
+            || GatherAndShotBalance.PickupRadius(PickupKind.Snowball, 2) <= GatherAndShotBalance.PickupRadius(PickupKind.Snowball, 0))
         {
             Console.Error.WriteLine("Big snowdrifts should be easier to pick up than single snowballs.");
             return 1;
         }
 
-        if (GatherAndShotBalance.MaxLivePickups > 3
+        if (GatherAndShotBalance.MaxLivePickups > 4
             || GatherAndShotBalance.PickupSpawnGapMin(0f) < 5f
             || GatherAndShotBalance.PickupSpawnGapMax(0f) < GatherAndShotBalance.PickupSpawnGapMin(0f))
         {
@@ -127,10 +130,54 @@ public static class VerifyGatherAndShotRules
             return 1;
         }
 
-        var damaged = GatherAndShotBalance.ApplyContactDamage(GatherAndShotBalance.MaxWarmth);
-        if (damaged >= GatherAndShotBalance.MaxWarmth || damaged <= 0f)
+        var damaged = GatherAndShotBalance.ApplyContactDamage(GatherAndShotBalance.BaseMaxWarmth);
+        if (damaged >= GatherAndShotBalance.BaseMaxWarmth || damaged <= 0f)
         {
             Console.Error.WriteLine($"Contact damage was unexpected: {damaged}.");
+            return 1;
+        }
+
+        if (GatherAndShotBalance.MaxWarmth(2) <= GatherAndShotBalance.BaseMaxWarmth
+            || GatherAndShotBalance.FireCooldownSeconds(2, false) >= GatherAndShotBalance.FireCooldownSeconds(0, false)
+            || GatherAndShotBalance.FireCooldownSeconds(0, true) >= GatherAndShotBalance.FireCooldownSeconds(0, false)
+            || GatherAndShotBalance.SnowballDamage(2) <= GatherAndShotBalance.SnowballDamage(0))
+        {
+            Console.Error.WriteLine("Upgrade effects should improve warmth, throw rate, rapid fire, and damage.");
+            return 1;
+        }
+
+        if (GatherAndShotBalance.UpgradeCost(UpgradeKind.AmmoCapacity, 1) <= GatherAndShotBalance.UpgradeCost(UpgradeKind.AmmoCapacity, 0)
+            || GatherAndShotBalance.EnemyCoinReward(EnemyKind.Heavy) <= GatherAndShotBalance.EnemyCoinReward(EnemyKind.Walker)
+            || GatherAndShotBalance.BonusChestCoins(3) <= 0)
+        {
+            Console.Error.WriteLine("Snow Coin economy values are not increasing correctly.");
+            return 1;
+        }
+
+        if (GatherAndShotBalance.WaveStage(30f) != 1
+            || GatherAndShotBalance.WaveStage(75f) != 2
+            || GatherAndShotBalance.WaveStage(150f) != 3
+            || GatherAndShotBalance.WaveStage(260f) != 4)
+        {
+            Console.Error.WriteLine("First five-minute wave staging is wrong.");
+            return 1;
+        }
+
+        if (GatherAndShotBalance.WeaponDurationSeconds(WeaponKind.BigSnowball) <= 0f
+            || GatherAndShotBalance.WeaponDurationSeconds(WeaponKind.SplitSnowball) <= 0f
+            || GatherAndShotBalance.WeaponDurationSeconds(WeaponKind.IceShot) <= 0f
+            || GatherAndShotBalance.WeaponDurationSeconds(WeaponKind.SnowBurst) <= 0f)
+        {
+            Console.Error.WriteLine("Weapon variation durations are not configured.");
+            return 1;
+        }
+
+        var missionNames = Enum.GetNames(typeof(MissionKind));
+        if (missionNames.Length != 5
+            || missionNames[0] != "FirstSnowLoop"
+            || missionNames[4] != "DefeatHeavy")
+        {
+            Console.Error.WriteLine("Early mission chain ordering is not configured.");
             return 1;
         }
 
