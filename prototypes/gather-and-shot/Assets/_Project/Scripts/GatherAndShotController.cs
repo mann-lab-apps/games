@@ -821,7 +821,7 @@ namespace MannLab.Games.GatherAndShot
             var top = CreateRect(gameSquareRoot, "Top HUD", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -176f), new Vector2(0f, -18f));
             bestText = CreateText(top, "Best", "BEST 0", 26, TextAnchor.UpperLeft, new Vector2(0f, 1f), new Vector2(28f, -12f), new Vector2(260f, 44f));
             scoreText = CreateText(top, "Score", "0", 52, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -4f), new Vector2(210f, 62f));
-            ammoText = CreateText(top, "Ammo", "SNOW 3/10", 26, TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(-28f, -14f), new Vector2(280f, 44f));
+            ammoText = CreateText(top, "Ammo", "SNOW 3/10", 23, TextAnchor.UpperRight, new Vector2(1f, 1f), new Vector2(-26f, -16f), new Vector2(240f, 40f));
             coinText = CreateText(top, "Coins", "COIN 0 | BAG 0", 24, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0f, -60f), new Vector2(440f, 38f));
 
             var warmthBack = CreatePanel(top, "Warmth Back", new Vector2(0.5f, 1f), new Vector2(WarmthBarWidth, 38f), SketchPalette.WarmShadow);
@@ -833,9 +833,9 @@ namespace MannLab.Games.GatherAndShot
             warmthFill.rectTransform.offsetMin = Vector2.zero;
             warmthFill.rectTransform.offsetMax = Vector2.zero;
 
-            gatherBack = CreatePanel(top, "Gather Back", new Vector2(0.5f, 1f), new Vector2(GatherBarWidth, 18f), new Color32(255, 253, 247, 138));
+            gatherBack = CreatePanel(top, "Gather Back", new Vector2(0.5f, 1f), new Vector2(GatherBarWidth, 12f), new Color32(255, 253, 247, 0));
             gatherBack.anchoredPosition = new Vector2(0f, -150f);
-            gatherFill = CreateImage(gatherBack, "Gather Fill", AmmoColor);
+            gatherFill = CreateImage(gatherBack, "Gather Fill", new Color32(88, 166, 206, 0));
             gatherFill.rectTransform.anchorMin = new Vector2(0f, 0f);
             gatherFill.rectTransform.anchorMax = new Vector2(0f, 1f);
             gatherFill.rectTransform.pivot = new Vector2(0f, 0.5f);
@@ -1949,8 +1949,9 @@ namespace MannLab.Games.GatherAndShot
 
         private void UpdateAmmoStackVisuals()
         {
-            var visible = Mathf.Min(ammo, ammoStackRenderers.Count);
-            var radius = IsGathering ? 0.6f : 0.48f;
+            const int MaxRepresentedSnowballs = 6;
+            var visible = Mathf.Min(ammo, MaxRepresentedSnowballs, ammoStackRenderers.Count);
+            var radius = IsGathering ? 0.54f : 0.43f;
             for (var i = 0; i < ammoStackRenderers.Count; i++)
             {
                 var stack = ammoStackRenderers[i];
@@ -1966,13 +1967,12 @@ namespace MannLab.Games.GatherAndShot
                     continue;
                 }
 
-                var angle = i / Mathf.Max(1f, visible) * Mathf.PI * 2f + Time.time * (IsGathering ? 1.45f : 0.42f);
-                var ring = i < 12 ? radius : radius + 0.18f;
+                var angle = i / Mathf.Max(1f, visible) * Mathf.PI * 2f + Time.time * (IsGathering ? 1.12f : 0.28f);
                 stack.transform.position = new Vector3(
-                    playerPosition.x + Mathf.Cos(angle) * ring,
-                    playerPosition.y + Mathf.Sin(angle) * ring * 0.58f + 0.08f,
+                    playerPosition.x + Mathf.Cos(angle) * radius,
+                    playerPosition.y + Mathf.Sin(angle) * radius * 0.52f + 0.08f,
                     -0.08f);
-                stack.transform.localScale = Vector3.one * (IsGathering ? 0.22f : 0.18f);
+                stack.transform.localScale = Vector3.one * (IsGathering ? 0.19f : 0.16f);
             }
         }
 
@@ -2158,7 +2158,7 @@ namespace MannLab.Games.GatherAndShot
         {
             scoreText.text = score.ToString();
             bestText.text = $"BEST {bestScore}";
-            ammoText.text = IsGathering ? $"SNOW {ammo}/{EffectiveMaxAmmo} +" : $"SNOW {ammo}/{EffectiveMaxAmmo}";
+            ammoText.text = $"SNOW {ammo}/{EffectiveMaxAmmo}";
             coinText.text = $"COIN +{runEarnedCoins} | BAG {ownedCoins}";
             objectiveText.text = CurrentObjectiveText();
             missionText.text = CurrentMissionText();
@@ -2169,7 +2169,7 @@ namespace MannLab.Games.GatherAndShot
                 return;
             }
 
-            gatherBack.gameObject.SetActive(IsGathering);
+            gatherBack.gameObject.SetActive(false);
             if (!IsGathering)
             {
                 return;

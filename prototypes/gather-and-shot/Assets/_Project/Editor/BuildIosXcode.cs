@@ -23,7 +23,7 @@ namespace MannLab.Games.GatherAndShot.EditorTools
         private const string MarketingVersionEnv = "MANNLAB_GATHER_AND_SHOT_IOS_MARKETING_VERSION";
         private const string DefaultMarketingVersion = "1.0.1";
         private const string BuildNumberEnv = "MANNLAB_GATHER_AND_SHOT_IOS_BUILD_NUMBER";
-        private const string DefaultBuildNumber = "4";
+        private const string DefaultBuildNumber = "5";
         private const string AppleTeamIdEnv = "MANNLAB_APPLE_TEAM_ID";
         private const string DefaultAppleTeamId = "ZRA4DHHKQ4";
         private const string ProvisioningProfileEnv = "MANNLAB_GATHER_AND_SHOT_IOS_APP_STORE_PROFILE_SPECIFIER";
