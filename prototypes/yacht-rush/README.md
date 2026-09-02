@@ -17,6 +17,23 @@ Open this directory from Unity Hub. Unity may generate missing project settings 
 
 Keep prototype learnings, build links, and store-readiness notes here.
 
+## App Review Differentiation
+
+Yacht Rush uses classic Yacht scoring as a familiar foundation, but the core
+gameplay is built around managing one dangerous Rush Die every round:
+
+- Every round assigns one visible Rush Die before the player throws the bowl.
+- The Rush Die is shown directly on the 3D die with a colored face, top ring,
+  and board/banner accent so the modifier is visible before reading the score sheet.
+- Rush Dice change play and scoring through Anchor, Storm, Cracked, Mirror,
+  and Blank effects.
+- Anchor can lock itself, Storm changes throw physics, Mirror flips its landed
+  value, Blank removes one die from scoring, and Cracked disrupts combo hands.
+- The 12 classic Yacht categories remain, but score previews show how the Rush
+  Die changes each choice.
+- The primary interaction is a 3D physics bowl throw with visible dice, not a
+  standard tap-to-roll score sheet.
+
 ## Services
 
 - Firebase Analytics/Crashlytics runtime bridge is wired through `FirebaseTelemetry`.

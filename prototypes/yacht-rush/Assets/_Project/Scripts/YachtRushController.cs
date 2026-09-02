@@ -11,6 +11,13 @@ namespace MannLab.Games.YachtRush
 {
     public sealed class YachtRushController : MonoBehaviour
     {
+        private enum RoundTwist
+        {
+            ContractHand,
+            RollRule,
+            RushDie
+        }
+
         private const string BestScoreKey = "mannlab.yacht_rush.best_score";
         private const float TableHalfWidth = 5.7f;
         private const float TableHalfDepth = 4.05f;
@@ -30,6 +37,7 @@ namespace MannLab.Games.YachtRush
         private const float BowlRadiusX = 1.5f;
         private const float BowlRadiusZ = 0.72f;
         private const float BowlDiceSpacing = 0.62f;
+        private const float RushIntroSeconds = 1.25f;
         private const string GameKey = "yacht-rush";
         private const string GameOverInterstitialIosAdUnitId = "ca-app-pub-4525914685149405/8278784535";
         private const string GameOverInterstitialAndroidAdUnitId = "";
@@ -56,8 +64,10 @@ namespace MannLab.Games.YachtRush
         private Transform tableRoot;
         private PhysicsMaterial dicePhysicsMaterial;
         private PhysicsMaterial tablePhysicsMaterial;
+        private Material tableMaterial;
         private AudioSource audioSource;
         private readonly Dictionary<string, AudioClip> audioClips = new Dictionary<string, AudioClip>();
+        private readonly List<Renderer> twistAccentRenderers = new List<Renderer>();
         private Canvas canvas;
         private Text roundText;
         private Text rollText;
@@ -69,13 +79,19 @@ namespace MannLab.Games.YachtRush
         private Text contractConditionText;
         private Text contractBonusText;
         private Text contractStateText;
+        private Image twistAccentBar;
         private Text chooserTitleText;
+        private Text rushIntroText;
         private RectTransform scoreChooserRect;
         private GridLayoutGroup scoreGridLayout;
         private GameObject resultPanel;
         private Text resultScoreText;
         private Text resultMetaText;
         private YachtRushContract currentContract;
+        private YachtRushRollRule currentRollRule;
+        private YachtRushRushDie currentRushDie;
+        private RoundTwist currentTwist;
+        private int rushDieIndex;
         private int rollCount;
         private int lockedBeforeFinalThrow;
         private int bestScore;
@@ -89,12 +105,17 @@ namespace MannLab.Games.YachtRush
         private Vector2 pointerVelocity;
         private float bowlShake;
         private float bowlFeedbackPulse;
+        private float rushIntroTimer;
         private float nextShakeSoundTime;
         private int lastScreenWidth;
         private int lastScreenHeight;
 
         private int RoundNumber => Mathf.Min(scores.Count + 1, YachtRushRules.RoundCount);
-        private bool CanThrow => !isResolvingRoll && rollCount < YachtRushRules.MaxRollsPerRound && scores.Count < YachtRushRules.RoundCount;
+        private int HeldCount => dice.Count(die => die.IsHeld);
+        private int MaxRollsThisRound => YachtRushRules.MaxRollsForRule(currentRollRule);
+        private bool CanThrow => !isResolvingRoll &&
+            scores.Count < YachtRushRules.RoundCount &&
+            YachtRushRules.CanThrowWithRule(currentRollRule, rollCount, HeldCount);
         private bool CanScore => !isResolvingRoll && rollCount > 0 && scores.Count < YachtRushRules.RoundCount;
 
         private void Awake()
@@ -146,6 +167,7 @@ namespace MannLab.Games.YachtRush
             UpdateBowlInput();
             UpdateBowlFeedback();
             UpdateHeldDiceVisuals();
+            UpdateRushIntroCue();
 
             if (isResolvingRoll)
             {
@@ -162,17 +184,20 @@ namespace MannLab.Games.YachtRush
             rollCount = 0;
             lockedBeforeFinalThrow = 0;
             stableSeconds = 0f;
-            currentContract = NextContract();
+            ChooseRoundModifiers();
             resultPanel.SetActive(false);
             ParkBowl();
 
             for (var index = 0; index < dice.Count; index += 1)
             {
                 dice[index].IsHeld = false;
+                dice[index].SetRushDie(YachtRushRushDie.None, false);
                 dice[index].SetValue((index % 6) + 1);
             }
 
+            ApplyRushDieVisuals();
             PlaceUnlockedDiceInBowl();
+            ShowRushIntroCue();
             FirebaseTelemetry.SetContext("round", RoundNumber.ToString());
             FirebaseTelemetry.SetContext("score", "0");
             FirebaseTelemetry.LogEvent("run_start");
@@ -185,16 +210,19 @@ namespace MannLab.Games.YachtRush
             lockedBeforeFinalThrow = 0;
             stableSeconds = 0f;
             bowlShake = 0f;
-            currentContract = NextContract();
+            ChooseRoundModifiers();
             ParkBowl();
 
             foreach (var die in dice)
             {
                 die.IsHeld = false;
+                die.SetRushDie(YachtRushRushDie.None, false);
                 die.SetValue(random.Next(1, 7));
             }
 
+            ApplyRushDieVisuals();
             PlaceUnlockedDiceInBowl();
+            ShowRushIntroCue();
             FirebaseTelemetry.SetContext("round", RoundNumber.ToString());
             FirebaseTelemetry.LogEvent(
                 "round_start",
@@ -202,6 +230,8 @@ namespace MannLab.Games.YachtRush
                 {
                     { "round", RoundNumber.ToString() },
                     { "contract", currentContract.ToString() },
+                    { "roll_rule", currentRollRule.ToString() },
+                    { "rush_die", currentRushDie.ToString() },
                     { "score", scores.Values.Sum(score => score.Total).ToString() }
                 });
             UpdateHudAndScores();
@@ -248,7 +278,8 @@ namespace MannLab.Games.YachtRush
             table.transform.SetParent(tableRoot, false);
             table.transform.localPosition = new Vector3(0f, -0.08f, 0f);
             table.transform.localScale = new Vector3(TableHalfWidth * 2f, 0.16f, TableHalfDepth * 2f);
-            table.GetComponent<Renderer>().material = CreateMaterial("Table Paper", new Color32(235, 240, 224, 255), 0.34f);
+            tableMaterial = CreateMaterial("Table Paper", new Color32(235, 240, 224, 255), 0.34f);
+            table.GetComponent<Renderer>().material = tableMaterial;
             table.GetComponent<Collider>().sharedMaterial = tablePhysicsMaterial;
 
             CreateWall("North Rail", new Vector3(0f, 0.034f, TableHalfDepth - 0.08f), new Vector3(TableHalfWidth * 2f, 0.035f, 0.24f));
@@ -260,6 +291,7 @@ namespace MannLab.Games.YachtRush
             CreateGuard("West Play Guard", new Vector3(PlayMinX, 0.58f, 0f), new Vector3(0.18f, 1.15f, (PlayMaxZ - PlayMinZ) + 0.8f));
             CreateGuard("East Play Guard", new Vector3(PlayMaxX, 0.58f, 0f), new Vector3(0.18f, 1.15f, (PlayMaxZ - PlayMinZ) + 0.8f));
             CreateSketchLines();
+            CreateTwistBoardAccents();
             BuildBowl();
 
             for (var index = 0; index < YachtRushRules.DiceCount; index += 1)
@@ -393,6 +425,7 @@ namespace MannLab.Games.YachtRush
             AddDieFacePanels(die.transform);
             AddFacePips(die.transform);
             AddDieOutline(die.transform);
+            AddRushDieBadge(die.transform);
             return die;
         }
 
@@ -491,6 +524,23 @@ namespace MannLab.Games.YachtRush
             }
         }
 
+        private void AddRushDieBadge(Transform die)
+        {
+            var badge = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            badge.name = "Rush Die Badge";
+            badge.transform.SetParent(die, false);
+            badge.transform.localPosition = new Vector3(0f, DiceSize * 0.63f, -DiceSize * 0.36f);
+            badge.transform.localScale = new Vector3(DiceSize * 0.96f, 0.026f, DiceSize * 0.15f);
+            badge.GetComponent<Renderer>().material = CreateMaterial("Rush Die Badge", new Color32(65, 116, 154, 255), 0.4f);
+            Destroy(badge.GetComponent<Collider>());
+            badge.SetActive(false);
+
+            var halo = CreateOvalRing("Rush Die Halo", CreateMaterial("Rush Die Halo", new Color32(65, 116, 154, 255), 0.42f), DiceSize * 0.57f, DiceSize * 0.57f, DiceSize * 0.39f, DiceSize * 0.39f);
+            halo.transform.SetParent(die, false);
+            halo.transform.localPosition = new Vector3(0f, DiceSize * 0.64f, 0f);
+            halo.SetActive(false);
+        }
+
         private static Vector3 EdgePosition(int axis, float first, float second)
         {
             switch (axis)
@@ -533,6 +583,40 @@ namespace MannLab.Games.YachtRush
             }
         }
 
+        private void CreateTwistBoardAccents()
+        {
+            twistAccentRenderers.Clear();
+            var material = CreateMaterial("Twist Board Accent", new Color32(187, 126, 70, 255), 0.48f);
+            AddTwistAccent("Twist North Rail", new Vector3(0f, 0.018f, TableHalfDepth - 0.42f), new Vector3(TableHalfWidth * 1.55f, 0.014f, 0.06f), Quaternion.identity, material);
+            AddTwistAccent("Twist South Rail", new Vector3(0f, 0.018f, -TableHalfDepth + 0.42f), new Vector3(TableHalfWidth * 1.55f, 0.014f, 0.06f), Quaternion.identity, material);
+            AddTwistAccent("Twist West Rail", new Vector3(-TableHalfWidth + 0.42f, 0.018f, 0f), new Vector3(0.06f, 0.014f, TableHalfDepth * 1.45f), Quaternion.identity, material);
+            AddTwistAccent("Twist East Rail", new Vector3(TableHalfWidth - 0.42f, 0.018f, 0f), new Vector3(0.06f, 0.014f, TableHalfDepth * 1.45f), Quaternion.identity, material);
+
+            for (var index = 0; index < 3; index += 1)
+            {
+                AddTwistAccent(
+                    $"Twist Brush Tick {index + 1}",
+                    new Vector3(-TableHalfWidth + 0.92f + index * 0.36f, 0.024f, TableHalfDepth - 0.78f),
+                    new Vector3(0.055f, 0.014f, 0.42f),
+                    Quaternion.Euler(0f, -22f, 0f),
+                    material);
+            }
+        }
+
+        private void AddTwistAccent(string name, Vector3 position, Vector3 scale, Quaternion rotation, Material material)
+        {
+            var accent = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            accent.name = name;
+            accent.transform.SetParent(tableRoot, false);
+            accent.transform.localPosition = position;
+            accent.transform.localRotation = rotation;
+            accent.transform.localScale = scale;
+            var renderer = accent.GetComponent<Renderer>();
+            renderer.material = material;
+            twistAccentRenderers.Add(renderer);
+            Destroy(accent.GetComponent<Collider>());
+        }
+
         private void BuildUi()
         {
             var canvasObject = new GameObject("Yacht Rush UI", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -571,14 +655,17 @@ namespace MannLab.Games.YachtRush
             var chooser = CreatePanel(root, "Smart Score Chooser", Anchor.BottomStretch, new Vector2(24f, 22f), new Vector2(-24f, 448f), new Color32(255, 253, 246, 244));
             scoreChooserRect = chooser;
 
-            var contractPanel = CreatePanel(chooser, "Contract Card", Anchor.TopLeft, new Vector2(20f, -118f), new Vector2(468f, -20f), new Color32(248, 245, 232, 248));
-            contractBackground = contractPanel.GetComponent<Image>();
-            contractNameText = CreateText(contractPanel, "Contract Name", "High Tide", 25, FontStyle.Bold, SketchPalette.Ink, Anchor.TopLeft, new Vector2(18f, -48f), new Vector2(276f, -14f));
-            contractConditionText = CreateText(contractPanel, "Contract Condition", "Total 20+", 14, FontStyle.Bold, SketchPalette.MutedInk, Anchor.BottomLeft, new Vector2(18f, 14f), new Vector2(300f, 42f));
-            contractBonusText = CreateText(contractPanel, "Contract Bonus", "+8", 28, FontStyle.Bold, SketchPalette.Ink, Anchor.StretchRight, new Vector2(-116f, 18f), new Vector2(-20f, -18f));
-            contractStateText = CreateText(contractPanel, "Contract State", "PENDING", 10, FontStyle.Bold, SketchPalette.MutedInk, Anchor.TopRight, new Vector2(-116f, -24f), new Vector2(-20f, -6f));
+            var twistPanel = CreatePanel(chooser, "Round Twist Banner", Anchor.TopStretch, new Vector2(18f, -132f), new Vector2(-18f, -20f), new Color32(255, 244, 205, 250));
+            contractBackground = twistPanel.GetComponent<Image>();
+            twistAccentBar = CreateImage(twistPanel, "Twist Accent Bar", Anchor.StretchLeft, new Vector2(0f, 0f), new Vector2(12f, 0f), new Color32(187, 126, 70, 255));
+            contractStateText = CreateText(twistPanel, "Twist Type", "ROLL RULE", 10, FontStyle.Bold, SketchPalette.MutedInk, Anchor.TopLeft, new Vector2(18f, -25f), new Vector2(220f, -6f));
+            contractNameText = CreateText(twistPanel, "Twist Name", "One Shot", 26, FontStyle.Bold, SketchPalette.Ink, Anchor.TopStretch, new Vector2(18f, -65f), new Vector2(-270f, -24f));
+            contractNameText.alignment = TextAnchor.MiddleLeft;
+            contractConditionText = CreateText(twistPanel, "Twist Effect", "Only one throw. No reroll safety", 14, FontStyle.Bold, SketchPalette.MutedInk, Anchor.BottomStretch, new Vector2(18f, 13f), new Vector2(-270f, 39f));
+            contractConditionText.alignment = TextAnchor.MiddleLeft;
+            contractBonusText = CreateText(twistPanel, "Twist Badge", "1 THROW", 28, FontStyle.Bold, SketchPalette.Ink, Anchor.StretchRight, new Vector2(-250f, 18f), new Vector2(-18f, -18f));
 
-            chooserTitleText = CreateText(chooser, "Turn Prompt", "Shake the bowl", 25, FontStyle.Bold, SketchPalette.Ink, Anchor.TopRight, new Vector2(-560f, -88f), new Vector2(-24f, -30f));
+            chooserTitleText = CreateText(chooser, "Turn Prompt", "Shake to throw", 22, FontStyle.Bold, SketchPalette.Ink, Anchor.TopRight, new Vector2(-560f, -176f), new Vector2(-24f, -140f));
 
             var grid = new GameObject("Score Choice Grid", typeof(RectTransform), typeof(GridLayoutGroup));
             grid.transform.SetParent(chooser, false);
@@ -586,7 +673,7 @@ namespace MannLab.Games.YachtRush
             gridRect.anchorMin = new Vector2(0f, 0f);
             gridRect.anchorMax = new Vector2(1f, 1f);
             gridRect.offsetMin = new Vector2(18f, 18f);
-            gridRect.offsetMax = new Vector2(-18f, -136f);
+            gridRect.offsetMax = new Vector2(-18f, -188f);
             scoreGridLayout = grid.GetComponent<GridLayoutGroup>();
             scoreGridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             scoreGridLayout.constraintCount = 3;
@@ -605,6 +692,9 @@ namespace MannLab.Games.YachtRush
             resultMetaText = CreateText(resultPanel.transform, "Result Meta", "Best 0", 18, FontStyle.Bold, SketchPalette.MutedInk, Anchor.BottomStretch, new Vector2(24f, 82f), new Vector2(-24f, 116f));
             var againButton = CreateButton(resultPanel.transform, "Play Again", "Play Again", Anchor.BottomStretch, new Vector2(30f, 24f), new Vector2(-30f, 74f));
             againButton.onClick.AddListener(StartRun);
+
+            rushIntroText = CreateText(root, "Rush Die Intro", "STORM DIE!", 46, FontStyle.Bold, SketchPalette.Ink, Anchor.Center, new Vector2(-320f, 110f), new Vector2(320f, 210f));
+            rushIntroText.gameObject.SetActive(false);
         }
 
         private Text CreateStatText(Transform parent, string label)
@@ -623,11 +713,14 @@ namespace MannLab.Games.YachtRush
             var rect = button.GetComponent<RectTransform>();
             var background = button.GetComponent<Image>();
 
-            var nameText = CreateText(rect, "Name", YachtRushRules.CategoryName(category), 19, FontStyle.Bold, SketchPalette.Ink, Anchor.TopLeft, new Vector2(13f, -36f), new Vector2(150f, -8f));
-            var hintText = CreateText(rect, "Hint", YachtRushRules.CategoryHint(category), 12, FontStyle.Bold, SketchPalette.MutedInk, Anchor.TopLeft, new Vector2(13f, -61f), new Vector2(160f, -38f));
-            var detailText = CreateText(rect, "Breakdown", "Base -  Bonus -", 11, FontStyle.Bold, SketchPalette.MutedInk, Anchor.BottomLeft, new Vector2(13f, 9f), new Vector2(178f, 32f));
-            var totalText = CreateText(rect, "Total", "-", 32, FontStyle.Bold, SketchPalette.Ink, Anchor.StretchRight, new Vector2(-86f, 14f), new Vector2(-14f, -14f));
-            var tagText = CreateText(rect, "Tag", string.Empty, 10, FontStyle.Bold, SketchPalette.Ink, Anchor.TopRight, new Vector2(-88f, -28f), new Vector2(-14f, -8f));
+            var nameText = CreateText(rect, "Name", YachtRushRules.CategoryName(category), 18, FontStyle.Bold, SketchPalette.Ink, Anchor.TopStretch, new Vector2(13f, -31f), new Vector2(-96f, -6f));
+            nameText.alignment = TextAnchor.MiddleLeft;
+            var hintText = CreateText(rect, "Hint", YachtRushRules.CategoryHint(category), 10, FontStyle.Bold, SketchPalette.MutedInk, Anchor.TopStretch, new Vector2(13f, -52f), new Vector2(-96f, -33f));
+            hintText.alignment = TextAnchor.MiddleLeft;
+            var detailText = CreateText(rect, "Breakdown", "Base -", 10, FontStyle.Bold, SketchPalette.MutedInk, Anchor.BottomStretch, new Vector2(13f, 8f), new Vector2(-96f, 26f));
+            detailText.alignment = TextAnchor.MiddleLeft;
+            var totalText = CreateText(rect, "Total", "-", 31, FontStyle.Bold, SketchPalette.Ink, Anchor.StretchRight, new Vector2(-82f, 16f), new Vector2(-14f, -16f));
+            var tagText = CreateText(rect, "Tag", string.Empty, 10, FontStyle.Bold, SketchPalette.Ink, Anchor.TopRight, new Vector2(-90f, -25f), new Vector2(-14f, -6f));
 
             button.onClick.AddListener(() => ScoreCategory(category));
 
@@ -851,14 +944,14 @@ namespace MannLab.Games.YachtRush
             scoreChooserRect.offsetMax = new Vector2(-24f, ScoreChooserHeight());
             scoreGridLayout.constraintCount = columns;
             scoreGridLayout.cellSize = compactPortrait
-                ? new Vector2(Mathf.Clamp(cellWidth, 202f, 286f), 78f)
+                ? new Vector2(Mathf.Clamp(cellWidth, 202f, 286f), 82f)
                 : new Vector2(Mathf.Clamp(cellWidth, 226f, 286f), 88f);
         }
 
         private static float ScoreChooserHeight()
         {
             var compactPortrait = Screen.width < Screen.height;
-            return compactPortrait ? 530f : 448f;
+            return compactPortrait ? 620f : 500f;
         }
 
         private static float CanvasScaleEstimate()
@@ -870,7 +963,9 @@ namespace MannLab.Games.YachtRush
 
         private void PlaceUnlockedDiceInBowl()
         {
-            var looseDice = dice.Where(die => !die.IsHeld).ToArray();
+            var looseDice = YachtRushRules.ShouldRerollHeldDice(currentRollRule)
+                ? dice.ToArray()
+                : dice.Where(die => !die.IsHeld).ToArray();
             for (var order = 0; order < looseDice.Length; order += 1)
             {
                 var die = looseDice[order];
@@ -879,10 +974,16 @@ namespace MannLab.Games.YachtRush
                 die.Rigidbody.isKinematic = true;
                 die.Rigidbody.linearVelocity = Vector3.zero;
                 die.Rigidbody.angularVelocity = Vector3.zero;
+                if (YachtRushRules.ShouldRerollHeldDice(currentRollRule))
+                {
+                    die.IsHeld = false;
+                }
+
                 die.Transform.SetParent(bowlRoot, false);
                 die.Transform.localPosition = slot;
                 die.Transform.localRotation = rotation;
                 die.BowlVelocity = Vector3.zero;
+                die.UpdateHoldRing();
             }
         }
 
@@ -1029,13 +1130,15 @@ namespace MannLab.Games.YachtRush
         {
             if (!CanThrow)
             {
+                PlayAudioCue("hold", 0.22f);
+                UpdateHudAndScores();
                 ParkBowl();
                 return;
             }
 
-            if (rollCount == 2)
+            if (rollCount == MaxRollsThisRound - 1)
             {
-                lockedBeforeFinalThrow = dice.Count(die => die.IsHeld);
+                lockedBeforeFinalThrow = HeldCount;
             }
 
             rollCount += 1;
@@ -1048,7 +1151,8 @@ namespace MannLab.Games.YachtRush
                 {
                     { "round", RoundNumber.ToString() },
                     { "throw", rollCount.ToString() },
-                    { "held", dice.Count(die => die.IsHeld).ToString() },
+                    { "max_throw", MaxRollsThisRound.ToString() },
+                    { "held", HeldCount.ToString() },
                     { "shake", Mathf.RoundToInt(shake).ToString() }
                 });
 
@@ -1059,21 +1163,24 @@ namespace MannLab.Games.YachtRush
             for (var index = 0; index < dice.Count; index += 1)
             {
                 var die = dice[index];
-                if (die.IsHeld)
+                if (die.IsHeld && !YachtRushRules.ShouldRerollHeldDice(currentRollRule))
                 {
                     continue;
                 }
 
+                die.IsHeld = false;
                 die.Transform.SetParent(null, true);
                 die.Rigidbody.isKinematic = false;
                 die.Rigidbody.linearVelocity = Vector3.zero;
                 die.Rigidbody.angularVelocity = Vector3.zero;
                 var bowlCarry = bowlRoot.TransformDirection(die.BowlVelocity);
+                var stormBoost = index == rushDieIndex && currentRushDie == YachtRushRushDie.Storm ? 1.8f : 1f;
                 die.Rigidbody.AddForce(
-                    new Vector3(throwRight + (index - 2) * 0.42f, 2.4f + index * 0.12f, basePower + throwForward) + bowlCarry * 1.15f,
+                    (new Vector3(throwRight + (index - 2) * 0.42f, 2.4f + index * 0.12f, basePower + throwForward) + bowlCarry * 1.15f) * stormBoost,
                     ForceMode.VelocityChange);
-                die.Rigidbody.AddTorque((UnityEngine.Random.onUnitSphere * (5.8f + shake * 0.015f)) + bowlCarry * 2.4f, ForceMode.VelocityChange);
+                die.Rigidbody.AddTorque(((UnityEngine.Random.onUnitSphere * (5.8f + shake * 0.015f)) + bowlCarry * 2.4f) * stormBoost, ForceMode.VelocityChange);
                 die.BowlVelocity = Vector3.zero;
+                die.UpdateHoldRing();
             }
 
             ParkBowl();
@@ -1162,15 +1269,22 @@ namespace MannLab.Games.YachtRush
             foreach (var die in unlockedDice)
             {
                 die.SetValue(ReadTopFace(die.Transform));
+                if (die.Index == rushDieIndex && currentRushDie == YachtRushRushDie.Anchor)
+                {
+                    die.IsHeld = true;
+                }
+
                 die.Rigidbody.linearVelocity = Vector3.zero;
                 die.Rigidbody.angularVelocity = Vector3.zero;
                 die.Rigidbody.isKinematic = true;
                 SnapDieToReadableRest(die);
+                die.UpdateHoldRing();
             }
 
             ResolveSettledDiceLayout();
             isResolvingRoll = false;
             PlayAudioCue("settle", 0.72f);
+            ShowRushResultCue();
             UpdateHudAndScores();
         }
 
@@ -1402,9 +1516,18 @@ namespace MannLab.Games.YachtRush
 
             var values = CurrentDiceValues();
             var scoredRound = RoundNumber;
-            var score = YachtRushRules.PreviewScore(category, currentContract, values, Mathf.Max(0, rollCount - 1), lockedBeforeFinalThrow);
-            scores[category] = new ScoreRecord(score.BaseScore, score.Bonus, score.Total);
-            PlayAudioCue(score.Bonus > 0 ? "bonus" : "score", score.Bonus > 0 ? 0.82f : 0.62f);
+            var score = YachtRushRules.PreviewScore(
+                category,
+                currentContract,
+                currentRollRule,
+                currentRushDie,
+                rushDieIndex,
+                values,
+                Mathf.Max(0, rollCount - 1),
+                lockedBeforeFinalThrow,
+                HeldCount);
+            scores[category] = new ScoreRecord(score.BaseScore, score.RushAdjustedScore, score.ContractBonus, score.Total);
+            PlayAudioCue(score.ContractBonus > 0 ? "bonus" : "score", score.ContractBonus > 0 ? 0.82f : 0.62f);
             FirebaseTelemetry.LogEvent(
                 "score_recorded",
                 new Dictionary<string, string>
@@ -1412,10 +1535,15 @@ namespace MannLab.Games.YachtRush
                     { "round", scoredRound.ToString() },
                     { "category", category.ToString() },
                     { "base_score", score.BaseScore.ToString() },
-                    { "contract_bonus", score.Bonus.ToString() },
+                    { "rush_score", score.RushAdjustedScore.ToString() },
+                    { "contract_bonus", score.ContractBonus.ToString() },
                     { "total_score", score.Total.ToString() },
                     { "run_score", scores.Values.Sum(record => record.Total).ToString() },
-                    { "dice", string.Join("-", values) }
+                    { "dice", string.Join("-", values) },
+                    { "effective_dice", string.Join("-", score.EffectiveDice) },
+                    { "contract", currentContract.ToString() },
+                    { "roll_rule", currentRollRule.ToString() },
+                    { "rush_die", currentRushDie.ToString() }
                 });
 
             if (scores.Count >= YachtRushRules.RoundCount)
@@ -1480,45 +1608,74 @@ namespace MannLab.Games.YachtRush
             bowlShake = 0f;
             stableSeconds = 0f;
             lockedBeforeFinalThrow = 0;
-            currentContract = YachtRushContract.TripleSignal;
+            currentContract = YachtRushContract.None;
+            currentRollRule = YachtRushRollRule.Classic;
+            currentRushDie = YachtRushRushDie.Storm;
+            currentTwist = RoundTwist.RushDie;
+            rushDieIndex = 2;
             rollCount = 0;
 
             switch (shot)
             {
                 case 1:
-                    currentContract = YachtRushContract.TripleSignal;
+                    currentContract = YachtRushContract.None;
+                    currentRollRule = YachtRushRollRule.Classic;
+                    currentRushDie = YachtRushRushDie.Storm;
+                    currentTwist = RoundTwist.RushDie;
+                    rushDieIndex = 1;
                     SetCaptureDiceInBowl(new[] { 1, 2, 3, 4, 5 });
                     break;
                 case 2:
-                    currentContract = YachtRushContract.CleanRun;
+                    currentContract = YachtRushContract.None;
+                    currentRollRule = YachtRushRollRule.Classic;
+                    currentRushDie = YachtRushRushDie.Storm;
+                    currentTwist = RoundTwist.RushDie;
+                    rushDieIndex = 4;
                     rollCount = 1;
                     SetCaptureDiceInBowl(new[] { 2, 2, 4, 5, 6 }, true);
                     break;
                 case 3:
-                    currentContract = YachtRushContract.HighTide;
+                    currentContract = YachtRushContract.None;
+                    currentRollRule = YachtRushRollRule.Classic;
+                    currentRushDie = YachtRushRushDie.Mirror;
+                    currentTwist = RoundTwist.RushDie;
+                    rushDieIndex = 3;
                     rollCount = 1;
                     SetCaptureDiceRolling(new[] { 6, 5, 4, 3, 2 });
                     break;
                 case 4:
-                    currentContract = YachtRushContract.TripleSignal;
+                    currentContract = YachtRushContract.None;
+                    currentRollRule = YachtRushRollRule.Classic;
+                    currentRushDie = YachtRushRushDie.Blank;
+                    currentTwist = RoundTwist.RushDie;
+                    rushDieIndex = 2;
                     rollCount = 2;
                     SeedRecordedScores(3);
                     SetCaptureDiceOnTable(new[] { 6, 6, 6, 4, 2 });
                     break;
                 case 5:
-                    currentContract = YachtRushContract.LowDeck;
+                    currentContract = YachtRushContract.None;
+                    currentRollRule = YachtRushRollRule.Classic;
+                    currentRushDie = YachtRushRushDie.Cracked;
+                    currentTwist = RoundTwist.RushDie;
+                    rushDieIndex = 0;
                     rollCount = 2;
                     SeedRecordedScores(7);
                     SetCaptureDiceOnTable(new[] { 1, 2, 3, 5, 6 }, 2);
                     break;
                 default:
-                    currentContract = YachtRushContract.BoldScratch;
+                    currentContract = YachtRushContract.None;
+                    currentRollRule = YachtRushRollRule.Classic;
+                    currentRushDie = YachtRushRushDie.Anchor;
+                    currentTwist = RoundTwist.RushDie;
+                    rushDieIndex = 0;
                     SeedCompleteScores();
                     SetCaptureDiceOnTable(new[] { 5, 5, 5, 5, 5 });
                     ShowCaptureResult(scores.Values.Sum(score => score.Total), true);
                     break;
             }
 
+            ApplyRushDieVisuals();
             UpdateHudAndScores();
 #endif
         }
@@ -1676,6 +1833,14 @@ namespace MannLab.Games.YachtRush
                 return;
             }
 
+            if (!YachtRushRules.CanHold(currentRollRule) ||
+                (currentRushDie == YachtRushRushDie.Anchor && die.Index == rushDieIndex && die.IsHeld))
+            {
+                PlayAudioCue("hold", 0.22f);
+                UpdateHudAndScores();
+                return;
+            }
+
             die.IsHeld = !die.IsHeld;
             PlayAudioCue(die.IsHeld ? "hold" : "grab", 0.42f);
             die.Rigidbody.isKinematic = true;
@@ -1690,40 +1855,52 @@ namespace MannLab.Games.YachtRush
         private void UpdateHudAndScores()
         {
             roundText.text = $"{RoundNumber}/12";
-            rollText.text = $"{rollCount}/3";
-            holdText.text = dice.Count(die => die.IsHeld).ToString();
+            rollText.text = $"{rollCount}/{MaxRollsThisRound}";
+            holdText.text = HeldCount.ToString();
             totalText.text = scores.Values.Sum(score => score.Total).ToString();
             bestText.text = bestScore.ToString();
 
             var contract = YachtRushRules.GetContract(currentContract);
-            contractNameText.text = contract.Name;
-            contractConditionText.text = contract.Condition;
-            contractBonusText.text = $"+{contract.Bonus}";
+            var rollRule = YachtRushRules.GetRollRule(currentRollRule);
+            var rushDie = YachtRushRules.GetRushDie(currentRushDie);
+            var values = CurrentDiceValues();
             var contractState = ContractStateLabel(currentContract);
-            contractStateText.text = contractState;
-            contractStateText.color = contractState == "READY" ? new Color32(62, 110, 65, 255) : SketchPalette.MutedInk;
-            contractBonusText.color = contractState == "READY" ? new Color32(62, 110, 65, 255) : SketchPalette.Ink;
-            if (contractBackground != null)
-            {
-                contractBackground.color = contractState == "READY"
-                    ? new Color32(238, 248, 230, 248)
-                    : new Color32(248, 245, 232, 248);
-            }
+            contractStateText.text = TwistLabel();
+            contractNameText.text = TwistName(contract, rollRule, rushDie);
+            contractConditionText.text = TwistEffect(values, contract, contractState);
+            contractBonusText.text = TwistBadge(contract, rollRule);
+            contractStateText.color = SketchPalette.MutedInk;
+            contractNameText.color = SketchPalette.Ink;
+            contractConditionText.color = currentTwist == RoundTwist.ContractHand && contractState == "READY"
+                ? new Color32(62, 110, 65, 255)
+                : SketchPalette.MutedInk;
+            contractBonusText.color = currentTwist == RoundTwist.ContractHand && contractState == "READY"
+                ? new Color32(62, 110, 65, 255)
+                : SketchPalette.Ink;
+            UpdateTwistVisualTheme(contractState);
 
             chooserTitleText.text = TurnPrompt();
             chooserTitleText.color = isResolvingRoll
                 ? SketchPalette.MutedInk
-                : CanScore && rollCount >= YachtRushRules.MaxRollsPerRound
+                : CanScore && rollCount >= MaxRollsThisRound
                     ? new Color32(62, 92, 59, 255)
                     : SketchPalette.Ink;
 
-            var values = CurrentDiceValues();
-            var previews = new Dictionary<YachtRushCategory, YachtRushScore>();
+            var previews = new Dictionary<YachtRushCategory, YachtRushRoundScorePreview>();
             foreach (var category in YachtRushRules.Categories)
             {
                 if (!scores.ContainsKey(category) && CanScore)
                 {
-                    previews[category] = YachtRushRules.PreviewScore(category, currentContract, values, Mathf.Max(0, rollCount - 1), lockedBeforeFinalThrow);
+                    previews[category] = YachtRushRules.PreviewScore(
+                        category,
+                        currentContract,
+                        currentRollRule,
+                        currentRushDie,
+                        rushDieIndex,
+                        values,
+                        Mathf.Max(0, rollCount - 1),
+                        lockedBeforeFinalThrow,
+                        HeldCount);
                 }
             }
 
@@ -1734,16 +1911,19 @@ namespace MannLab.Games.YachtRush
                 view.Button.gameObject.SetActive(true);
 
                 var isUsed = scores.TryGetValue(category, out var record);
-                var preview = previews.ContainsKey(category) ? previews[category] : new YachtRushScore(0, 0, 0);
+                var preview = previews.ContainsKey(category)
+                    ? previews[category]
+                    : new YachtRushRoundScorePreview(0, 0, 0, 0, false, Array.Empty<int>());
                 var total = isUsed ? record.Total : CanScore ? preview.Total : 0;
-                var bonus = isUsed ? record.Bonus : CanScore ? preview.Bonus : 0;
+                var bonus = isUsed ? record.Bonus : CanScore ? preview.ContractBonus : 0;
+                var rushChanged = !isUsed && CanScore && preview.BaseScore != preview.RushAdjustedScore;
 
                 view.Button.interactable = CanScore && !isUsed;
                 view.DetailText.text = isUsed
-                    ? $"Base {record.BaseScore}   Bonus +{record.Bonus}"
+                    ? ScoreDetailText(record.BaseScore, record.RushAdjustedScore, record.Bonus)
                     : CanScore
-                        ? $"Base {preview.BaseScore}   Bonus +{preview.Bonus}"
-                        : "Base -   Bonus -";
+                        ? ScoreDetailText(preview.BaseScore, preview.RushAdjustedScore, preview.ContractBonus)
+                        : "Throw dice to preview";
                 view.TotalText.text = isUsed || CanScore ? total.ToString() : "-";
                 var isBestPreview = !isUsed && CanScore && total == bestPreview;
                 view.TagText.text = isUsed
@@ -1752,7 +1932,7 @@ namespace MannLab.Games.YachtRush
                         ? $"BEST +{bonus}"
                         : isBestPreview
                             ? "BEST"
-                            : bonus > 0 ? $"+{bonus}" : string.Empty;
+                            : bonus > 0 ? $"CONTRACT +{bonus}" : rushChanged ? RushDeltaTag(preview) : string.Empty;
                 view.TagText.color = isUsed
                     ? SketchPalette.MutedInk
                     : isBestPreview
@@ -1768,6 +1948,8 @@ namespace MannLab.Games.YachtRush
                         ? new Color32(255, 242, 196, 250)
                         : bonus > 0
                             ? new Color32(241, 249, 235, 248)
+                            : rushChanged
+                                ? new Color32(235, 241, 250, 248)
                             : new Color32(255, 253, 246, 238);
             }
         }
@@ -1780,11 +1962,384 @@ namespace MannLab.Games.YachtRush
             }
 
             var values = CurrentDiceValues();
-            var baseForScratch = YachtRushRules.Categories.Any(category =>
-                !scores.ContainsKey(category) &&
-                YachtRushRules.ScoreCategory(category, values) == 0) ? 0 : 1;
-            var bonus = YachtRushRules.ContractBonus(contract, values, baseForScratch, Mathf.Max(0, rollCount - 1), lockedBeforeFinalThrow);
-            return bonus > 0 ? "READY" : "PENDING";
+            var preview = YachtRushRules.PreviewScore(
+                YachtRushCategory.Chance,
+                contract,
+                currentRollRule,
+                currentRushDie,
+                rushDieIndex,
+                values,
+                Mathf.Max(0, rollCount - 1),
+                lockedBeforeFinalThrow,
+                HeldCount);
+            return preview.ContractSatisfied ? "READY" : "PENDING";
+        }
+
+        private void ShowRushIntroCue()
+        {
+            if (rushIntroText == null || currentRushDie == YachtRushRushDie.None)
+            {
+                return;
+            }
+
+            ShowRushCue($"{YachtRushRules.GetRushDie(currentRushDie).Name.ToUpperInvariant()}!", RushIntroSeconds);
+        }
+
+        private void ShowRushResultCue()
+        {
+            if (rushIntroText == null || currentRushDie == YachtRushRushDie.None || rushDieIndex < 0 || rushDieIndex >= dice.Count)
+            {
+                return;
+            }
+
+            var dieNumber = rushDieIndex + 1;
+            var value = dice[rushDieIndex].Value;
+            switch (currentRushDie)
+            {
+                case YachtRushRushDie.Anchor:
+                    ShowRushCue($"DIE {dieNumber} LOCKED", 0.95f);
+                    break;
+                case YachtRushRushDie.Storm:
+                    ShowRushCue("STORM ROLL", 0.85f);
+                    break;
+                case YachtRushRushDie.Cracked:
+                    ShowRushCue("COMBOS CRACK", 0.95f);
+                    break;
+                case YachtRushRushDie.Mirror:
+                    ShowRushCue($"{value} FLIPS TO {7 - value}", 1.05f);
+                    break;
+                case YachtRushRushDie.Blank:
+                    ShowRushCue($"DIE {dieNumber} COUNTS 0", 1.05f);
+                    break;
+            }
+        }
+
+        private void ShowRushCue(string message, float seconds)
+        {
+            rushIntroTimer = Mathf.Max(0.1f, seconds);
+            rushIntroText.text = message;
+            rushIntroText.gameObject.SetActive(true);
+            UpdateRushIntroCue();
+        }
+
+        private void UpdateRushIntroCue()
+        {
+            if (rushIntroText == null || rushIntroTimer <= 0f)
+            {
+                return;
+            }
+
+            rushIntroTimer -= Time.deltaTime;
+            var progress = Mathf.Clamp01(1f - rushIntroTimer / RushIntroSeconds);
+            var alpha = Mathf.SmoothStep(1f, 0f, Mathf.Clamp01((progress - 0.58f) / 0.42f));
+            var accent = RushDieAccentColor(currentRushDie);
+            rushIntroText.color = new Color(accent.r, accent.g, accent.b, alpha);
+            rushIntroText.rectTransform.localScale = Vector3.one * (1.08f - Mathf.Sin(progress * Mathf.PI) * 0.08f);
+
+            if (rushIntroTimer <= 0f)
+            {
+                rushIntroText.gameObject.SetActive(false);
+                rushIntroText.rectTransform.localScale = Vector3.one;
+            }
+        }
+
+        private string TwistLabel()
+        {
+            switch (currentTwist)
+            {
+                case RoundTwist.ContractHand:
+                    return "CONTRACT HAND";
+                case RoundTwist.RollRule:
+                    return "ROLL RULE";
+                case RoundTwist.RushDie:
+                    return "RUSH DIE";
+                default:
+                    return "ROUND TWIST";
+            }
+        }
+
+        private string TwistName(YachtRushContractInfo contract, YachtRushRollRuleInfo rollRule, YachtRushRushDieInfo rushDie)
+        {
+            switch (currentTwist)
+            {
+                case RoundTwist.ContractHand:
+                    return contract.Name;
+                case RoundTwist.RollRule:
+                    return rollRule.Name;
+                case RoundTwist.RushDie:
+                    return rushDie.Name;
+                default:
+                    return "Base Yacht";
+            }
+        }
+
+        private string TwistEffect(IReadOnlyList<int> values, YachtRushContractInfo contract, string contractState)
+        {
+            switch (currentTwist)
+            {
+                case RoundTwist.ContractHand:
+                    return CanScore ? $"{contract.Condition} - {contractState}" : contract.Condition;
+                case RoundTwist.RollRule:
+                    return RollRuleImpactText();
+                case RoundTwist.RushDie:
+                    return RushDieImpactText(values);
+                default:
+                    return "Classic Yacht scoring";
+            }
+        }
+
+        private string TwistBadge(YachtRushContractInfo contract, YachtRushRollRuleInfo rollRule)
+        {
+            switch (currentTwist)
+            {
+                case RoundTwist.ContractHand:
+                    return $"+{contract.Bonus}";
+                case RoundTwist.RollRule:
+                    return RollRuleBadgeText(rollRule.Id);
+                case RoundTwist.RushDie:
+                    return RushDieBadgeText();
+                default:
+                    return "CLASSIC";
+            }
+        }
+
+        private string RollRuleBadgeText(YachtRushRollRule rollRule)
+        {
+            switch (rollRule)
+            {
+                case YachtRushRollRule.OneShot:
+                    return "1 THROW";
+                case YachtRushRollRule.NoHolds:
+                    return "NO HOLD";
+                case YachtRushRollRule.MustHold2:
+                    return $"{HeldCount}/2 HELD";
+                case YachtRushRollRule.RerollAll:
+                    return "ALL DICE";
+                case YachtRushRollRule.SafeHarbor:
+                    return "2 THROWS";
+                default:
+                    return $"{MaxRollsThisRound} THROWS";
+            }
+        }
+
+        private string RushDieBadgeText()
+        {
+            var dieNumber = rushDieIndex + 1;
+            switch (currentRushDie)
+            {
+                case YachtRushRushDie.Anchor:
+                    return $"DIE {dieNumber} LOCK";
+                case YachtRushRushDie.Storm:
+                    return $"DIE {dieNumber} STORM";
+                case YachtRushRushDie.Cracked:
+                    return $"DIE {dieNumber} CRACK";
+                case YachtRushRushDie.Mirror:
+                    return $"DIE {dieNumber} FLIP";
+                case YachtRushRushDie.Blank:
+                    var values = CurrentDiceValues();
+                    var original = values != null && rushDieIndex >= 0 && rushDieIndex < values.Length ? values[rushDieIndex] : 0;
+                    if (CanScore && original > 0)
+                    {
+                        return $"BLANK -{original}";
+                    }
+
+                    return $"DIE {dieNumber} = 0";
+                default:
+                    return "NORMAL";
+            }
+        }
+
+        private string RollRuleImpactText()
+        {
+            switch (currentRollRule)
+            {
+                case YachtRushRollRule.OneShot:
+                    return rollCount == 0 ? "Only one throw. No reroll safety" : "No throws left. Choose a score";
+                case YachtRushRollRule.NoHolds:
+                    return "Hold is disabled. Every die stays live";
+                case YachtRushRollRule.MustHold2:
+                    if (rollCount == 1 && HeldCount < 2)
+                    {
+                        var needed = 2 - HeldCount;
+                        return needed == 1 ? "Hold 1 more die to throw again" : "Hold 2 dice to throw again";
+                    }
+
+                    return "Second throw requires 2 held dice";
+                case YachtRushRollRule.RerollAll:
+                    return HeldCount > 0 ? "Next throw rerolls held dice too" : "Every throw rerolls all 5 dice";
+                case YachtRushRollRule.SafeHarbor:
+                    return "Only 2 throws. Contract pays more";
+                default:
+                    return "3 throws. Hold any dice";
+            }
+        }
+
+        private string RushDieImpactText(IReadOnlyList<int> values)
+        {
+            var dieNumber = rushDieIndex + 1;
+            var original = values != null && rushDieIndex >= 0 && rushDieIndex < values.Count ? values[rushDieIndex] : 0;
+            switch (currentRushDie)
+            {
+                case YachtRushRushDie.Anchor:
+                    return dice.Count > rushDieIndex && dice[rushDieIndex].IsHeld
+                        ? $"Die {dieNumber}: locked itself"
+                        : $"Die {dieNumber}: auto-locks after throw";
+                case YachtRushRushDie.Storm:
+                    return $"Die {dieNumber}: launches harder";
+                case YachtRushRushDie.Cracked:
+                    return $"Die {dieNumber}: combo scores ignore it";
+                case YachtRushRushDie.Mirror:
+                    if (CanScore && original > 0)
+                    {
+                        var mirrored = 7 - original;
+                        return $"Die {dieNumber}: {original} -> {mirrored} ({Signed(mirrored - original)})";
+                    }
+
+                    return $"Die {dieNumber}: flips after landing";
+                case YachtRushRushDie.Blank:
+                    if (CanScore && original > 0)
+                    {
+                        return $"One rolled {original} is blanked, so score cards subtract {original}";
+                    }
+
+                    return $"Die {dieNumber} will score as 0";
+                default:
+                    return "All dice score normally";
+            }
+        }
+
+        private void UpdateTwistVisualTheme(string contractState)
+        {
+            var accent = TwistAccentColor();
+            if (contractBackground != null)
+            {
+                contractBackground.color = TwistBannerColor(contractState);
+            }
+
+            if (twistAccentBar != null)
+            {
+                twistAccentBar.color = accent;
+            }
+
+            if (tableMaterial != null)
+            {
+                tableMaterial.color = TwistTableColor(contractState);
+            }
+
+            foreach (var renderer in twistAccentRenderers)
+            {
+                if (renderer != null)
+                {
+                    renderer.material.color = accent;
+                }
+            }
+        }
+
+        private Color TwistBannerColor(string contractState)
+        {
+            switch (currentTwist)
+            {
+                case RoundTwist.ContractHand:
+                    return contractState == "READY"
+                        ? new Color32(224, 246, 218, 252)
+                        : new Color32(236, 247, 226, 250);
+                case RoundTwist.RushDie:
+                    return new Color32(224, 239, 248, 250);
+                case RoundTwist.RollRule:
+                default:
+                    return new Color32(255, 239, 190, 250);
+            }
+        }
+
+        private Color TwistTableColor(string contractState)
+        {
+            switch (currentTwist)
+            {
+                case RoundTwist.ContractHand:
+                    return contractState == "READY"
+                        ? new Color32(226, 240, 216, 255)
+                        : new Color32(232, 240, 222, 255);
+                case RoundTwist.RushDie:
+                    return new Color32(224, 237, 236, 255);
+                case RoundTwist.RollRule:
+                default:
+                    return new Color32(239, 235, 211, 255);
+            }
+        }
+
+        private Color TwistAccentColor()
+        {
+            switch (currentTwist)
+            {
+                case RoundTwist.ContractHand:
+                    return new Color32(72, 128, 76, 255);
+                case RoundTwist.RushDie:
+                    return RushDieAccentColor(currentRushDie);
+                case RoundTwist.RollRule:
+                default:
+                    return new Color32(188, 123, 58, 255);
+            }
+        }
+
+        private static Color RushDieAccentColor(YachtRushRushDie rushDie)
+        {
+            switch (rushDie)
+            {
+                case YachtRushRushDie.Anchor:
+                    return new Color32(50, 82, 128, 255);
+                case YachtRushRushDie.Storm:
+                    return new Color32(83, 102, 154, 255);
+                case YachtRushRushDie.Cracked:
+                    return new Color32(150, 93, 63, 255);
+                case YachtRushRushDie.Mirror:
+                    return new Color32(45, 130, 117, 255);
+                case YachtRushRushDie.Blank:
+                    return new Color32(110, 110, 104, 255);
+                default:
+                    return new Color32(65, 116, 154, 255);
+            }
+        }
+
+        private static string ScoreDetailText(int baseScore, int rushScore, int bonus)
+        {
+            var rushDelta = rushScore - baseScore;
+            if (rushDelta != 0 && bonus > 0)
+            {
+                return $"B {baseScore}  R {Signed(rushDelta)}  T +{bonus}";
+            }
+
+            if (rushDelta != 0)
+            {
+                return $"Base {baseScore}  Rush {Signed(rushDelta)}";
+            }
+
+            if (bonus > 0)
+            {
+                return $"Base {baseScore}  Twist +{bonus}";
+            }
+
+            return $"Base {baseScore}";
+        }
+
+        private string RushDeltaTag(YachtRushRoundScorePreview preview)
+        {
+            var delta = preview.RushAdjustedScore - preview.BaseScore;
+            switch (currentRushDie)
+            {
+                case YachtRushRushDie.Blank:
+                    return $"BLANK {Signed(delta)}";
+                case YachtRushRushDie.Mirror:
+                    return $"FLIP {Signed(delta)}";
+                case YachtRushRushDie.Cracked:
+                    return $"CRACK {Signed(delta)}";
+                default:
+                    return $"RUSH {Signed(delta)}";
+            }
+        }
+
+        private static string Signed(int value)
+        {
+            return value >= 0 ? $"+{value}" : value.ToString();
         }
 
         private string TurnPrompt()
@@ -1796,7 +2351,17 @@ namespace MannLab.Games.YachtRush
 
             if (CanScore)
             {
-                if (rollCount < YachtRushRules.MaxRollsPerRound)
+                if (currentRollRule == YachtRushRollRule.NoHolds)
+                {
+                    return rollCount < MaxRollsThisRound ? "Choose or throw again - no holds" : "Final choice";
+                }
+
+                if (currentRollRule == YachtRushRollRule.MustHold2 && rollCount == 1 && HeldCount < 2)
+                {
+                    return "Hold 2 dice before throw 2";
+                }
+
+                if (rollCount < MaxRollsThisRound)
                 {
                     return "Choose or throw again";
                 }
@@ -1804,7 +2369,17 @@ namespace MannLab.Games.YachtRush
                 return "Final choice";
             }
 
-            return "Shake to throw";
+            switch (currentTwist)
+            {
+                case RoundTwist.RollRule:
+                    return $"{YachtRushRules.GetRollRule(currentRollRule).Name} - shake to throw";
+                case RoundTwist.RushDie:
+                    return $"{YachtRushRules.GetRushDie(currentRushDie).Name} - shake to throw";
+                case RoundTwist.ContractHand:
+                    return $"{YachtRushRules.GetContract(currentContract).Name} - shake to throw";
+                default:
+                    return "Shake to throw";
+            }
         }
 
         private int[] CurrentDiceValues()
@@ -1822,6 +2397,74 @@ namespace MannLab.Games.YachtRush
             } while (contracts.Length > 1 && next == currentContract);
 
             return next;
+        }
+
+        private YachtRushRollRule NextRollRule()
+        {
+            var rollRules = YachtRushRules.RollRules
+                .Where(item => item.Id != YachtRushRollRule.Classic)
+                .Where(item => item.Id != YachtRushRollRule.SafeHarbor)
+                .ToArray();
+            YachtRushRollRule next;
+            do
+            {
+                next = rollRules[random.Next(rollRules.Length)].Id;
+            } while (rollRules.Length > 1 && next == currentRollRule);
+
+            return next;
+        }
+
+        private YachtRushRushDie NextRushDie()
+        {
+            var rushDice = YachtRushRules.RushDice;
+            YachtRushRushDie next;
+            do
+            {
+                next = rushDice[random.Next(rushDice.Length)].Id;
+            } while (rushDice.Length > 1 && next == currentRushDie);
+
+            return next;
+        }
+
+        private void ChooseRoundModifiers()
+        {
+            currentContract = YachtRushContract.None;
+            currentRollRule = YachtRushRollRule.Classic;
+            currentTwist = RoundTwist.RushDie;
+            currentRushDie = RushDieForRound(RoundNumber);
+            rushDieIndex = random.Next(YachtRushRules.DiceCount);
+            ApplyRushDieVisuals();
+        }
+
+        private YachtRushRushDie RushDieForRound(int roundNumber)
+        {
+            var showcase = new[]
+            {
+                YachtRushRushDie.Storm,
+                YachtRushRushDie.Blank,
+                YachtRushRushDie.Mirror,
+                YachtRushRushDie.Anchor,
+                YachtRushRushDie.Cracked
+            };
+
+            if (roundNumber >= 1 && roundNumber <= showcase.Length)
+            {
+                return showcase[roundNumber - 1];
+            }
+
+            return NextRushDie();
+        }
+
+        private void ApplyRushDieVisuals()
+        {
+            for (var index = 0; index < dice.Count; index += 1)
+            {
+                var isRushDie = currentTwist == RoundTwist.RushDie &&
+                    currentRushDie != YachtRushRushDie.None &&
+                    index == rushDieIndex;
+                dice[index].SetRushDie(currentRushDie, isRushDie);
+                dice[index].UpdateHoldRing();
+            }
         }
 
         private void CreateAudioClips()
@@ -1939,6 +2582,19 @@ namespace MannLab.Games.YachtRush
             gameObject.GetComponent<MeshFilter>().mesh = CreateDiscMesh(name + " Mesh", 28);
             gameObject.GetComponent<MeshRenderer>().material = material;
             return gameObject;
+        }
+
+        private Image CreateImage(Transform parent, string name, Anchor anchor, Vector2 offsetMin, Vector2 offsetMax, Color color)
+        {
+            var gameObject = new GameObject(name, typeof(RectTransform), typeof(Image));
+            gameObject.transform.SetParent(parent, false);
+            var rect = gameObject.GetComponent<RectTransform>();
+            ApplyAnchor(rect, anchor);
+            rect.offsetMin = offsetMin;
+            rect.offsetMax = offsetMax;
+            var image = gameObject.GetComponent<Image>();
+            image.color = color;
+            return image;
         }
 
         private GameObject CreateOvalRing(string name, Material material, float outerX, float outerZ, float innerX, float innerZ)
@@ -2209,13 +2865,20 @@ namespace MannLab.Games.YachtRush
         private readonly struct ScoreRecord
         {
             public ScoreRecord(int baseScore, int bonus, int total)
+                : this(baseScore, baseScore, bonus, total)
+            {
+            }
+
+            public ScoreRecord(int baseScore, int rushAdjustedScore, int bonus, int total)
             {
                 BaseScore = baseScore;
+                RushAdjustedScore = rushAdjustedScore;
                 Bonus = bonus;
                 Total = total;
             }
 
             public int BaseScore { get; }
+            public int RushAdjustedScore { get; }
             public int Bonus { get; }
             public int Total { get; }
         }
@@ -2235,6 +2898,10 @@ namespace MannLab.Games.YachtRush
         {
             private readonly Material coreMaterial;
             private readonly Material[] facePanelMaterials;
+            private readonly Material rushBadgeMaterial;
+            private readonly GameObject rushBadge;
+            private readonly Material rushHaloMaterial;
+            private readonly GameObject rushHalo;
             private readonly Color baseColor;
             private readonly Color baseFaceColor;
             private readonly Color heldColor = new Color32(216, 237, 198, 255);
@@ -2253,6 +2920,10 @@ namespace MannLab.Games.YachtRush
                     .ToArray();
                 coreMaterial = renderer.material;
                 facePanelMaterials = facePanelRenderers.Select(item => item.material).ToArray();
+                rushBadge = Transform.Find("Rush Die Badge")?.gameObject;
+                rushBadgeMaterial = rushBadge == null ? null : rushBadge.GetComponent<Renderer>().material;
+                rushHalo = Transform.Find("Rush Die Halo")?.gameObject;
+                rushHaloMaterial = rushHalo == null ? null : rushHalo.GetComponent<Renderer>().material;
                 baseColor = coreMaterial.color;
                 baseFaceColor = facePanelMaterials.Length > 0 ? facePanelMaterials[0].color : baseColor;
                 Value = (index % 6) + 1;
@@ -2261,6 +2932,8 @@ namespace MannLab.Games.YachtRush
             public int Index { get; }
             public int Value { get; private set; }
             public bool IsHeld { get; set; }
+            public bool IsRushDie { get; private set; }
+            public YachtRushRushDie RushDie { get; private set; }
             public Vector3 BowlVelocity { get; set; }
             public GameObject GameObject { get; }
             public Transform Transform { get; }
@@ -2271,13 +2944,69 @@ namespace MannLab.Games.YachtRush
                 Value = Mathf.Clamp(value, 1, 6);
             }
 
+            public void SetRushDie(YachtRushRushDie rushDie, bool isRushDie)
+            {
+                RushDie = rushDie;
+                IsRushDie = isRushDie;
+                if (rushBadge != null)
+                {
+                    rushBadge.SetActive(isRushDie);
+                }
+
+                if (rushHalo != null)
+                {
+                    rushHalo.SetActive(isRushDie);
+                }
+
+                if (rushBadgeMaterial != null)
+                {
+                    rushBadgeMaterial.color = RushDieColor(rushDie);
+                }
+
+                if (rushHaloMaterial != null)
+                {
+                    rushHaloMaterial.color = RushDieColor(rushDie);
+                }
+            }
+
             public void UpdateHoldRing()
             {
-                coreMaterial.color = IsHeld ? heldColor : baseColor;
+                coreMaterial.color = IsHeld ? heldColor : IsRushDie ? RushDieCoreColor(RushDie) : baseColor;
                 foreach (var facePanelMaterial in facePanelMaterials)
                 {
-                    facePanelMaterial.color = IsHeld ? heldFaceColor : baseFaceColor;
+                    facePanelMaterial.color = IsHeld ? heldFaceColor : IsRushDie ? RushDieFaceColor(RushDie) : baseFaceColor;
                 }
+            }
+
+            private static Color RushDieColor(YachtRushRushDie rushDie)
+            {
+                switch (rushDie)
+                {
+                    case YachtRushRushDie.Anchor:
+                        return new Color32(59, 88, 130, 255);
+                    case YachtRushRushDie.Storm:
+                        return new Color32(92, 116, 150, 255);
+                    case YachtRushRushDie.Cracked:
+                        return new Color32(126, 94, 77, 255);
+                    case YachtRushRushDie.Mirror:
+                        return new Color32(62, 123, 112, 255);
+                    case YachtRushRushDie.Blank:
+                        return new Color32(126, 126, 118, 255);
+                    default:
+                        return SketchPalette.Ink;
+                }
+            }
+
+            private static Color RushDieCoreColor(YachtRushRushDie rushDie)
+            {
+                var badge = RushDieColor(rushDie);
+                return Color.Lerp(new Color32(245, 242, 232, 255), badge, 0.46f);
+            }
+
+            private static Color RushDieFaceColor(YachtRushRushDie rushDie)
+            {
+                var badge = RushDieColor(rushDie);
+                return Color.Lerp(new Color32(246, 250, 236, 255), badge, 0.24f);
             }
         }
     }
