@@ -12,8 +12,11 @@ ios_xcode="$unity_root/PlaybackEngines/iOSSupport/UnityEditor.iOS.Extensions.Xco
 ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.template.2d-cross-platform-2d-6.1.7/ScriptAssemblies/UnityEngine.UI.dll"
 nunit="$unity_root/Resources/PackageManager/BuiltInPackages/com.unity.ext.nunit/net40/unity-custom/nunit.framework.dll"
 project="$repo_root/prototypes/walking"
+controller="$project/Assets/_Project/Scripts/WalkingController.cs"
+ios_build="$project/Assets/_Project/Editor/BuildIosXcode.cs"
 shared_runtime="$repo_root/shared/unity-packages/com.mannlab.hypercasual-core/Runtime"
 shared_ads_runtime="$repo_root/shared/unity-packages/com.mannlab.admob-core/Runtime"
+shared_firebase="$repo_root/shared/unity-packages/com.mannlab.firebase-unity-sdk/Firebase/Plugins"
 thumbwaddle_assets="$project/Assets/Resources/Thumbwaddle"
 tmpdir="$(mktemp -d)"
 
@@ -56,6 +59,21 @@ for asset in \
   fi
 done
 
+if ! grep -Fq '"GO FAR IN 30s"' "$controller"; then
+  echo "Thumbwaddle ready goal copy is missing from WalkingController." >&2
+  exit 1
+fi
+
+if ! grep -Fq '"Try Again"' "$controller"; then
+  echo "Thumbwaddle result replay copy is missing from WalkingController." >&2
+  exit 1
+fi
+
+if ! grep -Fq 'MarketingVersion = "1.0.8"' "$ios_build"; then
+  echo "Thumbwaddle iOS marketing version is not aligned to 1.0.8." >&2
+  exit 1
+fi
+
 "$mono" "$csc" -target:library -nologo -nostdlib -out:"$runtime_dll" \
   -r:"$mono_lib/mscorlib.dll" \
   -r:"$mono_lib/System.dll" \
@@ -70,6 +88,11 @@ done
   -r:"$unity/UnityEngine.PhysicsModule.dll" \
   -r:"$unity/UnityEngine.JSONSerializeModule.dll" \
   -r:"$ugui" \
+  -r:"$shared_firebase/Firebase.App.dll" \
+  -r:"$shared_firebase/Firebase.Analytics.dll" \
+  -r:"$shared_firebase/Firebase.Crashlytics.dll" \
+  -r:"$shared_firebase/Firebase.Platform.dll" \
+  -r:"$shared_firebase/Firebase.TaskExtension.dll" \
   "$shared_runtime"/*.cs \
   "$shared_ads_runtime"/*.cs \
   "$project"/Assets/_Project/Scripts/*.cs

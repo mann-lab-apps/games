@@ -15,10 +15,14 @@ crashlytics_settings="$project/Assets/Editor Default Resources/CrashlyticsSettin
 admob_package="$repo_root/shared/unity-packages/com.mannlab.admob-core/package.json"
 admob_bridge="$repo_root/shared/unity-packages/com.mannlab.admob-core/Runtime/MannLabAdMob.cs"
 firebase_package="$repo_root/shared/unity-packages/com.mannlab.firebase-unity-sdk/package.json"
-privacy="$repo_root/web/mannlab-games/src/main.jsx"
+privacy="$repo_root/docs/privacy-policy.md"
 readme="$project/README.md"
 ios_plist="$project/Assets/GoogleService-Info.plist"
 android_json="$project/Assets/google-services.json"
+ios_bundle_id="com.mannlab.games.thumbwaddler"
+android_package_name="com.mannlab.games.walking"
+ios_admob_app_id="ca-app-pub-4525914685149405~7787773444"
+ios_interstitial_unit_id="ca-app-pub-4525914685149405/1797809111"
 failures=0
 warnings=0
 
@@ -75,6 +79,9 @@ require_text "$admob_bridge" "AndroidInterstitialTestAdUnitId"
 require_text "$admob_bridge" "IosInterstitialTestAdUnitId"
 require_text "$telemetry" "public static void SetContext"
 require_text "$telemetry" "public static void ForceCrashForTesting"
+require_text "$telemetry" "FirebaseApp.CheckAndFixDependenciesAsync"
+require_text "$telemetry" "Crashlytics.ReportUncaughtExceptionsAsFatal = true"
+require_text "$telemetry" "PendingEvents"
 require_text "$telemetry" "Crashlytics forced test crash requested."
 require_text "$controller" "InitializeTelemetryAndAds"
 require_text "$controller" "FirebaseTelemetry.SetContext(\"game\", \"thumbwaddle\")"
@@ -85,7 +92,7 @@ require_text "$controller" "--mannlab-force-crashlytics-test"
 require_text "$controller" "MANNLAB_FORCE_CRASHLYTICS_TEST"
 require_text "$controller" "MannLabAdMob.InitializeGameOverInterstitial"
 require_text "$controller" "MannLabAdMob.TryShowGameOverInterstitial"
-require_text "$controller" "ProductionIosInterstitialAdUnitId"
+require_text "$controller" "ProductionIosInterstitialAdUnitId = \"$ios_interstitial_unit_id\""
 require_text "$controller" "GameOverInterstitialInterval = 3"
 require_text "$ios_build" "BuildCrashlyticsTest"
 require_text "$ios_build" "BuildAdMobTest"
@@ -93,8 +100,12 @@ require_text "$ios_build" "MANNLAB_ADMOB_FORCE_TEST_ADS"
 require_text "$ios_build" "GADApplicationIdentifier"
 require_text "$ios_build" "values.Remove(\"GADApplicationIdentifier\")"
 require_text "$ios_build" "MANNLAB_THUMBWADDLE_ADMOB_IOS_APP_ID"
-require_text "$gma_settings" "adMobAndroidAppId: ca-app-pub-3940256099942544~3347511713"
-require_text "$gma_settings" "adMobIOSAppId: ca-app-pub-3940256099942544~1458002511"
+require_text "$ios_build" "AdMobIosAppId = \"$ios_admob_app_id\""
+require_text "$ios_build" "MANNLAB_THUMBWADDLE_FIREBASE_IOS_PLIST"
+require_text "$ios_build" "Assets/GoogleService-Info.plist"
+require_text "$ios_build" "RemoveLegacyCocoaPodsSpecsSource"
+require_text "$gma_settings" "adMobAndroidAppId:"
+require_text "$gma_settings" "adMobIOSAppId: $ios_admob_app_id"
 require_text "$gma_linker" "GoogleMobileAds.iOS"
 require_text "$gma_linker" "GoogleMobileAds.Android"
 require_text "$crashlytics_settings" "CrashlyticsSettings"
@@ -108,11 +119,11 @@ warn_or_fail_missing_config "$ios_plist"
 warn_or_fail_missing_config "$android_json"
 
 if [[ -f "$ios_plist" ]]; then
-  require_text "$ios_plist" "<string>com.mannlab.games.walking</string>"
+  require_text "$ios_plist" "<string>$ios_bundle_id</string>"
 fi
 
 if [[ -f "$android_json" ]]; then
-  require_text "$android_json" "\"package_name\": \"com.mannlab.games.walking\""
+  require_text "$android_json" "\"package_name\": \"$android_package_name\""
 fi
 
 if [[ "$failures" -ne 0 ]]; then

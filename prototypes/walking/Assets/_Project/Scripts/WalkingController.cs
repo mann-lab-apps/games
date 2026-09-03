@@ -156,7 +156,7 @@ namespace MannLab.Games.Walking
         private int brokenIcebergs;
 
         private const string BestDistanceKey = "MannLab.Walking.BestDistance";
-        private const string ProductionIosInterstitialAdUnitId = "";
+        private const string ProductionIosInterstitialAdUnitId = "ca-app-pub-4525914685149405/1797809111";
         private const string ProductionAndroidInterstitialAdUnitId = "";
 #if MANNLAB_ADMOB_FORCE_TEST_ADS
         private const int GameOverInterstitialInterval = 1;
@@ -2225,7 +2225,7 @@ namespace MannLab.Games.Walking
             var rhythmPercent = Mathf.RoundToInt(AverageRhythmQuality() * 100f);
             GUI.Label(new Rect(panel.x, panel.y + 176f * scale, panel.width, 32f * scale), $"{steps} steps  {brokenIcebergs} ice  {reachedGoalMarkers} marks  {rhythmPercent}% rhythm", resultDetailStyle);
             var buttonRect = new Rect(panel.x + panel.width * 0.28f, panel.y + panel.height - 66f * scale, panel.width * 0.44f, 50f * scale);
-            if (GUI.Button(buttonRect, "Restart", buttonStyle))
+            if (GUI.Button(buttonRect, "Try Again", buttonStyle))
             {
                 ResetRun();
             }

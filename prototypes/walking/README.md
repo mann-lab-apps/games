@@ -1,12 +1,14 @@
 # Thumbwaddle
 
-Unity mobile MVP for a thumb-driven penguin waddle distance run controlled by left-foot and right-foot touches. The player-facing title and public URL are `Thumbwaddle` and `/thumbwaddle`; the Unity project path, namespace, package id, and some build scripts keep the original `walking` identifier for build compatibility.
+Unity mobile MVP for a thumb-driven penguin waddle distance run controlled by left-foot and right-foot touches. The player-facing title and public URL are `Thumbwaddle` and `/thumbwaddle`; the Unity project path, namespace, Android package id, and some build scripts keep the original `walking` identifier for build compatibility.
 
 ## Project
 
 - Unity editor: 6000.3.23f1
-- Platform: Android
-- Package name: com.mannlab.games.walking
+- Platform: iOS / Android / WebGL
+- iOS bundle id: com.mannlab.games.thumbwaddler
+- iOS provisioning profile: Thumbwaddle (`3c745d8d-b794-4204-b5f1-2fd886a0242e`)
+- Android package name: com.mannlab.games.walking
 - Namespace: MannLab.Games.Walking
 
 ## First Open
@@ -40,11 +42,15 @@ Open this directory from Unity Hub and run `Assets/_Project/Scenes/Game.unity`.
 - Real control feel must be judged on a mobile multitouch device.
 - The public web route is `/thumbwaddle`; `/walking` remains a legacy alias for old links.
 - Firebase/Crashlytics code readiness is wired through `FirebaseTelemetry`.
-- Crashlytics needs Firebase config files for the stable bundle id: `Assets/GoogleService-Info.plist` for iOS and `Assets/google-services.json` for Android, both using `com.mannlab.games.walking`.
+- Crashlytics needs Firebase config files for the stable app ids: `Assets/GoogleService-Info.plist` for iOS using `com.mannlab.games.thumbwaddler` and `Assets/google-services.json` for Android using `com.mannlab.games.walking`.
+- iOS builds can import the Firebase plist just before export by setting `MANNLAB_THUMBWADDLE_FIREBASE_IOS_PLIST=/path/to/GoogleService-Info.plist`.
+- `FirebaseTelemetry` runs `FirebaseApp.CheckAndFixDependenciesAsync()`, queues early events until Firebase is ready, enables Firebase Analytics collection, and forwards Unity exceptions to Crashlytics.
 - Development builds can force a Crashlytics test crash with the `--mannlab-force-crashlytics-test` argument, the `MANNLAB_FORCE_CRASHLYTICS_TEST=1` environment variable, or seven quick taps in the top-left corner.
-- AdMob is wired through `MannLabAdMob` and can show an interstitial after timed-run results. Real production ad unit IDs are still empty; use the AdMob test build until the Thumbwaddle app and ad units are created in AdMob.
-- iOS production app id can be injected with `MANNLAB_THUMBWADDLE_ADMOB_IOS_APP_ID`; the local AdMob test build uses Google's sample iOS app id and sample interstitial unit.
+- AdMob is wired through `MannLabAdMob`. The iOS production AdMob App ID is `ca-app-pub-4525914685149405~7787773444`, and the game-over interstitial unit is `ca-app-pub-4525914685149405/1797809111`.
+- Game-over interstitials are requested every 3 completed runs in release builds; `BuildAdMobTest` forces Google's sample interstitial unit and requests an ad every run for smoke testing.
+- Android production AdMob IDs are not configured yet, so Android ads remain disabled until those values are added.
 - Run `scripts/verify-thumbwaddle-admob-crashlytics-readiness.sh` to check local Crashlytics/AdMob wiring. Missing Firebase config files are warnings unless `REQUIRE_FIREBASE_CONFIG=1` is set.
+- First App Store submission should describe only the current distance/rhythm/iceberg loop. Fish, upgrades, chests, and rewarded ad choices are future growth candidates unless implemented and verified later.
 
 ## Tuning Candidates
 

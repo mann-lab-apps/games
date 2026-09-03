@@ -15,15 +15,22 @@ namespace MannLab.Games.Walking.EditorTools
         private const string OutputPath = "Builds/iOS/Xcode";
         private const string CrashlyticsTestOutputPath = "Builds/iOS/CrashlyticsTestXcode";
         private const string AdMobTestOutputPath = "Builds/iOS/AdMobTestXcode";
-        private const string BundleIdentifier = "com.mannlab.games.walking";
+        private const string BundleIdentifier = "com.mannlab.games.thumbwaddler";
         private const string AdMobIosAppIdEnv = "MANNLAB_THUMBWADDLE_ADMOB_IOS_APP_ID";
-        private const string AdMobIosAppId = "";
+        private const string FirebaseIosPlistEnv = "MANNLAB_THUMBWADDLE_FIREBASE_IOS_PLIST";
+        private const string FirebaseIosPlistPath = "Assets/GoogleService-Info.plist";
+        private const string AdMobIosAppId = "ca-app-pub-4525914685149405~7787773444";
         private const string AdMobIosTestAppId = "ca-app-pub-3940256099942544~1458002511";
         private const string ForceAdMobTestAdsDefine = "MANNLAB_ADMOB_FORCE_TEST_ADS";
         private const string BuildNumberEnv = "MANNLAB_WALKING_IOS_BUILD_NUMBER";
-        private const string DefaultBuildNumber = "1";
-        private const string MarketingVersion = "0.1";
+        private const string DefaultBuildNumber = "2026090301";
+        private const string MarketingVersion = "1.0.8";
         private const string AppleTeamIdEnv = "MANNLAB_APPLE_TEAM_ID";
+        private const string DefaultAppleTeamId = "ZRA4DHHKQ4";
+        private const string ProvisioningProfileEnv = "MANNLAB_THUMBWADDLE_IOS_PROFILE_SPECIFIER";
+        private const string DefaultProvisioningProfileSpecifier = "Thumbwaddle";
+        private const string ProvisioningProfileUuidEnv = "MANNLAB_THUMBWADDLE_IOS_PROFILE_UUID";
+        private const string DefaultProvisioningProfileUuid = "3c745d8d-b794-4204-b5f1-2fd886a0242e";
         private const string AppIconPath = "Assets/_Project/Art/AppStore/AppIcon-1024.png";
 
         public static void Build()
@@ -66,6 +73,7 @@ namespace MannLab.Games.Walking.EditorTools
             PlayerSettings.iOS.sdkVersion = iOSSdkVersion.DeviceSDK;
 
             ApplyAppIcon();
+            ApplyFirebaseIosConfig();
             ApplySigningHint();
 
             var namedBuildTarget = NamedBuildTarget.iOS;
@@ -95,6 +103,7 @@ namespace MannLab.Games.Walking.EditorTools
             }
 
             AddMarketingIconToXcodeProject(outputPath);
+            RemoveLegacyCocoaPodsSpecsSource(outputPath);
             AddSimpleLaunchScreensToXcodeProject(outputPath);
             ConfigureInfoPlist(outputPath, buildNumber, forceAdMobTestAds);
             ConfigureXcodeProject(outputPath, buildNumber);
@@ -130,15 +139,22 @@ namespace MannLab.Games.Walking.EditorTools
 
         private static void ApplySigningHint()
         {
-            var teamId = Environment.GetEnvironmentVariable(AppleTeamIdEnv);
+            var teamId = GetAppleTeamId();
             if (string.IsNullOrWhiteSpace(teamId))
             {
                 PlayerSettings.iOS.appleEnableAutomaticSigning = true;
                 return;
             }
 
-            PlayerSettings.iOS.appleEnableAutomaticSigning = true;
+            PlayerSettings.iOS.appleEnableAutomaticSigning = false;
             PlayerSettings.iOS.appleDeveloperTeamID = teamId;
+
+            var profileUuid = GetProvisioningProfileUuid();
+            if (!string.IsNullOrWhiteSpace(profileUuid))
+            {
+                PlayerSettings.iOS.iOSManualProvisioningProfileID = profileUuid;
+                PlayerSettings.iOS.iOSManualProvisioningProfileType = ProvisioningProfileType.Distribution;
+            }
         }
 
         private static void ApplyAppIcon()
@@ -169,6 +185,30 @@ namespace MannLab.Games.Walking.EditorTools
             }
 
             PlayerSettings.SetIcons(NamedBuildTarget.iOS, icons, IconKind.Application);
+        }
+
+        private static void ApplyFirebaseIosConfig()
+        {
+            if (File.Exists(FirebaseIosPlistPath))
+            {
+                return;
+            }
+
+            var sourcePath = Environment.GetEnvironmentVariable(FirebaseIosPlistEnv);
+            if (string.IsNullOrWhiteSpace(sourcePath))
+            {
+                Debug.LogWarning(
+                    $"[Thumbwaddle] {FirebaseIosPlistPath} is missing. Set {FirebaseIosPlistEnv} to import the Firebase iOS config before build.");
+                return;
+            }
+
+            if (!File.Exists(sourcePath))
+            {
+                throw new FileNotFoundException($"Firebase iOS config not found: {sourcePath}");
+            }
+
+            File.Copy(sourcePath, FirebaseIosPlistPath, true);
+            AssetDatabase.ImportAsset(FirebaseIosPlistPath, ImportAssetOptions.ForceUpdate);
         }
 
         private static void AddMarketingIconToXcodeProject(string outputPath)
@@ -242,6 +282,19 @@ namespace MannLab.Games.Walking.EditorTools
         {
             WriteSimpleLaunchScreen(Path.Combine(outputPath, "LaunchScreen-iPhone.storyboard"));
             WriteSimpleLaunchScreen(Path.Combine(outputPath, "LaunchScreen-iPad.storyboard"));
+        }
+
+        private static void RemoveLegacyCocoaPodsSpecsSource(string outputPath)
+        {
+            var podfilePath = Path.Combine(outputPath, "Podfile");
+            if (!File.Exists(podfilePath))
+            {
+                return;
+            }
+
+            var contents = File.ReadAllText(podfilePath);
+            contents = contents.Replace("source 'https://github.com/CocoaPods/Specs'\n", string.Empty);
+            File.WriteAllText(podfilePath, contents);
         }
 
         private static void WriteSimpleLaunchScreen(string path)
@@ -329,6 +382,7 @@ namespace MannLab.Games.Walking.EditorTools
             ConfigureTargetVersion(project, mainTargetGuid, buildNumber);
             ConfigureTargetVersion(project, frameworkTargetGuid, buildNumber);
             ConfigureAppTarget(project, mainTargetGuid);
+            ConfigureFrameworkTarget(project, frameworkTargetGuid);
             DisableUserScriptSandboxing(project, mainTargetGuid, frameworkTargetGuid);
 
             project.WriteToFile(projectPath);
@@ -354,11 +408,61 @@ namespace MannLab.Games.Walking.EditorTools
             }
 
             project.SetBuildProperty(targetGuid, "PRODUCT_BUNDLE_IDENTIFIER", BundleIdentifier);
-            var teamId = Environment.GetEnvironmentVariable(AppleTeamIdEnv);
+            project.SetBuildProperty(targetGuid, "CODE_SIGN_STYLE", "Manual");
+            project.SetBuildProperty(targetGuid, "CODE_SIGN_IDENTITY", "Apple Distribution");
+            project.SetBuildProperty(targetGuid, "CODE_SIGN_IDENTITY[sdk=iphoneos*]", "Apple Distribution");
+            project.SetBuildProperty(targetGuid, "PROVISIONING_PROFILE_SPECIFIER", GetProvisioningProfileSpecifier());
+
+            var profileUuid = GetProvisioningProfileUuid();
+            if (!string.IsNullOrWhiteSpace(profileUuid))
+            {
+                project.SetBuildProperty(targetGuid, "PROVISIONING_PROFILE", profileUuid);
+                project.SetBuildProperty(targetGuid, "PROVISIONING_PROFILE_APP", profileUuid);
+            }
+
+            var teamId = GetAppleTeamId();
             if (!string.IsNullOrWhiteSpace(teamId))
             {
                 project.SetBuildProperty(targetGuid, "DEVELOPMENT_TEAM", teamId);
             }
+        }
+
+        private static void ConfigureFrameworkTarget(PBXProject project, string targetGuid)
+        {
+            if (string.IsNullOrEmpty(targetGuid))
+            {
+                return;
+            }
+
+            project.SetBuildProperty(targetGuid, "CODE_SIGN_STYLE", "Manual");
+            project.SetBuildProperty(targetGuid, "CODE_SIGN_IDENTITY", string.Empty);
+            project.SetBuildProperty(targetGuid, "CODE_SIGN_IDENTITY[sdk=iphoneos*]", string.Empty);
+            project.SetBuildProperty(targetGuid, "PROVISIONING_PROFILE_SPECIFIER", string.Empty);
+            project.SetBuildProperty(targetGuid, "PROVISIONING_PROFILE", string.Empty);
+
+            var teamId = GetAppleTeamId();
+            if (!string.IsNullOrWhiteSpace(teamId))
+            {
+                project.SetBuildProperty(targetGuid, "DEVELOPMENT_TEAM", teamId);
+            }
+        }
+
+        private static string GetAppleTeamId()
+        {
+            var teamId = Environment.GetEnvironmentVariable(AppleTeamIdEnv);
+            return string.IsNullOrWhiteSpace(teamId) ? DefaultAppleTeamId : teamId;
+        }
+
+        private static string GetProvisioningProfileSpecifier()
+        {
+            var profile = Environment.GetEnvironmentVariable(ProvisioningProfileEnv);
+            return string.IsNullOrWhiteSpace(profile) ? DefaultProvisioningProfileSpecifier : profile;
+        }
+
+        private static string GetProvisioningProfileUuid()
+        {
+            var profileUuid = Environment.GetEnvironmentVariable(ProvisioningProfileUuidEnv);
+            return string.IsNullOrWhiteSpace(profileUuid) ? DefaultProvisioningProfileUuid : profileUuid;
         }
 
         private static void DisableUserScriptSandboxing(PBXProject project, params string[] targetGuids)

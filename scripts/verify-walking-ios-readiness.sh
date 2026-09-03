@@ -3,12 +3,27 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 project="$repo_root/prototypes/walking"
-unity_editor="/Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity"
+project_unity_version="$(awk '/m_EditorVersion:/ {print $2; exit}' "$project/ProjectSettings/ProjectVersion.txt")"
+unity_version="${UNITY_EDITOR_VERSION:-$project_unity_version}"
+unity_root="/Applications/Unity/Hub/Editor/$unity_version/Unity.app/Contents"
+if [[ ! -x "$unity_root/MacOS/Unity" ]]; then
+  latest_unity_app="$(find /Applications/Unity/Hub/Editor -maxdepth 2 -path '*/Unity.app' -type d 2>/dev/null | sort | tail -1 || true)"
+  if [[ -n "$latest_unity_app" ]]; then
+    unity_root="$latest_unity_app/Contents"
+  fi
+fi
+
+unity_editor="$unity_root/MacOS/Unity"
 unity_cli="${HOME}/.unity/bin/unity"
-ios_engine="/Applications/Unity/Hub/Editor/6000.3.23f1/PlaybackEngines/iOSSupport"
+ios_engine="$(dirname "$(dirname "$unity_root")")/PlaybackEngines/iOSSupport"
 build_log="/tmp/walking-unity-ios-build.log"
 output_path="$project/Builds/iOS/Xcode"
 pbxproj="$output_path/Unity-iPhone.xcodeproj/project.pbxproj"
+profile_name="${MANNLAB_THUMBWADDLE_IOS_PROFILE_SPECIFIER:-Thumbwaddle}"
+profile_uuid="${MANNLAB_THUMBWADDLE_IOS_PROFILE_UUID:-3c745d8d-b794-4204-b5f1-2fd886a0242e}"
+bundle_id="com.mannlab.games.thumbwaddler"
+project_profile="$project/BuildSettings/iOS/ProvisioningProfiles/Thumbwaddle.mobileprovision"
+installed_profile="${HOME}/Library/MobileDevice/Provisioning Profiles/${profile_uuid}.mobileprovision"
 missing=0
 
 if [[ ! -x "$unity_editor" ]]; then
@@ -18,7 +33,7 @@ fi
 
 if [[ ! -d "$ios_engine" ]]; then
   echo "Unity iOS Build Support is not installed: $ios_engine" >&2
-  echo "Install it from Unity Hub > Installs > 6000.3.23f1 > Add modules > iOS Build Support." >&2
+  echo "Install it from Unity Hub > Installs > $unity_version > Add modules > iOS Build Support." >&2
   missing=1
 fi
 
@@ -59,6 +74,19 @@ if [[ ! -f "$project/Assets/_Project/Art/AppStore/AppIcon-1024.png" ]]; then
   missing=1
 fi
 
+if [[ ! -f "$project_profile" ]]; then
+  echo "Thumbwaddle provisioning profile is missing from project: $project_profile" >&2
+  missing=1
+elif ! strings "$project_profile" | grep -q "<string>ZRA4DHHKQ4.${bundle_id}</string>"; then
+  echo "Thumbwaddle provisioning profile does not match bundle id: $bundle_id" >&2
+  missing=1
+fi
+
+if [[ ! -f "$installed_profile" ]]; then
+  echo "Thumbwaddle provisioning profile is not installed for Xcode: $installed_profile" >&2
+  missing=1
+fi
+
 if [[ "$missing" -ne 0 ]]; then
   exit 2
 fi
@@ -73,6 +101,9 @@ fi
 test -d "$output_path"
 test -f "$pbxproj"
 test -f "$output_path/Unity-iPhone/Images.xcassets/AppIcon.appiconset/Icon-AppStore-1024.png"
+grep -q "PRODUCT_BUNDLE_IDENTIFIER = $bundle_id;" "$pbxproj"
+grep -Eq "PROVISIONING_PROFILE_SPECIFIER = \"?$profile_name\"?;" "$pbxproj"
+grep -Eq "PROVISIONING_PROFILE = \"?$profile_uuid\"?;" "$pbxproj"
 
 echo "iOS build log: $build_log"
 echo "iOS Xcode project verified: $output_path"
