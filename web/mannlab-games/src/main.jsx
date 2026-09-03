@@ -514,12 +514,12 @@ function PrivacyStage() {
           <p>
             2048 Crash, 2048 Blink, Best Ramyeon, Gather & Shot, and
             Thumbwaddle may use Google AdMob to show third-party advertising at
-            natural breaks, such as after a game over. Google AdMob may collect
-            or share data such as device identifiers, advertising identifiers
-            where available, approximate location inferred from IP address,
-            product interaction data, advertising interaction data, and
-            diagnostics for advertising, analytics, fraud prevention, security,
-            and performance purposes.
+            natural breaks, such as after a game over, where production ad IDs
+            are configured. Google AdMob may collect or share data such as
+            device identifiers, advertising identifiers where available,
+            approximate location inferred from IP address, product interaction
+            data, advertising interaction data, and diagnostics for advertising,
+            analytics, fraud prevention, security, and performance purposes.
           </p>
           <p>
             The mobile apps do not currently include account systems, in-app
