@@ -1,0 +1,17 @@
+{
+  "name": "MannLab.Games.SensitiveBarista",
+  "rootNamespace": "MannLab.Games.SensitiveBarista",
+  "references": [
+    "MannLab.HyperCasual.Core",
+    "MannLab.Ads.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

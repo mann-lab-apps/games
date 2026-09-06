@@ -1,0 +1,31 @@
+{
+  "project_info": {
+    "project_number": "1008585949221",
+    "project_id": "too-picky-coffee",
+    "storage_bucket": "too-picky-coffee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1008585949221:ios:076811cb02b6dfdec63fcc",
+        "android_client_info": {
+          "package_name": "com.mannlab.games.toopickycoffee"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBmD7WlV0gZSAp4LjAb4Pir5yle9eOEX0"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 0
+        },
+        "appinvite_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
