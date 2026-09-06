@@ -78,7 +78,7 @@ namespace MannLab.Games.YachtRush.EditorTools
                 SetScriptingDefine(previousDefines, ForceAdMobTestAdsDefine, forceAdMobTestAds);
 
                 PlayerSettings.companyName = "Mann Lab";
-                PlayerSettings.productName = "Yacht Rush";
+                PlayerSettings.productName = "Yacht Sailing";
                 PlayerSettings.bundleVersion = GetEnvOrDefault(MarketingVersionEnv, "0.1");
                 PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
                 PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleIdentifier);
@@ -171,7 +171,7 @@ namespace MannLab.Games.YachtRush.EditorTools
             if (string.IsNullOrWhiteSpace(sourcePath))
             {
                 Debug.LogWarning(
-                    $"[Yacht Rush] {FirebaseIosPlistPath} is missing. Set {FirebaseIosPlistEnv} to import the Firebase iOS config before build.");
+                    $"[Yacht Sailing] {FirebaseIosPlistPath} is missing. Set {FirebaseIosPlistEnv} to import the Firebase iOS config before build.");
                 return;
             }
 

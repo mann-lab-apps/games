@@ -24,7 +24,7 @@ namespace MannLab.Games.YachtRush.EditorTools
             PlayerSettings.WebGL.debugSymbols = false;
 
             PlayerSettings.companyName = "Mann Lab";
-            PlayerSettings.productName = "Yacht Rush";
+            PlayerSettings.productName = "Yacht Sailing";
             PlayerSettings.bundleVersion = "0.1";
 
             var compatibilityPlistPath = Path.Combine(OutputPath, "Info.plist");

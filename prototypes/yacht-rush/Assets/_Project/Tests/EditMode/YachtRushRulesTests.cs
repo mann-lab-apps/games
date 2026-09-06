@@ -1,3 +1,4 @@
+using System.Linq;
 using MannLab.Games.YachtRush;
 using NUnit.Framework;
 
@@ -109,6 +110,138 @@ namespace MannLab.Games.YachtRush.Tests
                 0);
             Assert.AreEqual(15, cracked.BaseScore);
             Assert.AreEqual(10, cracked.RushAdjustedScore);
+        }
+
+        [Test]
+        public void MapsYachtCategoriesToHarborActions()
+        {
+            Assert.AreEqual("Tailwind", YachtRushRules.GetHarborAction(YachtRushCategory.Ones).Name);
+            Assert.AreEqual("Stock Up", YachtRushRules.GetHarborAction(YachtRushCategory.Twos).Name);
+            Assert.AreEqual("Grand Voyage", YachtRushRules.GetHarborAction(YachtRushCategory.Yacht).Name);
+            Assert.AreEqual(YachtRushRules.Categories.Length, YachtRushRules.HarborActions.Length);
+        }
+
+        [Test]
+        public void HarborActionsChangeVoyageState()
+        {
+            var preview = new YachtRushRoundScorePreview(2, 2, 0, 2, false, new[] { 1, 1, 4, 4, 6 });
+            var effect = YachtRushRules.PreviewHarborAction(YachtRushCategory.Ones, preview, YachtRushRushDie.None);
+            var state = YachtRushRules.ApplyHarborAction(
+                new HarborYachtState(1, 0, YachtRushRules.HarborStartingHull, YachtRushRules.HarborStartingSupplies, 0),
+                effect);
+
+            Assert.IsTrue(effect.IsAvailable);
+            Assert.AreEqual(18, state.RouteProgress);
+            Assert.AreEqual(YachtRushRules.HarborStartingSupplies - 1, state.Supplies);
+            Assert.AreEqual(2, state.Day);
+        }
+
+        [Test]
+        public void VoyageCommandsCanBeLockedByWindRoll()
+        {
+            var preview = new YachtRushRoundScorePreview(0, 0, 0, 0, false, new[] { 1, 2, 3, 4, 5 });
+            var effect = YachtRushRules.PreviewHarborAction(YachtRushCategory.Ones, preview, YachtRushRushDie.None);
+
+            Assert.IsFalse(effect.IsAvailable);
+            StringAssert.Contains("1 Wind + 1 Wind + 4 Sail", effect.LockedReason);
+        }
+
+        [Test]
+        public void HarborRunEndsWhenHullIsLost()
+        {
+            var result = YachtRushRules.EvaluateHarborRun(new HarborYachtState(4, 20, 0, 3, 10), 3);
+            Assert.IsTrue(result.IsComplete);
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual("Lost at Sea", result.Title);
+        }
+
+        [Test]
+        public void HarborRunEndsAtTwelveDays()
+        {
+            var result = YachtRushRules.EvaluateHarborRun(new HarborYachtState(12, 35, 12, 4, 12), YachtRushRules.RoundCount);
+            Assert.IsTrue(result.IsComplete);
+            Assert.AreEqual("Drifted Home", result.Title);
+        }
+
+        [Test]
+        public void HarborRunSucceedsAtEndWhenDistanceGoalIsReached()
+        {
+            var result = YachtRushRules.EvaluateHarborRun(new HarborYachtState(12, YachtRushRules.HarborTargetRoute, 12, 4, 12), YachtRushRules.RoundCount);
+            Assert.IsTrue(result.IsComplete);
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual("Voyage Complete", result.Title);
+        }
+
+        [Test]
+        public void LowWindCreatesVoyageRisk()
+        {
+            var preview = new YachtRushRoundScorePreview(9, 9, 0, 9, false, new[] { 1, 1, 2, 2, 3 });
+            var calm = YachtRushRules.PreviewHarborAction(YachtRushCategory.Chance, preview, YachtRushRushDie.None);
+
+            Assert.IsTrue(calm.IsAvailable);
+            Assert.AreEqual(4, calm.RouteDelta);
+            Assert.AreEqual(-4, calm.HullDelta);
+            Assert.AreEqual(-2, calm.HazardDelta);
+        }
+
+        [Test]
+        public void DiceFacesMapToCrewResources()
+        {
+            CollectionAssert.AreEqual(new[] { 1, 1, 1, 1, 1, 0 }, YachtRushRules.CountCrewResources(new[] { 1, 2, 3, 4, 5 }));
+            Assert.AreEqual("Sail", YachtRushRules.CrewResourceName(1));
+            Assert.AreEqual("Hull", YachtRushRules.CrewResourceName(2));
+            Assert.AreEqual("Food", YachtRushRules.CrewResourceName(3));
+            Assert.AreEqual("Crew", YachtRushRules.CrewResourceName(4));
+            Assert.AreEqual("Gold", YachtRushRules.CrewResourceName(5));
+            Assert.AreEqual("Map", YachtRushRules.CrewResourceName(6));
+        }
+
+        [Test]
+        public void MatchingResourcesUnlockSingleResourceStrategies()
+        {
+            Assert.IsTrue(YachtRushRules.PreviewVoyageStrategy(VoyageStrategy.TailwindRun, YachtRushRules.CountCrewResources(new[] { 1, 1, 3, 4, 6 })).IsAvailable);
+            Assert.IsTrue(YachtRushRules.PreviewVoyageStrategy(VoyageStrategy.PatchTheHull, YachtRushRules.CountCrewResources(new[] { 2, 2, 1, 4, 6 })).IsAvailable);
+            Assert.IsTrue(YachtRushRules.PreviewVoyageStrategy(VoyageStrategy.StockTheHold, YachtRushRules.CountCrewResources(new[] { 3, 3, 1, 4, 6 })).IsAvailable);
+        }
+
+        [Test]
+        public void ResourceCombinationsUnlockVoyageStrategies()
+        {
+            Assert.IsTrue(YachtRushRules.PreviewVoyageStrategy(VoyageStrategy.LongVoyage, YachtRushRules.CountCrewResources(new[] { 1, 3, 6, 4, 4 })).IsAvailable);
+            Assert.IsTrue(YachtRushRules.PreviewVoyageStrategy(VoyageStrategy.FullDeck, YachtRushRules.CountCrewResources(new[] { 1, 2, 3, 4, 5 })).IsAvailable);
+            Assert.IsTrue(YachtRushRules.PreviewVoyageStrategy(VoyageStrategy.TradeRoute, YachtRushRules.CountCrewResources(new[] { 3, 5, 6, 1, 1 })).IsAvailable);
+        }
+
+        [Test]
+        public void AvailableVoyageStrategiesExplainWhyTheyAppeared()
+        {
+            var strategies = YachtRushRules.AvailableVoyageStrategies(YachtRushRules.CountCrewResources(new[] { 1, 1, 3, 4, 6 }));
+
+            Assert.IsTrue(strategies.Any(strategy => strategy.Strategy == VoyageStrategy.TailwindRun));
+            Assert.IsTrue(strategies.All(strategy => strategy.Condition.StartsWith("Need")));
+            Assert.IsTrue(strategies.All(strategy => strategy.Have.Contains("Sail") || strategy.Have.Contains("Food") || strategy.Have.Contains("Crew") || strategy.Have.Contains("Map")));
+        }
+
+        [Test]
+        public void ApplyingVoyageStrategyUpdatesStateWithoutHiddenUpkeep()
+        {
+            var state = new HarborYachtState(1, 0, 10, 4, 0);
+            var preview = YachtRushRules.PreviewVoyageStrategy(VoyageStrategy.TailwindRun, YachtRushRules.CountCrewResources(new[] { 1, 1, 1, 2, 5 }));
+            var next = YachtRushRules.ApplyVoyageStrategy(state, preview, 0, out var supplyUpkeep, out var stormDamage);
+
+            Assert.AreEqual(12, next.RouteProgress);
+            Assert.AreEqual(4, next.Supplies);
+            Assert.AreEqual(0, supplyUpkeep);
+            Assert.AreEqual(0, stormDamage);
+        }
+
+        [Test]
+        public void VoyageRunEndsOnFailureOrTwelveMonths()
+        {
+            Assert.IsTrue(YachtRushRules.EvaluateVoyageRun(new HarborYachtState(4, 20, 0, 3, 0), 3).IsComplete);
+            Assert.AreEqual("Out of Supplies", YachtRushRules.EvaluateVoyageRun(new HarborYachtState(4, 20, 5, 0, 0), 3).Title);
+            Assert.IsTrue(YachtRushRules.EvaluateVoyageRun(new HarborYachtState(12, 35, 5, 3, 0), YachtRushRules.RoundCount).IsComplete);
+            Assert.IsTrue(YachtRushRules.EvaluateVoyageRun(new HarborYachtState(8, YachtRushRules.HarborTargetRoute, 5, 3, 0), 7).IsSuccess);
         }
     }
 }

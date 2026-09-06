@@ -30,7 +30,7 @@ const devices = [
 const shots = [
   { file: "01-ready-to-shake.png", shot: 1, waitMs: 1500 },
   { file: "02-bowl-shake.png", shot: 2, waitMs: 1500 },
-  { file: "03-dice-roll.png", shot: 3, waitMs: 500 },
+  { file: "03-dice-roll.png", shot: 3, waitMs: 2200 },
   { file: "04-score-choice.png", shot: 4, waitMs: 1400 },
   { file: "05-hold-and-bonus.png", shot: 5, waitMs: 1400 },
   { file: "06-run-complete.png", shot: 6, waitMs: 1400 },

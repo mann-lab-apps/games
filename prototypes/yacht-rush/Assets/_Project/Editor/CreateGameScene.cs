@@ -23,7 +23,7 @@ namespace MannLab.Games.YachtRush.EditorTools
             camera.nearClipPlane = 0.1f;
             camera.farClipPlane = 80f;
 
-            new GameObject("Yacht Rush Game", typeof(YachtRushController));
+            new GameObject("Yacht Sailing Game", typeof(YachtRushController));
 
             Directory.CreateDirectory("Assets/_Project/Scenes");
             EditorSceneManager.SaveScene(scene, "Assets/_Project/Scenes/Game.unity");
@@ -34,7 +34,7 @@ namespace MannLab.Games.YachtRush.EditorTools
             };
 
             PlayerSettings.companyName = "Mann Lab";
-            PlayerSettings.productName = "Yacht Rush";
+            PlayerSettings.productName = "Yacht Sailing";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.mannlab.games.yachtrush");
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, "com.mannlab.games.yachtrush");
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
