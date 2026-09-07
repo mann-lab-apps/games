@@ -1,6 +1,6 @@
-# Gather & Shot
+# Stop & Snow
 
-Mobile portrait snowball survival prototype built around a stop-to-reload risk loop.
+Mobile portrait snowfield survival prototype built around a stop-to-gather resource loop.
 
 ## Project
 
@@ -12,9 +12,12 @@ Mobile portrait snowball survival prototype built around a stop-to-reload risk l
 ## Core Loop
 
 - Move with a virtual joystick.
-- Release touch and stand still to gather snow into ammo.
-- Gathering snow stops movement and auto-fire until the cycle completes or movement resumes.
-- Rare snowballs, snowdrifts, and big snowdrifts act as emergency bonus refills.
+- Release touch and stand still to build a visible snowball.
+- Holding still grows the built snowball through Small, Packed, and Giant stages.
+- Standing near Small Snow Patches, Big Snowdrifts, or Icy Snowdrifts gathers faster.
+- Snow resources visibly shrink as they are mined and disappear when depleted.
+- Gathering snow stops movement; once a built snowball is ready, auto-throw can still fire when an enemy enters range.
+- Rare snowballs and weapon caches still act as emergency bonuses.
 - Automatically throw snowballs at the nearest enemy in range.
 - Each hit can defeat or damage enemies.
 - Defeated enemies add score and Snow Coin.
@@ -26,23 +29,30 @@ Mobile portrait snowball survival prototype built around a stop-to-reload risk l
 - First 10 seconds: three Walker enemies enter from screen edges; moving gives immediate escape, stopping starts the gather ring, and auto-fire/first coin reward can happen before the opening pressure closes.
 - First 60 seconds: enemy kills, ammo shortage, a timed big snowdrift, a weapon cache, first mini-goal reward, and the first free upgrade are all surfaced.
 - Persistent Snow Coin is saved in PlayerPrefs and shown as run coins plus owned coins.
-- Six upgrades are saved persistently: Ammo Capacity, Gather Speed, Throw Rate, Snowball Damage, Warm Coat, and Coin Magnet.
+- Six gear upgrades are saved persistently: Snow Pouch, Wool Gloves, Throw Mitts, Packed Core, Warm Coat, and Magnet Charm.
 - Weapon growth keeps auto-fire intact: Big Snowball, Split Snowball, Ice Shot, Snow Burst, and Rapid Throw appear through pickups, mini goals, or upgrade progression.
 - Wave staging is time-based: Walker focus before 60s, Runner intro from 60s, Heavy intro from 120s, mixed pressure after 240s.
 - Result screen prioritizes Snow Coin earned, upgrade availability, rewarded 2x Coin, Revive, Bonus Chest, and Next Run.
 - Forced game-over interstitials stay blocked for the first 3 runs and the first 3 minutes.
+- First-route zones are visible in mission text: Frost Yard, Snow Patch Field, Red Scarf Lane, Heavy Snowbank, and Blizzard Gate.
+- Zone entry shows a dedicated banner plus field tint/accent changes.
+- Player art includes separate idle, move, gather/build, auto-throw, and hit poses.
+- Snow Gear Lab uses six equipment slots with simple gear icons and purchasable-slot pulse feedback.
 
-## Gathering And Bonus Refills
+## Gathering And Snow Resources
 
 - Stationary gather: +1 ammo per completed stillness cycle.
 - Touching again cancels gathering immediately.
-- Snowball bonus: +2 ammo.
-- Snowdrift bonus: +4 ammo.
-- Big snowdrift bonus: +6 ammo. It is rare and tends to appear near enemy pressure after the opening seconds.
+- While gathering, the player switches to a build pose and a hand-built snowball grows in front of the character.
+- Small/Packed/Giant built snowballs change projectile size, damage, splash, and piercing pressure.
+- Small Snow Patch: faster local gather resource that depletes after a few gathers.
+- Big Snowdrift: larger resource that can activate Big Snowball when depleted.
+- Icy Snowdrift: icy resource that can activate Ice Shot when depleted.
+- Snowball bonus: +2 emergency ammo.
 
 ## Build
 
-Generate doodle assets:
+Generate character and App Store icon assets:
 
 ```sh
 python3 scripts/generate-gather-and-shot-doodle-assets.py
@@ -101,9 +111,9 @@ Open `http://127.0.0.1:8091/`. The generated WebGL shell is patched during build
 
 ## Firebase Notes
 
-The runtime calls `FirebaseTelemetry` for `app_open`, `run_start`, `restart`, `first_action`, `first_reward`, `first_upgrade`, `currency_earned`, `upgrade_purchase`, `weapon_unlocked`, `wave_start`, `enemy_defeated`, `ammo_empty`, `gather_start`, `gather_complete`, `bonus_pickup`, `rewarded_offer_shown`, `rewarded_offer_completed`, `run_end`, `run_end_reason`, and `crashlytics_test_trigger` breadcrumbs. It also forwards unhandled exceptions and Unity exception logs to Crashlytics when the Firebase Unity SDK is present.
+The runtime calls `FirebaseTelemetry` for `app_open`, `run_start`, `restart`, `first_action`, `first_reward`, `first_upgrade`, `currency_earned`, `upgrade_purchase`, `weapon_unlocked`, `wave_start`, `zone_enter`, `zone_objective_complete`, `runner_first_seen`, `heavy_first_seen`, `snowball_build_start`, `snowball_build_stage`, `snowball_build_complete`, `snowball_auto_thrown`, `giant_snowball_used`, `enemy_defeated`, `ammo_empty`, `gather_start`, `gather_complete`, `bonus_pickup`, `rewarded_offer_shown`, `rewarded_offer_completed`, `run_end`, `run_end_reason`, and `crashlytics_test_trigger` breadcrumbs. It also forwards unhandled exceptions and Unity exception logs to Crashlytics when the Firebase Unity SDK is present.
 
-When the Firebase Analytics SDK exposes the string parameter overload, telemetry forwards common run parameters such as game, run number, session time, survival time, kills, ammo, Warmth, coins, upgrade levels, current weapon, enemy count, and end reason.
+When the Firebase Analytics SDK exposes the string parameter overload, telemetry forwards common run parameters such as game, app name, run number, session time, survival time, kills, ammo, Warmth, coins, upgrade levels, current weapon, current snow zone, snowball size, build time, enemy count, and end reason.
 
 Firebase app config must be added per platform before real Crashlytics testing:
 

@@ -43,8 +43,11 @@ namespace MannLab.Games.GatherAndShot.EditorTools
             if (File.Exists(indexPath))
             {
                 var html = File.ReadAllText(indexPath)
-                    .Replace("Unity Web Player | Gather _ Shot", "Gather & Shot")
-                    .Replace("Gather _ Shot", "Gather & Shot")
+                    .Replace("Unity Web Player | Gather _ Shot", "Stop & Snow")
+                    .Replace("Unity Web Player | Stop _ Snow", "Stop & Snow")
+                    .Replace("Gather _ Shot", "Stop & Snow")
+                    .Replace("Stop _ Snow", "Stop & Snow")
+                    .Replace("Gather & Shot", "Stop & Snow")
                     .Replace("gather-and-shot.data.gz", "gather-and-shot.data")
                     .Replace("gather-and-shot.framework.js.gz", "gather-and-shot.framework.js")
                     .Replace("gather-and-shot.wasm.gz", "gather-and-shot.wasm")

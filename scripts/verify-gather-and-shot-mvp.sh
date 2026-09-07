@@ -10,6 +10,8 @@ unity="$managed/UnityEngine"
 mono_lib="$unity_root/Resources/Scripting/MonoBleedingEdge/lib/mono/unityjit-macos"
 ugui="$unity_root/Resources/PackageManager/ProjectTemplates/libcache/com.unity.template.2d-cross-platform-2d-6.1.6/ScriptAssemblies/UnityEngine.UI.dll"
 project="$repo_root/prototypes/gather-and-shot"
+asset_dir="$project/Assets/Resources/GatherAndShot"
+controller="$project/Assets/_Project/Scripts/GatherAndShotController.cs"
 shared_runtime="$repo_root/shared/unity-packages/com.mannlab.hypercasual-core/Runtime"
 shared_ads_runtime="$repo_root/shared/unity-packages/com.mannlab.admob-core/Runtime"
 ios_xcode="$unity_root/PlaybackEngines/MacStandaloneSupport/UnityEditor.iOS.Extensions.Xcode.dll"
@@ -17,6 +19,36 @@ tmpdir="$(mktemp -d)"
 
 runtime_dll="$tmpdir/GatherAndShotRuntime.dll"
 editor_dll="$tmpdir/GatherAndShotEditor.dll"
+
+for asset in \
+  player.png \
+  player_idle.png \
+  player_move.png \
+  player_gather.png \
+  player_throw.png \
+  player_hit.png \
+  walker.png \
+  runner.png \
+  heavy.png
+do
+  if [[ ! -s "$asset_dir/$asset" ]]; then
+    echo "Missing Stop & Snow character asset: $asset_dir/$asset" >&2
+    exit 1
+  fi
+done
+
+for expected in \
+  "CreateUpgradeIcon" \
+  "ShowZoneBanner" \
+  "PACKED THROW" \
+  "GIANT THROW" \
+  "Stop: build a GIANT snowball"
+do
+  if ! grep -q "$expected" "$controller"; then
+    echo "Missing Stop & Snow differentiation marker in controller: $expected" >&2
+    exit 1
+  fi
+done
 
 "$mono" "$csc" -target:library -nologo -nostdlib -out:"$runtime_dll" \
   -r:"$mono_lib/mscorlib.dll" \
@@ -79,25 +111,44 @@ public static class VerifyGatherAndShotRules
         if (GatherAndShotBalance.PickupAmmo("Ball") != 2
             || GatherAndShotBalance.PickupAmmo("Drift") != 4
             || GatherAndShotBalance.PickupAmmo("BigSnowdrift") != 6
+            || GatherAndShotBalance.PickupAmmo("IcySnowdrift") != 5
             || GatherAndShotBalance.PickupAmmo(PickupKind.BigSnowdrift) != 6
             || GatherAndShotBalance.PickupAmmo(PickupKind.WeaponCache) < 1)
         {
-            Console.Error.WriteLine("Emergency bonus pickup ammo values are wrong.");
+            Console.Error.WriteLine("Snow resource and emergency bonus pickup ammo values are wrong.");
+            return 1;
+        }
+
+        if (!GatherAndShotBalance.IsSnowResource(PickupKind.Snowdrift)
+            || !GatherAndShotBalance.IsSnowResource(PickupKind.BigSnowdrift)
+            || !GatherAndShotBalance.IsSnowResource(PickupKind.IcySnowdrift)
+            || GatherAndShotBalance.IsSnowResource(PickupKind.WeaponCache))
+        {
+            Console.Error.WriteLine("Snow resource pickup kinds are not configured.");
+            return 1;
+        }
+
+        if (GatherAndShotBalance.SnowResourceCapacity(PickupKind.Snowdrift) != 3
+            || GatherAndShotBalance.SnowResourceCapacity(PickupKind.BigSnowdrift) <= GatherAndShotBalance.SnowResourceCapacity(PickupKind.Snowdrift)
+            || GatherAndShotBalance.SnowResourceGatherMultiplier(PickupKind.BigSnowdrift) >= 1f
+            || GatherAndShotBalance.SnowResourceCoinReward(PickupKind.IcySnowdrift) <= 0)
+        {
+            Console.Error.WriteLine("Snow resource capacity, gather speed, and depletion rewards are not configured.");
             return 1;
         }
 
         if (GatherAndShotBalance.PickupRadius(PickupKind.BigSnowdrift) <= GatherAndShotBalance.PickupRadius(PickupKind.Snowball)
             || GatherAndShotBalance.PickupRadius(PickupKind.Snowball, 2) <= GatherAndShotBalance.PickupRadius(PickupKind.Snowball, 0))
         {
-            Console.Error.WriteLine("Big snowdrifts should be easier to pick up than single snowballs.");
+            Console.Error.WriteLine("Big snowdrifts should have stronger interaction range than single snowballs.");
             return 1;
         }
 
-        if (GatherAndShotBalance.MaxLivePickups > 4
+        if (GatherAndShotBalance.MaxLivePickups > 5
             || GatherAndShotBalance.PickupSpawnGapMin(0f) < 5f
             || GatherAndShotBalance.PickupSpawnGapMax(0f) < GatherAndShotBalance.PickupSpawnGapMin(0f))
         {
-            Console.Error.WriteLine("Emergency bonus pickup pressure is too generous for the stationary-gather design.");
+            Console.Error.WriteLine("Snow resource and emergency pickup pressure is too generous for the stationary-gather design.");
             return 1;
         }
 
@@ -181,6 +232,39 @@ public static class VerifyGatherAndShotRules
             return 1;
         }
 
+        var zoneNames = Enum.GetNames(typeof(SnowZoneKind));
+        if (zoneNames.Length != 5
+            || zoneNames[0] != "FrostYard"
+            || zoneNames[1] != "SnowPatchField"
+            || zoneNames[2] != "RedScarfLane"
+            || zoneNames[3] != "HeavySnowbank"
+            || zoneNames[4] != "BlizzardGate")
+        {
+            Console.Error.WriteLine("Stop & Snow map zone chain is not configured.");
+            return 1;
+        }
+
+        var snowballStages = Enum.GetNames(typeof(SnowballBuildStage));
+        if (snowballStages.Length != 4
+            || snowballStages[0] != "None"
+            || snowballStages[1] != "Small"
+            || snowballStages[2] != "Packed"
+            || snowballStages[3] != "Giant")
+        {
+            Console.Error.WriteLine("Stop & Snow build-snowball stages are not configured.");
+            return 1;
+        }
+
+        if (GatherAndShotBalance.SnowballBuildSeconds(SnowballBuildStage.Small, 0, 0) >= GatherAndShotBalance.SnowballBuildSeconds(SnowballBuildStage.Packed, 0, 0)
+            || GatherAndShotBalance.SnowballBuildSeconds(SnowballBuildStage.Packed, 0, 0) >= GatherAndShotBalance.SnowballBuildSeconds(SnowballBuildStage.Giant, 0, 0)
+            || GatherAndShotBalance.SnowballBuildSeconds(SnowballBuildStage.Packed, 2, 2) >= GatherAndShotBalance.SnowballBuildSeconds(SnowballBuildStage.Packed, 0, 0)
+            || GatherAndShotBalance.SnowballBuildDamageBonus(SnowballBuildStage.Giant) <= GatherAndShotBalance.SnowballBuildDamageBonus(SnowballBuildStage.Packed)
+            || GatherAndShotBalance.SnowballBuildName(SnowballBuildStage.Giant) != "Giant")
+        {
+            Console.Error.WriteLine("Build-snowball timing, upgrade scaling, or damage bonuses are wrong.");
+            return 1;
+        }
+
         if (!GatherAndShotBalance.IsGameOver(0f) || GatherAndShotBalance.IsGameOver(0.1f))
         {
             Console.Error.WriteLine("Warmth game-over threshold is wrong.");
@@ -205,7 +289,7 @@ public static class VerifyGatherAndShotRules
             return 1;
         }
 
-        Console.WriteLine("Gather & Shot rules verified.");
+        Console.WriteLine("Stop & Snow rules verified.");
         return 0;
     }
 }
@@ -221,4 +305,4 @@ CS
 
 "$mono" "$tmpdir/VerifyGatherAndShotRules.exe"
 
-echo "Gather & Shot MVP compile verification passed."
+echo "Stop & Snow MVP compile verification passed."

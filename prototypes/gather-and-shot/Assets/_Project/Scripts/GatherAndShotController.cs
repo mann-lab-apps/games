@@ -17,7 +17,7 @@ namespace MannLab.Games.GatherAndShot
         private const string FreeUpgradeClaimedKey = "mannlab.gather_and_shot.free_upgrade_claimed";
         private const string StartFullAmmoNextRunKey = "mannlab.gather_and_shot.start_full_ammo_next_run";
         private const string UpgradeLevelKeyPrefix = "mannlab.gather_and_shot.upgrade.";
-        private const float WorldHalfHeight = 6.6f;
+        private const float WorldHalfHeight = 6.2f;
         private const float WorldHalfWidth = WorldHalfHeight * 9f / 16f;
         private const float TargetWorldAspect = WorldHalfWidth / WorldHalfHeight;
         private const float WarmthBarWidth = 520f;
@@ -26,6 +26,7 @@ namespace MannLab.Games.GatherAndShot
         private const float DirectionInputMaxDistance = 180f;
         private const float DirectionGuideFadeSeconds = 0.58f;
         private const float JoystickVisualRadius = 66f;
+        private const float PlayerVisualScale = 0.96f;
         private const string ProductionIosInterstitialAdUnitId = "ca-app-pub-4525914685149405/2541126713";
         private const string ProductionAndroidInterstitialAdUnitId = "";
 #if MANNLAB_ADMOB_FORCE_TEST_ADS
@@ -56,11 +57,20 @@ namespace MannLab.Games.GatherAndShot
         private readonly List<FloatingText> floatingTexts = new List<FloatingText>();
         private readonly List<TrailMark> trailMarks = new List<TrailMark>();
         private readonly List<SpriteRenderer> ammoStackRenderers = new List<SpriteRenderer>();
+        private readonly List<SpriteRenderer> zoneAccentRenderers = new List<SpriteRenderer>();
         private readonly System.Random random = new System.Random(Environment.TickCount);
 
         private Camera worldCamera;
         private Camera letterboxCamera;
         private Sprite playerSprite;
+        private Sprite playerIdleSprite;
+        private Sprite playerMoveSprite;
+        private Sprite playerMoveDownSprite;
+        private Sprite playerMoveUpSprite;
+        private Sprite playerMoveSideSprite;
+        private Sprite playerGatherSprite;
+        private Sprite playerThrowSprite;
+        private Sprite playerHitSprite;
         private Sprite walkerSprite;
         private Sprite runnerSprite;
         private Sprite heavySprite;
@@ -70,8 +80,10 @@ namespace MannLab.Games.GatherAndShot
         private Sprite bigDriftSprite;
         private Sprite puffSprite;
         private SpriteRenderer playerRenderer;
+        private SpriteRenderer zoneOverlayRenderer;
         private SpriteRenderer gatheringRenderer;
         private SpriteRenderer gatherRingRenderer;
+        private SpriteRenderer buildSnowballRenderer;
         private AudioSource audioSource;
         private AudioClip coinClip;
         private AudioClip hitClip;
@@ -92,6 +104,8 @@ namespace MannLab.Games.GatherAndShot
         private Text weaponText;
         private Text feedbackText;
         private CanvasGroup feedbackGroup;
+        private Text zoneBannerText;
+        private CanvasGroup zoneBannerGroup;
         private Image warmthFill;
         private RectTransform gatherBack;
         private Image gatherFill;
@@ -108,8 +122,10 @@ namespace MannLab.Games.GatherAndShot
         private Text upgradeFeedbackText;
         private readonly Button[] upgradeOptionButtons = new Button[GatherAndShotBalance.UpgradeCount];
         private readonly Text[] upgradeOptionLabels = new Text[GatherAndShotBalance.UpgradeCount];
+        private readonly Image[] upgradeOptionIconImages = new Image[GatherAndShotBalance.UpgradeCount];
         private Vector2 playerPosition;
         private Vector2 playerVelocity;
+        private float playerFacing = 1f;
         private Vector2 joystickAnchorScreen;
         private Vector2 joystickVector;
         private GatherAndShotGameState state;
@@ -122,7 +138,13 @@ namespace MannLab.Games.GatherAndShot
         private int runNumber;
         private int ammoGathered;
         private int pickupsCollected;
+        private int snowResourcesMined;
         private int bigSnowdriftsCollected;
+        private int icySnowdriftsCollected;
+        private int builtSnowballs;
+        private int packedSnowballsBuilt;
+        private int giantSnowballsBuilt;
+        private int packedOrGiantHeavyHits;
         private int killsByBasic;
         private int killsByBig;
         private int killsBySplit;
@@ -133,7 +155,11 @@ namespace MannLab.Games.GatherAndShot
         private int heaviesDefeated;
         private int missionStartScore;
         private int missionStartAmmoGathered;
+        private int missionStartSnowResourcesMined;
         private int missionStartBigSnowdrifts;
+        private int missionStartBuiltSnowballs;
+        private int missionStartPackedSnowballs;
+        private int missionStartHeavyPackedHits;
         private int missionStartWalkersDefeated;
         private int missionStartRunnersDefeated;
         private int missionStartHeaviesDefeated;
@@ -148,11 +174,15 @@ namespace MannLab.Games.GatherAndShot
         private float stationaryGatherReadyAt;
         private float gatheringStartedAt;
         private float gatheringUntil;
+        private float snowballBuildStartedAt;
         private float nextTrailAt;
         private float feedbackUntil;
+        private float zoneBannerUntil;
         private int pendingGatherAmmo;
         private PickupKind gatheringKind;
+        private Pickup gatheringSource;
         private MissionKind currentMission;
+        private SnowZoneKind currentZone;
         private int lastScreenWidth;
         private int lastScreenHeight;
         private bool joystickHeld;
@@ -171,10 +201,18 @@ namespace MannLab.Games.GatherAndShot
         private bool bonusChestOpenedThisRun;
         private bool firstAutoThrowFeedbackShown;
         private bool freeWorkshopFeedbackShown;
+        private bool firstRunnerSeen;
+        private bool firstHeavySeen;
+        private bool snowballBuildSmallLogged;
+        private bool snowballBuildPackedLogged;
+        private bool snowballBuildGiantLogged;
         private int currentWaveStage;
         private WeaponKind activeWeapon;
         private float activeWeaponUntil;
         private float rapidThrowUntil;
+        private float throwPoseUntil;
+        private float hitPoseUntil;
+        private SnowballBuildStage currentBuildStage;
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
         private int crashlyticsTestTapCount;
         private float crashlyticsTestTapDeadline;
@@ -219,9 +257,11 @@ namespace MannLab.Games.GatherAndShot
             if (state == GatherAndShotGameState.GameOver)
             {
                 ConfigureSquareViewportIfNeeded();
-                UpdateFloatingTexts();
-                UpdateFeedbackText();
-                return;
+            UpdateFloatingTexts();
+            UpdateFeedbackText();
+            UpdateZoneBanner();
+            UpdateUpgradePanelPulse();
+            return;
             }
 
             ConfigureSquareViewportIfNeeded();
@@ -231,6 +271,7 @@ namespace MannLab.Games.GatherAndShot
             UpdateDirectionGuideVisibility();
             UpdateGathering();
             MovePlayer();
+            UpdatePlayerVisualState();
             UpdatePickups();
             UpdateEnemies();
             UpdateProjectiles();
@@ -239,6 +280,8 @@ namespace MannLab.Games.GatherAndShot
             UpdateAmmoStackVisuals();
             UpdateFloatingTexts();
             UpdateFeedbackText();
+            UpdateZoneBanner();
+            UpdateUpgradePanelPulse();
             TryAutoFire();
             TrySpawnEnemy();
             TrySpawnPickup();
@@ -320,6 +363,7 @@ namespace MannLab.Games.GatherAndShot
             state = GatherAndShotGameState.Playing;
             playerPosition = Vector2.zero;
             playerVelocity = Vector2.zero;
+            playerFacing = 1f;
             joystickVector = Vector2.zero;
             joystickHeld = false;
             warmth = EffectiveMaxWarmth;
@@ -329,7 +373,13 @@ namespace MannLab.Games.GatherAndShot
             runEarnedCoins = 0;
             ammoGathered = 0;
             pickupsCollected = 0;
+            snowResourcesMined = 0;
             bigSnowdriftsCollected = 0;
+            icySnowdriftsCollected = 0;
+            builtSnowballs = 0;
+            packedSnowballsBuilt = 0;
+            giantSnowballsBuilt = 0;
+            packedOrGiantHeavyHits = 0;
             killsByBasic = 0;
             killsByBig = 0;
             killsBySplit = 0;
@@ -356,11 +406,23 @@ namespace MannLab.Games.GatherAndShot
             freeUpgradeAvailable = false;
             firstAutoThrowFeedbackShown = false;
             freeWorkshopFeedbackShown = false;
+            firstRunnerSeen = false;
+            firstHeavySeen = false;
+            snowballBuildSmallLogged = false;
+            snowballBuildPackedLogged = false;
+            snowballBuildGiantLogged = false;
             currentWaveStage = GatherAndShotBalance.WaveStage(0f);
             activeWeapon = WeaponKind.BasicSnowball;
             activeWeaponUntil = 0f;
             rapidThrowUntil = 0f;
+            throwPoseUntil = 0f;
+            hitPoseUntil = 0f;
+            snowballBuildStartedAt = 0f;
+            currentBuildStage = SnowballBuildStage.None;
             SetMission(MissionKind.FirstSnowLoop);
+            currentZone = (SnowZoneKind)(-1);
+            SetZone(SnowZoneKind.FrostYard, false);
+            ShowZoneBanner(SnowZoneKind.FrostYard);
             ClearGathering();
             resultPanel.SetActive(false);
             if (upgradePanel != null)
@@ -370,10 +432,8 @@ namespace MannLab.Games.GatherAndShot
 
             playerRenderer.transform.position = playerPosition;
 
-            for (var i = 0; i < 2; i++)
-            {
-                SpawnPickup(i == 0 ? PickupKind.Snowdrift : PickupKind.Snowball);
-            }
+            SpawnPickupAt(PickupKind.Snowdrift, new Vector2(0.46f, -0.24f));
+            SpawnPickup(PickupKind.Snowball);
 
             SpawnOpeningHookEnemies();
             nextSpawnAt = Time.time + 2.6f;
@@ -401,6 +461,11 @@ namespace MannLab.Games.GatherAndShot
                 LogWaveStart();
             }
 
+            if (elapsedSeconds >= 240f)
+            {
+                SetZone(SnowZoneKind.BlizzardGate, true);
+            }
+
             if (!openingBigDriftSpawned && elapsedSeconds >= 24f)
             {
                 openingBigDriftSpawned = true;
@@ -410,6 +475,7 @@ namespace MannLab.Games.GatherAndShot
             if (!openingWeaponCacheSpawned && elapsedSeconds >= 44f)
             {
                 openingWeaponCacheSpawned = true;
+                SpawnPickup(PickupKind.IcySnowdrift);
                 SpawnPickup(PickupKind.WeaponCache);
             }
 
@@ -452,8 +518,8 @@ namespace MannLab.Games.GatherAndShot
             resultPanel.SetActive(false);
             upgradePanel.SetActive(true);
             upgradeFeedbackText.text = freeUpgradeAvailable && !freeUpgradeClaimed
-                ? "First upgrade is free"
-                : "Spend Snow Coin to change the next run";
+                ? "First gear upgrade is free"
+                : "Upgrade snow gear for the next run";
             RefreshUpgradePanel();
             FirebaseTelemetry.LogEvent(
                 "upgrade_workshop_open",
@@ -510,12 +576,46 @@ namespace MannLab.Games.GatherAndShot
                 {
                     upgradeOptionLabels[i].text =
                         $"{GatherAndShotBalance.UpgradeName(kind)}\n"
-                        + $"Lv {level} > {level + 1}\n"
+                        + $"Gear Lv {level} > {level + 1}\n"
                         + UpgradeEffectText(kind, level + 1)
                         + $"\n{(free ? "FREE" : $"{cost} coins")}";
                 }
 
                 SetButtonEnabled(upgradeOptionButtons[i], canBuy, canBuy ? SketchPalette.WarmHighlight : (Color)new Color32(210, 214, 214, 210));
+                if (upgradeOptionIconImages[i] != null)
+                {
+                    upgradeOptionIconImages[i].color = canBuy ? Color.white : (Color)new Color32(255, 255, 255, 150);
+                }
+            }
+        }
+
+        private void UpdateUpgradePanelPulse()
+        {
+            if (upgradePanel == null || !upgradePanel.activeSelf)
+            {
+                return;
+            }
+
+            for (var i = 0; i < upgradeOptionButtons.Length; i++)
+            {
+                var button = upgradeOptionButtons[i];
+                if (button == null || !button.interactable)
+                {
+                    continue;
+                }
+
+                var image = button.GetComponent<Image>();
+                if (image != null)
+                {
+                    var pulse = 0.5f + Mathf.Sin(Time.unscaledTime * 4.2f + i * 0.9f) * 0.5f;
+                    image.color = Color.Lerp(SketchPalette.WarmHighlight, new Color32(255, 244, 185, 255), pulse * 0.22f);
+                }
+
+                if (upgradeOptionIconImages[i] != null)
+                {
+                    var scale = 1f + Mathf.Sin(Time.unscaledTime * 4.8f + i) * 0.035f;
+                    upgradeOptionIconImages[i].rectTransform.localScale = Vector3.one * scale;
+                }
             }
         }
 
@@ -580,11 +680,11 @@ namespace MannLab.Games.GatherAndShot
                 case UpgradeKind.AmmoCapacity:
                     return $"+{level * 2} max snow";
                 case UpgradeKind.GatherSpeed:
-                    return "Gather faster";
+                    return "Build snow faster";
                 case UpgradeKind.ThrowRate:
                     return "Auto throw faster";
                 case UpgradeKind.SnowballDamage:
-                    return $"+{level} damage";
+                    return $"Packed core +{level}";
                 case UpgradeKind.WarmCoat:
                     return $"+{level * 15} warmth";
                 case UpgradeKind.CoinMagnet:
@@ -661,6 +761,14 @@ namespace MannLab.Games.GatherAndShot
         private void LoadSprites()
         {
             playerSprite = LoadSprite("player", new Color32(73, 150, 202, 255), 128);
+            playerIdleSprite = LoadSprite("player_idle", new Color32(73, 150, 202, 255), 128);
+            playerMoveSprite = LoadSprite("player_move", new Color32(73, 150, 202, 255), 128);
+            playerMoveDownSprite = LoadSprite("player_move_down", new Color32(73, 150, 202, 255), 128);
+            playerMoveUpSprite = LoadSprite("player_move_up", new Color32(73, 150, 202, 255), 128);
+            playerMoveSideSprite = LoadSprite("player_move_side", new Color32(73, 150, 202, 255), 128);
+            playerGatherSprite = LoadSprite("player_gather", new Color32(73, 150, 202, 255), 128);
+            playerThrowSprite = LoadSprite("player_throw", new Color32(73, 150, 202, 255), 128);
+            playerHitSprite = LoadSprite("player_hit", new Color32(239, 126, 87, 255), 128);
             walkerSprite = LoadSprite("walker", WalkerTint, 128);
             runnerSprite = LoadSprite("runner", RunnerTint, 128);
             heavySprite = LoadSprite("heavy", HeavyTint, 128);
@@ -748,6 +856,11 @@ namespace MannLab.Games.GatherAndShot
             bg.transform.position = new Vector3(0f, 0f, 8f);
             bg.sortingOrder = -20;
 
+            zoneOverlayRenderer = new GameObject("Zone Color Wash", typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
+            zoneOverlayRenderer.sprite = CreateSolidSprite("ZoneWash", 900, 1500, new Color32(255, 255, 255, 0), 96f);
+            zoneOverlayRenderer.transform.position = new Vector3(0f, 0f, 7.4f);
+            zoneOverlayRenderer.sortingOrder = -19;
+
             BuildBoundaryMarkers();
 
             for (var i = 0; i < 18; i++)
@@ -762,10 +875,18 @@ namespace MannLab.Games.GatherAndShot
                 stroke.sortingOrder = -15;
             }
 
+            for (var i = 0; i < 8; i++)
+            {
+                var accent = new GameObject("Zone Accent Line", typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
+                accent.sprite = CreateSolidSprite("ZoneAccentLine", 96 + random.Next(120), 5, new Color32(88, 166, 206, 70), 32f);
+                accent.sortingOrder = -13;
+                zoneAccentRenderers.Add(accent);
+            }
+
             playerRenderer = new GameObject("Player", typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
-            playerRenderer.sprite = playerSprite;
+            playerRenderer.sprite = playerIdleSprite != null ? playerIdleSprite : playerSprite;
             playerRenderer.sortingOrder = 20;
-            playerRenderer.transform.localScale = Vector3.one * 0.82f;
+            playerRenderer.transform.localScale = Vector3.one * PlayerVisualScale;
 
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
@@ -776,15 +897,22 @@ namespace MannLab.Games.GatherAndShot
 
             gatheringRenderer = new GameObject("Gathering Snow Cloud", typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
             gatheringRenderer.sprite = puffSprite;
-            gatheringRenderer.sortingOrder = 19;
+            gatheringRenderer.sortingOrder = 18;
             gatheringRenderer.transform.localScale = Vector3.zero;
             gatheringRenderer.gameObject.SetActive(false);
 
             gatherRingRenderer = new GameObject("Stop To Gather Ring", typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
             gatherRingRenderer.sprite = gatherRingSprite;
-            gatherRingRenderer.sortingOrder = 21;
+            gatherRingRenderer.sortingOrder = 19;
             gatherRingRenderer.transform.localScale = Vector3.zero;
             gatherRingRenderer.gameObject.SetActive(false);
+
+            buildSnowballRenderer = new GameObject("Building Snowball", typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
+            buildSnowballRenderer.sprite = snowballSprite;
+            buildSnowballRenderer.sortingOrder = 24;
+            buildSnowballRenderer.color = new Color32(255, 255, 255, 245);
+            buildSnowballRenderer.transform.localScale = Vector3.zero;
+            buildSnowballRenderer.gameObject.SetActive(false);
 
             for (var i = 0; i < 24; i++)
             {
@@ -849,6 +977,10 @@ namespace MannLab.Games.GatherAndShot
             feedbackText = CreateText(gameSquareRoot, "Feedback", string.Empty, 36, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), new Vector2(0f, 208f), new Vector2(660f, 68f));
             feedbackGroup = feedbackText.gameObject.AddComponent<CanvasGroup>();
             feedbackGroup.alpha = 0f;
+            zoneBannerText = CreateText(gameSquareRoot, "Zone Banner", string.Empty, 34, TextAnchor.MiddleCenter, new Vector2(0.5f, 1f), new Vector2(0f, -226f), new Vector2(660f, 58f));
+            zoneBannerText.color = new Color32(88, 166, 206, 255);
+            zoneBannerGroup = zoneBannerText.gameObject.AddComponent<CanvasGroup>();
+            zoneBannerGroup.alpha = 0f;
 
             joystickRoot = gameSquareRoot;
             joystickBase = CreatePanel(gameSquareRoot, "Move Direction Guide", new Vector2(0.5f, 0.5f), new Vector2(230f, 230f), new Color32(255, 253, 247, 118));
@@ -877,7 +1009,7 @@ namespace MannLab.Games.GatherAndShot
             resultPanel.SetActive(false);
 
             upgradePanel = CreatePanel(gameSquareRoot, "Upgrade Workshop", new Vector2(0.5f, 0.5f), new Vector2(680f, 940f), SketchPalette.TilePaper).gameObject;
-            CreateText(upgradePanel.transform, "Workshop Title", "SNOW WORKSHOP", 39, TextAnchor.MiddleCenter, new Vector2(0f, 394f), new Vector2(580f, 54f));
+            CreateText(upgradePanel.transform, "Workshop Title", "SNOW GEAR LAB", 39, TextAnchor.MiddleCenter, new Vector2(0f, 394f), new Vector2(580f, 54f));
             upgradeCoinText = CreateText(upgradePanel.transform, "Workshop Coins", "SNOW COIN 0", 30, TextAnchor.MiddleCenter, new Vector2(0f, 342f), new Vector2(560f, 44f));
             upgradeFeedbackText = CreateText(upgradePanel.transform, "Workshop Feedback", "Choose an upgrade", 23, TextAnchor.MiddleCenter, new Vector2(0f, 294f), new Vector2(600f, 42f));
 
@@ -890,6 +1022,16 @@ namespace MannLab.Games.GatherAndShot
                 option.onClick.AddListener(() => BuyUpgradeFromWorkshop(kind));
                 upgradeOptionButtons[i] = option;
                 upgradeOptionLabels[i] = option.GetComponentInChildren<Text>();
+                if (upgradeOptionLabels[i] != null)
+                {
+                    upgradeOptionLabels[i].alignment = TextAnchor.MiddleLeft;
+                    upgradeOptionLabels[i].rectTransform.anchoredPosition = new Vector2(56f, 0f);
+                    upgradeOptionLabels[i].rectTransform.sizeDelta = new Vector2(196f, 100f);
+                    upgradeOptionLabels[i].resizeTextMinSize = 12;
+                    upgradeOptionLabels[i].resizeTextMaxSize = 22;
+                }
+
+                upgradeOptionIconImages[i] = CreateUpgradeIcon(option.transform, kind);
             }
 
             var closeWorkshop = CreateButton(upgradePanel.transform, "Workshop Back Button", "Back", new Vector2(-174f, -362f), new Vector2(250f, 62f), 30);
@@ -1012,7 +1154,6 @@ namespace MannLab.Games.GatherAndShot
             {
                 playerVelocity = Vector2.zero;
                 playerRenderer.transform.position = playerPosition;
-                playerRenderer.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Sin(Time.time * 18f) * 4.5f);
                 if (joystickHeld && joystickBase.gameObject.activeSelf)
                 {
                     PositionJoystickGuideAtScreenPoint(joystickAnchorScreen);
@@ -1027,10 +1168,13 @@ namespace MannLab.Games.GatherAndShot
             playerPosition.x = Mathf.Clamp(playerPosition.x, -PlayHalfWidth + 0.38f, PlayHalfWidth - 0.38f);
             playerPosition.y = Mathf.Clamp(playerPosition.y, -WorldHalfHeight + 0.55f, WorldHalfHeight - 0.55f);
             playerRenderer.transform.position = playerPosition;
-            playerRenderer.transform.rotation = Quaternion.identity;
             if (playerVelocity.sqrMagnitude > 0.05f)
             {
-                playerRenderer.transform.localScale = new Vector3(playerVelocity.x < -0.05f ? -0.82f : 0.82f, 0.82f, 1f);
+                if (Mathf.Abs(playerVelocity.x) > 0.05f)
+                {
+                    playerFacing = playerVelocity.x < 0f ? -1f : 1f;
+                }
+
                 if (Time.time >= nextTrailAt)
                 {
                     nextTrailAt = Time.time + 0.13f;
@@ -1041,6 +1185,81 @@ namespace MannLab.Games.GatherAndShot
             if (joystickHeld && joystickBase.gameObject.activeSelf)
             {
                 PositionJoystickGuideAtScreenPoint(joystickAnchorScreen);
+            }
+        }
+
+        private void UpdatePlayerVisualState()
+        {
+            if (playerRenderer == null)
+            {
+                return;
+            }
+
+            var sprite = playerIdleSprite != null ? playerIdleSprite : playerSprite;
+            var rotation = 0f;
+            var scale = PlayerVisualScale;
+            var color = Color.white;
+
+            if (Time.time < hitPoseUntil)
+            {
+                sprite = playerHitSprite != null ? playerHitSprite : sprite;
+                rotation = Mathf.Sin(Time.time * 38f) * 7.5f;
+                scale = PlayerVisualScale * 0.98f;
+                color = new Color32(255, 220, 214, 255);
+            }
+            else if (Time.time < throwPoseUntil)
+            {
+                sprite = playerThrowSprite != null ? playerThrowSprite : sprite;
+                rotation = Mathf.Sin(Time.time * 28f) * 5f;
+                scale = PlayerVisualScale * 1.02f;
+            }
+            else if (IsGathering)
+            {
+                sprite = playerGatherSprite != null ? playerGatherSprite : sprite;
+                rotation = Mathf.Sin(Time.time * 14f) * 4f;
+                scale = PlayerVisualScale * (1f + Mathf.Sin(Time.time * 8f) * 0.025f);
+            }
+            else if (playerVelocity.sqrMagnitude > 0.05f)
+            {
+                sprite = GetMoveSprite(playerVelocity, sprite);
+                rotation = -Mathf.Sign(playerVelocity.x == 0f ? 1f : playerVelocity.x) * Mathf.Lerp(2f, 6f, Mathf.Clamp01(playerVelocity.magnitude / 4.2f));
+                scale = PlayerVisualScale * (1f + Mathf.Sin(Time.time * 12f) * 0.018f);
+            }
+
+            playerRenderer.sprite = sprite;
+            playerRenderer.color = color;
+            playerRenderer.transform.rotation = Quaternion.Euler(0f, 0f, rotation);
+            var visualFacing = sprite == playerMoveUpSprite || sprite == playerMoveDownSprite ? 1f : playerFacing;
+            playerRenderer.transform.localScale = new Vector3(visualFacing * scale, scale, 1f);
+        }
+
+        private Sprite GetMoveSprite(Vector2 velocity, Sprite fallback)
+        {
+            var absX = Mathf.Abs(velocity.x);
+            var absY = Mathf.Abs(velocity.y);
+            if (absX > absY * 1.12f)
+            {
+                return playerMoveSideSprite != null ? playerMoveSideSprite : playerMoveSprite != null ? playerMoveSprite : fallback;
+            }
+
+            if (velocity.y > 0.05f)
+            {
+                return playerMoveUpSprite != null ? playerMoveUpSprite : playerMoveSprite != null ? playerMoveSprite : fallback;
+            }
+
+            return playerMoveDownSprite != null ? playerMoveDownSprite : playerMoveSprite != null ? playerMoveSprite : fallback;
+        }
+
+        private static float EnemyVisualScale(EnemyKind kind)
+        {
+            switch (kind)
+            {
+                case EnemyKind.Runner:
+                    return 0.76f;
+                case EnemyKind.Heavy:
+                    return 1.28f;
+                default:
+                    return 0.92f;
             }
         }
 
@@ -1079,7 +1298,9 @@ namespace MannLab.Games.GatherAndShot
             renderer.color = Color.white;
             renderer.sortingOrder = 12;
             renderer.transform.position = spawn;
-            renderer.transform.localScale = Vector3.one * (kind == EnemyKind.Heavy ? 1.28f : kind == EnemyKind.Runner ? 0.70f : 0.82f);
+            renderer.transform.localScale = Vector3.one * EnemyVisualScale(kind);
+
+            ShowEnemyIntroIfNeeded(kind);
 
             enemies.Add(new Enemy
             {
@@ -1090,6 +1311,30 @@ namespace MannLab.Games.GatherAndShot
                 Seed = RandomRange(0f, 100f),
                 NextTrailAt = Time.time + RandomRange(0.05f, 0.22f)
             });
+        }
+
+        private void ShowEnemyIntroIfNeeded(EnemyKind kind)
+        {
+            if (kind == EnemyKind.Runner && !firstRunnerSeen)
+            {
+                firstRunnerSeen = true;
+                ShowFeedback("RED SCARF RUNNER", RunnerTint, 1.7f);
+                FirebaseTelemetry.LogEvent("runner_first_seen", BuildEventParameters(new Dictionary<string, string>
+                {
+                    { "zone", ZoneName(currentZone) },
+                    { "survival_time", Mathf.FloorToInt(elapsedSeconds).ToString() }
+                }));
+            }
+            else if (kind == EnemyKind.Heavy && !firstHeavySeen)
+            {
+                firstHeavySeen = true;
+                ShowFeedback("HEAVY SNOWMAN", HeavyTint, 1.8f);
+                FirebaseTelemetry.LogEvent("heavy_first_seen", BuildEventParameters(new Dictionary<string, string>
+                {
+                    { "zone", ZoneName(currentZone) },
+                    { "survival_time", Mathf.FloorToInt(elapsedSeconds).ToString() }
+                }));
+            }
         }
 
         private void TrySpawnPickup()
@@ -1107,17 +1352,24 @@ namespace MannLab.Games.GatherAndShot
 
         private void SpawnPickup(PickupKind kind)
         {
+            SpawnPickupAt(kind, ChoosePickupPosition(kind));
+        }
+
+        private void SpawnPickupAt(PickupKind kind, Vector2 position)
+        {
             var renderer = new GameObject(PickupName(kind), typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
             renderer.sprite = PickupSprite(kind);
-            renderer.color = kind == PickupKind.WeaponCache ? (Color)new Color32(168, 225, 255, 255) : Color.white;
-            renderer.sortingOrder = kind == PickupKind.BigSnowdrift ? 5 : 4;
-            renderer.transform.position = ChoosePickupPosition(kind);
+            renderer.color = PickupColor(kind);
+            renderer.sortingOrder = GatherAndShotBalance.IsSnowResource(kind) ? 3 : 5;
+            renderer.transform.position = position;
             renderer.transform.localScale = Vector3.one * PickupScale(kind);
             pickups.Add(new Pickup
             {
                 Kind = kind,
                 Renderer = renderer,
-                Position = renderer.transform.position
+                Position = renderer.transform.position,
+                ResourceAmmoRemaining = GatherAndShotBalance.SnowResourceCapacity(kind),
+                ResourceAmmoStart = GatherAndShotBalance.SnowResourceCapacity(kind)
             });
         }
 
@@ -1149,6 +1401,8 @@ namespace MannLab.Games.GatherAndShot
             {
                 case PickupKind.BigSnowdrift:
                     return bigDriftSprite;
+                case PickupKind.IcySnowdrift:
+                    return bigDriftSprite;
                 case PickupKind.Snowdrift:
                     return driftSprite;
                 case PickupKind.WeaponCache:
@@ -1164,8 +1418,10 @@ namespace MannLab.Games.GatherAndShot
             {
                 case PickupKind.BigSnowdrift:
                     return "Big Snowdrift";
+                case PickupKind.IcySnowdrift:
+                    return "Icy Snowdrift";
                 case PickupKind.Snowdrift:
-                    return "Snowdrift";
+                    return "Small Snow Patch";
                 case PickupKind.WeaponCache:
                     return "Weapon Cache";
                 default:
@@ -1179,6 +1435,8 @@ namespace MannLab.Games.GatherAndShot
             {
                 case PickupKind.BigSnowdrift:
                     return 0.95f;
+                case PickupKind.IcySnowdrift:
+                    return 0.84f;
                 case PickupKind.Snowdrift:
                     return 0.74f;
                 case PickupKind.WeaponCache:
@@ -1188,12 +1446,31 @@ namespace MannLab.Games.GatherAndShot
             }
         }
 
+        private static Color PickupColor(PickupKind kind)
+        {
+            switch (kind)
+            {
+                case PickupKind.IcySnowdrift:
+                    return new Color32(190, 236, 255, 255);
+                case PickupKind.WeaponCache:
+                    return new Color32(168, 225, 255, 255);
+                default:
+                    return Color.white;
+            }
+        }
+
         private void UpdatePickups()
         {
             for (var i = pickups.Count - 1; i >= 0; i--)
             {
                 var pickup = pickups[i];
                 pickup.Renderer.transform.Rotate(0f, 0f, PickupSpin(pickup.Kind) * Time.deltaTime);
+                UpdatePickupResourceVisual(pickup);
+                if (GatherAndShotBalance.IsSnowResource(pickup.Kind))
+                {
+                    continue;
+                }
+
                 if (IsGathering || (KindNeedsAmmo(pickup.Kind) && ammo >= EffectiveMaxAmmo))
                 {
                     continue;
@@ -1206,6 +1483,23 @@ namespace MannLab.Games.GatherAndShot
                     pickups.RemoveAt(i);
                 }
             }
+        }
+
+        private void UpdatePickupResourceVisual(Pickup pickup)
+        {
+            if (!GatherAndShotBalance.IsSnowResource(pickup.Kind) || pickup.Renderer == null)
+            {
+                return;
+            }
+
+            var start = Mathf.Max(1, pickup.ResourceAmmoStart);
+            var remaining = Mathf.Clamp01(pickup.ResourceAmmoRemaining / (float)start);
+            var near = Vector2.Distance(playerPosition, pickup.Position) <= GatherAndShotBalance.PickupRadius(pickup.Kind, GetUpgradeLevel(UpgradeKind.CoinMagnet)) + 0.18f;
+            var pulse = near ? 1f + Mathf.Sin(Time.time * 7.5f + pickup.Position.x) * 0.045f : 1f;
+            pickup.Renderer.transform.localScale = Vector3.one * PickupScale(pickup.Kind) * Mathf.Lerp(0.42f, 1f, remaining) * pulse;
+            var color = PickupColor(pickup.Kind);
+            color.a = Mathf.Lerp(0.48f, 1f, remaining);
+            pickup.Renderer.color = color;
         }
 
         private void CollectBonusPickup(PickupKind kind, Vector2 position)
@@ -1245,23 +1539,192 @@ namespace MannLab.Games.GatherAndShot
         private void BeginStationaryGathering()
         {
             LogFirstAction("gather");
-            gatheringKind = PickupKind.Snowball;
-            pendingGatherAmmo = GatherAndShotBalance.StationaryGatherAmmo;
+            BeginSnowballBuildIfNeeded();
+            gatheringSource = FindNearestSnowResource();
+            gatheringKind = gatheringSource != null ? gatheringSource.Kind : PickupKind.Snowball;
+            pendingGatherAmmo = gatheringSource != null
+                ? Mathf.Min(GatherAndShotBalance.SnowResourceGatherAmmo(gatheringKind), Mathf.Max(1, gatheringSource.ResourceAmmoRemaining))
+                : GatherAndShotBalance.StationaryGatherAmmo;
             gatheringStartedAt = Time.time;
-            gatheringUntil = Time.time + GatherAndShotBalance.StationaryGatherCycleSeconds(elapsedSeconds, GetUpgradeLevel(UpgradeKind.GatherSpeed));
+            gatheringUntil = Time.time
+                + GatherAndShotBalance.StationaryGatherCycleSeconds(elapsedSeconds, GetUpgradeLevel(UpgradeKind.GatherSpeed))
+                * GatherAndShotBalance.SnowResourceGatherMultiplier(gatheringKind);
             playerVelocity = Vector2.zero;
             playerRenderer.transform.position = playerPosition;
-            SpawnBurst(playerPosition, 0.24f, 2);
-            ShowFeedback("STOP: GATHER SNOW", new Color32(88, 166, 206, 255), 1.1f);
+            SpawnBurst(playerPosition, gatheringSource != null ? 0.38f : 0.24f, gatheringSource != null ? 4 : 2);
+            ShowFeedback(GatheringStartFeedback(gatheringKind), new Color32(88, 166, 206, 255), 1.1f);
             FirebaseTelemetry.LogEvent(
                 "gather_start",
                 BuildEventParameters(new Dictionary<string, string>
                 {
-                    { "source", "stationary" },
+                    { "source", gatheringSource != null ? "snow_resource" : "stationary" },
+                    { "resource_kind", gatheringKind.ToString() },
                     { "pending_ammo", pendingGatherAmmo.ToString() },
                     { "score", score.ToString() }
                 }));
             UpdateGatheringVisual(0f);
+        }
+
+        private void BeginSnowballBuildIfNeeded()
+        {
+            if (snowballBuildStartedAt > 0f)
+            {
+                return;
+            }
+
+            snowballBuildStartedAt = Time.time;
+            currentBuildStage = SnowballBuildStage.None;
+            snowballBuildSmallLogged = false;
+            snowballBuildPackedLogged = false;
+            snowballBuildGiantLogged = false;
+            FirebaseTelemetry.LogEvent(
+                "snowball_build_start",
+                BuildEventParameters(new Dictionary<string, string>
+                {
+                    { "mission", currentMission.ToString() },
+                    { "zone", ZoneName(currentZone) }
+                }));
+        }
+
+        private void RestartSnowballBuild()
+        {
+            snowballBuildStartedAt = 0f;
+            currentBuildStage = SnowballBuildStage.None;
+            snowballBuildSmallLogged = false;
+            snowballBuildPackedLogged = false;
+            snowballBuildGiantLogged = false;
+            if (!joystickHeld)
+            {
+                BeginSnowballBuildIfNeeded();
+            }
+        }
+
+        private SnowballBuildStage CurrentSnowballBuildStage()
+        {
+            if (snowballBuildStartedAt <= 0f)
+            {
+                return SnowballBuildStage.None;
+            }
+
+            var elapsed = Time.time - snowballBuildStartedAt;
+            if (elapsed >= SnowballBuildSeconds(SnowballBuildStage.Giant))
+            {
+                return SnowballBuildStage.Giant;
+            }
+
+            if (elapsed >= SnowballBuildSeconds(SnowballBuildStage.Packed))
+            {
+                return SnowballBuildStage.Packed;
+            }
+
+            return elapsed >= SnowballBuildSeconds(SnowballBuildStage.Small)
+                ? SnowballBuildStage.Small
+                : SnowballBuildStage.None;
+        }
+
+        private float SnowballBuildSeconds(SnowballBuildStage stage)
+        {
+            return GatherAndShotBalance.SnowballBuildSeconds(
+                stage,
+                GetUpgradeLevel(UpgradeKind.GatherSpeed),
+                GetUpgradeLevel(UpgradeKind.SnowballDamage));
+        }
+
+        private float SnowballBuildProgressToGiant()
+        {
+            if (snowballBuildStartedAt <= 0f)
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp01((Time.time - snowballBuildStartedAt) / Mathf.Max(0.01f, SnowballBuildSeconds(SnowballBuildStage.Giant)));
+        }
+
+        private void UpdateSnowballBuildStage()
+        {
+            var stage = CurrentSnowballBuildStage();
+            if (stage == currentBuildStage || stage == SnowballBuildStage.None)
+            {
+                return;
+            }
+
+            currentBuildStage = stage;
+            if (stage == SnowballBuildStage.Small && !snowballBuildSmallLogged)
+            {
+                snowballBuildSmallLogged = true;
+                builtSnowballs++;
+            }
+            else if (stage == SnowballBuildStage.Packed && !snowballBuildPackedLogged)
+            {
+                snowballBuildPackedLogged = true;
+                packedSnowballsBuilt++;
+                ShowFeedback("PACKED SNOWBALL", new Color32(88, 166, 206, 255), 1.2f);
+                SpawnBurst(playerPosition + Vector2.right * playerFacing * 0.28f, 0.76f, 9);
+                CreateFloatingText("PACKED", playerPosition + Vector2.up * 1.18f, new Color32(88, 166, 206, 255), 24);
+            }
+            else if (stage == SnowballBuildStage.Giant && !snowballBuildGiantLogged)
+            {
+                snowballBuildGiantLogged = true;
+                giantSnowballsBuilt++;
+                ShowFeedback("GIANT SNOWBALL", new Color32(239, 126, 87, 255), 1.45f);
+                SpawnBurst(playerPosition + Vector2.right * playerFacing * 0.32f, 1.18f, 15);
+                CreateFloatingText("GIANT", playerPosition + Vector2.up * 1.28f, new Color32(239, 126, 87, 255), 28);
+            }
+
+            FirebaseTelemetry.LogEvent(
+                "snowball_build_stage",
+                BuildEventParameters(new Dictionary<string, string>
+                {
+                    { "stage", GatherAndShotBalance.SnowballBuildName(stage) },
+                    { "build_time", Mathf.RoundToInt((Time.time - snowballBuildStartedAt) * 1000f).ToString() },
+                    { "mission", currentMission.ToString() }
+                }));
+
+            FirebaseTelemetry.LogEvent(
+                "snowball_build_complete",
+                BuildEventParameters(new Dictionary<string, string>
+                {
+                    { "stage", GatherAndShotBalance.SnowballBuildName(stage) },
+                    { "build_time", Mathf.RoundToInt((Time.time - snowballBuildStartedAt) * 1000f).ToString() }
+                }));
+        }
+
+        private Pickup FindNearestSnowResource()
+        {
+            Pickup nearest = null;
+            var bestDistance = float.MaxValue;
+            foreach (var pickup in pickups)
+            {
+                if (!GatherAndShotBalance.IsSnowResource(pickup.Kind) || pickup.ResourceAmmoRemaining <= 0)
+                {
+                    continue;
+                }
+
+                var radius = GatherAndShotBalance.PickupRadius(pickup.Kind, GetUpgradeLevel(UpgradeKind.CoinMagnet)) + 0.28f;
+                var distance = Vector2.Distance(playerPosition, pickup.Position);
+                if (distance <= radius && distance < bestDistance)
+                {
+                    nearest = pickup;
+                    bestDistance = distance;
+                }
+            }
+
+            return nearest;
+        }
+
+        private static string GatheringStartFeedback(PickupKind kind)
+        {
+            switch (kind)
+            {
+                case PickupKind.BigSnowdrift:
+                    return "BIG SNOWDRIFT BONUS";
+                case PickupKind.IcySnowdrift:
+                    return "ICY SNOWDRIFT";
+                case PickupKind.Snowdrift:
+                    return "FRESH SNOW PATCH";
+                default:
+                    return "STOP: GATHER SNOW";
+            }
         }
 
         private void UpdateGathering()
@@ -1305,17 +1768,20 @@ namespace MannLab.Games.GatherAndShot
             }
 
             var gathered = pendingGatherAmmo;
-            ammo = Mathf.Min(EffectiveMaxAmmo, ammo + pendingGatherAmmo);
+            var gatheredFromResource = gatheringSource != null;
+            ammo = Mathf.Min(EffectiveMaxAmmo, ammo + gathered);
             ammoGathered += gathered;
             PlaySfx(gatherClip);
-            SpawnBurst(playerPosition, 0.72f, 6);
-            CreateFloatingText("+1 SNOW", playerPosition + Vector2.up * 0.5f, new Color32(88, 166, 206, 255), 24);
+            SpawnBurst(playerPosition, gatheringSource != null ? 0.86f : 0.72f, gatheringSource != null ? 8 : 6);
+            CreateFloatingText($"+{gathered} SNOW", playerPosition + Vector2.up * 1.04f, new Color32(88, 166, 206, 255), 24);
+            CompleteGatheringFromResource(gathered);
             UpdateTelemetryContext();
             FirebaseTelemetry.LogEvent(
                 "gather_complete",
                 BuildEventParameters(new Dictionary<string, string>
                 {
-                    { "source", "stationary" },
+                    { "source", gatheredFromResource ? "snow_resource" : "stationary" },
+                    { "resource_kind", gatheringKind.ToString() },
                     { "ammo_gathered", gathered.ToString() }
                 }));
             if (ammo < EffectiveMaxAmmo)
@@ -1328,6 +1794,65 @@ namespace MannLab.Games.GatherAndShot
             }
         }
 
+        private void CompleteGatheringFromResource(int gathered)
+        {
+            if (gatheringSource == null || !pickups.Contains(gatheringSource))
+            {
+                return;
+            }
+
+            var source = gatheringSource;
+            if (!source.GatheredOnce)
+            {
+                source.GatheredOnce = true;
+                pickupsCollected++;
+                snowResourcesMined++;
+                if (source.Kind == PickupKind.BigSnowdrift)
+                {
+                    bigSnowdriftsCollected++;
+                }
+                else if (source.Kind == PickupKind.IcySnowdrift)
+                {
+                    icySnowdriftsCollected++;
+                }
+
+                CreateFloatingText("FRESH SNOW +", source.Position + Vector2.up * 0.34f, new Color32(88, 166, 206, 255), 22);
+                FirebaseTelemetry.LogEvent(
+                    "bonus_pickup",
+                    BuildEventParameters(new Dictionary<string, string>
+                    {
+                        { "pickup_kind", source.Kind.ToString() },
+                        { "source", "snow_resource_mined" },
+                        { "bonus_ammo", gathered.ToString() },
+                        { "score", score.ToString() }
+                    }));
+            }
+
+            source.ResourceAmmoRemaining = Mathf.Max(0, source.ResourceAmmoRemaining - Mathf.Max(1, gathered));
+            if (source.ResourceAmmoRemaining > 0)
+            {
+                UpdatePickupResourceVisual(source);
+                return;
+            }
+
+            var reward = GatherAndShotBalance.SnowResourceCoinReward(source.Kind);
+            CreateFloatingText("SNOW DEPLETED", source.Position + Vector2.down * 0.18f, new Color32(239, 126, 87, 255), 21);
+            AwardSnowCoins(reward, $"depleted_{source.Kind}", source.Position);
+            if (source.Kind == PickupKind.BigSnowdrift)
+            {
+                ActivateWeapon(WeaponKind.BigSnowball, "big_snowdrift_depleted");
+            }
+            else if (source.Kind == PickupKind.IcySnowdrift)
+            {
+                ActivateWeapon(WeaponKind.IceShot, "icy_snowdrift_depleted");
+            }
+
+            SpawnBurst(source.Position, source.Kind == PickupKind.BigSnowdrift ? 1.18f : 0.88f, source.Kind == PickupKind.BigSnowdrift ? 14 : 9);
+            Destroy(source.Renderer.gameObject);
+            pickups.Remove(source);
+            gatheringSource = null;
+        }
+
         private void UpdateGatheringVisual(float progress)
         {
             if (gatheringRenderer == null)
@@ -1335,22 +1860,64 @@ namespace MannLab.Games.GatherAndShot
                 return;
             }
 
+            UpdateSnowballBuildStage();
             gatheringRenderer.gameObject.SetActive(true);
-            gatheringRenderer.transform.position = new Vector3(playerPosition.x, playerPosition.y - 0.06f, 0f);
-            const float baseScale = 0.64f;
-            gatheringRenderer.transform.localScale = Vector3.one * baseScale * Mathf.Lerp(0.72f, 1.18f, progress);
+            gatheringRenderer.transform.position = new Vector3(playerPosition.x, playerPosition.y - 0.22f, 0f);
+            const float baseScale = 0.48f;
+            gatheringRenderer.transform.localScale = Vector3.one * baseScale * Mathf.Lerp(0.62f, 1.02f, progress);
             var color = Color.white;
             color.a = Mathf.Lerp(0.28f, 0.58f, Mathf.Sin(progress * Mathf.PI));
             gatheringRenderer.color = color;
             if (gatherRingRenderer != null)
             {
+                var stage = CurrentSnowballBuildStage();
                 gatherRingRenderer.gameObject.SetActive(true);
-                gatherRingRenderer.transform.position = new Vector3(playerPosition.x, playerPosition.y - 0.02f, -0.02f);
-                gatherRingRenderer.transform.rotation = Quaternion.Euler(0f, 0f, Time.time * 80f);
-                gatherRingRenderer.transform.localScale = Vector3.one * Mathf.Lerp(0.82f, 1.42f, progress);
+                gatherRingRenderer.transform.position = new Vector3(playerPosition.x, playerPosition.y - 0.12f, -0.02f);
+                gatherRingRenderer.transform.rotation = Quaternion.Euler(0f, 0f, Time.time * (stage == SnowballBuildStage.Giant ? 128f : 80f));
+                var stageRingBonus = stage == SnowballBuildStage.Giant ? 0.24f : stage == SnowballBuildStage.Packed ? 0.1f : 0f;
+                gatherRingRenderer.transform.localScale = Vector3.one * (Mathf.Lerp(0.72f, 1.24f, progress) + stageRingBonus);
                 var ringColor = new Color32(88, 166, 206, 255);
+                if (stage == SnowballBuildStage.Giant)
+                {
+                    ringColor = new Color32(239, 126, 87, 255);
+                }
+
                 ringColor.a = (byte)Mathf.RoundToInt(Mathf.Lerp(95f, 230f, progress));
                 gatherRingRenderer.color = ringColor;
+            }
+
+            if (buildSnowballRenderer != null)
+            {
+                buildSnowballRenderer.gameObject.SetActive(true);
+                var handOffset = new Vector2(playerFacing * 0.1f, -0.48f);
+                buildSnowballRenderer.transform.position = new Vector3(playerPosition.x + handOffset.x, playerPosition.y + handOffset.y, -0.14f);
+                buildSnowballRenderer.transform.rotation = Quaternion.Euler(0f, 0f, -Time.time * 180f * playerFacing);
+                var buildProgress = SnowballBuildProgressToGiant();
+                var stage = CurrentSnowballBuildStage();
+                var resourceBonus = gatheringKind == PickupKind.BigSnowdrift ? 0.1f : gatheringKind == PickupKind.IcySnowdrift ? 0.06f : 0f;
+                var stageBonus = stage == SnowballBuildStage.Giant ? 0.15f : stage == SnowballBuildStage.Packed ? 0.06f : 0f;
+                var pulse = Mathf.Sin(Time.time * 18f) * 0.018f;
+                buildSnowballRenderer.transform.localScale = Vector3.one * (0.14f + resourceBonus + stageBonus + Mathf.Lerp(0.04f, 0.34f, buildProgress) + pulse);
+                buildSnowballRenderer.color = gatheringKind == PickupKind.IcySnowdrift
+                    ? new Color32(190, 236, 255, 245)
+                    : stage == SnowballBuildStage.Giant
+                        ? new Color32(255, 253, 247, 255)
+                    : new Color32(255, 255, 255, 245);
+
+                if (Time.frameCount % (stage == SnowballBuildStage.Giant ? 2 : 4) == 0)
+                {
+                    var chipOffset = new Vector2(RandomRange(-0.25f, 0.25f), RandomRange(-0.22f, 0.2f));
+                    var chipColor = stage == SnowballBuildStage.Giant
+                        ? new Color32(255, 255, 255, 190)
+                        : new Color32(190, 236, 255, 150);
+                    SpawnTrailMark((Vector2)buildSnowballRenderer.transform.position + chipOffset, chipColor, RandomRange(0.09f, 0.17f));
+                }
+            }
+
+            if (gatheringSource != null && gatheringSource.Renderer != null && Time.frameCount % 3 == 0)
+            {
+                var from = Vector2.Lerp(gatheringSource.Position, playerPosition, Mathf.Clamp01(progress + RandomRange(-0.12f, 0.18f)));
+                SpawnTrailMark(from, gatheringKind == PickupKind.IcySnowdrift ? new Color32(140, 222, 255, 150) : new Color32(255, 255, 255, 165), RandomRange(0.13f, 0.23f));
             }
         }
 
@@ -1364,8 +1931,11 @@ namespace MannLab.Games.GatherAndShot
         {
             gatheringStartedAt = 0f;
             gatheringUntil = 0f;
+            snowballBuildStartedAt = 0f;
+            currentBuildStage = SnowballBuildStage.None;
             pendingGatherAmmo = 0;
             gatheringKind = PickupKind.Snowball;
+            gatheringSource = null;
             if (gatheringRenderer != null)
             {
                 gatheringRenderer.gameObject.SetActive(false);
@@ -1374,6 +1944,12 @@ namespace MannLab.Games.GatherAndShot
             if (gatherRingRenderer != null)
             {
                 gatherRingRenderer.gameObject.SetActive(false);
+            }
+
+            if (buildSnowballRenderer != null)
+            {
+                buildSnowballRenderer.gameObject.SetActive(false);
+                buildSnowballRenderer.transform.localScale = Vector3.zero;
             }
 
             if (gatherBack != null)
@@ -1430,6 +2006,7 @@ namespace MannLab.Games.GatherAndShot
                 {
                     warmth = GatherAndShotBalance.ApplyContactDamage(warmth, GetUpgradeLevel(UpgradeKind.WarmCoat));
                     contactReadyAt = Time.time + GatherAndShotBalance.ContactCooldownSeconds;
+                    hitPoseUntil = Time.time + 0.36f;
                     playerVelocity = (playerPosition - enemy.Position).normalized * 5.2f;
                     SpawnBurst(playerPosition, 0.95f, 8);
                     UpdateTelemetryContext();
@@ -1444,7 +2021,19 @@ namespace MannLab.Games.GatherAndShot
 
         private void TryAutoFire()
         {
-            if (IsGathering || ammo <= 0 || Time.time < nextFireAt)
+            if (Time.time < nextFireAt)
+            {
+                return;
+            }
+
+            if (IsGathering)
+            {
+                UpdateSnowballBuildStage();
+            }
+
+            var buildStage = IsGathering ? CurrentSnowballBuildStage() : SnowballBuildStage.None;
+            var usesBuiltSnowball = buildStage != SnowballBuildStage.None;
+            if (!usesBuiltSnowball && ammo <= 0)
             {
                 return;
             }
@@ -1455,12 +2044,26 @@ namespace MannLab.Games.GatherAndShot
                 return;
             }
 
-            ammo--;
+            if (ShouldHoldOpeningThrowForPacked(buildStage, target))
+            {
+                return;
+            }
+
+            if (usesBuiltSnowball)
+            {
+                LogBuiltSnowballThrown(buildStage);
+            }
+            else
+            {
+                ammo--;
+            }
+
+            throwPoseUntil = Time.time + 0.18f;
             if (!firstAutoThrowFeedbackShown)
             {
                 firstAutoThrowFeedbackShown = true;
                 ShowFeedback("AUTO THROW", new Color32(239, 126, 87, 255), 1.4f);
-                CreateFloatingText("AUTO THROW", playerPosition + Vector2.up * 0.72f, new Color32(239, 126, 87, 255), 27);
+                CreateFloatingText("AUTO THROW", playerPosition + Vector2.up * 1.1f, new Color32(239, 126, 87, 255), 27);
             }
 
             if (ammo == 0 && !ammoEmptyLogged)
@@ -1471,10 +2074,16 @@ namespace MannLab.Games.GatherAndShot
 
             UpdateTelemetryContext();
             nextFireAt = Time.time + GatherAndShotBalance.FireCooldownSeconds(GetUpgradeLevel(UpgradeKind.ThrowRate), Time.time < rapidThrowUntil);
-            if (CurrentWeapon == WeaponKind.SnowBurst)
+            var weapon = ProjectileWeaponForBuildStage(CurrentWeapon, buildStage);
+            if (weapon == WeaponKind.SnowBurst)
             {
-                DamageEnemiesInRadius(playerPosition, 2.15f, GatherAndShotBalance.SnowballDamage(GetUpgradeLevel(UpgradeKind.SnowballDamage)), WeaponKind.SnowBurst);
-                SpawnBurst(playerPosition, 1.65f, 18);
+                DamageEnemiesInRadius(playerPosition, buildStage == SnowballBuildStage.Packed ? 2.42f : 2.15f, ProjectileDamage(weapon, buildStage), WeaponKind.SnowBurst);
+                SpawnBurst(playerPosition, buildStage == SnowballBuildStage.Packed ? 1.85f : 1.65f, 18);
+                if (usesBuiltSnowball)
+                {
+                    RestartSnowballBuild();
+                }
+
                 return;
             }
 
@@ -1482,9 +2091,8 @@ namespace MannLab.Games.GatherAndShot
             renderer.sprite = snowballSprite;
             renderer.sortingOrder = 18;
             renderer.transform.position = playerPosition;
-            var weapon = CurrentWeapon;
             renderer.color = ProjectileColor(weapon);
-            renderer.transform.localScale = Vector3.one * ProjectileScale(weapon);
+            renderer.transform.localScale = Vector3.one * ProjectileScale(weapon, buildStage);
             projectiles.Add(new Projectile
             {
                 Renderer = renderer,
@@ -1493,11 +2101,58 @@ namespace MannLab.Games.GatherAndShot
                 Direction = (target.Position - playerPosition).normalized,
                 Life = weapon == WeaponKind.BigSnowball ? 1.55f : 1.2f,
                 Kind = weapon,
-                Damage = ProjectileDamage(weapon),
-                Speed = ProjectileSpeed(weapon),
-                PierceRemaining = weapon == WeaponKind.BigSnowball ? 2 : 0,
+                BuildStage = buildStage,
+                Damage = ProjectileDamage(weapon, buildStage),
+                Speed = ProjectileSpeed(weapon, buildStage),
+                PierceRemaining = weapon == WeaponKind.BigSnowball || buildStage == SnowballBuildStage.Giant ? 2 : 0,
                 SplitDepth = weapon == WeaponKind.SplitSnowball ? 1 : 0
             });
+
+            if (usesBuiltSnowball)
+            {
+                RestartSnowballBuild();
+            }
+        }
+
+        private bool ShouldHoldOpeningThrowForPacked(SnowballBuildStage buildStage, Enemy target)
+        {
+            if (!IsGathering || elapsedSeconds >= 14f || buildStage != SnowballBuildStage.Small || target == null)
+            {
+                return false;
+            }
+
+            return Vector2.Distance(playerPosition, target.Position) > 1.25f;
+        }
+
+        private void LogBuiltSnowballThrown(SnowballBuildStage stage)
+        {
+            if (stage == SnowballBuildStage.Packed || stage == SnowballBuildStage.Giant)
+            {
+                var label = stage == SnowballBuildStage.Giant ? "GIANT THROW" : "PACKED THROW";
+                var color = stage == SnowballBuildStage.Giant ? new Color32(239, 126, 87, 255) : new Color32(88, 166, 206, 255);
+                ShowFeedback(label, color, 1.25f);
+                CreateFloatingText(label, playerPosition + Vector2.up * 1.16f, color, stage == SnowballBuildStage.Giant ? 28 : 24);
+            }
+
+            FirebaseTelemetry.LogEvent(
+                "snowball_auto_thrown",
+                BuildEventParameters(new Dictionary<string, string>
+                {
+                    { "snowball_size", GatherAndShotBalance.SnowballBuildName(stage) },
+                    { "build_time", Mathf.RoundToInt((Time.time - snowballBuildStartedAt) * 1000f).ToString() },
+                    { "mission", currentMission.ToString() }
+                }));
+
+            if (stage == SnowballBuildStage.Giant)
+            {
+                FirebaseTelemetry.LogEvent(
+                    "giant_snowball_used",
+                    BuildEventParameters(new Dictionary<string, string>
+                    {
+                        { "build_time", Mathf.RoundToInt((Time.time - snowballBuildStartedAt) * 1000f).ToString() },
+                        { "enemy_count", enemies.Count.ToString() }
+                    }));
+            }
         }
 
         private Enemy FindNearestEnemyInRange()
@@ -1549,6 +2204,7 @@ namespace MannLab.Games.GatherAndShot
                     Direction = direction,
                     Life = 0.62f,
                     Kind = WeaponKind.SplitSnowball,
+                    BuildStage = SnowballBuildStage.None,
                     Damage = 1,
                     Speed = 11.8f,
                     PierceRemaining = 0,
@@ -1557,7 +2213,7 @@ namespace MannLab.Games.GatherAndShot
             }
         }
 
-        private void DamageEnemiesInRadius(Vector2 origin, float radius, int damage, WeaponKind weapon, Enemy excluded = null)
+        private void DamageEnemiesInRadius(Vector2 origin, float radius, int damage, WeaponKind weapon, Enemy excluded = null, SnowballBuildStage buildStage = SnowballBuildStage.None)
         {
             for (var i = enemies.Count - 1; i >= 0; i--)
             {
@@ -1569,7 +2225,7 @@ namespace MannLab.Games.GatherAndShot
 
                 if (Vector2.Distance(origin, enemy.Position) <= radius)
                 {
-                    DamageEnemy(enemy, damage, weapon);
+                    DamageEnemy(enemy, damage, weapon, buildStage);
                 }
             }
         }
@@ -1652,6 +2308,16 @@ namespace MannLab.Games.GatherAndShot
             }
         }
 
+        private int ProjectileDamage(WeaponKind weapon, SnowballBuildStage buildStage)
+        {
+            return ProjectileDamage(weapon) + GatherAndShotBalance.SnowballBuildDamageBonus(buildStage);
+        }
+
+        private static WeaponKind ProjectileWeaponForBuildStage(WeaponKind weapon, SnowballBuildStage buildStage)
+        {
+            return buildStage == SnowballBuildStage.Giant ? WeaponKind.BigSnowball : weapon;
+        }
+
         private float ProjectileSpeed(WeaponKind weapon)
         {
             switch (weapon)
@@ -1663,6 +2329,21 @@ namespace MannLab.Games.GatherAndShot
                 default:
                     return GatherAndShotBalance.BaseProjectileSpeed;
             }
+        }
+
+        private float ProjectileSpeed(WeaponKind weapon, SnowballBuildStage buildStage)
+        {
+            if (buildStage == SnowballBuildStage.Giant)
+            {
+                return Mathf.Min(ProjectileSpeed(weapon), 7.2f);
+            }
+
+            if (buildStage == SnowballBuildStage.Packed)
+            {
+                return ProjectileSpeed(weapon) * 0.92f;
+            }
+
+            return ProjectileSpeed(weapon);
         }
 
         private static float ProjectileScale(WeaponKind weapon)
@@ -1677,6 +2358,22 @@ namespace MannLab.Games.GatherAndShot
                     return 0.36f;
                 default:
                     return 0.38f;
+            }
+        }
+
+        private static float ProjectileScale(WeaponKind weapon, SnowballBuildStage buildStage)
+        {
+            var scale = ProjectileScale(weapon);
+            switch (buildStage)
+            {
+                case SnowballBuildStage.Giant:
+                    return Mathf.Max(scale, 1.12f);
+                case SnowballBuildStage.Packed:
+                    return Mathf.Max(scale * 1.28f, 0.52f);
+                case SnowballBuildStage.Small:
+                    return Mathf.Max(scale, 0.42f);
+                default:
+                    return scale;
             }
         }
 
@@ -1719,10 +2416,14 @@ namespace MannLab.Games.GatherAndShot
                 if (hit)
                 {
                     var target = projectile.Target;
-                    DamageEnemy(target, projectile.Damage, projectile.Kind);
-                    if (projectile.Kind == WeaponKind.BigSnowball)
+                    DamageEnemy(target, projectile.Damage, projectile.Kind, projectile.BuildStage);
+                    if (projectile.Kind == WeaponKind.BigSnowball || projectile.BuildStage == SnowballBuildStage.Giant)
                     {
-                        DamageEnemiesInRadius(projectile.Position, 0.68f, Math.Max(1, projectile.Damage - 1), projectile.Kind, target);
+                        DamageEnemiesInRadius(projectile.Position, projectile.BuildStage == SnowballBuildStage.Giant ? 0.98f : 0.68f, Math.Max(1, projectile.Damage - 1), projectile.Kind, target, projectile.BuildStage);
+                    }
+                    else if (projectile.BuildStage == SnowballBuildStage.Packed)
+                    {
+                        DamageEnemiesInRadius(projectile.Position, 0.5f, 1, projectile.Kind, target, projectile.BuildStage);
                     }
                     else if (projectile.Kind == WeaponKind.SplitSnowball && projectile.SplitDepth > 0)
                     {
@@ -1746,7 +2447,7 @@ namespace MannLab.Games.GatherAndShot
             }
         }
 
-        private void DamageEnemy(Enemy enemy, int damage, WeaponKind weapon)
+        private void DamageEnemy(Enemy enemy, int damage, WeaponKind weapon, SnowballBuildStage buildStage = SnowballBuildStage.None)
         {
             if (enemy == null || !enemies.Contains(enemy))
             {
@@ -1755,10 +2456,16 @@ namespace MannLab.Games.GatherAndShot
 
             enemy.Health -= Mathf.Max(1, damage);
             PlaySfx(hitClip);
-            SpawnBurst(enemy.Position, enemy.Kind == EnemyKind.Heavy ? 1.15f : 0.84f, enemy.Kind == EnemyKind.Heavy ? 10 : 7);
+            var builtImpact = buildStage == SnowballBuildStage.Giant ? 0.42f : buildStage == SnowballBuildStage.Packed ? 0.18f : 0f;
+            SpawnBurst(enemy.Position, (enemy.Kind == EnemyKind.Heavy ? 1.15f : 0.84f) + builtImpact, enemy.Kind == EnemyKind.Heavy || buildStage == SnowballBuildStage.Giant ? 10 : 7);
+            if (enemy.Kind == EnemyKind.Heavy && (int)buildStage >= (int)SnowballBuildStage.Packed)
+            {
+                packedOrGiantHeavyHits++;
+            }
+
             if (enemy.Health > 0)
             {
-                enemy.Position += (enemy.Position - playerPosition).normalized * 0.34f;
+                enemy.Position += (enemy.Position - playerPosition).normalized * (0.34f + builtImpact);
                 return;
             }
 
@@ -2020,6 +2727,36 @@ namespace MannLab.Games.GatherAndShot
             feedbackGroup.alpha = 1f;
         }
 
+        private void ShowZoneBanner(SnowZoneKind zone)
+        {
+            if (zoneBannerText == null || zoneBannerGroup == null)
+            {
+                return;
+            }
+
+            zoneBannerText.text = ZoneName(zone).ToUpperInvariant();
+            zoneBannerText.color = ZoneAccentColor(zone);
+            zoneBannerUntil = Time.time + 1.35f;
+            zoneBannerGroup.alpha = 1f;
+        }
+
+        private void UpdateZoneBanner()
+        {
+            if (zoneBannerText == null || zoneBannerGroup == null)
+            {
+                return;
+            }
+
+            zoneBannerGroup.alpha = Time.time < zoneBannerUntil
+                ? 1f
+                : Mathf.MoveTowards(zoneBannerGroup.alpha, 0f, Time.deltaTime * 2.8f);
+
+            if (zoneBannerGroup.alpha > 0f)
+            {
+                zoneBannerText.rectTransform.localScale = Vector3.one * (1f + Mathf.Sin(Time.time * 11f) * 0.018f);
+            }
+        }
+
         private void CreateFloatingText(string message, Vector2 worldPosition, Color color, int size)
         {
             if (gameSquareRoot == null)
@@ -2111,7 +2848,8 @@ namespace MannLab.Games.GatherAndShot
             resultCoinText.text = $"SNOW COIN +{runEarnedCoins}\nBAG {ownedCoins}";
             resultStatsText.text =
                 $"Kills {score}   Best {bestScore}   Time {Mathf.FloorToInt(elapsedSeconds)}s\n"
-                + $"Ammo gathered {ammoGathered}   Pickups {pickupsCollected}\n"
+                + $"Built {builtSnowballs}   Packed {packedSnowballsBuilt}   Giant {giantSnowballsBuilt}\n"
+                + $"Snow gathered {ammoGathered}   Patches mined {snowResourcesMined}\n"
                 + $"Weapons B:{killsByBasic} Big:{killsByBig} Split:{killsBySplit} Ice:{killsByIce} Burst:{killsByBurst}";
             resultUpgradeText.text =
                 $"Next: {GatherAndShotBalance.UpgradeName(recommended)} Lv {recommendedLevel + 1} "
@@ -2190,34 +2928,55 @@ namespace MannLab.Games.GatherAndShot
             if (!firstMiniGoalCompleted)
             {
                 var killsLeft = Mathf.Max(0, GatherAndShotBalance.FirstMiniGoalKills - score);
-                if (elapsedSeconds < 20f)
+                if (elapsedSeconds < 3f)
                 {
-                    return "Move, stop, auto throw";
+                    return "Stop: build a GIANT snowball";
                 }
 
-                return killsLeft > 0 ? $"Mini goal: defeat {killsLeft}" : "Mini goal complete";
+                if (packedSnowballsBuilt == 0)
+                {
+                    return "Hold still for PACKED snow";
+                }
+
+                if (snowResourcesMined == 0)
+                {
+                    return "Mine fresh snow to reload";
+                }
+
+                if (elapsedSeconds < 20f)
+                {
+                    return "Fresh snow mined. Auto throw";
+                }
+
+                return killsLeft > 0 ? $"Stop {killsLeft} snowmen" : "Frost Yard clear";
             }
 
             if (elapsedSeconds < 60f)
             {
-                return "Grab the big snowdrift";
+                return "Mine the big snowdrift";
             }
 
             if (elapsedSeconds < 120f)
             {
-                return "Runner wave: keep moving";
+                return "Red-scarf wave: keep moving";
             }
 
             if (elapsedSeconds < 240f)
             {
-                return "Heavy wave: upgrade damage";
+                return "Heavy snowman: upgrade damage";
             }
 
-            return "Mixed wave: survive the boss push";
+            return "Blizzard Gate: survive the push";
         }
 
         private string CurrentWeaponText()
         {
+            var buildStage = IsGathering ? CurrentSnowballBuildStage() : SnowballBuildStage.None;
+            if (buildStage != SnowballBuildStage.None)
+            {
+                return $"BUILD {GatherAndShotBalance.SnowballBuildName(buildStage).ToUpperInvariant()}";
+            }
+
             var weapon = CurrentWeapon;
             var rapid = Time.time < rapidThrowUntil ? " + RAPID" : string.Empty;
             if (weapon != WeaponKind.BasicSnowball && Time.time < activeWeaponUntil)
@@ -2233,7 +2992,11 @@ namespace MannLab.Games.GatherAndShot
             currentMission = mission;
             missionStartScore = score;
             missionStartAmmoGathered = ammoGathered;
+            missionStartSnowResourcesMined = snowResourcesMined;
             missionStartBigSnowdrifts = bigSnowdriftsCollected;
+            missionStartBuiltSnowballs = builtSnowballs;
+            missionStartPackedSnowballs = packedSnowballsBuilt;
+            missionStartHeavyPackedHits = packedOrGiantHeavyHits;
             missionStartWalkersDefeated = walkersDefeated;
             missionStartRunnersDefeated = runnersDefeated;
             missionStartHeaviesDefeated = heaviesDefeated;
@@ -2255,6 +3018,15 @@ namespace MannLab.Games.GatherAndShot
                 BuildEventParameters(new Dictionary<string, string>
                 {
                     { "mission", completed.ToString() },
+                    { "zone", ZoneName(currentZone) },
+                    { "reward_coins", reward.ToString() }
+                }));
+            FirebaseTelemetry.LogEvent(
+                "zone_objective_complete",
+                BuildEventParameters(new Dictionary<string, string>
+                {
+                    { "mission", completed.ToString() },
+                    { "zone", ZoneName(currentZone) },
                     { "reward_coins", reward.ToString() }
                 }));
 
@@ -2265,7 +3037,9 @@ namespace MannLab.Games.GatherAndShot
                 freeUpgradeAvailable = !freeUpgradeClaimed;
             }
 
-            SetMission(NextMission(completed));
+            var nextMission = NextMission(completed);
+            SetZone(ZoneForMission(nextMission), true);
+            SetMission(nextMission);
         }
 
         private bool IsMissionComplete()
@@ -2273,17 +3047,20 @@ namespace MannLab.Games.GatherAndShot
             switch (currentMission)
             {
                 case MissionKind.FirstSnowLoop:
-                    return walkersDefeated - missionStartWalkersDefeated >= GatherAndShotBalance.FirstMiniGoalKills
-                        || elapsedSeconds >= GatherAndShotBalance.FirstMiniGoalSurvivalSeconds
-                        || bigSnowdriftsCollected > missionStartBigSnowdrifts;
+                    return packedSnowballsBuilt > missionStartPackedSnowballs
+                        && (walkersDefeated - missionStartWalkersDefeated >= GatherAndShotBalance.FirstMiniGoalKills
+                            || elapsedSeconds >= GatherAndShotBalance.FirstMiniGoalSurvivalSeconds);
                 case MissionKind.GatherSnow:
-                    return ammoGathered - missionStartAmmoGathered >= 20;
+                    return snowResourcesMined - missionStartSnowResourcesMined >= 2
+                        || ammoGathered - missionStartAmmoGathered >= 20;
                 case MissionKind.CollectBigSnowdrift:
-                    return bigSnowdriftsCollected > missionStartBigSnowdrifts;
+                    return bigSnowdriftsCollected > missionStartBigSnowdrifts
+                        || packedSnowballsBuilt > missionStartPackedSnowballs;
                 case MissionKind.SurviveRunnerWave:
-                    return elapsedSeconds >= 75f && runnersDefeated > missionStartRunnersDefeated;
+                    return elapsedSeconds >= 75f && runnersDefeated - missionStartRunnersDefeated >= 3;
                 case MissionKind.DefeatHeavy:
-                    return heaviesDefeated > missionStartHeaviesDefeated;
+                    return heaviesDefeated > missionStartHeaviesDefeated
+                        || packedOrGiantHeavyHits > missionStartHeavyPackedHits;
                 default:
                     return false;
             }
@@ -2291,20 +3068,185 @@ namespace MannLab.Games.GatherAndShot
 
         private string CurrentMissionText()
         {
+            var zone = ZoneName(currentZone);
             switch (currentMission)
             {
                 case MissionKind.FirstSnowLoop:
-                    return $"MISSION: defeat {Mathf.Max(0, GatherAndShotBalance.FirstMiniGoalKills - (walkersDefeated - missionStartWalkersDefeated))} walkers";
+                    return packedSnowballsBuilt <= missionStartPackedSnowballs
+                        ? $"{zone}: build 1 packed snowball"
+                        : $"{zone}: stop {Mathf.Max(0, GatherAndShotBalance.FirstMiniGoalKills - (walkersDefeated - missionStartWalkersDefeated))} snowmen";
                 case MissionKind.GatherSnow:
-                    return $"MISSION: gather {Mathf.Max(0, 20 - (ammoGathered - missionStartAmmoGathered))} snow";
+                    return $"{zone}: mine {Mathf.Max(0, 2 - (snowResourcesMined - missionStartSnowResourcesMined))} snow patches";
                 case MissionKind.CollectBigSnowdrift:
-                    return "MISSION: collect big snowdrift";
+                    return packedSnowballsBuilt <= missionStartPackedSnowballs
+                        ? $"{zone}: build 1 packed snowball"
+                        : $"{zone}: mine a big snowdrift";
                 case MissionKind.SurviveRunnerWave:
-                    return elapsedSeconds < 60f ? "MISSION: reach runner wave" : "MISSION: beat a runner";
+                    return elapsedSeconds < 60f ? $"{zone}: reach red-scarf wave" : $"{zone}: beat red-scarf runner";
                 case MissionKind.DefeatHeavy:
-                    return elapsedSeconds < 120f ? "MISSION: reach heavy wave" : "MISSION: defeat 1 heavy";
+                    return elapsedSeconds < 120f ? $"{zone}: reach heavy snowman" : $"{zone}: hit heavy with packed snow";
                 default:
-                    return "MISSION: survive";
+                    return $"{zone}: survive";
+            }
+        }
+
+        private void SetZone(SnowZoneKind zone, bool showFeedback)
+        {
+            if (currentZone == zone)
+            {
+                return;
+            }
+
+            currentZone = zone;
+            ApplyZoneVisuals(zone);
+            if (showFeedback)
+            {
+                ShowFeedback($"ENTER: {ZoneName(zone).ToUpperInvariant()}", new Color32(88, 166, 206, 255), 1.7f);
+                ShowZoneBanner(zone);
+                CreateFloatingText(ZoneName(zone), playerPosition + Vector2.up * 0.96f, new Color32(88, 166, 206, 255), 24);
+                SpawnZoneArrivalScene(zone);
+            }
+
+            FirebaseTelemetry.LogEvent(
+                "zone_enter",
+                BuildEventParameters(new Dictionary<string, string>
+                {
+                    { "zone", ZoneName(zone) }
+                }));
+        }
+
+        private void ApplyZoneVisuals(SnowZoneKind zone)
+        {
+            var color = ZoneTint(zone);
+            if (zoneOverlayRenderer != null)
+            {
+                zoneOverlayRenderer.color = color;
+            }
+
+            var accent = ZoneAccentColor(zone);
+            for (var i = 0; i < zoneAccentRenderers.Count; i++)
+            {
+                var renderer = zoneAccentRenderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                var lane = (i - zoneAccentRenderers.Count * 0.5f) / Mathf.Max(1f, zoneAccentRenderers.Count - 1f);
+                var heavyOffset = zone == SnowZoneKind.HeavySnowbank ? Mathf.Sin(i * 1.7f) * 0.28f : 0f;
+                renderer.color = accent;
+                renderer.transform.position = new Vector3(
+                    Mathf.Sin(i * 2.43f) * PlayHalfWidth * 0.38f,
+                    lane * WorldHalfHeight * 1.62f + heavyOffset,
+                    7.2f);
+                renderer.transform.rotation = Quaternion.Euler(0f, 0f, ZoneAccentRotation(zone) + Mathf.Sin(i * 1.13f) * 6f);
+                renderer.transform.localScale = Vector3.one * (zone == SnowZoneKind.BlizzardGate ? 1.35f : zone == SnowZoneKind.HeavySnowbank ? 1.18f : 1f);
+            }
+        }
+
+        private void SpawnZoneArrivalScene(SnowZoneKind zone)
+        {
+            switch (zone)
+            {
+                case SnowZoneKind.SnowPatchField:
+                    SpawnPickup(PickupKind.Snowdrift);
+                    SpawnPickup(PickupKind.BigSnowdrift);
+                    break;
+                case SnowZoneKind.RedScarfLane:
+                    SpawnEnemyAt(EnemyKind.Runner, new Vector2(-PlayHalfWidth - 0.3f, playerPosition.y + 1.1f));
+                    SpawnEnemyAt(EnemyKind.Runner, new Vector2(PlayHalfWidth + 0.3f, playerPosition.y - 0.9f));
+                    break;
+                case SnowZoneKind.HeavySnowbank:
+                    SpawnPickup(PickupKind.BigSnowdrift);
+                    SpawnEnemyAt(EnemyKind.Heavy, new Vector2(0f, WorldHalfHeight + 0.4f));
+                    break;
+                case SnowZoneKind.BlizzardGate:
+                    SpawnEnemyAt(EnemyKind.Runner, new Vector2(-PlayHalfWidth - 0.3f, playerPosition.y));
+                    SpawnEnemyAt(EnemyKind.Heavy, new Vector2(PlayHalfWidth + 0.35f, playerPosition.y + 1.1f));
+                    SpawnPickup(PickupKind.IcySnowdrift);
+                    break;
+            }
+        }
+
+        private static Color ZoneTint(SnowZoneKind zone)
+        {
+            switch (zone)
+            {
+                case SnowZoneKind.SnowPatchField:
+                    return new Color32(182, 238, 226, 34);
+                case SnowZoneKind.RedScarfLane:
+                    return new Color32(246, 128, 154, 30);
+                case SnowZoneKind.HeavySnowbank:
+                    return new Color32(134, 116, 170, 34);
+                case SnowZoneKind.BlizzardGate:
+                    return new Color32(190, 236, 255, 42);
+                default:
+                    return new Color32(218, 238, 242, 22);
+            }
+        }
+
+        private static Color ZoneAccentColor(SnowZoneKind zone)
+        {
+            switch (zone)
+            {
+                case SnowZoneKind.SnowPatchField:
+                    return new Color32(70, 151, 174, 88);
+                case SnowZoneKind.RedScarfLane:
+                    return new Color32(236, 94, 123, 96);
+                case SnowZoneKind.HeavySnowbank:
+                    return new Color32(107, 92, 130, 92);
+                case SnowZoneKind.BlizzardGate:
+                    return new Color32(140, 222, 255, 110);
+                default:
+                    return new Color32(88, 166, 206, 76);
+            }
+        }
+
+        private static float ZoneAccentRotation(SnowZoneKind zone)
+        {
+            switch (zone)
+            {
+                case SnowZoneKind.RedScarfLane:
+                    return -4f;
+                case SnowZoneKind.HeavySnowbank:
+                    return 1f;
+                case SnowZoneKind.BlizzardGate:
+                    return -15f;
+                default:
+                    return -9f;
+            }
+        }
+
+        private SnowZoneKind ZoneForMission(MissionKind mission)
+        {
+            switch (mission)
+            {
+                case MissionKind.GatherSnow:
+                case MissionKind.CollectBigSnowdrift:
+                    return SnowZoneKind.SnowPatchField;
+                case MissionKind.SurviveRunnerWave:
+                    return SnowZoneKind.RedScarfLane;
+                case MissionKind.DefeatHeavy:
+                    return elapsedSeconds >= 240f ? SnowZoneKind.BlizzardGate : SnowZoneKind.HeavySnowbank;
+                default:
+                    return SnowZoneKind.FrostYard;
+            }
+        }
+
+        private static string ZoneName(SnowZoneKind zone)
+        {
+            switch (zone)
+            {
+                case SnowZoneKind.SnowPatchField:
+                    return "Snow Patch Field";
+                case SnowZoneKind.RedScarfLane:
+                    return "Red Scarf Lane";
+                case SnowZoneKind.HeavySnowbank:
+                    return "Heavy Snowbank";
+                case SnowZoneKind.BlizzardGate:
+                    return "Blizzard Gate";
+                default:
+                    return "Frost Yard";
             }
         }
 
@@ -2359,10 +3301,13 @@ namespace MannLab.Games.GatherAndShot
             FirebaseTelemetry.SetContext("owned_coins", ownedCoins.ToString());
             FirebaseTelemetry.SetContext("enemy_count", enemies.Count.ToString());
             FirebaseTelemetry.SetContext("pickup_count", pickups.Count.ToString());
+            FirebaseTelemetry.SetContext("snow_resources_mined", snowResourcesMined.ToString());
             FirebaseTelemetry.SetContext("game_over", state == GatherAndShotGameState.GameOver ? "true" : "false");
             FirebaseTelemetry.SetContext("gathering", IsGathering ? gatheringKind.ToString() : "none");
             FirebaseTelemetry.SetContext("current_weapon", GatherAndShotBalance.WeaponName(CurrentWeapon));
             FirebaseTelemetry.SetContext("upgrade_levels", UpgradeLevelsText());
+            FirebaseTelemetry.SetContext("zone", ZoneName(currentZone));
+            FirebaseTelemetry.SetContext("snowball_size", GatherAndShotBalance.SnowballBuildName(CurrentSnowballBuildStage()));
         }
 
         private void LogFirstAction(string action)
@@ -2386,6 +3331,7 @@ namespace MannLab.Games.GatherAndShot
             var parameters = new Dictionary<string, string>
             {
                 { "game", "gather_and_shot" },
+                { "app_name", "Stop & Snow" },
                 { "run_number", runNumber.ToString() },
                 { "session_time", Mathf.FloorToInt(Time.realtimeSinceStartup - sessionStartedAt).ToString() },
                 { "survival_time", Mathf.FloorToInt(elapsedSeconds).ToString() },
@@ -2397,7 +3343,12 @@ namespace MannLab.Games.GatherAndShot
                 { "owned_coins", ownedCoins.ToString() },
                 { "upgrade_levels", UpgradeLevelsText() },
                 { "current_weapon", GatherAndShotBalance.WeaponName(CurrentWeapon) },
-                { "enemy_count", enemies.Count.ToString() }
+                { "enemy_count", enemies.Count.ToString() },
+                { "zone", ZoneName(currentZone) },
+                { "mission", currentMission.ToString() },
+                { "snowball_size", GatherAndShotBalance.SnowballBuildName(CurrentSnowballBuildStage()) },
+                { "build_time", snowballBuildStartedAt > 0f ? Mathf.RoundToInt((Time.time - snowballBuildStartedAt) * 1000f).ToString() : "0" },
+                { "snow_resources_mined", snowResourcesMined.ToString() }
             };
 
             if (extras == null)
@@ -2781,6 +3732,19 @@ namespace MannLab.Games.GatherAndShot
             return button;
         }
 
+        private Image CreateUpgradeIcon(Transform parent, UpgradeKind kind)
+        {
+            var icon = CreateImage(parent, $"{kind} Gear Icon", Color.white);
+            icon.sprite = CreateUpgradeIconSprite(kind);
+            icon.raycastTarget = false;
+            icon.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            icon.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            icon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            icon.rectTransform.anchoredPosition = new Vector2(-98f, 18f);
+            icon.rectTransform.sizeDelta = new Vector2(58f, 58f);
+            return icon;
+        }
+
         private void PositionJoystickGuideAtScreenPoint(Vector2 screenPosition)
         {
             if (joystickRoot == null || joystickBase == null)
@@ -2822,6 +3786,157 @@ namespace MannLab.Games.GatherAndShot
             graphic.Jitter = jitter;
         }
 
+        private static Sprite CreateUpgradeIconSprite(UpgradeKind kind)
+        {
+            const int size = 96;
+            var pixels = new Color[size * size];
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                pixels[i] = new Color(0f, 0f, 0f, 0f);
+            }
+
+            var ink = SketchPalette.Ink;
+            var snow = new Color32(239, 249, 255, 255);
+            var blue = new Color32(88, 166, 206, 255);
+            var warm = new Color32(239, 126, 87, 255);
+            var purple = new Color32(107, 92, 130, 255);
+            var gold = new Color32(255, 221, 116, 255);
+
+            FillEllipse(pixels, size, 48, 48, 40, 40, new Color32(255, 253, 247, 210));
+            DrawEllipseOutline(pixels, size, 48, 48, 40, 40, ink, 3);
+
+            switch (kind)
+            {
+                case UpgradeKind.AmmoCapacity:
+                    FillEllipse(pixels, size, 48, 57, 23, 21, blue);
+                    FillRect(pixels, size, 30, 35, 66, 60, blue);
+                    DrawLine(pixels, size, 34, 38, 62, 38, ink, 4);
+                    DrawLine(pixels, size, 30, 45, 66, 45, ink, 3);
+                    DrawEllipseOutline(pixels, size, 48, 57, 24, 22, ink, 4);
+                    FillEllipse(pixels, size, 48, 30, 14, 9, snow);
+                    DrawEllipseOutline(pixels, size, 48, 30, 14, 9, ink, 3);
+                    break;
+                case UpgradeKind.GatherSpeed:
+                    FillEllipse(pixels, size, 38, 51, 15, 21, blue);
+                    FillEllipse(pixels, size, 59, 51, 15, 21, blue);
+                    FillEllipse(pixels, size, 30, 58, 9, 10, blue);
+                    FillEllipse(pixels, size, 67, 58, 9, 10, blue);
+                    DrawEllipseOutline(pixels, size, 38, 51, 15, 21, ink, 3);
+                    DrawEllipseOutline(pixels, size, 59, 51, 15, 21, ink, 3);
+                    DrawLine(pixels, size, 22, 76, 74, 76, snow, 5);
+                    break;
+                case UpgradeKind.ThrowRate:
+                    FillEllipse(pixels, size, 41, 54, 18, 22, warm);
+                    FillEllipse(pixels, size, 31, 55, 9, 11, warm);
+                    DrawEllipseOutline(pixels, size, 41, 54, 18, 22, ink, 3);
+                    DrawLine(pixels, size, 58, 42, 78, 31, ink, 4);
+                    DrawLine(pixels, size, 62, 52, 82, 48, ink, 3);
+                    FillEllipse(pixels, size, 78, 31, 8, 8, snow);
+                    DrawEllipseOutline(pixels, size, 78, 31, 8, 8, ink, 2);
+                    break;
+                case UpgradeKind.SnowballDamage:
+                    FillEllipse(pixels, size, 48, 50, 25, 24, snow);
+                    FillEllipse(pixels, size, 48, 50, 12, 12, blue);
+                    DrawEllipseOutline(pixels, size, 48, 50, 25, 24, ink, 4);
+                    DrawLine(pixels, size, 30, 34, 66, 66, purple, 4);
+                    DrawLine(pixels, size, 66, 34, 30, 66, purple, 4);
+                    break;
+                case UpgradeKind.WarmCoat:
+                    FillRect(pixels, size, 32, 35, 64, 75, purple);
+                    FillEllipse(pixels, size, 48, 34, 17, 12, purple);
+                    DrawLine(pixels, size, 48, 39, 48, 76, ink, 3);
+                    DrawLine(pixels, size, 31, 46, 19, 66, purple, 8);
+                    DrawLine(pixels, size, 65, 46, 77, 66, purple, 8);
+                    DrawLine(pixels, size, 32, 35, 64, 35, ink, 4);
+                    DrawLine(pixels, size, 31, 76, 65, 76, ink, 4);
+                    break;
+                case UpgradeKind.CoinMagnet:
+                    DrawLine(pixels, size, 32, 31, 32, 66, warm, 10);
+                    DrawLine(pixels, size, 64, 31, 64, 66, warm, 10);
+                    DrawLine(pixels, size, 32, 66, 64, 66, warm, 10);
+                    DrawLine(pixels, size, 32, 28, 32, 41, ink, 4);
+                    DrawLine(pixels, size, 64, 28, 64, 41, ink, 4);
+                    FillEllipse(pixels, size, 48, 30, 8, 8, gold);
+                    FillEllipse(pixels, size, 48, 49, 6, 6, gold);
+                    break;
+            }
+
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.SetPixels(pixels);
+            texture.Apply();
+            texture.name = $"{kind}Icon";
+            return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 96f);
+        }
+
+        private static void FillRect(Color[] pixels, int size, int minX, int minY, int maxX, int maxY, Color color)
+        {
+            for (var y = Mathf.Max(0, minY); y <= Mathf.Min(size - 1, maxY); y++)
+            {
+                for (var x = Mathf.Max(0, minX); x <= Mathf.Min(size - 1, maxX); x++)
+                {
+                    pixels[y * size + x] = color;
+                }
+            }
+        }
+
+        private static void FillEllipse(Color[] pixels, int size, int cx, int cy, int rx, int ry, Color color)
+        {
+            for (var y = Mathf.Max(0, cy - ry); y <= Mathf.Min(size - 1, cy + ry); y++)
+            {
+                for (var x = Mathf.Max(0, cx - rx); x <= Mathf.Min(size - 1, cx + rx); x++)
+                {
+                    var dx = (x - cx) / (float)Mathf.Max(1, rx);
+                    var dy = (y - cy) / (float)Mathf.Max(1, ry);
+                    if (dx * dx + dy * dy <= 1f)
+                    {
+                        pixels[y * size + x] = color;
+                    }
+                }
+            }
+        }
+
+        private static void DrawEllipseOutline(Color[] pixels, int size, int cx, int cy, int rx, int ry, Color color, int width)
+        {
+            for (var y = Mathf.Max(0, cy - ry - width); y <= Mathf.Min(size - 1, cy + ry + width); y++)
+            {
+                for (var x = Mathf.Max(0, cx - rx - width); x <= Mathf.Min(size - 1, cx + rx + width); x++)
+                {
+                    var dx = (x - cx) / (float)Mathf.Max(1, rx);
+                    var dy = (y - cy) / (float)Mathf.Max(1, ry);
+                    var value = dx * dx + dy * dy;
+                    if (value >= 0.82f && value <= 1.18f)
+                    {
+                        pixels[y * size + x] = color;
+                    }
+                }
+            }
+        }
+
+        private static void DrawLine(Color[] pixels, int size, int x1, int y1, int x2, int y2, Color color, int width)
+        {
+            var dx = x2 - x1;
+            var dy = y2 - y1;
+            var lengthSq = Mathf.Max(1, dx * dx + dy * dy);
+            var radius = width * 0.5f;
+            var minX = Mathf.Max(0, Mathf.Min(x1, x2) - width);
+            var maxX = Mathf.Min(size - 1, Mathf.Max(x1, x2) + width);
+            var minY = Mathf.Max(0, Mathf.Min(y1, y2) - width);
+            var maxY = Mathf.Min(size - 1, Mathf.Max(y1, y2) + width);
+            for (var y = minY; y <= maxY; y++)
+            {
+                for (var x = minX; x <= maxX; x++)
+                {
+                    var t = Mathf.Clamp01(((x - x1) * dx + (y - y1) * dy) / (float)lengthSq);
+                    var px = x1 + t * dx;
+                    var py = y1 + t * dy;
+                    if (Vector2.Distance(new Vector2(x, y), new Vector2(px, py)) <= radius)
+                    {
+                        pixels[y * size + x] = color;
+                    }
+                }
+            }
+        }
+
         private float RandomRange(float min, float max)
         {
             return min + (float)random.NextDouble() * (max - min);
@@ -2842,6 +3957,9 @@ namespace MannLab.Games.GatherAndShot
             public PickupKind Kind;
             public SpriteRenderer Renderer;
             public Vector2 Position;
+            public int ResourceAmmoRemaining;
+            public int ResourceAmmoStart;
+            public bool GatheredOnce;
         }
 
         private sealed class Projectile
@@ -2852,6 +3970,7 @@ namespace MannLab.Games.GatherAndShot
             public Enemy Target;
             public float Life;
             public WeaponKind Kind;
+            public SnowballBuildStage BuildStage;
             public int Damage;
             public float Speed;
             public int PierceRemaining;

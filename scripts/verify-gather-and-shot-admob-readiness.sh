@@ -59,14 +59,14 @@ require_text "$ios_build" "AdMobIosAppId = \"ca-app-pub-4525914685149405~6036634
 require_text "$gma_settings" "adMobIOSAppId: ca-app-pub-4525914685149405~6036634116"
 require_text "$gma_linker" "GoogleMobileAds.iOS"
 require_text "$gma_linker" "GoogleMobileAds.Android"
-require_text "$privacy" "Best Ramyeon, and Gather & Shot may use"
+require_text "$privacy" "Best Ramyeon, and Stop & Snow may use"
 require_text "$privacy" "Google AdMob"
 require_text "$readme" "AdMob readiness"
 require_text "$design_doc" "AdMob is wired"
 
 if [[ "$failures" -ne 0 ]]; then
-  echo "Gather & Shot AdMob readiness check failed." >&2
+  echo "Stop & Snow AdMob readiness check failed." >&2
   exit 1
 fi
 
-echo "Gather & Shot AdMob readiness verified."
+echo "Stop & Snow AdMob readiness verified."

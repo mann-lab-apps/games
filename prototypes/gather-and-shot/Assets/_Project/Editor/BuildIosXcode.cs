@@ -28,6 +28,7 @@ namespace MannLab.Games.GatherAndShot.EditorTools
         private const string DefaultAppleTeamId = "ZRA4DHHKQ4";
         private const string ProvisioningProfileEnv = "MANNLAB_GATHER_AND_SHOT_IOS_APP_STORE_PROFILE_SPECIFIER";
         private const string DefaultProvisioningProfileSpecifier = "Gather And Shot";
+        private const string DisplayName = "Stop & Snow";
         private const string AppIconPath = "Assets/_Project/Art/AppStore/AppIcon-1024.png";
 
         public static void Build()
@@ -35,19 +36,19 @@ namespace MannLab.Games.GatherAndShot.EditorTools
             BuildRelease();
         }
 
-        [MenuItem("MannLab/Gather & Shot/Build iOS Release Xcode")]
+        [MenuItem("MannLab/Stop & Snow/Build iOS Release Xcode")]
         public static void BuildRelease()
         {
             BuildIos(ReleaseOutputPath, false);
         }
 
-        [MenuItem("MannLab/Gather & Shot/Build iOS Crashlytics Test Xcode")]
+        [MenuItem("MannLab/Stop & Snow/Build iOS Crashlytics Test Xcode")]
         public static void BuildCrashlyticsTest()
         {
             BuildIos(CrashlyticsTestOutputPath, true);
         }
 
-        [MenuItem("MannLab/Gather & Shot/Build iOS AdMob Test Xcode")]
+        [MenuItem("MannLab/Stop & Snow/Build iOS AdMob Test Xcode")]
         public static void BuildAdMobTest()
         {
             BuildIos(AdMobTestOutputPath, false, true);
@@ -63,7 +64,7 @@ namespace MannLab.Games.GatherAndShot.EditorTools
             EditorUserBuildSettings.allowDebugging = developmentBuild;
 
             PlayerSettings.companyName = "Mann Lab";
-            PlayerSettings.productName = "Gather & Shot";
+            PlayerSettings.productName = DisplayName;
             PlayerSettings.bundleVersion = GetMarketingVersion();
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleIdentifier);
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
@@ -278,6 +279,8 @@ namespace MannLab.Games.GatherAndShot.EditorTools
                 plist.root.SetBoolean("GADIsAdManagerApp", false);
             }
 
+            plist.root.SetString("CFBundleDisplayName", DisplayName);
+            plist.root.SetString("CFBundleName", DisplayName);
             plist.WriteToFile(plistPath);
         }
 

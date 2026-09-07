@@ -21,7 +21,7 @@ namespace MannLab.Games.GatherAndShot.EditorTools
             camera.orthographic = true;
             camera.orthographicSize = 6.6f;
 
-            new GameObject("Gather & Shot Game", typeof(GatherAndShotController));
+            new GameObject("Stop & Snow Game", typeof(GatherAndShotController));
 
             Directory.CreateDirectory("Assets/_Project/Scenes");
             EditorSceneManager.SaveScene(scene, "Assets/_Project/Scenes/Game.unity");
@@ -32,7 +32,7 @@ namespace MannLab.Games.GatherAndShot.EditorTools
             };
 
             PlayerSettings.companyName = "Mann Lab";
-            PlayerSettings.productName = "Gather & Shot";
+            PlayerSettings.productName = "Stop & Snow";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.mannlab.games.gatherandshot");
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, "com.mannlab.games.gatherandshot");
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;

@@ -20,6 +20,7 @@ namespace MannLab.Games.GatherAndShot
         Snowball,
         Snowdrift,
         BigSnowdrift,
+        IcySnowdrift,
         WeaponCache
     }
 
@@ -42,6 +43,14 @@ namespace MannLab.Games.GatherAndShot
         SnowBurst
     }
 
+    public enum SnowballBuildStage
+    {
+        None,
+        Small,
+        Packed,
+        Giant
+    }
+
     public enum RewardedOfferKind
     {
         DoubleSnowCoin,
@@ -57,6 +66,15 @@ namespace MannLab.Games.GatherAndShot
         CollectBigSnowdrift,
         SurviveRunnerWave,
         DefeatHeavy
+    }
+
+    public enum SnowZoneKind
+    {
+        FrostYard,
+        SnowPatchField,
+        RedScarfLane,
+        HeavySnowbank,
+        BlizzardGate
     }
 
     public enum RunEndReason
@@ -82,10 +100,13 @@ namespace MannLab.Games.GatherAndShot
         public const float SpeedRampSeconds = 210f;
         public const float StationaryGatherDelaySeconds = 0.18f;
         public const int StationaryGatherAmmo = 1;
-        public const int MaxLivePickups = 4;
+        public const int MaxLivePickups = 5;
         public const int FirstMiniGoalKills = 5;
         public const float FirstMiniGoalSurvivalSeconds = 30f;
         public const float FirstFreeUpgradeSeconds = 52f;
+        public const float SmallSnowballBuildSeconds = 0.25f;
+        public const float PackedSnowballBuildSeconds = 1.05f;
+        public const float GiantSnowballBuildSeconds = 2.25f;
 
         public static float PlayerSpeed(float elapsedSeconds)
         {
@@ -156,6 +177,48 @@ namespace MannLab.Games.GatherAndShot
             return Math.Max(0.32f, timeRamp * upgradeMultiplier);
         }
 
+        public static float SnowballBuildSeconds(SnowballBuildStage stage, int gatherSpeedLevel, int packedCoreLevel)
+        {
+            var baseSeconds = stage == SnowballBuildStage.Giant
+                ? GiantSnowballBuildSeconds
+                : stage == SnowballBuildStage.Packed
+                    ? PackedSnowballBuildSeconds
+                    : SmallSnowballBuildSeconds;
+            var gatherMultiplier = 1f - Math.Min(0.32f, Math.Max(0, gatherSpeedLevel) * 0.055f);
+            var coreMultiplier = stage == SnowballBuildStage.Small
+                ? 1f
+                : 1f - Math.Min(0.18f, Math.Max(0, packedCoreLevel) * 0.04f);
+            return Math.Max(0.18f, baseSeconds * gatherMultiplier * coreMultiplier);
+        }
+
+        public static int SnowballBuildDamageBonus(SnowballBuildStage stage)
+        {
+            switch (stage)
+            {
+                case SnowballBuildStage.Giant:
+                    return 2;
+                case SnowballBuildStage.Packed:
+                    return 1;
+                default:
+                    return 0;
+            }
+        }
+
+        public static string SnowballBuildName(SnowballBuildStage stage)
+        {
+            switch (stage)
+            {
+                case SnowballBuildStage.Giant:
+                    return "Giant";
+                case SnowballBuildStage.Packed:
+                    return "Packed";
+                case SnowballBuildStage.Small:
+                    return "Small";
+                default:
+                    return "None";
+            }
+        }
+
         public static int StartingHealth(EnemyKind kind)
         {
             return kind == EnemyKind.Heavy ? 4 : 1;
@@ -185,6 +248,8 @@ namespace MannLab.Games.GatherAndShot
             {
                 case PickupKind.BigSnowdrift:
                     return 6;
+                case PickupKind.IcySnowdrift:
+                    return 5;
                 case PickupKind.Snowdrift:
                     return 4;
                 case PickupKind.WeaponCache:
@@ -200,6 +265,12 @@ namespace MannLab.Games.GatherAndShot
                 || string.Equals(pickupKind, "BigDrift", StringComparison.Ordinal))
             {
                 return PickupAmmo(PickupKind.BigSnowdrift);
+            }
+
+            if (string.Equals(pickupKind, "IcySnowdrift", StringComparison.Ordinal)
+                || string.Equals(pickupKind, "IcyDrift", StringComparison.Ordinal))
+            {
+                return PickupAmmo(PickupKind.IcySnowdrift);
             }
 
             if (string.Equals(pickupKind, "WeaponCache", StringComparison.Ordinal)
@@ -221,8 +292,75 @@ namespace MannLab.Games.GatherAndShot
 
         public static float PickupRadius(PickupKind kind, int coinMagnetLevel)
         {
-            var baseRadius = kind == PickupKind.BigSnowdrift ? 0.72f : kind == PickupKind.WeaponCache ? 0.66f : BasePickupRadius;
+            var baseRadius = kind == PickupKind.BigSnowdrift ? 0.88f : kind == PickupKind.IcySnowdrift ? 0.80f : kind == PickupKind.WeaponCache ? 0.66f : BasePickupRadius;
             return baseRadius + Math.Max(0, coinMagnetLevel) * 0.16f;
+        }
+
+        public static bool IsSnowResource(PickupKind kind)
+        {
+            return kind == PickupKind.Snowdrift
+                || kind == PickupKind.BigSnowdrift
+                || kind == PickupKind.IcySnowdrift;
+        }
+
+        public static int SnowResourceCapacity(PickupKind kind)
+        {
+            switch (kind)
+            {
+                case PickupKind.BigSnowdrift:
+                    return 7;
+                case PickupKind.IcySnowdrift:
+                    return 5;
+                case PickupKind.Snowdrift:
+                    return 3;
+                default:
+                    return 0;
+            }
+        }
+
+        public static int SnowResourceGatherAmmo(PickupKind kind)
+        {
+            switch (kind)
+            {
+                case PickupKind.BigSnowdrift:
+                    return 2;
+                case PickupKind.IcySnowdrift:
+                    return 2;
+                case PickupKind.Snowdrift:
+                    return 1;
+                default:
+                    return StationaryGatherAmmo;
+            }
+        }
+
+        public static float SnowResourceGatherMultiplier(PickupKind kind)
+        {
+            switch (kind)
+            {
+                case PickupKind.BigSnowdrift:
+                    return 0.55f;
+                case PickupKind.IcySnowdrift:
+                    return 0.68f;
+                case PickupKind.Snowdrift:
+                    return 0.72f;
+                default:
+                    return 1f;
+            }
+        }
+
+        public static int SnowResourceCoinReward(PickupKind kind)
+        {
+            switch (kind)
+            {
+                case PickupKind.BigSnowdrift:
+                    return 9;
+                case PickupKind.IcySnowdrift:
+                    return 7;
+                case PickupKind.Snowdrift:
+                    return 4;
+                default:
+                    return 0;
+            }
         }
 
         public static PickupKind RollPickupKind(Random random, float elapsedSeconds)
@@ -234,6 +372,7 @@ namespace MannLab.Games.GatherAndShot
 
             var t = Saturate(elapsedSeconds / SpawnRampSeconds);
             var cacheChance = elapsedSeconds < 45f ? 0.02d : 0.09d + 0.04d * t;
+            var icyChance = elapsedSeconds < 36f ? 0.00d : 0.09d + 0.04d * t;
             var bigChance = elapsedSeconds < 12f ? 0.08d : 0.16d + 0.06d * t;
             var driftChance = 0.34d + 0.08d * t;
             var roll = random.NextDouble();
@@ -243,12 +382,17 @@ namespace MannLab.Games.GatherAndShot
                 return PickupKind.WeaponCache;
             }
 
-            if (roll < cacheChance + bigChance)
+            if (roll < cacheChance + icyChance)
+            {
+                return PickupKind.IcySnowdrift;
+            }
+
+            if (roll < cacheChance + icyChance + bigChance)
             {
                 return PickupKind.BigSnowdrift;
             }
 
-            return roll < cacheChance + bigChance + driftChance ? PickupKind.Snowdrift : PickupKind.Snowball;
+            return roll < cacheChance + icyChance + bigChance + driftChance ? PickupKind.Snowdrift : PickupKind.Snowball;
         }
 
         public static EnemyKind RollEnemyKind(Random random, float elapsedSeconds)
@@ -346,17 +490,17 @@ namespace MannLab.Games.GatherAndShot
             switch (kind)
             {
                 case UpgradeKind.AmmoCapacity:
-                    return "Ammo Capacity";
+                    return "Snow Pouch";
                 case UpgradeKind.GatherSpeed:
-                    return "Gather Speed";
+                    return "Wool Gloves";
                 case UpgradeKind.ThrowRate:
-                    return "Throw Rate";
+                    return "Throw Mitts";
                 case UpgradeKind.SnowballDamage:
-                    return "Snowball Damage";
+                    return "Packed Core";
                 case UpgradeKind.WarmCoat:
                     return "Warm Coat";
                 case UpgradeKind.CoinMagnet:
-                    return "Coin Magnet";
+                    return "Magnet Charm";
                 default:
                     return kind.ToString();
             }

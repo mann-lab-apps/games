@@ -77,12 +77,12 @@ if [[ -f "$android_json" ]]; then
 fi
 
 if [[ "$failures" -ne 0 ]]; then
-  echo "Gather & Shot Firebase readiness check failed." >&2
+  echo "Stop & Snow Firebase readiness check failed." >&2
   exit 1
 fi
 
 if [[ "$warnings" -ne 0 ]]; then
-  echo "Gather & Shot Firebase code readiness verified; Firebase config files are still needed."
+  echo "Stop & Snow Firebase code readiness verified; Firebase config files are still needed."
 else
-  echo "Gather & Shot Firebase readiness verified."
+  echo "Stop & Snow Firebase readiness verified."
 fi
