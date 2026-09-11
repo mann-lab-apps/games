@@ -1,0 +1,22 @@
+{
+  "name": "MannLab.Games.OnePlusOneMinusOne.Tests",
+  "rootNamespace": "MannLab.Games.OnePlusOneMinusOne.Tests",
+  "references": [
+    "MannLab.Games.OnePlusOneMinusOne"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,0 +1,35 @@
+# 1 = 1 release environment template
+#
+# Copy the needed exports into your local shell or CI secret store. Do not commit
+# a filled version of this file.
+# The placeholder values below intentionally fail strict readiness. Replace every
+# X/replace-me value with real production secrets before release builds.
+
+# Firebase config files must also exist:
+# - Assets/GoogleService-Info.plist
+# - Assets/google-services.json
+
+# iOS
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_APP_ID="ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX"
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_INTERSTITIAL_ID="ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX"
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_MARKETING_VERSION="1.0"
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER="1"
+
+# Android
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_ANDROID_APP_ID="ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX"
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_ANDROID_INTERSTITIAL_ID="ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX"
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_MARKETING_VERSION="1.0"
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_VERSION_CODE="1"
+
+# Android signing
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYSTORE_PATH="/absolute/path/to/release.keystore"
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYSTORE_PASS="replace-me"
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYALIAS_NAME="replace-me"
+export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYALIAS_PASS="replace-me"
+
+# Strict local verification
+export REQUIRE_FIREBASE_CONFIG=1
+export REQUIRE_PRODUCTION_ADMOB_IDS=1
+export REQUIRE_IOS_VERSION_ENV=1
+export REQUIRE_ANDROID_SIGNING_ENV=1
+export REQUIRE_ANDROID_VERSION_ENV=1
