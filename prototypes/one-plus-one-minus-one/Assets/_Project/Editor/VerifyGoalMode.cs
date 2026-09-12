@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using MannLab.Games.OnePlusOneMinusOne;
 using UnityEditor;
+using UnityEngine;
 
 namespace MannLab.Games.OnePlusOneMinusOne.EditorTools
 {
@@ -145,6 +146,7 @@ namespace MannLab.Games.OnePlusOneMinusOne.EditorTools
 
             AssertStartupFlowPlans();
             AssertInterstitialDecisionPlans();
+            AssertStageLayoutPlans();
             AssertRoundSelectLayoutPlans();
         }
 
@@ -215,17 +217,22 @@ namespace MannLab.Games.OnePlusOneMinusOne.EditorTools
         {
             var safeSizes = new[]
             {
-                new[] { 320f, 568f },
-                new[] { 390f, 844f },
-                new[] { 430f, 932f },
-                new[] { 412f, 915f },
-                new[] { 768f, 1024f }
+                new[] { 320f, 568f, 0f },
+                new[] { 390f, 844f, 1f },
+                new[] { 430f, 932f, 1f },
+                new[] { 412f, 915f, 1f },
+                new[] { 640f, 1136f, 1f },
+                new[] { 1170f, 2532f, 1f },
+                new[] { 1290f, 2796f, 1f },
+                new[] { 1133f, 2516f, 1f },
+                new[] { 768f, 1024f, 0f }
             };
 
             for (var i = 0; i < safeSizes.Length; i++)
             {
                 var safeWidth = safeSizes[i][0];
                 var safeHeight = safeSizes[i][1];
+                var expectLift = safeSizes[i][2] > 0f;
                 var plan = OnePlusOneMinusOneController.CalculateRoundSelectLayoutPlan(safeWidth, safeHeight);
                 if (plan.PanelWidth > safeWidth + 0.1f)
                 {
@@ -253,6 +260,96 @@ namespace MannLab.Games.OnePlusOneMinusOne.EditorTools
                 {
                     throw new InvalidOperationException($"Round select grid leaves too little room for title/pager/close at {safeWidth}x{safeHeight}: {plan.GridHeight}");
                 }
+
+                if (expectLift && plan.OffsetY <= 0f)
+                {
+                    throw new InvalidOperationException($"Round select panel did not lift in portrait at {safeWidth}x{safeHeight}.");
+                }
+
+                if (!expectLift && Mathf.Abs(plan.OffsetY) > 0.1f)
+                {
+                    throw new InvalidOperationException($"Round select panel lifted unexpectedly at {safeWidth}x{safeHeight}: {plan.OffsetY}");
+                }
+
+                var panelTopY = (safeHeight - plan.PanelHeight) * 0.5f - plan.OffsetY;
+                if (panelTopY < OnePlusOneMinusOneController.ReleaseRoundSelectTopMargin - 0.1f && safeHeight - plan.PanelHeight >= OnePlusOneMinusOneController.ReleaseRoundSelectTopMargin * 2f)
+                {
+                    throw new InvalidOperationException($"Round select panel violates top margin at {safeWidth}x{safeHeight}: {panelTopY}");
+                }
+
+                if (expectLift && safeHeight >= 1000f && panelTopY / safeHeight > 0.22f)
+                {
+                    throw new InvalidOperationException($"Round select panel starts too low at {safeWidth}x{safeHeight}: {panelTopY / safeHeight:0.000}");
+                }
+
+                var fullPageGridHeight = OnePlusOneMinusOneController.CalculateRoundSelectVisibleGridHeight(plan.CellHeight, plan.Spacing, 12);
+                if (Mathf.Abs(fullPageGridHeight - plan.GridHeight) > 0.1f)
+                {
+                    throw new InvalidOperationException($"Round select full-page grid height drifted at {safeWidth}x{safeHeight}: {fullPageGridHeight} vs {plan.GridHeight}");
+                }
+
+                var lastPageGridHeight = OnePlusOneMinusOneController.CalculateRoundSelectVisibleGridHeight(plan.CellHeight, plan.Spacing, 4);
+                if (lastPageGridHeight >= plan.GridHeight - 0.1f)
+                {
+                    throw new InvalidOperationException($"Round select last page should compact at {safeWidth}x{safeHeight}: {lastPageGridHeight}");
+                }
+            }
+        }
+
+        private static void AssertStageLayoutPlans()
+        {
+            AssertStageLayout(320f, 568f, false);
+            AssertStageLayout(390f, 844f, true);
+            AssertStageLayout(430f, 932f, true);
+            AssertStageLayout(412f, 915f, true);
+            AssertStageLayout(1133f, 2516f, true, 300f);
+            AssertStageLayout(768f, 1024f, false);
+            AssertStageLayout(1440f, 1024f, false);
+        }
+
+        private static void AssertStageLayout(float safeWidth, float safeHeight, bool expectLift, float minLift = 0f)
+        {
+            var plan = OnePlusOneMinusOneController.CalculateStageLayoutPlan(safeWidth, safeHeight);
+            if (plan.Width < 560f || plan.Height < 820f)
+            {
+                throw new InvalidOperationException(
+                    $"Stage is too small at {safeWidth}x{safeHeight}: {plan.Width}x{plan.Height}");
+            }
+
+            if (plan.Width > Math.Max(560f, safeWidth) + 0.1f)
+            {
+                throw new InvalidOperationException(
+                    $"Stage width grows beyond safe width at {safeWidth}x{safeHeight}: {plan.Width}");
+            }
+
+            if (plan.Height > Math.Max(820f, safeHeight) + 0.1f)
+            {
+                throw new InvalidOperationException(
+                    $"Stage height grows beyond safe height at {safeWidth}x{safeHeight}: {plan.Height}");
+            }
+
+            if (expectLift && plan.OffsetY <= 0f)
+            {
+                throw new InvalidOperationException(
+                    $"Tall portrait stage should be lifted at {safeWidth}x{safeHeight}.");
+            }
+
+            if (expectLift && plan.OffsetY < minLift)
+            {
+                throw new InvalidOperationException(
+                    $"Tall portrait stage lift is too small at {safeWidth}x{safeHeight}: {plan.OffsetY}");
+            }
+
+            if (!expectLift && Math.Abs(plan.OffsetY) > 0.1f)
+            {
+                throw new InvalidOperationException(
+                    $"Stage should remain centered at {safeWidth}x{safeHeight}, got offset {plan.OffsetY}.");
+            }
+
+            if (plan.OffsetY > OnePlusOneMinusOneController.ReleaseTallPortraitStageLiftMax + 0.1f)
+            {
+                throw new InvalidOperationException(
+                    $"Stage lift exceeds release cap at {safeWidth}x{safeHeight}: {plan.OffsetY}");
             }
         }
 

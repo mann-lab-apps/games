@@ -15,7 +15,7 @@ devices=(
   "android-20x9:1133:2516"
   "desktop:1440:1024"
 )
-rounds=(1 30 50 75 90 100)
+rounds=(1 5 8 9 16 30 50 75 90 100)
 pages=(1 5 9)
 
 if [[ ! -f "$qa_build/index.html" ]]; then
@@ -29,6 +29,8 @@ newer_source="$(
     "$project/ProjectSettings" \
     "$project/Packages" \
     -type f \
+    ! -path "$project/Assets/_Project/Scenes/Game.unity" \
+    ! -path "$project/ProjectSettings/ProjectSettings.asset" \
     -newer "$qa_build/index.html" \
     | head -1 || true
 )"
@@ -62,6 +64,42 @@ require_png() {
   fi
 }
 
+if [[ -d "$round_capture_root" ]]; then
+  while IFS= read -r candidate; do
+    candidate_name="$(basename "$candidate")"
+    expected=0
+    for round in "${rounds[@]}"; do
+      if [[ "$candidate_name" == "round-$round" ]]; then
+        expected=1
+        break
+      fi
+    done
+
+    if [[ "$expected" -eq 0 ]]; then
+      echo "Unexpected stale QA round capture directory: $candidate" >&2
+      failures=1
+    fi
+  done < <(find "$round_capture_root" -mindepth 1 -maxdepth 1 -type d -name 'round-*' | sort)
+fi
+
+if [[ -d "$round_select_root" ]]; then
+  while IFS= read -r candidate; do
+    candidate_name="$(basename "$candidate")"
+    expected=0
+    for page in "${pages[@]}"; do
+      if [[ "$candidate_name" == "page-$page" ]]; then
+        expected=1
+        break
+      fi
+    done
+
+    if [[ "$expected" -eq 0 ]]; then
+      echo "Unexpected stale round-select capture directory: $candidate" >&2
+      failures=1
+    fi
+  done < <(find "$round_select_root" -mindepth 1 -maxdepth 1 -type d -name 'page-*' | sort)
+fi
+
 for round in "${rounds[@]}"; do
   for device in "${devices[@]}"; do
     IFS=":" read -r name width height <<< "$device"
@@ -80,6 +118,8 @@ if [[ "$failures" -ne 0 ]]; then
   echo "1 = 1 QA capture verification failed." >&2
   exit 1
 fi
+
+"$repo_root/scripts/verify-one-plus-one-minus-one-png-visuals.mjs" --qa
 
 echo "1 = 1 QA captures verified:"
 echo "- rounds: $round_capture_root"

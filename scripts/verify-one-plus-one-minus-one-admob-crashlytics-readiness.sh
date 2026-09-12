@@ -133,6 +133,29 @@ warn_or_fail_placeholder_production_admob_env() {
   warnings=1
 }
 
+warn_or_fail_invalid_production_admob_env() {
+  local name="$1"
+  local env_name="$2"
+  local pattern="$3"
+  local value="${!env_name:-}"
+  if [[ -z "$value" || "$value" == *XXXX* || "$value" == *replace* || "$value" == *REPLACE* ]]; then
+    return
+  fi
+
+  if [[ "$value" =~ $pattern ]]; then
+    return
+  fi
+
+  if [[ "${REQUIRE_PRODUCTION_ADMOB_IDS:-0}" == "1" ]]; then
+    echo "Production AdMob env has invalid format: $name ($env_name)" >&2
+    failures=1
+    return
+  fi
+
+  echo "Warning: production AdMob env has invalid format: $name ($env_name)" >&2
+  warnings=1
+}
+
 require_text "$manifest" "\"com.mannlab.firebase-unity-sdk\""
 require_text "$manifest" "\"com.mannlab.admob-core\""
 require_text "$manifest" "\"https://package.openupm.com\""
@@ -199,6 +222,10 @@ warn_or_fail_placeholder_production_admob_env "iOS app ID" "MANNLAB_ONE_PLUS_ONE
 warn_or_fail_placeholder_production_admob_env "Android app ID" "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_ANDROID_APP_ID"
 warn_or_fail_placeholder_production_admob_env "iOS interstitial" "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_INTERSTITIAL_ID"
 warn_or_fail_placeholder_production_admob_env "Android interstitial" "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_ANDROID_INTERSTITIAL_ID"
+warn_or_fail_invalid_production_admob_env "iOS app ID" "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_APP_ID" '^ca-app-pub-[0-9]{16}~[0-9]{10}$'
+warn_or_fail_invalid_production_admob_env "Android app ID" "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_ANDROID_APP_ID" '^ca-app-pub-[0-9]{16}~[0-9]{10}$'
+warn_or_fail_invalid_production_admob_env "iOS interstitial" "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_INTERSTITIAL_ID" '^ca-app-pub-[0-9]{16}/[0-9]{10}$'
+warn_or_fail_invalid_production_admob_env "Android interstitial" "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_ANDROID_INTERSTITIAL_ID" '^ca-app-pub-[0-9]{16}/[0-9]{10}$'
 
 if [[ -f "$firebase_plist" ]]; then
   require_text "$firebase_plist" "<string>com.mannlab.games.oneplusoneminusone</string>"

@@ -41,13 +41,14 @@ puzzle,math,logic,equation,numbers,sticks,brain,casual,minimal
 
 ## Screenshot Plan
 
-1. Round 1: first `1` stick friend.
-2. Round 5 or 9: multiply discovery with crossed sticks.
-3. Round 8: `111` discovery.
-4. Round 30: medium expression.
-5. Round 75: equality puzzle.
-6. Round 100: finale expression.
-7. Round select: 100-round progression with locked/open states.
+1. `01-round-1-first-stick`: Round 1 first `1` stick friend.
+2. `02-round-5-cross-multiply`: Round 5 multiply discovery.
+3. `03-round-8-triple-one`: Round 8 `111` discovery.
+4. `04-round-9-star-multiply`: Round 9 star multiply discovery.
+5. `05-round-30-medium-expression`: Round 30 medium expression.
+6. `06-round-75-equality-puzzle`: Round 75 equality puzzle.
+7. `07-round-100-finale`: Round 100 finale expression.
+8. `08-round-select-progression`: Round select progression with locked/open states.
 
 ## Review Notes Draft
 

@@ -210,9 +210,26 @@ html, body {
 
             var html = File.ReadAllText(indexPath);
             html = Regex.Replace(html, "<title>.*?</title>", $"<title>{ProductName}</title>", RegexOptions.IgnoreCase);
+            html = EnsureHeadTag(
+                html,
+                "name=\"description\"",
+                "    <meta name=\"description\" content=\"A tiny stick-friend equation puzzle about making 1 equal 1.\">");
+            html = EnsureHeadTag(html, "name=\"application-name\"", $"    <meta name=\"application-name\" content=\"{ProductName}\">");
+            html = EnsureHeadTag(html, "name=\"apple-mobile-web-app-title\"", $"    <meta name=\"apple-mobile-web-app-title\" content=\"{ProductName}\">");
+            html = EnsureHeadTag(html, "name=\"theme-color\"", "    <meta name=\"theme-color\" content=\"#fffffc\">");
             html = Regex.Replace(html, "<div id=\"unity-build-title\">.*?</div>", $"<div id=\"unity-build-title\">{ProductName}</div>", RegexOptions.IgnoreCase);
             html = Regex.Replace(html, "productName: \".*?\",", $"productName: \"{ProductName}\",");
             File.WriteAllText(indexPath, html);
+        }
+
+        private static string EnsureHeadTag(string html, string marker, string tag)
+        {
+            if (html.Contains(marker))
+            {
+                return html;
+            }
+
+            return Regex.Replace(html, "</head>", $"{tag}\n</head>", RegexOptions.IgnoreCase);
         }
 
         private static void PatchPageIcon(string outputPath)
@@ -227,16 +244,8 @@ html, body {
             File.Copy(IconAssetPath, Path.Combine(outputPath, iconFileName), true);
 
             var html = File.ReadAllText(indexPath);
-            if (html.Contains($"href=\"{iconFileName}\""))
-            {
-                return;
-            }
-
-            html = Regex.Replace(
-                html,
-                "</head>",
-                $"  <link rel=\"icon\" type=\"image/png\" href=\"{iconFileName}\">\n</head>",
-                RegexOptions.IgnoreCase);
+            html = EnsureHeadTag(html, $"rel=\"icon\" type=\"image/png\" href=\"{iconFileName}\"", $"    <link rel=\"icon\" type=\"image/png\" href=\"{iconFileName}\">");
+            html = EnsureHeadTag(html, $"rel=\"apple-touch-icon\" href=\"{iconFileName}\"", $"    <link rel=\"apple-touch-icon\" href=\"{iconFileName}\">");
             File.WriteAllText(indexPath, html);
         }
     }

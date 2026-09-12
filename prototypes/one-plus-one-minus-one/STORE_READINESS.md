@@ -44,12 +44,16 @@ Current completion judgment is tracked in
 - Icon verification:
   - `./scripts/verify-one-plus-one-minus-one-icon.sh`
   - Source icon and WebGL favicon must be 1024x1024 PNGs without alpha.
+  - Small-icon visual checks downscale to 180, 120, 64, and 32 px to catch
+    icons whose `1 = 1` content becomes too faint, too dense, or too narrow at
+    launcher sizes.
 - iOS marketing icon after export:
   - `Builds/iOS/Xcode/Unity-iPhone/Images.xcassets/AppIcon.appiconset/Icon-AppStore-1024.png`
 - Screenshot checklist:
   - Round 1 first-play screen
   - Round 5 multiply discovery
-  - Round 8 or 9 three-stick discovery
+  - Round 8 `111` discovery
+  - Round 9 star multiply discovery
   - Round 30 medium expression
   - Round 75 equation puzzle
   - Round 100 finale expression
@@ -59,10 +63,19 @@ Current completion judgment is tracked in
   - `./scripts/capture-one-plus-one-minus-one-app-store-candidates.sh`
   - `./scripts/verify-one-plus-one-minus-one-app-store-candidates.sh`
   - Output: `Builds/AppStoreScreenshots/Candidates`
+  - Candidate set includes Round 1, 5, 8, 9, 30, 75, 100, and round select.
+  - The capture script recreates managed `??-*` candidate folders so old
+    numbered screenshots do not remain beside the current submission set.
   - Candidate verification fails if screenshots are older than the current
-    store-capture build or if project source is newer than that build.
+    store-capture build, if project source is newer than that build, or if
+    unexpected stale managed candidate folders are present.
+  - Candidate verification also runs PNG visual checks for dimensions, alpha,
+    blank/dark content, and mobile content-start position.
 - Full visual QA refresh command after Unity license activation:
   - `./scripts/refresh-one-plus-one-minus-one-visual-qa.sh`
+  - Default QA round/page capture commands recreate their managed `round-*` and
+    `page-*` folders, and verification rejects unexpected stale managed capture
+    directories so old visual evidence is not mistaken for the current set.
 
 ## Manual Device QA
 
@@ -162,7 +175,8 @@ Current code-side polish pass covers:
   Android 20:9, and desktop screenshots through
   `scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs`.
 - A development-only WebGL QA build can open target rounds through `qaRound`
-  query parameters, then capture Round 1, 30, 50, 75, 90, and 100 with
+  query parameters, then capture Rounds 1, 5, 8, 9, 16, 30, 50, 75, 90, and
+  100 with
   `scripts/capture-one-plus-one-minus-one-webgl-qa-rounds.sh`.
 
 Current external blockers before calling this commercially ready:
@@ -173,7 +187,7 @@ Current external blockers before calling this commercially ready:
   Crashlytics verification.
 - Production AdMob app/ad unit IDs must be provided through
   `RELEASE_ENV.example` env vars during store builds. Strict readiness rejects
-  missing values, Google test IDs, and copied placeholder IDs.
+  missing values, malformed values, Google test IDs, and copied placeholder IDs.
 - Android release signing env vars are required before Play Store AAB builds.
 - iOS and Android fresh release exports still need to run after production
   config values are present.
@@ -215,6 +229,16 @@ Current external blockers before calling this commercially ready:
 - Production interstitial ad unit IDs must not be blank.
 - Production interstitial ad unit IDs must not be placeholders copied from
   `RELEASE_ENV.example`.
+- Production AdMob app IDs must look like
+  `ca-app-pub-0000000000000000~0000000000`.
+- Production interstitial ad unit IDs must look like
+  `ca-app-pub-0000000000000000/0000000000`.
+- Before heavier platform builds, run the no-Unity external config preflight:
+  - `./scripts/verify-one-plus-one-minus-one-release-env.sh`
+  - `./scripts/verify-one-plus-one-minus-one-release-env.sh --strict`
+  - `REQUIRE_ONE_EQUALS_ONE_RELEASE_ENV=1 ./scripts/verify-one-plus-one-minus-one-release-env.sh`
+  - Normal mode may pass with warnings while production files are missing.
+  - Strict mode must pass before store submission.
 
 ## Firebase / Crashlytics QA
 
@@ -244,9 +268,12 @@ Run from the repository root.
 ```sh
 ./scripts/verify-one-plus-one-minus-one-webgl.sh
 ./scripts/verify-one-plus-one-minus-one-admob-crashlytics-readiness.sh
+./scripts/verify-one-plus-one-minus-one-release-env.sh
+./scripts/verify-one-plus-one-minus-one-device-qa-signoff.sh
 ./scripts/verify-one-plus-one-minus-one-ios-readiness.sh admob-test
 ./scripts/verify-one-plus-one-minus-one-android-readiness.sh admob-test
 ./scripts/verify-one-plus-one-minus-one-icon.sh
+./scripts/verify-one-plus-one-minus-one-icon-visuals.mjs
 ./scripts/verify-one-plus-one-minus-one-character-policy.sh
 ./scripts/verify-one-plus-one-minus-one-release-safety.mjs
 ./scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs
@@ -257,8 +284,18 @@ Run from the repository root.
 ./scripts/verify-one-plus-one-minus-one-qa-captures.sh
 ./scripts/capture-one-plus-one-minus-one-app-store-candidates.sh
 ./scripts/verify-one-plus-one-minus-one-app-store-candidates.sh
+./scripts/verify-one-plus-one-minus-one-png-visuals.mjs --all
 ./scripts/refresh-one-plus-one-minus-one-visual-qa.sh
 ```
+
+The store metadata verifier checks required copy blocks, conservative local
+length budgets, keyword formatting, privacy/ad disclosure text, release-env
+preflight notes, and screenshot slug alignment with the candidate capture
+script.
+
+The device QA signoff preflight is intentionally separate from visual capture
+verification. It should pass with warnings during development and must pass with
+`--strict` before calling the game store-ready.
 
 Final commercial-completion gate:
 
@@ -266,8 +303,9 @@ Final commercial-completion gate:
 ./scripts/verify-one-plus-one-minus-one-ship-ready.sh
 ```
 
-This gate should fail until all fresh builds, Firebase/AdMob production settings,
-Android signing, icon freshness, and viewport smoke checks are satisfied.
+This gate should fail until all fresh builds, QA captures, App Store candidates,
+Firebase/AdMob production settings, Android signing, icon checks, and viewport
+smoke checks are satisfied.
 
 Strict release readiness should fail until real Firebase and AdMob values are
 present:

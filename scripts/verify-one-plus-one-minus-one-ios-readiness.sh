@@ -73,6 +73,37 @@ warn_or_fail_placeholder() {
   warn_or_fail "$message" "${REQUIRE_PRODUCTION_ADMOB_IDS:-0}"
 }
 
+warn_or_fail_invalid_admob_id() {
+  local message="$1"
+  local value="$2"
+  local pattern="$3"
+  if [[ -z "$value" || "$value" == *XXXX* || "$value" == *replace* || "$value" == *REPLACE* ]]; then
+    return
+  fi
+
+  if [[ "$value" =~ $pattern ]]; then
+    return
+  fi
+
+  warn_or_fail "$message" "${REQUIRE_PRODUCTION_ADMOB_IDS:-0}"
+}
+
+warn_or_fail_invalid_env_format() {
+  local message="$1"
+  local value="$2"
+  local pattern="$3"
+  local strict="$4"
+  if [[ -z "$value" ]]; then
+    return
+  fi
+
+  if [[ "$value" =~ $pattern ]]; then
+    return
+  fi
+
+  warn_or_fail "$message" "$strict"
+}
+
 require_file() {
   local path="$1"
   if [[ ! -f "$path" ]]; then
@@ -133,6 +164,7 @@ if [[ "$mode" != "admob-test" ]]; then
     warn_or_fail "Production iOS AdMob App ID is still Google's test app ID." "${REQUIRE_PRODUCTION_ADMOB_IDS:-0}"
   fi
   warn_or_fail_placeholder "Production iOS AdMob App ID is a placeholder." "$expected_gad_app_id"
+  warn_or_fail_invalid_admob_id "Production iOS AdMob App ID has invalid format." "$expected_gad_app_id" '^ca-app-pub-[0-9]{16}~[0-9]{10}$'
 
   if [[ -z "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_INTERSTITIAL_ID:-}" ]]; then
     warn_or_fail "Production iOS interstitial ad unit env is not set." "${REQUIRE_PRODUCTION_ADMOB_IDS:-0}"
@@ -140,15 +172,28 @@ if [[ "$mode" != "admob-test" ]]; then
     warn_or_fail "Production iOS interstitial ad unit env uses Google's test ID." "${REQUIRE_PRODUCTION_ADMOB_IDS:-0}"
   else
     warn_or_fail_placeholder "Production iOS interstitial ad unit env is a placeholder." "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_INTERSTITIAL_ID:-}"
+    warn_or_fail_invalid_admob_id "Production iOS interstitial ad unit env has invalid format." "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_INTERSTITIAL_ID:-}" '^ca-app-pub-[0-9]{16}/[0-9]{10}$'
   fi
 fi
 
 if [[ -z "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_MARKETING_VERSION:-}" ]]; then
   warn_or_fail "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_MARKETING_VERSION is not set." "${REQUIRE_IOS_VERSION_ENV:-0}"
+else
+  warn_or_fail_invalid_env_format \
+    "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_MARKETING_VERSION should look like 1.0 or 1.0.0." \
+    "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_MARKETING_VERSION:-}" \
+    '^[0-9]+([.][0-9]+){1,2}$' \
+    "${REQUIRE_IOS_VERSION_ENV:-0}"
 fi
 
 if [[ -z "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER:-}" ]]; then
   warn_or_fail "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER is not set." "${REQUIRE_IOS_VERSION_ENV:-0}"
+else
+  warn_or_fail_invalid_env_format \
+    "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER should be a positive integer." \
+    "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER:-}" \
+    '^[1-9][0-9]*$' \
+    "${REQUIRE_IOS_VERSION_ENV:-0}"
 fi
 
 if [[ "$missing" -ne 0 ]]; then

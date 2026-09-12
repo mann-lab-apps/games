@@ -85,6 +85,11 @@ require_file "$build_output/Build/one-plus-one-minus-one.wasm"
 require_text "$build_output/index.html" "<title>1 = 1</title>"
 require_text "$build_output/index.html" "app-icon.png"
 require_text "$build_output/index.html" "buildVersion"
+require_text "$build_output/index.html" "name=\"description\""
+require_text "$build_output/index.html" "name=\"application-name\" content=\"1 = 1\""
+require_text "$build_output/index.html" "name=\"apple-mobile-web-app-title\" content=\"1 = 1\""
+require_text "$build_output/index.html" "name=\"theme-color\" content=\"#fffffc\""
+require_text "$build_output/index.html" "rel=\"apple-touch-icon\" href=\"app-icon.png\""
 
 if command -v sips >/dev/null 2>&1; then
   width="$(sips -g pixelWidth "$build_output/app-icon.png" 2>/dev/null | awk '/pixelWidth/ {print $2}')"
@@ -94,6 +99,8 @@ if command -v sips >/dev/null 2>&1; then
     missing=1
   fi
 fi
+
+"$repo_root/scripts/verify-one-plus-one-minus-one-icon.sh"
 
 if [[ "$missing" -ne 0 ]]; then
   echo "1 = 1 WebGL smoke failed." >&2

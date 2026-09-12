@@ -9,6 +9,14 @@
 # - Assets/GoogleService-Info.plist
 # - Assets/google-services.json
 
+# AdMob IDs must use production formats:
+# - App ID: ca-app-pub-0000000000000000~0000000000
+# - Interstitial ad unit ID: ca-app-pub-0000000000000000/0000000000
+# Version envs are validated before release builds:
+# - Marketing version: 1.0 or 1.0.0
+# - Build/version code: positive integer
+# - Android keystore path: absolute path to an existing file
+
 # iOS
 export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_APP_ID="ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX"
 export MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_INTERSTITIAL_ID="ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX"
@@ -33,3 +41,6 @@ export REQUIRE_PRODUCTION_ADMOB_IDS=1
 export REQUIRE_IOS_VERSION_ENV=1
 export REQUIRE_ANDROID_SIGNING_ENV=1
 export REQUIRE_ANDROID_VERSION_ENV=1
+
+# One-switch strict mode for scripts/verify-one-plus-one-minus-one-release-env.sh
+export REQUIRE_ONE_EQUALS_ONE_RELEASE_ENV=1

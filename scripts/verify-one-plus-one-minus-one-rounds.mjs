@@ -63,6 +63,11 @@ const releaseMinRoundSelectPanelWidth = 260;
 const releaseMinRoundSelectPanelHeight = 420;
 const releaseMinRoundSelectCellWidth = 88;
 const releaseMinRoundSelectCellHeight = 58;
+const releaseTallPortraitStageLiftRatio = 0.42;
+const releaseTallPortraitStageLiftMax = 320;
+const releaseRoundSelectPortraitLiftRatio = 0.45;
+const releaseRoundSelectPortraitLiftMax = 460;
+const releaseRoundSelectTopMargin = 24;
 const narrowPortraitWidth = 488;
 
 const rounds = extractRounds(source);
@@ -88,6 +93,7 @@ assert(controllerSource.includes("CalculateStartupFlowPlan"), "Startup flow shou
 assert(controllerSource.includes("CalculateInterstitialDecision"), "Interstitial cadence should stay centralized and verifiable.");
 assertStartupFlowPlans();
 assertInterstitialDecisionPlans();
+assertStageLayouts();
 assertRoundSelectLayouts();
 
 rounds.forEach((round, index) => {
@@ -383,14 +389,18 @@ function assertEquationLayouts(roundNumber, slotCount, usesFixedTarget) {
 
 function assertRoundSelectLayouts() {
   const safeSizes = [
-    [320, 568],
-    [390, 844],
-    [430, 932],
-    [412, 915],
-    [768, 1024],
+    [320, 568, false],
+    [390, 844, true],
+    [430, 932, true],
+    [412, 915, true],
+    [640, 1136, true],
+    [1170, 2532, true],
+    [1290, 2796, true],
+    [1133, 2516, true],
+    [768, 1024, false],
   ];
 
-  for (const [safeWidth, safeHeight] of safeSizes) {
+  for (const [safeWidth, safeHeight, expectLift] of safeSizes) {
     const layout = calculateRoundSelectLayout(safeWidth, safeHeight);
     assert(
       layout.panelWidth <= safeWidth + 0.1,
@@ -417,6 +427,69 @@ function assertRoundSelectLayouts() {
     assert(
       layout.gridHeight <= layout.panelHeight - 230 + 0.1,
       `Round select grid leaves too little footer room at ${safeWidth}x${safeHeight}: ${layout.gridHeight}.`,
+    );
+    assert(
+      expectLift ? layout.offsetY > 0 : Math.abs(layout.offsetY) <= 0.1,
+      `Unexpected round select lift at ${safeWidth}x${safeHeight}: ${layout.offsetY}.`,
+    );
+
+    const panelTopY = (safeHeight - layout.panelHeight) * 0.5 - layout.offsetY;
+    if (safeHeight - layout.panelHeight >= releaseRoundSelectTopMargin * 2) {
+      assert(
+        panelTopY >= releaseRoundSelectTopMargin - 0.1,
+        `Round select panel violates top margin at ${safeWidth}x${safeHeight}: ${panelTopY}.`,
+      );
+    }
+
+    if (expectLift && safeHeight >= 1000) {
+      assert(
+        panelTopY / safeHeight <= 0.22,
+        `Round select panel starts too low at ${safeWidth}x${safeHeight}: ${panelTopY / safeHeight}.`,
+      );
+    }
+
+    const fullPageGridHeight = calculateRoundSelectVisibleGridHeight(layout.cellHeight, layout.spacing, 12);
+    assert(
+      Math.abs(fullPageGridHeight - layout.gridHeight) <= 0.1,
+      `Round select full-page grid height drifted at ${safeWidth}x${safeHeight}: ${fullPageGridHeight} vs ${layout.gridHeight}.`,
+    );
+
+    const lastPageGridHeight = calculateRoundSelectVisibleGridHeight(layout.cellHeight, layout.spacing, 4);
+    assert(
+      lastPageGridHeight < layout.gridHeight - 0.1,
+      `Round select last page should compact at ${safeWidth}x${safeHeight}: ${lastPageGridHeight}.`,
+    );
+  }
+}
+
+function assertStageLayouts() {
+  const safeSizes = [
+    ["iphone-se", 320, 568, false],
+    ["iphone-standard", 390, 844, true],
+    ["iphone-large", 430, 932, true],
+    ["android-20x9", 412, 915, true],
+    ["android-20x9-render-target", 1133, 2516, true, 300],
+    ["ipad", 768, 1024, false],
+    ["desktop", 1440, 1024, false],
+  ];
+
+  for (const [name, safeWidth, safeHeight, expectLift, minLift = 0] of safeSizes) {
+    const layout = calculateStageLayout(safeWidth, safeHeight);
+    assert(layout.width >= 560, `Stage width too small at ${name}: ${layout.width}.`);
+    assert(layout.height >= 820, `Stage height too small at ${name}: ${layout.height}.`);
+    assert(layout.width <= Math.max(560, safeWidth) + 0.1, `Stage exceeds safe width at ${name}: ${layout.width}.`);
+    assert(layout.height <= Math.max(820, safeHeight) + 0.1, `Stage exceeds safe height at ${name}: ${layout.height}.`);
+    assert(
+      expectLift ? layout.offsetY > 0 : Math.abs(layout.offsetY) <= 0.1,
+      `Unexpected stage lift at ${name}: ${layout.offsetY}.`,
+    );
+    assert(
+      !expectLift || layout.offsetY >= minLift,
+      `Stage lift too small at ${name}: ${layout.offsetY}.`,
+    );
+    assert(
+      layout.offsetY <= releaseTallPortraitStageLiftMax + 0.1,
+      `Stage lift exceeds cap at ${name}: ${layout.offsetY}.`,
     );
   }
 }
@@ -503,7 +576,44 @@ function calculateRoundSelectLayout(safeWidth, safeHeight) {
   const cellMinHeight = panelHeight < 560 ? releaseMinRoundSelectCellHeight : 68;
   const cellHeight = clamp((availableGridHeight - spacing * 3) / 4, cellMinHeight, 86);
   const gridHeight = cellHeight * 4 + spacing * 3;
-  return { panelWidth, panelHeight, innerPadding, spacing, cellWidth, cellHeight, gridHeight };
+  const portraitRatio = safeHeight / Math.max(1, safeWidth);
+  const spareHeight = Math.max(0, safeHeight - panelHeight);
+  let offsetY = 0;
+  if (portraitRatio >= 1.7 && spareHeight > 0) {
+    const liftByRatio = spareHeight * releaseRoundSelectPortraitLiftRatio;
+    const liftWithTopMargin = Math.max(0, spareHeight * 0.5 - releaseRoundSelectTopMargin);
+    offsetY = Math.min(liftByRatio, liftWithTopMargin, releaseRoundSelectPortraitLiftMax);
+  }
+
+  return { panelWidth, panelHeight, innerPadding, spacing, cellWidth, cellHeight, gridHeight, offsetY };
+}
+
+function calculateRoundSelectVisibleGridHeight(cellHeight, spacing, visibleCount) {
+  visibleCount = clamp(visibleCount, 1, releasePageSize);
+  const rows = Math.ceil(visibleCount / 3);
+  return cellHeight * rows + spacing * Math.max(0, rows - 1);
+}
+
+function calculateStageLayout(safeWidth, safeHeight) {
+  safeWidth = safeWidth > 1 ? safeWidth : 560;
+  safeHeight = safeHeight > 1 ? safeHeight : 840;
+  let width = Math.min(safeWidth - 36, 1040);
+  const portraitHeightLimit = safeHeight > safeWidth ? 1660 : 1120;
+  let height = Math.min(safeHeight - 24, portraitHeightLimit);
+
+  if (safeWidth / Math.max(1, safeHeight) > 0.72) {
+    height = Math.min(safeHeight - 24, 1360);
+    width = Math.min(safeWidth - 56, 1040);
+  }
+
+  const stageWidth = Math.max(560, width);
+  const stageHeight = Math.max(820, height);
+  const tallPortrait = safeHeight / Math.max(1, safeWidth) >= 1.95;
+  const spareHeight = Math.max(0, safeHeight - stageHeight);
+  const offsetY = tallPortrait
+    ? Math.min(spareHeight * releaseTallPortraitStageLiftRatio, releaseTallPortraitStageLiftMax)
+    : 0;
+  return { width: stageWidth, height: stageHeight, offsetY };
 }
 
 function rowSlotCount(slotCount, slotsPerRow, row) {

@@ -34,6 +34,8 @@ check_fresh_webgl_artifact() {
       "$project/ProjectSettings" \
       "$project/Packages" \
       -type f \
+      ! -path "$project/Assets/_Project/Scenes/Game.unity" \
+      ! -path "$project/ProjectSettings/ProjectSettings.asset" \
       -newer "$build_output/index.html" \
       | head -1 || true
   )"
@@ -48,7 +50,10 @@ run_check "fresh WebGL build and smoke" "$repo_root/scripts/verify-one-plus-one-
 run_check "WebGL artifact freshness" check_fresh_webgl_artifact
 run_check "store-ready app icon" "$repo_root/scripts/verify-one-plus-one-minus-one-icon.sh"
 run_check "WebGL viewport smoke" "$repo_root/scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs"
+run_check "QA key-round/page captures" "$repo_root/scripts/verify-one-plus-one-minus-one-qa-captures.sh"
 run_check "App Store candidate screenshots" "$repo_root/scripts/verify-one-plus-one-minus-one-app-store-candidates.sh"
+run_check "strict device QA signoff" "$repo_root/scripts/verify-one-plus-one-minus-one-device-qa-signoff.sh" --strict
+run_check "strict release environment preflight" "$repo_root/scripts/verify-one-plus-one-minus-one-release-env.sh" --strict
 run_check "strict Firebase/AdMob code readiness" env \
   REQUIRE_FIREBASE_CONFIG=1 \
   REQUIRE_PRODUCTION_ADMOB_IDS=1 \

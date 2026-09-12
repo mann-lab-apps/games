@@ -7,7 +7,7 @@ output_root="${ONE_EQUALS_ONE_QA_ROUND_CAPTURE_DIR:-/tmp/one-equals-one-webgl-qa
 if [[ "$#" -gt 0 ]]; then
   rounds=("$@")
 else
-  rounds=(1 30 50 75 90 100)
+  rounds=(1 5 8 9 16 30 50 75 90 100)
 fi
 
 if [[ ! -f "$qa_build/index.html" ]]; then
@@ -16,8 +16,17 @@ if [[ ! -f "$qa_build/index.html" ]]; then
   exit 2
 fi
 
+if [[ "$#" -eq 0 ]]; then
+  mkdir -p "$output_root"
+  find "$output_root" -mindepth 1 -maxdepth 1 -name 'round-*' -exec rm -rf {} +
+fi
+
 for round in "${rounds[@]}"; do
   round_dir="$output_root/round-$round"
+  if [[ "$#" -gt 0 ]]; then
+    rm -rf "$round_dir"
+  fi
+
   echo "Capturing QA Round $round into $round_dir"
   ONE_EQUALS_ONE_WEBGL_BUILD_DIR="$qa_build" \
   ONE_EQUALS_ONE_WEBGL_QUERY="?qaRound=$round&qaUnlocked=100" \

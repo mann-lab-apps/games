@@ -244,9 +244,9 @@ async function smokeDevice(client, appUrl, device) {
     captureBeyondViewport: false,
   });
   const screenshotBytes = Buffer.from(capture.data, "base64");
-  assertScreenshotHasGamePixels(screenshotBytes, device.name);
   const screenshotPath = resolve(screenshotDir, `${device.name}.png`);
   writeFileSync(screenshotPath, screenshotBytes);
+  assertScreenshotHasGamePixels(screenshotBytes, device.name);
   return screenshotPath;
 }
 
@@ -262,6 +262,12 @@ function assertScreenshotHasGamePixels(pngBytes, deviceName) {
 
   if (stats.lightRatio < 0.35) {
     throw new Error(`${deviceName} screenshot looks too dark: light pixel ratio ${stats.lightRatio.toFixed(5)}`);
+  }
+
+  if (/iphone|android/i.test(deviceName) && stats.firstContentYRatio > 0.22) {
+    throw new Error(
+      `${deviceName} screenshot content starts too low: first content y ratio ${stats.firstContentYRatio.toFixed(3)}`,
+    );
   }
 }
 
@@ -311,6 +317,7 @@ function readPngStats(pngBytes) {
   let sourceOffset = 0;
   let dark = 0;
   let light = 0;
+  let firstContentY = null;
   let total = 0;
 
   for (let y = 0; y < height; y++) {
@@ -327,6 +334,9 @@ function readPngStats(pngBytes) {
       const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
       if (luminance < 120) dark++;
       if (luminance > 220) light++;
+      if (luminance < 180 && firstContentY === null) {
+        firstContentY = y;
+      }
       total++;
     }
 
@@ -338,6 +348,7 @@ function readPngStats(pngBytes) {
     height,
     darkRatio: dark / total,
     lightRatio: light / total,
+    firstContentYRatio: (firstContentY ?? height) / height,
   };
 }
 
@@ -408,9 +419,21 @@ async function main() {
       await client.send("Page.enable");
       await client.send("Runtime.enable");
       await client.send("Log.enable");
+      const failures = [];
       for (const device of devices) {
-        const screenshotPath = await smokeDevice(client, appUrl, device);
-        console.log(`${device.name}: ${screenshotPath}`);
+        try {
+          const screenshotPath = await smokeDevice(client, appUrl, device);
+          console.log(`${device.name}: ${screenshotPath}`);
+        } catch (error) {
+          const screenshotPath = resolve(screenshotDir, `${device.name}.png`);
+          const message = error instanceof Error ? error.message : String(error);
+          failures.push(`${device.name}: ${message}`);
+          console.error(`${device.name}: FAIL (${message}); screenshot: ${screenshotPath}`);
+        }
+      }
+
+      if (failures.length > 0) {
+        throw new Error(`Viewport smoke failed:\n- ${failures.join("\n- ")}`);
       }
     } finally {
       client.close();
@@ -432,5 +455,6 @@ try {
     process.exit(2);
   }
 
-  throw error;
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
 }

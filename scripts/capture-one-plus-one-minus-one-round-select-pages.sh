@@ -16,8 +16,17 @@ if [[ ! -f "$qa_build/index.html" ]]; then
   exit 2
 fi
 
+if [[ "$#" -eq 0 ]]; then
+  mkdir -p "$output_root"
+  find "$output_root" -mindepth 1 -maxdepth 1 -name 'page-*' -exec rm -rf {} +
+fi
+
 for page in "${pages[@]}"; do
   page_dir="$output_root/page-$page"
+  if [[ "$#" -gt 0 ]]; then
+    rm -rf "$page_dir"
+  fi
+
   echo "Capturing round-select page $page into $page_dir"
   ONE_EQUALS_ONE_WEBGL_BUILD_DIR="$qa_build" \
   ONE_EQUALS_ONE_WEBGL_QUERY="?qaRounds=1&qaUnlocked=100&qaRoundPage=$page" \

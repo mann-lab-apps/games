@@ -37,6 +37,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
         public const float ReleaseMinRoundSelectPanelHeight = 420f;
         public const float ReleaseMinRoundSelectCellWidth = 88f;
         public const float ReleaseMinRoundSelectCellHeight = 58f;
+        public const float ReleaseTallPortraitStageLiftRatio = 0.42f;
+        public const float ReleaseTallPortraitStageLiftMax = 320f;
+        public const float ReleaseRoundSelectPortraitLiftRatio = 0.45f;
+        public const float ReleaseRoundSelectPortraitLiftMax = 460f;
+        public const float ReleaseRoundSelectTopMargin = 24f;
         public const float ReleaseSfxVolume = 0.24f;
         public const float ReleaseSfxCooldownSeconds = 0.045f;
         public static readonly Vector2 ReleaseNativeReferenceResolution = new Vector2(1080f, 1920f);
@@ -182,6 +187,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             public float CellWidth { get; }
             public float CellHeight { get; }
             public float GridHeight { get; }
+            public float OffsetY { get; }
 
             public RoundSelectLayoutPlan(
                 float panelWidth,
@@ -190,7 +196,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 float spacing,
                 float cellWidth,
                 float cellHeight,
-                float gridHeight)
+                float gridHeight,
+                float offsetY)
             {
                 PanelWidth = panelWidth;
                 PanelHeight = panelHeight;
@@ -199,6 +206,21 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 CellWidth = cellWidth;
                 CellHeight = cellHeight;
                 GridHeight = gridHeight;
+                OffsetY = offsetY;
+            }
+        }
+
+        public readonly struct StageLayoutPlan
+        {
+            public float Width { get; }
+            public float Height { get; }
+            public float OffsetY { get; }
+
+            public StageLayoutPlan(float width, float height, float offsetY)
+            {
+                Width = width;
+                Height = height;
+                OffsetY = offsetY;
             }
         }
 
@@ -412,18 +434,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             UpdateWebGlReferenceResolution();
             var safe = safeRoot.rect;
-            var width = Mathf.Min(safe.width - 36f, 1040f);
-            var portraitHeightLimit = safe.height > safe.width ? 1660f : 1120f;
-            var height = Mathf.Min(safe.height - 24f, portraitHeightLimit);
-
-            if (safe.width / Mathf.Max(1f, safe.height) > 0.72f)
-            {
-                height = Mathf.Min(safe.height - 24f, 1360f);
-                width = Mathf.Min(safe.width - 56f, 1040f);
-            }
-
-            stageRoot.sizeDelta = new Vector2(Mathf.Max(560f, width), Mathf.Max(820f, height));
-            stageRoot.anchoredPosition = Vector2.zero;
+            var plan = CalculateStageLayoutPlan(safe.width, safe.height);
+            stageRoot.sizeDelta = new Vector2(plan.Width, plan.Height);
+            stageRoot.anchoredPosition = new Vector2(0f, plan.OffsetY);
             UpdateRoundSelectLayout(safe);
         }
 
@@ -654,9 +667,26 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             var plan = CalculateRoundSelectLayoutPlan(safe.width, safe.height);
             roundSelectPanel.sizeDelta = new Vector2(plan.PanelWidth, plan.PanelHeight);
+            roundSelectPanel.anchoredPosition = new Vector2(0f, plan.OffsetY);
             roundSelectGrid.spacing = new Vector2(plan.Spacing, plan.Spacing);
             roundSelectGrid.cellSize = new Vector2(plan.CellWidth, plan.CellHeight);
             roundSelectGridLayout.preferredHeight = plan.GridHeight;
+            UpdateRoundSelectGridHeightForPage();
+        }
+
+        private void UpdateRoundSelectGridHeightForPage()
+        {
+            if (roundSelectGrid == null || roundSelectGridLayout == null)
+            {
+                return;
+            }
+
+            var firstRoundOnPage = roundSelectPage * RoundSelectPageSize;
+            var visibleCount = Mathf.Clamp(OnePlusOneMinusOneRules.GoalModeRounds.Length - firstRoundOnPage, 1, RoundSelectPageSize);
+            roundSelectGridLayout.preferredHeight = CalculateRoundSelectVisibleGridHeight(
+                roundSelectGrid.cellSize.y,
+                roundSelectGrid.spacing.y,
+                visibleCount);
         }
 
         private Button CreateRoundButton(Transform parent, int index, string roundName, out Text label)
@@ -779,6 +809,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
             {
                 ApplyCommandButtonState(roundNextButton, roundSelectPage < RoundSelectPageCount() - 1);
             }
+
+            UpdateRoundSelectGridHeightForPage();
         }
 
         private void UnlockNextRound()
@@ -986,6 +1018,16 @@ namespace MannLab.Games.OnePlusOneMinusOne
             var cellMinHeight = panelHeight < 560f ? ReleaseMinRoundSelectCellHeight : 68f;
             var cellHeight = Mathf.Clamp((availableGridHeight - spacing * 3f) / 4f, cellMinHeight, 86f);
             var gridHeight = cellHeight * 4f + spacing * 3f;
+            var portraitRatio = safeHeight / Mathf.Max(1f, safeWidth);
+            var spareHeight = Mathf.Max(0f, safeHeight - panelHeight);
+            var offsetY = 0f;
+            if (portraitRatio >= 1.7f && spareHeight > 0f)
+            {
+                var liftByRatio = spareHeight * ReleaseRoundSelectPortraitLiftRatio;
+                var liftWithTopMargin = Mathf.Max(0f, spareHeight * 0.5f - ReleaseRoundSelectTopMargin);
+                offsetY = Mathf.Min(Mathf.Min(liftByRatio, liftWithTopMargin), ReleaseRoundSelectPortraitLiftMax);
+            }
+
             return new RoundSelectLayoutPlan(
                 panelWidth,
                 panelHeight,
@@ -993,7 +1035,39 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 spacing,
                 cellWidth,
                 cellHeight,
-                gridHeight);
+                gridHeight,
+                offsetY);
+        }
+
+        public static float CalculateRoundSelectVisibleGridHeight(float cellHeight, float spacing, int visibleCount)
+        {
+            visibleCount = Mathf.Clamp(visibleCount, 1, ReleaseRoundSelectPageSize);
+            var rows = Mathf.CeilToInt(visibleCount / 3f);
+            return cellHeight * rows + spacing * Mathf.Max(0, rows - 1);
+        }
+
+        public static StageLayoutPlan CalculateStageLayoutPlan(float safeWidth, float safeHeight)
+        {
+            safeWidth = safeWidth > 1f ? safeWidth : 560f;
+            safeHeight = safeHeight > 1f ? safeHeight : 840f;
+            var width = Mathf.Min(safeWidth - 36f, 1040f);
+            var portraitHeightLimit = safeHeight > safeWidth ? 1660f : 1120f;
+            var height = Mathf.Min(safeHeight - 24f, portraitHeightLimit);
+
+            if (safeWidth / Mathf.Max(1f, safeHeight) > 0.72f)
+            {
+                height = Mathf.Min(safeHeight - 24f, 1360f);
+                width = Mathf.Min(safeWidth - 56f, 1040f);
+            }
+
+            var stageWidth = Mathf.Max(560f, width);
+            var stageHeight = Mathf.Max(820f, height);
+            var tallPortrait = safeHeight / Mathf.Max(1f, safeWidth) >= 1.95f;
+            var spareHeight = Mathf.Max(0f, safeHeight - stageHeight);
+            var offsetY = tallPortrait
+                ? Mathf.Min(spareHeight * ReleaseTallPortraitStageLiftRatio, ReleaseTallPortraitStageLiftMax)
+                : 0f;
+            return new StageLayoutPlan(stageWidth, stageHeight, offsetY);
         }
 
         public static StartupFlowPlan CalculateStartupFlowPlan(int savedHighestUnlockedRoundIndex)
@@ -1160,7 +1234,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             if (slotStickPoses[slotIndex].Count <= 0)
             {
                 feedbackText.color = SketchPalette.MutedInk;
-                feedbackText.text = "Drag a stick here first.";
+                feedbackText.text = "Drop one here.";
                 PlaySfx(SfxCue.Button);
                 StartCoroutine(Bump(slotViews[slotIndex].Root, 0.96f));
                 return;
@@ -1186,7 +1260,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             bankStickPoses[bankIndex] = NextOutsidePose(bankStickPoses[bankIndex]);
             feedbackText.color = SketchPalette.MutedInk;
-            feedbackText.text = "Turned.";
+            feedbackText.text = "Twist.";
             PlaySfx(SfxCue.Rotate);
             RefreshUi();
         }
@@ -1206,7 +1280,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             if (requireBankStick && RemainingSticks() <= 0)
             {
                 feedbackText.color = FailureColor;
-                feedbackText.text = "No sticks left.";
+                feedbackText.text = "All sticks out.";
                 PlaySfx(SfxCue.Fail);
                 StartCoroutine(Bump(slotViews[slotIndex].Root, 0.92f));
                 return false;
@@ -1215,7 +1289,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             if (slotStickPoses[slotIndex].Count >= MaxSticksPerSlot)
             {
                 feedbackText.color = FailureColor;
-                feedbackText.text = "Box holds 3.";
+                feedbackText.text = "Box fits 3.";
                 PlaySfx(SfxCue.Fail);
                 StartCoroutine(Bump(slotViews[slotIndex].Root, 0.92f));
                 return false;
@@ -1240,7 +1314,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             if (sourceSlotIndex == targetSlotIndex)
             {
                 feedbackText.color = SketchPalette.MutedInk;
-                feedbackText.text = "Snapped.";
+                feedbackText.text = "Settled.";
                 PlaySfx(SfxCue.Drop);
                 SetStickPoseFromPointer(sourceSlotIndex, sourceStickIndex, targetPose);
                 return true;
@@ -1255,7 +1329,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             if (slotStickPoses[targetSlotIndex].Count >= MaxSticksPerSlot)
             {
                 feedbackText.color = FailureColor;
-                feedbackText.text = "Box holds 3.";
+                feedbackText.text = "Box fits 3.";
                 PlaySfx(SfxCue.Fail);
                 StartCoroutine(Bump(slotViews[targetSlotIndex].Root, 0.92f));
                 return false;
@@ -1321,7 +1395,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             ResetBankStickPoses();
             feedbackText.color = SketchPalette.MutedInk;
-            feedbackText.text = "Place sticks again.";
+            feedbackText.text = "Try a fresh shape.";
             PlaySfx(SfxCue.Button);
             FirebaseTelemetry.LogEvent("round_reset", RoundParameters());
             RefreshUi();
@@ -2763,7 +2837,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             if (isAdvancing || sourceSlotIndex < 0 && RemainingSticks() <= 0)
             {
                 feedbackText.color = FailureColor;
-                feedbackText.text = "No sticks to drag.";
+                feedbackText.text = "No stick here.";
                 PlaySfx(SfxCue.Fail);
                 return;
             }
@@ -2772,7 +2846,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 (sourceStickIndex < 0 || sourceStickIndex >= slotStickPoses[sourceSlotIndex].Count))
             {
                 feedbackText.color = FailureColor;
-                feedbackText.text = "No stick there.";
+                feedbackText.text = "Empty spot.";
                 PlaySfx(SfxCue.Fail);
                 return;
             }
@@ -2781,7 +2855,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 (sourceStickIndex < 0 || sourceStickIndex >= bankStickPoses.Count))
             {
                 feedbackText.color = FailureColor;
-                feedbackText.text = "No stick there.";
+                feedbackText.text = "Empty spot.";
                 PlaySfx(SfxCue.Fail);
                 return;
             }
@@ -2858,7 +2932,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                     RemoveStickFromSlot(sourceSlotIndex, sourceStickIndex);
                     bankStickPoses.Add(NormalizeOutsidePose(sourcePose));
                     feedbackText.color = SketchPalette.MutedInk;
-                    feedbackText.text = "Back outside. Tap to rotate.";
+                    feedbackText.text = "Back outside. Tap to turn.";
                     PlaySfx(SfxCue.Rotate);
                     RefreshUi();
                     return;

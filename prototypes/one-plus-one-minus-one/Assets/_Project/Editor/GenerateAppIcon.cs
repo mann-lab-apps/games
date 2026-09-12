@@ -29,21 +29,76 @@ namespace MannLab.Games.OnePlusOneMinusOne.EditorTools
 
             var bytes = texture.EncodeToPNG();
             Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
-            File.WriteAllBytes(OutputPath, bytes);
+            var wroteBytes = WriteBytesIfChanged(OutputPath, bytes);
             Object.DestroyImmediate(texture);
 
-            AssetDatabase.ImportAsset(OutputPath, ImportAssetOptions.ForceUpdate);
-            var importer = AssetImporter.GetAtPath(OutputPath) as TextureImporter;
-            if (importer != null)
+            if (wroteBytes)
             {
-                importer.textureType = TextureImporterType.Default;
-                importer.mipmapEnabled = false;
-                importer.alphaSource = TextureImporterAlphaSource.None;
-                importer.isReadable = false;
-                importer.SaveAndReimport();
+                AssetDatabase.ImportAsset(OutputPath, ImportAssetOptions.ForceUpdate);
             }
 
-            AssetDatabase.Refresh();
+            var importer = AssetImporter.GetAtPath(OutputPath) as TextureImporter;
+            var changedImporter = false;
+            if (importer != null)
+            {
+                changedImporter |= SetImporterValue(importer.textureType, TextureImporterType.Default, value => importer.textureType = value);
+                changedImporter |= SetImporterValue(importer.mipmapEnabled, false, value => importer.mipmapEnabled = value);
+                changedImporter |= SetImporterValue(importer.alphaSource, TextureImporterAlphaSource.None, value => importer.alphaSource = value);
+                changedImporter |= SetImporterValue(importer.isReadable, false, value => importer.isReadable = value);
+                if (changedImporter)
+                {
+                    importer.SaveAndReimport();
+                }
+            }
+
+            if (wroteBytes || changedImporter)
+            {
+                AssetDatabase.Refresh();
+            }
+        }
+
+        private static bool WriteBytesIfChanged(string path, byte[] bytes)
+        {
+            if (File.Exists(path))
+            {
+                var existing = File.ReadAllBytes(path);
+                if (BytesEqual(existing, bytes))
+                {
+                    return false;
+                }
+            }
+
+            File.WriteAllBytes(path, bytes);
+            return true;
+        }
+
+        private static bool BytesEqual(byte[] left, byte[] right)
+        {
+            if (left.Length != right.Length)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < left.Length; i++)
+            {
+                if (left[i] != right[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool SetImporterValue<T>(T current, T desired, System.Action<T> setValue)
+        {
+            if (Equals(current, desired))
+            {
+                return false;
+            }
+
+            setValue(desired);
+            return true;
         }
 
         private static void DrawIconBackdrop(Color32[] pixels)

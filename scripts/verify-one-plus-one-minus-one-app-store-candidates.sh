@@ -26,6 +26,8 @@ check_store_capture_build() {
       "$project/ProjectSettings" \
       "$project/Packages" \
       -type f \
+      ! -path "$project/Assets/_Project/Scenes/Game.unity" \
+      ! -path "$project/ProjectSettings/ProjectSettings.asset" \
       -newer "$store_capture_build/index.html" \
       | head -1 || true
   )"
@@ -71,13 +73,32 @@ shots=(
   "01-round-1-first-stick"
   "02-round-5-cross-multiply"
   "03-round-8-triple-one"
-  "04-round-30-medium-expression"
-  "05-round-75-equality-puzzle"
-  "06-round-100-finale"
-  "07-round-select-progression"
+  "04-round-9-star-multiply"
+  "05-round-30-medium-expression"
+  "06-round-75-equality-puzzle"
+  "07-round-100-finale"
+  "08-round-select-progression"
 )
 
 check_store_capture_build
+
+if [[ -d "$candidate_dir" ]]; then
+  while IFS= read -r candidate; do
+    candidate_name="$(basename "$candidate")"
+    expected=0
+    for shot in "${shots[@]}"; do
+      if [[ "$candidate_name" == "$shot" ]]; then
+        expected=1
+        break
+      fi
+    done
+
+    if [[ "$expected" -eq 0 ]]; then
+      echo "Unexpected stale App Store candidate directory: $candidate" >&2
+      failures=1
+    fi
+  done < <(find "$candidate_dir" -mindepth 1 -maxdepth 1 -type d -name '??-*' | sort)
+fi
 
 for shot in "${shots[@]}"; do
   require_png "$candidate_dir/$shot/iphone-6-5.png" 1284 2778
@@ -89,5 +110,7 @@ if [[ "$failures" -ne 0 ]]; then
   echo "1 = 1 App Store candidate screenshot verification failed." >&2
   exit 1
 fi
+
+"$repo_root/scripts/verify-one-plus-one-minus-one-png-visuals.mjs" --app-store
 
 echo "1 = 1 App Store candidate screenshots verified: $candidate_dir"

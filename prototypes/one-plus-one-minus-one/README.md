@@ -79,21 +79,32 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
 - Run `VerifyGoalMode.Run`, `./scripts/verify-one-plus-one-minus-one-webgl.sh`, `./scripts/verify-one-plus-one-minus-one-admob-crashlytics-readiness.sh`, and `./scripts/verify-one-plus-one-minus-one-ios-readiness.sh admob-test` before release.
 - Run `./scripts/verify-one-plus-one-minus-one-android-readiness.sh admob-test` before Android ad QA.
 - Run `./scripts/verify-one-plus-one-minus-one-static.sh` for the no-Unity static suite.
-- Run `./scripts/verify-one-plus-one-minus-one-icon.sh` to verify the source icon and WebGL favicon are 1024x1024 PNGs without alpha channels.
+- Run `./scripts/verify-one-plus-one-minus-one-release-env.sh` for a fast
+  no-Unity preflight of Firebase configs, production AdMob IDs, release version
+  envs, and Android signing envs. Add `REQUIRE_ONE_EQUALS_ONE_RELEASE_ENV=1`
+  or pass `--strict` when you want missing or malformed external settings to
+  fail immediately.
+- Run `./scripts/verify-one-plus-one-minus-one-device-qa-signoff.sh` for a fast
+  no-Unity preflight of the manual device QA tracker. Pass `--strict` before
+  store submission so unfinished touch/audio/privacy rows fail the gate.
+- Run `./scripts/verify-one-plus-one-minus-one-icon.sh` to verify the source icon and WebGL favicon are 1024x1024 PNGs without alpha channels and keep enough contrast at small launcher sizes.
 - Run `./scripts/verify-one-plus-one-minus-one-character-policy.sh` to reject arms, hands, legs, cheeks, blush, or missing symbol face-style hooks.
 - Run `./scripts/verify-one-plus-one-minus-one-release-safety.mjs` to ensure QA URL overrides and Crashlytics test hooks stay out of release-active code.
 - Run `./scripts/verify-one-plus-one-minus-one-store-metadata.sh` to keep store copy, privacy URL, screenshot plan, ads/privacy disclosure, and final upload checklist intact.
+- Run `./scripts/verify-one-plus-one-minus-one-png-visuals.mjs --all` to inspect
+  QA and App Store capture PNGs for dimensions, alpha policy, blank/dark
+  content, and mobile content-start position.
 - Run `./scripts/verify-one-plus-one-minus-one-rounds.mjs` when Unity is unavailable; it statically checks the 100-round data, tutorial scope, title hint policy, and narrow portrait layout plan.
 - Run `./scripts/report-one-plus-one-minus-one-round-quality.mjs --strict` after round edits to review token-band coverage, target spread, and repeated pattern warnings.
 - Run `./scripts/smoke-one-plus-one-minus-one-webgl-build.sh` to verify an existing WebGL artifact without rebuilding it.
 - Run `./scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs` after a fresh WebGL build to capture iPhone SE, standard iPhone, large iPhone, Android 20:9, and desktop viewport smoke screenshots.
-- Run `./scripts/verify-one-plus-one-minus-one-webgl-qa.sh`, then `./scripts/capture-one-plus-one-minus-one-webgl-qa-rounds.sh`, to capture development-only QA round screenshots for Round 1, 30, 50, 75, 90, and 100.
+- Run `./scripts/verify-one-plus-one-minus-one-webgl-qa.sh`, then `./scripts/capture-one-plus-one-minus-one-webgl-qa-rounds.sh`, to capture development-only QA round screenshots for Rounds 1, 5, 8, 9, 16, 30, 50, 75, 90, and 100.
 - Run `./scripts/capture-one-plus-one-minus-one-round-select-pages.sh` to capture round-select pages 1, 5, and 9, or pass page numbers explicitly.
 - Run `./scripts/verify-one-plus-one-minus-one-qa-captures.sh` after QA captures to verify required key-round/page screenshots, viewport dimensions, and QA-build freshness.
 - Run `./scripts/verify-one-plus-one-minus-one-webgl-store-capture.sh`, then `./scripts/capture-one-plus-one-minus-one-app-store-candidates.sh`, to generate watermark-free App Store candidate screenshots from a non-development WebGL capture build.
 - Run `./scripts/verify-one-plus-one-minus-one-app-store-candidates.sh` after capture; it checks required sizes, alpha, store-capture freshness, and rejects stale screenshots.
 - Run `./scripts/refresh-one-plus-one-minus-one-visual-qa.sh` after Unity license activation when both QA captures and App Store candidates need to be regenerated.
-- Run `./scripts/verify-one-plus-one-minus-one-ship-ready.sh` as the final commercial-completion gate; it should fail until fresh builds, real Firebase/AdMob values, signing, icon regeneration, and viewport smoke all pass.
+- Run `./scripts/verify-one-plus-one-minus-one-ship-ready.sh` as the final commercial-completion gate; it should fail until fresh builds, QA captures, App Store candidates, strict release-env preflight, real Firebase/AdMob values, signing, icon checks, and viewport smoke all pass.
 - Use `STORE_READINESS.md` for metadata, device QA, screenshot, Firebase, and AdMob checks.
 - Use `../../docs/one-equals-one-commercial-polish-backlog.md` for the continuous commercial-quality polish loop.
 - Use `../../docs/one-equals-one-device-qa-tracker.md` for fresh-build device and viewport sign-off.

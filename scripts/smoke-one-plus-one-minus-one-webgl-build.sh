@@ -33,6 +33,11 @@ require_file "$build_output/Build/one-plus-one-minus-one.wasm"
 require_text "$build_output/index.html" "<title>1 = 1</title>"
 require_text "$build_output/index.html" "app-icon.png"
 require_text "$build_output/index.html" "buildVersion"
+require_text "$build_output/index.html" "name=\"description\""
+require_text "$build_output/index.html" "name=\"application-name\" content=\"1 = 1\""
+require_text "$build_output/index.html" "name=\"apple-mobile-web-app-title\" content=\"1 = 1\""
+require_text "$build_output/index.html" "name=\"theme-color\" content=\"#fffffc\""
+require_text "$build_output/index.html" "rel=\"apple-touch-icon\" href=\"app-icon.png\""
 
 if [[ -f "$build_output/index.html" ]]; then
   newer_source="$(
@@ -41,6 +46,8 @@ if [[ -f "$build_output/index.html" ]]; then
       "$repo_root/prototypes/one-plus-one-minus-one/ProjectSettings" \
       "$repo_root/prototypes/one-plus-one-minus-one/Packages" \
       -type f \
+      ! -path "$repo_root/prototypes/one-plus-one-minus-one/Assets/_Project/Scenes/Game.unity" \
+      ! -path "$repo_root/prototypes/one-plus-one-minus-one/ProjectSettings/ProjectSettings.asset" \
       -newer "$build_output/index.html" \
       | head -1 || true
   )"

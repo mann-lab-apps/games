@@ -37,14 +37,18 @@ require_icon() {
 require_icon "$icon"
 if [[ -f "$webgl_icon" ]]; then
   require_icon "$webgl_icon"
-fi
-
-if [[ "$generator" -nt "$icon" ]]; then
-  echo "Warning: App icon is older than GenerateAppIcon.cs; regenerate before final store upload." >&2
+  if ! cmp -s "$icon" "$webgl_icon"; then
+    echo "WebGL app icon differs from source icon; rebuild WebGL after regenerating the icon." >&2
+    failures=1
+  fi
 fi
 
 if ! grep -Fq "TextureFormat.RGB24" "$generator"; then
   echo "GenerateAppIcon should create an RGB24 texture so the source PNG has no alpha channel." >&2
+  failures=1
+fi
+
+if ! "$repo_root/scripts/verify-one-plus-one-minus-one-icon-visuals.mjs"; then
   failures=1
 fi
 
@@ -53,4 +57,4 @@ if [[ "$failures" -ne 0 ]]; then
   exit 1
 fi
 
-echo "1 = 1 icon verified without alpha: $icon"
+echo "1 = 1 icon verified without alpha and with small-size visual contrast: $icon"

@@ -46,6 +46,8 @@ The QA capture verifier rejects missing captures, stale captures older than the
 QA build, and screenshots with unexpected viewport dimensions.
 Static round verification also checks expression layout plans at 320, 390, and
 488px widths, including compact 4-row wrapping and slot aspect stability.
+It also checks tall portrait stage placement so 19.5:9-20:9 phone browsers do
+not leave excessive empty space above the game.
 
 For App Store candidate screenshots, use the non-development store-capture
 target instead of the development QA build:
@@ -57,7 +59,8 @@ target instead of the development QA build:
 ```
 
 The candidate verifier rejects stale screenshots when project source is newer
-than the store-capture build or when PNGs are older than that build.
+than the store-capture build, when PNGs are older than that build, or when the
+PNG visual-content check fails.
 
 Latest automated evidence:
 
@@ -66,27 +69,58 @@ Latest automated evidence:
 - Round-select page captures: `/tmp/one-equals-one-round-select-pages`
 - App Store candidate captures:
   `prototypes/one-plus-one-minus-one/Builds/AppStoreScreenshots/Candidates`
-- Confirmed after fresh WebGL builds on 2026-09-11.
-- Visual spot check on 2026-09-11: Round 30, 75, and 100 fit iPhone SE
-  portrait without crushed slots; Round 100 desktop stays readable.
-- Visual spot check on 2026-09-11: Round-select page 9 fits iPhone SE
-  portrait, and the disabled next-page button is visibly muted.
-- Visual spot check on 2026-09-11: Round 100 App Store candidate has no visible
-  development watermark and uses the sample solution fill, but the latest
-  verifier correctly marks candidates stale until store-capture is rebuilt.
-- QA capture verifier added on 2026-09-11; current `/tmp` QA captures are stale
-  relative to the QA build and current source/layout changes, and must be
-  recaptured after the next successful QA WebGL build.
+- Confirmed after fresh WebGL builds on 2026-09-11 and 2026-09-12.
+- Fresh QA WebGL, key-round captures for Rounds 1, 5, 8, 9, 16, 30, 50,
+  75, 90, and 100, round-select page captures, store-capture build, and App
+  Store candidate captures passed on 2026-09-12.
+- Outside-sandbox viewport smoke ran again on 2026-09-12 after a fresh release
+  WebGL rebuild. iPhone SE, standard iPhone, large iPhone, Android 20:9, and
+  desktop passed the stricter content-top smoke. Android 20:9 and tall iPhones
+  still have generous first-screen whitespace, so final real-device QA should
+  judge whether the opening screen feels too sparse.
+- Visual spot check on 2026-09-12: Round-select pages 1 and 9 fit standard
+  iPhone portrait after the panel lift; page 9 now compacts around its two
+  visible rows, and the disabled next-page button is visibly muted.
+- Visual spot check on 2026-09-12: tutorial key rounds 1, 5, 8, 9; post-
+  tutorial Round 16; and late Rounds 30, 50, 75, 90, and 100 automated
+  captures passed across iPhone SE, standard iPhone, large iPhone, Android
+  20:9, and desktop. Full real touch/device QA remains open.
+- Visual spot check on 2026-09-12: App Store candidate screenshots were
+  recaptured from a non-development store-capture build and verified for
+  required sizes, no alpha, and freshness.
+- PNG visual verification on 2026-09-12 passed for QA key-round captures,
+  round-select page captures, and App Store candidate screenshots. The verifier
+  checks PNG dimensions, App Store alpha policy, dark/light content, and mobile
+  content-start position.
+- Icon visual verification on 2026-09-12 passed for the source icon and WebGL
+  favicon at 180, 120, 64, and 32 px, including left/center/right content
+  contrast for the `1 = 1` composition.
+- Full visual QA refresh on 2026-09-12 rebuilt release, QA, and store-capture
+  WebGL targets, recaptured QA rounds/pages and App Store candidates, and
+  cleared the previous stale-capture warnings after WebGL metadata changed.
+- App Store candidate capture on 2026-09-12 now has an 8-shot set: Round 1,
+  Round 5, Round 8, Round 9, Round 30, Round 75, Round 100, and round select.
+  Verification rejects unexpected old numbered candidate folders.
+- QA round/page capture verification on 2026-09-12 rejects unexpected managed
+  `round-*` and `page-*` folders so stale visual evidence cannot remain mixed
+  with the current QA set.
+- Release-env preflight on 2026-09-12 passes with warnings in development mode
+  and intentionally fails in strict mode when Firebase configs, production
+  AdMob IDs, version envs, or Android signing envs are absent or malformed.
+- Device QA signoff preflight on 2026-09-12 passes with warnings in development
+  mode and intentionally fails in strict mode while build-under-test fields,
+  WebGL mobile browser coverage, touch/character/audio/ad/privacy rows, or
+  real-device QA notes remain incomplete.
 
 ## Screen Matrix
 
 | Device / Viewport | Round 1-10 | Round 16 | Round 30 | Round 50 | Round 75 | Round 90 | Round 100 | Round Select 1-9 | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| iPhone SE portrait |  |  |  |  |  |  |  |  | not run |
-| Standard iPhone portrait |  |  |  |  |  |  |  |  | not run |
-| Large iPhone portrait |  |  |  |  |  |  |  |  | not run |
-| Android 20:9 portrait |  |  |  |  |  |  |  |  | not run |
-| WebGL desktop browser |  |  |  |  |  |  |  |  | not run |
+| iPhone SE portrait | key automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | real touch QA still needed |
+| Standard iPhone portrait | key automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | real touch QA still needed |
+| Large iPhone portrait | key automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | real touch QA still needed |
+| Android 20:9 portrait | key automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | real touch QA and first-screen density judgment still needed |
+| WebGL desktop browser | key automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | automated pass | browser smoke pass; manual playthrough still useful |
 | WebGL mobile browser |  |  |  |  |  |  |  |  | not run |
 
 ## Touch And Feel
@@ -149,8 +183,8 @@ Latest automated evidence:
 
 ## Sign-Off
 
-- Release blocker count:
-- Manual QA risks:
-- External blockers:
-- Ready for store screenshots: no
-- Ready for TestFlight/internal test: no
+- Release blocker count: external production settings remain
+- Manual QA risks: touch feel, SFX loudness, real-device safe area, first-screen density
+- External blockers: Firebase iOS/Android configs, production AdMob IDs, Android signing env, release version envs
+- Ready for store screenshots: yes for current art/round data; recheck after production SDK config
+- Ready for TestFlight/internal test: no, production Firebase/AdMob and iOS release envs still missing
