@@ -5,6 +5,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 project="$repo_root/prototypes/one-plus-one-minus-one"
 icon="$project/Assets/_Project/Art/AppIcon-1024.png"
 webgl_icon="$project/Builds/WebGL/one-plus-one-minus-one/app-icon.png"
+webgl_qa_icon="$project/Builds/WebGL/one-plus-one-minus-one-qa/app-icon.png"
+webgl_store_capture_icon="$project/Builds/WebGL/one-plus-one-minus-one-store-capture/app-icon.png"
 generator="$project/Assets/_Project/Editor/GenerateAppIcon.cs"
 failures=0
 
@@ -35,13 +37,15 @@ require_icon() {
 }
 
 require_icon "$icon"
-if [[ -f "$webgl_icon" ]]; then
-  require_icon "$webgl_icon"
-  if ! cmp -s "$icon" "$webgl_icon"; then
-    echo "WebGL app icon differs from source icon; rebuild WebGL after regenerating the icon." >&2
-    failures=1
+for generated_icon in "$webgl_icon" "$webgl_qa_icon" "$webgl_store_capture_icon"; do
+  if [[ -f "$generated_icon" ]]; then
+    require_icon "$generated_icon"
+    if ! cmp -s "$icon" "$generated_icon"; then
+      echo "Generated app icon differs from source icon; rebuild after regenerating the icon: $generated_icon" >&2
+      failures=1
+    fi
   fi
-fi
+done
 
 if ! grep -Fq "TextureFormat.RGB24" "$generator"; then
   echo "GenerateAppIcon should create an RGB24 texture so the source PNG has no alpha channel." >&2

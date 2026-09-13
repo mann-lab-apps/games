@@ -23,6 +23,24 @@ missing=0
 
 "$repo_root/scripts/verify-one-plus-one-minus-one-rounds.mjs"
 
+require_file() {
+  local path="$1"
+  if [[ ! -f "$path" ]]; then
+    echo "Missing file: $path" >&2
+    missing=1
+  fi
+}
+
+require_text() {
+  local path="$1"
+  local pattern="$2"
+  require_file "$path"
+  if [[ -f "$path" ]] && ! grep -Fq -- "$pattern" "$path"; then
+    echo "Missing expected text in $path: $pattern" >&2
+    missing=1
+  fi
+}
+
 if [[ ! -x "$unity_editor" ]]; then
   echo "Unity Editor not found: $unity_editor" >&2
   missing=1
@@ -55,12 +73,27 @@ fi
   -executeMethod MannLab.Games.OnePlusOneMinusOne.EditorTools.BuildWebGL.BuildDevelopmentQa \
   -logFile "$build_log"
 
-test -f "$build_output/index.html"
-test -f "$build_output/app-icon.png"
-test -f "$build_output/Build/$build_name.loader.js"
-test -f "$build_output/Build/$build_name.data"
-test -f "$build_output/Build/$build_name.framework.js"
-test -f "$build_output/Build/$build_name.wasm"
+require_file "$build_output/index.html"
+require_file "$build_output/app-icon.png"
+require_file "$build_output/Build/$build_name.loader.js"
+require_file "$build_output/Build/$build_name.data"
+require_file "$build_output/Build/$build_name.framework.js"
+require_file "$build_output/Build/$build_name.wasm"
+require_text "$build_output/index.html" "<title>1 = 1</title>"
+require_text "$build_output/index.html" "app-icon.png"
+require_text "$build_output/index.html" "buildVersion"
+require_text "$build_output/index.html" "name=\"description\""
+require_text "$build_output/index.html" "name=\"application-name\" content=\"1 = 1\""
+require_text "$build_output/index.html" "name=\"apple-mobile-web-app-title\" content=\"1 = 1\""
+require_text "$build_output/index.html" "name=\"theme-color\" content=\"#fffffc\""
+require_text "$build_output/index.html" "rel=\"apple-touch-icon\" href=\"app-icon.png\""
+
+"$repo_root/scripts/verify-one-plus-one-minus-one-icon.sh"
+
+if [[ "$missing" -ne 0 ]]; then
+  echo "1 = 1 WebGL QA build verification failed." >&2
+  exit 1
+fi
 
 echo "WebGL QA build log: $build_log"
 echo "WebGL QA build verified: $build_output"

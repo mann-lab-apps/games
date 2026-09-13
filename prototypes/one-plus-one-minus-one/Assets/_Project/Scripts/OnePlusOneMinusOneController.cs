@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using MannLab.Ads;
 using MannLab.HyperCasual;
 using UnityEngine;
@@ -48,7 +49,15 @@ namespace MannLab.Games.OnePlusOneMinusOne
         public static readonly Vector2 ReleaseWebGlReferenceResolution = new Vector2(720f, 1280f);
         private const float IdleBeatBpm = 96f;
         private static readonly Vector2 DragGhostPointerOffset = new Vector2(0f, 86f);
+#if UNITY_WEBGL && !UNITY_EDITOR
+        [DllImport("__Internal")]
+        private static extern float OneEqualsOneCanvasDisplayWidth();
+        [DllImport("__Internal")]
+        private static extern float OneEqualsOneCanvasDisplayHeight();
+#endif
         private const string HighestUnlockedRoundKey = "OnePlusOneMinusOne.GoalMode.HighestUnlockedRound";
+        private const string GoalModeCompletedKey = "OnePlusOneMinusOne.GoalMode.Completed";
+        private const string SoundEnabledKey = "OnePlusOneMinusOne.Audio.Enabled";
         private const string GameIdentifier = "one-plus-one-minus-one";
         private const string ReleaseAdMobConfigResourceName = "OnePlusOneMinusOneReleaseAdMob";
         private const string ProductionIosInterstitialAdUnitId = "";
@@ -254,6 +263,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private readonly List<FriendFaceView> friendFaces = new List<FriendFaceView>();
         private readonly List<RectTransform> bankStickViews = new List<RectTransform>();
         private readonly List<StickPose> bankStickPoses = new List<StickPose>();
+        private readonly List<int> bankPositionIndices = new List<int>();
         private readonly List<Button> roundSelectButtons = new List<Button>();
         private readonly List<Text> roundSelectLabels = new List<Text>();
         private readonly Dictionary<SfxCue, AudioClip> sfxClips = new Dictionary<SfxCue, AudioClip>();
@@ -263,6 +273,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private List<StickPose>[] slotStickPoses;
         private int roundIndex;
         private int highestUnlockedRoundIndex;
+        private bool goalModeCompleted;
+        private bool currentRoundIsReplay;
         private int roundSelectPage;
         private int currentRoundFailureCount;
 #if DEVELOPMENT_BUILD || UNITY_EDITOR || MANNLAB_STORE_CAPTURE
@@ -283,6 +295,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private RectTransform stickBank;
         private RectTransform dragLayer;
         private RectTransform dragGhost;
+        private int? draggingPointerId;
         private CanvasGroup draggingSourceGroup;
         private int draggingSourceSlotIndex = -1;
         private int draggingSourceStickIndex = -1;
@@ -305,13 +318,20 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private GridLayoutGroup roundSelectGrid;
         private LayoutElement roundSelectGridLayout;
         private LayoutElement equationAreaLayout;
+        private float equationLayoutWidth = -1f;
+        private Button privacyOptionsButton;
+        private Toggle soundToggle;
+        private bool soundEnabled = true;
+        private float nextPrivacyOptionsRefreshAt;
         private LayoutElement tutorialBubbleLayout;
         private LayoutElement tutorialTextLayout;
         private Font font;
         private Coroutine successRoutine;
 
         private PuzzleRoundData CurrentRound => OnePlusOneMinusOneRules.GoalModeRounds[roundIndex];
-        private bool CurrentRoundUsesFixedTarget => !CurrentRound.SampleSolution.Contains("=");
+        private bool RoundReservesFixedTarget => !CurrentRound.SampleSolution.Contains("=");
+        private bool CurrentRoundUsesFixedTarget => RoundReservesFixedTarget &&
+            (slotSymbols == null || Array.IndexOf(slotSymbols, "=") < 0);
 
         private void Awake()
         {
@@ -319,6 +339,12 @@ namespace MannLab.Games.OnePlusOneMinusOne
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ??
                    Resources.GetBuiltinResource<Font>("Arial.ttf");
             var savedHighestUnlockedRoundIndex = PlayerPrefs.GetInt(HighestUnlockedRoundKey, 0);
+            soundEnabled = PlayerPrefs.GetInt(SoundEnabledKey, 1) != 0;
+            goalModeCompleted = PlayerPrefs.GetInt(GoalModeCompletedKey, 0) == 1;
+            if (goalModeCompleted)
+            {
+                savedHighestUnlockedRoundIndex = OnePlusOneMinusOneRules.GoalModeRounds.Length - 1;
+            }
             var startup = CalculateStartupFlowPlan(savedHighestUnlockedRoundIndex);
             highestUnlockedRoundIndex = startup.HighestUnlockedRoundIndex;
             BuildUi();
@@ -346,6 +372,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void Update()
         {
+            if (Time.unscaledTime >= nextPrivacyOptionsRefreshAt)
+            {
+                nextPrivacyOptionsRefreshAt = Time.unscaledTime + 1f;
+                UpdatePrivacyOptionsEntry(ArePrivacyOptionsRequired());
+            }
 #if DEVELOPMENT_BUILD || UNITY_EDITOR || MANNLAB_STORE_CAPTURE
             if (HandleCrashlyticsTestTrigger())
             {
@@ -354,6 +385,21 @@ namespace MannLab.Games.OnePlusOneMinusOne
 #endif
             UpdateStageLayout();
             AnimateFriends();
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (!hasFocus) CancelStickDrag();
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused) CancelStickDrag();
+        }
+
+        private void OnDisable()
+        {
+            CancelStickDrag();
         }
 
         private void BuildUi()
@@ -438,6 +484,13 @@ namespace MannLab.Games.OnePlusOneMinusOne
             stageRoot.sizeDelta = new Vector2(plan.Width, plan.Height);
             stageRoot.anchoredPosition = new Vector2(0f, plan.OffsetY);
             UpdateRoundSelectLayout(safe);
+            if (slotSymbols != null && Mathf.Abs(AvailableEquationWidth() - equationLayoutWidth) > 0.5f)
+            {
+                CancelStickDrag();
+                RebuildSlots();
+                RefreshUi();
+            }
+            if (slotSymbols != null) LayoutBankSticks(RemainingSticks());
         }
 
         private void UpdateWebGlReferenceResolution()
@@ -448,7 +501,13 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 return;
             }
 
-            var useMobilePortraitScale = Screen.height >= Screen.width && Screen.width <= 720;
+            float displayWidth = Screen.width;
+            float displayHeight = Screen.height;
+#if !UNITY_EDITOR
+            displayWidth = OneEqualsOneCanvasDisplayWidth();
+            displayHeight = OneEqualsOneCanvasDisplayHeight();
+#endif
+            var useMobilePortraitScale = displayHeight >= displayWidth && displayWidth <= 720;
             var targetResolution = useMobilePortraitScale
                 ? ReleaseWebGlReferenceResolution
                 : ReleaseNativeReferenceResolution;
@@ -472,12 +531,12 @@ namespace MannLab.Games.OnePlusOneMinusOne
             layout.childForceExpandHeight = false;
             layout.spacing = 2f;
 
-            roundText = CreateText("Round Text", bubble, string.Empty, 20, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
-            roundText.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 30f;
+            roundText = CreateText("Round Text", bubble, string.Empty, 28, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
+            roundText.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 36f;
 
-            tutorialText = CreateText("Tutorial Text", bubble, string.Empty, 24, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
+            tutorialText = CreateText("Tutorial Text", bubble, string.Empty, 28, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
             tutorialTextLayout = tutorialText.rectTransform.gameObject.AddComponent<LayoutElement>();
-            tutorialTextLayout.preferredHeight = 62f;
+            tutorialTextLayout.preferredHeight = 76f;
         }
 
         private void BuildEquationArea()
@@ -528,7 +587,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private void BuildFeedback()
         {
             var feedback = CreateRect("Feedback Area", stageRoot);
-            feedback.gameObject.AddComponent<LayoutElement>().preferredHeight = 78f;
+            feedback.gameObject.AddComponent<LayoutElement>().preferredHeight = 90f;
             var layout = feedback.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.childAlignment = TextAnchor.MiddleCenter;
             layout.childControlWidth = true;
@@ -537,11 +596,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
             layout.childForceExpandHeight = false;
             layout.spacing = 2f;
 
-            feedbackText = CreateText("Feedback Text", feedback, string.Empty, 24, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
+            feedbackText = CreateText("Feedback Text", feedback, string.Empty, 32, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
             feedbackText.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 42f;
 
-            stickText = CreateText("Stick Text", feedback, string.Empty, 18, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
-            stickText.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 24f;
+            stickText = CreateText("Stick Text", feedback, string.Empty, 28, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
+            stickText.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 36f;
         }
 
         private void BuildStickBank()
@@ -564,7 +623,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private void BuildFooter()
         {
             var footer = CreateRect("Footer", stageRoot);
-            footer.gameObject.AddComponent<LayoutElement>().preferredHeight = 64f;
+            footer.gameObject.AddComponent<LayoutElement>().preferredHeight = 110f;
 
             var layout = footer.gameObject.AddComponent<HorizontalLayoutGroup>();
             layout.childAlignment = TextAnchor.MiddleCenter;
@@ -574,14 +633,19 @@ namespace MannLab.Games.OnePlusOneMinusOne
             layout.childForceExpandWidth = false;
             layout.childForceExpandHeight = false;
 
-            var roundsButton = CreateCommandButton("Rounds Button", footer, "Rounds", new Vector2(154f, 54f));
+            var roundsButton = CreateCommandButton("Rounds Button", footer, "Rounds", new Vector2(154f, 100f));
             roundsButton.onClick.AddListener(ShowRoundSelect);
 
-            var resetButton = CreateCommandButton("Reset Button", footer, "Reset", new Vector2(154f, 54f));
+            var resetButton = CreateCommandButton("Reset Button", footer, "Reset", new Vector2(154f, 100f));
             resetButton.onClick.AddListener(ResetRound);
 
-            checkButton = CreateCommandButton("Check Button", footer, "Check", new Vector2(154f, 54f));
+            checkButton = CreateCommandButton("Check Button", footer, "Check", new Vector2(154f, 100f));
             checkButton.onClick.AddListener(CheckCurrent);
+            foreach (var button in new[] { roundsButton, resetButton, checkButton })
+            {
+                var label = button.GetComponentInChildren<Text>();
+                label.fontSize = label.resizeTextMaxSize = 32;
+            }
         }
 
         private void BuildRoundSelectOverlay()
@@ -609,8 +673,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
 
-            var title = CreateText("Round Select Title", roundSelectPanel, "Rounds", 36, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
-            title.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 54f;
+            var header = CreateRect("Round Select Header", roundSelectPanel);
+            header.gameObject.AddComponent<LayoutElement>().preferredHeight = 80f;
+            var title = CreateText("Round Select Title", header, "Rounds", 36, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleLeft);
+            Stretch(title.rectTransform, 0f, 0f, 148f, 0f);
+            CreateSoundToggle(header);
 
             var gridRoot = CreateRect("Round Grid", roundSelectPanel);
             roundSelectGridLayout = gridRoot.gameObject.AddComponent<LayoutElement>();
@@ -632,7 +699,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             var pager = CreateRect("Round Pager", roundSelectPanel);
-            pager.gameObject.AddComponent<LayoutElement>().preferredHeight = 54f;
+            pager.gameObject.AddComponent<LayoutElement>().preferredHeight = 80f;
             var pagerLayout = pager.gameObject.AddComponent<HorizontalLayoutGroup>();
             pagerLayout.childAlignment = TextAnchor.MiddleCenter;
             pagerLayout.childControlWidth = true;
@@ -641,21 +708,72 @@ namespace MannLab.Games.OnePlusOneMinusOne
             pagerLayout.childForceExpandHeight = false;
             pagerLayout.spacing = 12f;
 
-            roundPrevButton = CreateCommandButton("Previous Round Page", pager, "<", new Vector2(86f, 48f));
+            roundPrevButton = CreateCommandButton("Previous Round Page", pager, "<", new Vector2(86f, 80f));
             roundPrevButton.onClick.AddListener(() => ChangeRoundSelectPage(-1));
-            roundPageText = CreateText("Round Page Text", pager, string.Empty, 20, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
+            roundPageText = CreateText("Round Page Text", pager, string.Empty, 24, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
             var pageLayout = roundPageText.rectTransform.gameObject.AddComponent<LayoutElement>();
             pageLayout.preferredWidth = 160f;
-            pageLayout.preferredHeight = 48f;
-            roundNextButton = CreateCommandButton("Next Round Page", pager, ">", new Vector2(86f, 48f));
+            pageLayout.preferredHeight = 80f;
+            roundNextButton = CreateCommandButton("Next Round Page", pager, ">", new Vector2(86f, 80f));
             roundNextButton.onClick.AddListener(() => ChangeRoundSelectPage(1));
 
-            var closeButton = CreateCommandButton("Close Round Select", roundSelectPanel, "Close", new Vector2(172f, 54f));
+            var actions = CreateRect("Round Actions", roundSelectPanel);
+            actions.gameObject.AddComponent<LayoutElement>().preferredHeight = 80f;
+            var actionsLayout = actions.gameObject.AddComponent<HorizontalLayoutGroup>();
+            actionsLayout.childControlWidth = actionsLayout.childControlHeight = true;
+            actionsLayout.childForceExpandWidth = true;
+            actionsLayout.childForceExpandHeight = false;
+            actionsLayout.spacing = 12f;
+            var closeButton = CreateCommandButton("Close Round Select", actions, "Close", new Vector2(172f, 80f));
             closeButton.onClick.AddListener(HideRoundSelect);
+            privacyOptionsButton = CreateCommandButton("Privacy Options", actions, "Privacy", new Vector2(172f, 80f));
+            privacyOptionsButton.onClick.AddListener(() =>
+            {
+                if (ArePrivacyOptionsRequired()) MannLabAdMob.ShowPrivacyOptionsForm();
+            });
+            UpdatePrivacyOptionsEntry(ArePrivacyOptionsRequired());
 
             UpdateRoundSelectLayout(safeRoot.rect);
             RefreshRoundSelectButtons();
             roundSelectOverlay.gameObject.SetActive(false);
+        }
+
+        private void CreateSoundToggle(RectTransform parent)
+        {
+            var root = CreateRect("Sound Toggle", parent);
+            root.anchorMin = root.anchorMax = new Vector2(1f, 0.5f);
+            root.pivot = new Vector2(1f, 0.5f);
+            root.sizeDelta = new Vector2(136f, 80f);
+            var hitArea = root.gameObject.AddComponent<Image>();
+            hitArea.color = Color.clear;
+            soundToggle = root.gameObject.AddComponent<Toggle>();
+            soundToggle.targetGraphic = hitArea;
+            soundToggle.transition = Selectable.Transition.None;
+            var box = CreatePanel("Sound Checkbox", root, ButtonPaperColor, SketchPalette.Ink, 937);
+            box.anchorMin = box.anchorMax = new Vector2(0f, 0.5f);
+            box.pivot = new Vector2(0f, 0.5f);
+            box.sizeDelta = new Vector2(30f, 30f);
+            var check = CreateRect("Sound Check", box).gameObject.AddComponent<Image>();
+            check.color = SketchPalette.Ink;
+            check.raycastTarget = false;
+            Stretch(check.rectTransform, 7f, 7f, 7f, 7f);
+            soundToggle.graphic = check;
+            var label = CreateText("Sound Label", root, "Sound", 24, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleLeft);
+            Stretch(label.rectTransform, 42f, 0f, 0f, 0f);
+            soundToggle.SetIsOnWithoutNotify(soundEnabled);
+            soundToggle.onValueChanged.AddListener(SetSoundEnabled);
+        }
+
+        private void SetSoundEnabled(bool enabled)
+        {
+            soundEnabled = enabled;
+            if (sfxSource != null)
+            {
+                sfxSource.mute = !enabled;
+                if (!enabled) sfxSource.Stop();
+            }
+            PlayerPrefs.SetInt(SoundEnabledKey, enabled ? 1 : 0);
+            PlayerPrefs.Save();
         }
 
         private void UpdateRoundSelectLayout(Rect safe)
@@ -665,13 +783,34 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 return;
             }
 
-            var plan = CalculateRoundSelectLayoutPlan(safe.width, safe.height);
+            // Use the portrait width for readable controls regardless of the canvas reference scale.
+            var uiScale = safe.height >= safe.width
+                ? Mathf.Min(safe.width / 560f, safe.height / 920f) : 1f;
+            uiScale = Mathf.Max(0.1f, uiScale);
+            var plan = CalculateRoundSelectLayoutPlan(safe.width / uiScale, safe.height / uiScale);
+            roundSelectPanel.localScale = Vector3.one * uiScale;
             roundSelectPanel.sizeDelta = new Vector2(plan.PanelWidth, plan.PanelHeight);
-            roundSelectPanel.anchoredPosition = new Vector2(0f, plan.OffsetY);
+            roundSelectPanel.anchoredPosition = new Vector2(0f, plan.OffsetY * uiScale);
             roundSelectGrid.spacing = new Vector2(plan.Spacing, plan.Spacing);
             roundSelectGrid.cellSize = new Vector2(plan.CellWidth, plan.CellHeight);
             roundSelectGridLayout.preferredHeight = plan.GridHeight;
             UpdateRoundSelectGridHeightForPage();
+        }
+
+        private static bool ArePrivacyOptionsRequired()
+        {
+#if (UNITY_IOS || UNITY_ANDROID) && !UNITY_EDITOR
+            return MannLabAdMob.IsPrivacyOptionsRequired;
+#else
+            return false;
+#endif
+        }
+
+        private void UpdatePrivacyOptionsEntry(bool required)
+        {
+            if (privacyOptionsButton == null) return;
+            privacyOptionsButton.gameObject.SetActive(required);
+            privacyOptionsButton.interactable = required;
         }
 
         private void UpdateRoundSelectGridHeightForPage()
@@ -697,14 +836,16 @@ namespace MannLab.Games.OnePlusOneMinusOne
             button.colors = SketchUiFactory.ButtonColors();
             button.onClick.AddListener(() => PlaySfx(SfxCue.Button));
 
-            label = CreateText("Round Label", rect, $"{index + 1}\n{roundName}", 20, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
-            label.resizeTextMinSize = 10;
+            label = CreateText("Round Label", rect, $"{index + 1}\n{roundName}", 24, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
+            label.resizeTextMinSize = 22;
             Stretch(label.rectTransform, 6f, 6f, 6f, 6f);
             return button;
         }
 
         private void ShowRoundSelect()
         {
+            if (isAdvancing) return;
+            CancelStickDrag();
             if (roundSelectOverlay != null)
             {
                 roundSelectPage = Mathf.Clamp(roundIndex / RoundSelectPageSize, 0, RoundSelectPageCount() - 1);
@@ -773,10 +914,10 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 }
 
                 var unlocked = roundNumber <= highestUnlockedRoundIndex;
-                var cleared = roundNumber < highestUnlockedRoundIndex;
+                var cleared = IsRoundCleared(roundNumber);
                 var current = roundNumber == roundIndex;
                 button.interactable = unlocked;
-                var statusPrefix = current ? "Now" : cleared ? "Done" : "Next";
+                var statusPrefix = cleared ? "Done" : current ? "Now" : "Next";
                 label.text = unlocked
                     ? $"{roundNumber + 1} {statusPrefix}\n{OnePlusOneMinusOneRules.GoalModeRounds[roundNumber].RoundName}"
                     : $"{roundNumber + 1}\nLocked";
@@ -816,19 +957,32 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private void UnlockNextRound()
         {
             var nextUnlocked = Mathf.Min(roundIndex + 1, OnePlusOneMinusOneRules.GoalModeRounds.Length - 1);
-            if (nextUnlocked <= highestUnlockedRoundIndex)
+            var completingGoalMode = roundIndex == OnePlusOneMinusOneRules.GoalModeRounds.Length - 1 && !goalModeCompleted;
+            if (nextUnlocked <= highestUnlockedRoundIndex && !completingGoalMode)
             {
                 return;
             }
 
-            highestUnlockedRoundIndex = nextUnlocked;
+            highestUnlockedRoundIndex = Mathf.Max(highestUnlockedRoundIndex, nextUnlocked);
+            if (completingGoalMode)
+            {
+                goalModeCompleted = true;
+                PlayerPrefs.SetInt(GoalModeCompletedKey, 1);
+            }
             PlayerPrefs.SetInt(HighestUnlockedRoundKey, highestUnlockedRoundIndex);
             PlayerPrefs.Save();
             RefreshRoundSelectButtons();
         }
 
+        private bool IsRoundCleared(int index)
+        {
+            return index < highestUnlockedRoundIndex ||
+                   goalModeCompleted && index == OnePlusOneMinusOneRules.GoalModeRounds.Length - 1;
+        }
+
         private void LoadRound(int index)
         {
+            CancelStickDrag();
             if (successRoutine != null)
             {
                 StopCoroutine(successRoutine);
@@ -837,6 +991,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             isAdvancing = false;
             roundIndex = Mathf.Clamp(index, 0, OnePlusOneMinusOneRules.GoalModeRounds.Length - 1);
+            currentRoundIsReplay = IsRoundCleared(roundIndex);
             currentRoundFailureCount = 0;
             slotSymbols = new string[CurrentRound.SlotTypes.Length];
             slotStickPoses = new List<StickPose>[CurrentRound.SlotTypes.Length];
@@ -856,7 +1011,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             if (tutorialTextLayout != null)
             {
-                tutorialTextLayout.preferredHeight = hasTutorial ? 62f : 0f;
+                tutorialTextLayout.preferredHeight = hasTutorial ? 76f : 0f;
             }
 
             RebuildSlots();
@@ -872,7 +1027,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
             RefreshUi();
             TrackRoundStart();
             feedbackText.color = SketchPalette.MutedInk;
-            feedbackText.text = sampleWasPlaced ? "Ready to check." : "Drag sticks into boxes.";
+            feedbackText.text = sampleWasPlaced
+                ? "Ready to check."
+                : hasTutorial
+                    ? string.Empty
+                    : "Drag sticks into boxes.";
         }
 
         private void RebuildSlots()
@@ -883,18 +1042,18 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             var slotCount = CurrentRound.SlotTypes.Length;
             equationRowLayout.enabled = false;
-            var safeWidth = safeRoot != null && safeRoot.rect.width > 1f ? safeRoot.rect.width : stageRoot.sizeDelta.x;
-            var availableWidth = Mathf.Clamp(Mathf.Min(stageRoot.sizeDelta.x, safeWidth) - 72f, 300f, 1040f);
-            var usesFixedTarget = CurrentRoundUsesFixedTarget;
+            var availableWidth = AvailableEquationWidth();
+            equationLayoutWidth = availableWidth;
+            var usesFixedTarget = RoundReservesFixedTarget;
             var plan = CalculateEquationLayoutPlan(slotCount, usesFixedTarget, availableWidth);
             if (equationAreaLayout != null)
             {
                 equationAreaLayout.preferredHeight = Mathf.Clamp(plan.ContentHeight + 86f, 280f, 520f);
             }
 
-            equationViewport.sizeDelta = new Vector2(plan.SlotAreaWidth, plan.ContentHeight + 12f);
-            equationViewport.anchoredPosition = new Vector2(-plan.TotalWidth * 0.5f + plan.SlotAreaWidth * 0.5f, 0f);
-            equationRow.sizeDelta = new Vector2(plan.SlotAreaWidth, plan.ContentHeight + 12f);
+            equationViewport.sizeDelta = new Vector2(plan.TotalWidth, plan.ContentHeight + 12f);
+            equationViewport.anchoredPosition = Vector2.zero;
+            equationRow.sizeDelta = new Vector2(plan.TotalWidth, plan.ContentHeight + 12f);
             equationRow.anchoredPosition = Vector2.zero;
             targetText.rectTransform.sizeDelta = new Vector2(plan.TargetWidth, plan.SlotHeight);
             targetText.gameObject.SetActive(usesFixedTarget);
@@ -904,7 +1063,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 var slotIndex = i;
                 var slot = CreateSlotView(equationRow, CurrentRound.SlotTypes[i], plan.SlotWidth, plan.SlotHeight, i);
                 slot.Button.onClick.AddListener(() => TapSlot(slotIndex));
-                PositionSlot(slot.Root, slotIndex, slotCount, plan.SlotsPerRow, plan.SlotWidth, plan.SlotHeight, plan.Spacing, plan.RowGap, plan.SlotAreaWidth, plan.ContentHeight);
+                var trailingWidth = usesFixedTarget && slotIndex / plan.SlotsPerRow == plan.Rows - 1
+                    ? plan.TargetGap + plan.TargetWidth : 0f;
+                PositionSlot(slot.Root, slotIndex, slotCount, plan.SlotsPerRow, plan.SlotWidth, plan.SlotHeight, plan.Spacing, plan.RowGap, trailingWidth, plan.ContentHeight);
                 slotViews.Add(slot);
             }
 
@@ -916,8 +1077,15 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 var lastRowCount = RowSlotCount(slotCount, plan.SlotsPerRow, lastRowIndex);
                 var lastRowWidth = RowWidth(lastRowCount, plan.SlotWidth, plan.Spacing);
                 var lastRowY = RowY(lastRowIndex, plan.SlotHeight, plan.RowGap, plan.ContentHeight);
-                targetText.rectTransform.anchoredPosition = new Vector2(-plan.TotalWidth * 0.5f + lastRowWidth + plan.TargetGap + plan.TargetWidth * 0.5f, lastRowY);
+                var lastRowGroupWidth = lastRowWidth + plan.TargetGap + plan.TargetWidth;
+                targetText.rectTransform.anchoredPosition = new Vector2(-lastRowGroupWidth * 0.5f + lastRowWidth + plan.TargetGap + plan.TargetWidth * 0.5f, lastRowY);
             }
+        }
+
+        private float AvailableEquationWidth()
+        {
+            var safeWidth = safeRoot != null && safeRoot.rect.width > 1f ? safeRoot.rect.width : stageRoot.sizeDelta.x;
+            return Mathf.Clamp(Mathf.Min(stageRoot.sizeDelta.x, safeWidth) - 72f, 300f, 1040f);
         }
 
         public static EquationLayoutPlan CalculateEquationLayoutPlan(int slotCount, bool usesFixedTarget, float availableWidth)
@@ -998,7 +1166,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             safeWidth = safeWidth > 1f ? safeWidth : 560f;
             safeHeight = safeHeight > 1f ? safeHeight : 840f;
             var panelWidth = Mathf.Min(520f, Mathf.Max(300f, safeWidth - 40f));
-            var panelHeight = Mathf.Min(760f, Mathf.Max(500f, safeHeight - 72f));
+            var panelHeight = Mathf.Min(820f, Mathf.Max(500f, safeHeight - 72f));
             if (safeWidth < 360f)
             {
                 panelWidth = Mathf.Max(ReleaseMinRoundSelectPanelWidth, safeWidth - 12f);
@@ -1016,7 +1184,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             var cellWidth = Mathf.Clamp((innerWidth - spacing * 2f) / 3f, cellMinWidth, 140f);
             var availableGridHeight = panelHeight - 246f;
             var cellMinHeight = panelHeight < 560f ? ReleaseMinRoundSelectCellHeight : 68f;
-            var cellHeight = Mathf.Clamp((availableGridHeight - spacing * 3f) / 4f, cellMinHeight, 86f);
+            var cellHeight = Mathf.Clamp((availableGridHeight - spacing * 3f) / 4f, cellMinHeight, 100f);
             var gridHeight = cellHeight * 4f + spacing * 3f;
             var portraitRatio = safeHeight / Mathf.Max(1f, safeWidth);
             var spareHeight = Mathf.Max(0f, safeHeight - panelHeight);
@@ -1085,7 +1253,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
             int roundIndex,
             int highestUnlockedRoundIndex,
             int failureCount,
-            bool forceTestAds = false)
+            bool forceTestAds = false,
+            bool roundAlreadyCleared = false)
         {
             if (forceTestAds)
             {
@@ -1093,7 +1262,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             var roundNumber = roundIndex + 1;
-            if (roundIndex < highestUnlockedRoundIndex)
+            if (roundAlreadyCleared || roundIndex < highestUnlockedRoundIndex)
             {
                 return new InterstitialDecisionPlan(false, "replay_round");
             }
@@ -1146,7 +1315,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             float slotHeight,
             float spacing,
             float rowGap,
-            float slotAreaWidth,
+            float trailingWidth,
             float contentHeight)
         {
             var row = slotIndex / slotsPerRow;
@@ -1157,7 +1326,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             slot.anchorMax = new Vector2(0.5f, 0.5f);
             slot.pivot = new Vector2(0.5f, 0.5f);
             slot.sizeDelta = new Vector2(slotWidth, slotHeight);
-            slot.anchoredPosition = new Vector2(-slotAreaWidth * 0.5f + (slotAreaWidth - rowWidth) * 0.5f + slotWidth * 0.5f + col * (slotWidth + spacing), RowY(row, slotHeight, rowGap, contentHeight));
+            slot.anchoredPosition = new Vector2(-(rowWidth + trailingWidth) * 0.5f + slotWidth * 0.5f + col * (slotWidth + spacing), RowY(row, slotHeight, rowGap, contentHeight));
         }
 
         private void RebuildStickBank()
@@ -1177,9 +1346,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private void ResetBankStickPoses()
         {
             bankStickPoses.Clear();
+            bankPositionIndices.Clear();
             for (var i = 0; i < CurrentRound.StickCount; i++)
             {
                 bankStickPoses.Add(StickPose.CenterVertical);
+                bankPositionIndices.Add(i);
             }
         }
 
@@ -1196,13 +1367,20 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 return;
             }
 
-            var dense = count > 12;
-            var columns = dense ? Mathf.Min(count, 7) : Mathf.Min(count, 6);
-            var rows = Mathf.CeilToInt(count / (float)columns);
+            // Keep every unused stick at its original pickup position for this round.
+            var capacity = CurrentRound.StickCount;
+            var dense = capacity > 12;
+            var columns = dense ? Mathf.Min(capacity, 7) : Mathf.Min(capacity, 6);
+            var rows = Mathf.CeilToInt(capacity / (float)columns);
             var spacingX = dense ? 104f : 122f;
             var spacingY = dense ? 118f : 142f;
             var stickSize = dense ? new Vector2(96f, 136f) : new Vector2(118f, 156f);
             var startY = (rows - 1) * spacingY * 0.5f;
+            var contentWidth = (columns - 1) * spacingX + stickSize.x;
+            var contentHeight = (rows - 1) * spacingY + stickSize.y;
+            var fit = Mathf.Min(1f,
+                Mathf.Max(1f, stickBank.rect.width) / contentWidth,
+                Mathf.Max(1f, stickBank.rect.height) / contentHeight);
 
             for (var i = 0; i < bankStickViews.Count; i++)
             {
@@ -1212,15 +1390,17 @@ namespace MannLab.Games.OnePlusOneMinusOne
                     continue;
                 }
 
-                var row = i / columns;
-                var col = i % columns;
-                var columnsInRow = Mathf.Min(columns, count - row * columns);
+                var positionIndex = bankPositionIndices[i];
+                var row = positionIndex / columns;
+                var col = positionIndex % columns;
+                var columnsInRow = Mathf.Min(columns, capacity - row * columns);
                 var startX = -(columnsInRow - 1) * spacingX * 0.5f;
                 child.anchorMin = new Vector2(0.5f, 0.5f);
                 child.anchorMax = new Vector2(0.5f, 0.5f);
                 child.pivot = new Vector2(0.5f, 0.5f);
                 child.sizeDelta = stickSize;
-                child.anchoredPosition = new Vector2(startX + col * spacingX, startY - row * spacingY);
+                child.localScale = Vector3.one * fit;
+                child.anchoredPosition = new Vector2(startX + col * spacingX, startY - row * spacingY) * fit;
             }
         }
 
@@ -1253,7 +1433,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void TapBankStick(int bankIndex)
         {
-            if (bankIndex < 0 || bankIndex >= bankStickPoses.Count)
+            if (isAdvancing || draggingPointerId.HasValue || bankIndex < 0 || bankIndex >= bankStickPoses.Count)
             {
                 return;
             }
@@ -1301,7 +1481,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             feedbackText.color = SketchPalette.MutedInk;
             feedbackText.text = string.IsNullOrEmpty(slotSymbols[slotIndex])
                 ? "Shape the sticks."
-                : $"{slotSymbols[slotIndex]}";
+                : string.Empty;
             PlaySfx(string.IsNullOrEmpty(slotSymbols[slotIndex]) ? SfxCue.Drop : SfxCue.Success);
             StartCoroutine(Bump(slotViews[slotIndex].Root, 1.08f));
             RefreshUi();
@@ -1387,6 +1567,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 return;
             }
 
+            CancelStickDrag();
             for (var i = 0; i < slotSymbols.Length; i++)
             {
                 slotSymbols[i] = string.Empty;
@@ -1403,7 +1584,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void CheckCurrent()
         {
-            if (isAdvancing)
+            if (isAdvancing || draggingPointerId.HasValue)
             {
                 return;
             }
@@ -1440,13 +1621,16 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 PlaySfx(roundIndex >= OnePlusOneMinusOneRules.GoalModeRounds.Length - 1 ? SfxCue.Finale : SfxCue.Success);
                 UnlockNextRound();
                 TryShowRoundClearInterstitial(shouldOfferInterstitial, interstitialReason);
+                currentRoundIsReplay = true;
                 successRoutine = StartCoroutine(AdvanceAfterSuccess());
                 return;
             }
 
             TrackCheckFailure(reason);
             feedbackText.color = FailureColor;
-            feedbackText.text = FriendlyFailureText(reason);
+            feedbackText.text = result.IsValid
+                ? $"Makes {OnePlusOneMinusOneRules.FormatNumber(result.Value)}."
+                : FriendlyFailureText(reason);
             PlaySfx(SfxCue.Fail);
             StartCoroutine(ShakeEquation());
         }
@@ -1584,10 +1768,15 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void InitializeSfx()
         {
+            if (FindObjectOfType<AudioListener>() == null)
+            {
+                gameObject.AddComponent<AudioListener>();
+            }
             sfxSource = gameObject.AddComponent<AudioSource>();
             sfxSource.playOnAwake = false;
             sfxSource.spatialBlend = 0f;
             sfxSource.volume = ReleaseSfxVolume;
+            sfxSource.mute = !soundEnabled;
             sfxClips[SfxCue.Button] = CreateToneClip("1eq1_button", 520f, 620f, 0.055f, 0.42f);
             sfxClips[SfxCue.Pick] = CreateToneClip("1eq1_pick", 620f, 740f, 0.07f, 0.48f);
             sfxClips[SfxCue.Drop] = CreateToneClip("1eq1_drop", 760f, 560f, 0.085f, 0.52f);
@@ -1599,7 +1788,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void PlaySfx(SfxCue cue)
         {
-            if (sfxSource == null || !sfxClips.TryGetValue(cue, out var clip) || clip == null)
+            if (!soundEnabled || sfxSource == null || !sfxClips.TryGetValue(cue, out var clip) || clip == null)
             {
                 return;
             }
@@ -1670,9 +1859,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private bool ShouldOfferRoundClearInterstitial(out string reason)
         {
 #if MANNLAB_ADMOB_FORCE_TEST_ADS
-            var decision = CalculateInterstitialDecision(roundIndex, highestUnlockedRoundIndex, currentRoundFailureCount, true);
+            var decision = CalculateInterstitialDecision(roundIndex, highestUnlockedRoundIndex, currentRoundFailureCount, true, currentRoundIsReplay);
 #else
-            var decision = CalculateInterstitialDecision(roundIndex, highestUnlockedRoundIndex, currentRoundFailureCount);
+            var decision = CalculateInterstitialDecision(roundIndex, highestUnlockedRoundIndex, currentRoundFailureCount, false, currentRoundIsReplay);
 #endif
             reason = decision.Reason;
             return decision.ShouldOffer;
@@ -1680,14 +1869,17 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void TryShowRoundClearInterstitial(bool shouldOfferInterstitial, string reason)
         {
+            var canShowNow = shouldOfferInterstitial && MannLabAdMob.IsReady;
             var parameters = RoundParameters();
             parameters["cadence"] = RoundClearInterstitialInterval.ToString();
             parameters["failure_count"] = currentRoundFailureCount.ToString();
             parameters["reason"] = reason;
-            parameters["will_show"] = shouldOfferInterstitial ? "true" : "false";
+            parameters["eligible"] = shouldOfferInterstitial ? "true" : "false";
+            parameters["will_show"] = canShowNow ? "true" : "false";
             FirebaseTelemetry.LogEvent("ad_interstitial_opportunity", parameters);
 
-            if (!shouldOfferInterstitial)
+            // Do not queue an unloaded ad: the next round starts immediately after celebration.
+            if (!canShowNow)
             {
                 return;
             }
@@ -1705,7 +1897,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 { "stick_count", CurrentRound.StickCount.ToString() },
                 { "slots", CurrentRound.SlotTypes.Length.ToString() },
                 { "highest_unlocked_round", (highestUnlockedRoundIndex + 1).ToString() },
-                { "is_replay", roundIndex < highestUnlockedRoundIndex ? "true" : "false" }
+                { "is_replay", currentRoundIsReplay ? "true" : "false" }
             };
         }
 
@@ -1856,6 +2048,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             bankStickPoses.Clear();
+            bankPositionIndices.Clear();
             bankStickViews.Clear();
             ClearChildren(stickBank);
         }
@@ -1974,6 +2167,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private IEnumerator AdvanceAfterSuccess()
         {
             isAdvancing = true;
+            UpdateCheckButtonState();
             StartCoroutine(Bump(equationRow, 1.04f));
             StartCoroutine(CelebrateSolvedSlots());
             yield return new WaitForSeconds(roundIndex >= OnePlusOneMinusOneRules.GoalModeRounds.Length - 1 ? 1.45f : 1.12f);
@@ -1983,6 +2177,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 isAdvancing = false;
                 feedbackText.color = SuccessColor;
                 feedbackText.text = "Goal Mode clear!";
+                UpdateCheckButtonState();
                 yield break;
             }
 
@@ -2113,7 +2308,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 return;
             }
 
-            var ready = RemainingSticks() == 0 && AllSlotsContainAnyStick();
+            var ready = !isAdvancing && !draggingPointerId.HasValue && RemainingSticks() == 0 && AllSlotsContainAnyStick();
             ApplyCommandButtonState(checkButton, ready);
         }
 
@@ -2151,12 +2346,18 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             slotStickPoses[slotIndex][stickIndex] = FilterPoseForTutorial(slotIndex, pose, slotStickPoses[slotIndex].Count);
+            NormalizeHorizontalPair(slotStickPoses[slotIndex]);
             UpdateRecognizedSymbol(slotIndex);
             RefreshUi();
         }
 
         private void CycleStickPose(int slotIndex, int stickIndex)
         {
+            if (isAdvancing || draggingPointerId.HasValue)
+            {
+                return;
+            }
+
             var poses = slotStickPoses[slotIndex];
             if (stickIndex < 0 || stickIndex >= poses.Count)
             {
@@ -2167,12 +2368,35 @@ namespace MannLab.Games.OnePlusOneMinusOne
             var current = poses[stickIndex];
             var currentIndex = candidates.IndexOf(current);
             poses[stickIndex] = candidates[(currentIndex + 1 + candidates.Count) % candidates.Count];
+            NormalizeHorizontalPair(poses);
             UpdateRecognizedSymbol(slotIndex);
             feedbackText.color = SketchPalette.MutedInk;
-            feedbackText.text = string.IsNullOrEmpty(slotSymbols[slotIndex]) ? "?" : slotSymbols[slotIndex];
+            feedbackText.text = string.IsNullOrEmpty(slotSymbols[slotIndex]) ? "?" : string.Empty;
             PlaySfx(SfxCue.Rotate);
             StartCoroutine(Bump(slotViews[slotIndex].Root, 1.05f));
             RefreshUi();
+        }
+
+        private static void NormalizeHorizontalPair(List<StickPose> poses)
+        {
+            if (poses.Count != 2) return;
+            var horizontalIndices = new List<int>();
+            for (var i = 0; i < poses.Count; i++)
+            {
+                if (poses[i] == StickPose.CenterHorizontal || poses[i] == StickPose.TopHorizontal ||
+                    poses[i] == StickPose.BottomHorizontal)
+                    horizontalIndices.Add(i);
+            }
+            // Match the spacing already applied when parallel sticks arrive from the bank.
+            if (horizontalIndices.Count == 2)
+            {
+                poses[0] = StickPose.TopHorizontal;
+                poses[1] = StickPose.BottomHorizontal;
+            }
+            else if (horizontalIndices.Count == 1)
+            {
+                poses[horizontalIndices[0]] = StickPose.CenterHorizontal;
+            }
         }
 
         private static StickPose NextOutsidePose(StickPose pose)
@@ -2250,8 +2474,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
             var poses = new List<StickPose>
             {
                 StickPose.CenterVertical,
-                StickPose.CenterHorizontal,
                 StickPose.CenterSlash,
+                StickPose.CenterHorizontal,
                 StickPose.CenterBackslash
             };
 
@@ -2339,12 +2563,12 @@ namespace MannLab.Games.OnePlusOneMinusOne
             button.targetGraphic = root.GetComponent<Image>();
             button.colors = SketchUiFactory.ButtonColors();
 
-            var recognition = CreateText("Recognition Label", root, "read: -", height >= 250f ? 17 : 13, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.UpperCenter);
+            var recognition = CreateText("Recognition Label", root, "read: -", 24, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.UpperCenter);
             recognition.rectTransform.anchorMin = new Vector2(0f, 1f);
             recognition.rectTransform.anchorMax = new Vector2(1f, 1f);
             recognition.rectTransform.pivot = new Vector2(0.5f, 1f);
-            recognition.rectTransform.offsetMin = new Vector2(10f, height >= 250f ? -38f : -30f);
-            recognition.rectTransform.offsetMax = new Vector2(-10f, -8f);
+            recognition.rectTransform.offsetMin = new Vector2(10f, -38f);
+            recognition.rectTransform.offsetMax = new Vector2(-10f, -4f);
 
             var stickLayer = CreateRect("Slot Sticks", root);
             var stickTop = height >= 250f ? 72f : 42f;
@@ -2363,6 +2587,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
             var root = CreateRect($"Raw Stick {seed + 1}", parent);
             var group = root.gameObject.AddComponent<CanvasGroup>();
             root.sizeDelta = new Vector2(118f, 156f);
+            var pickupArea = root.gameObject.AddComponent<Image>();
+            pickupArea.color = Color.clear;
+            pickupArea.raycastTarget = true;
             root.gameObject.AddComponent<RawStickDragHandler>().Initialize(this, group, -1, seed);
             return root;
         }
@@ -2834,7 +3061,13 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void BeginStickDrag(PointerEventData eventData, CanvasGroup sourceGroup, int sourceSlotIndex, int sourceStickIndex)
         {
-            if (isAdvancing || sourceSlotIndex < 0 && RemainingSticks() <= 0)
+            if (isAdvancing || draggingPointerId.HasValue || eventData.button != PointerEventData.InputButton.Left ||
+                roundSelectOverlay != null && roundSelectOverlay.gameObject.activeSelf)
+            {
+                return;
+            }
+
+            if (sourceSlotIndex < 0 && RemainingSticks() <= 0)
             {
                 feedbackText.color = FailureColor;
                 feedbackText.text = "No stick here.";
@@ -2860,6 +3093,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 return;
             }
 
+            draggingPointerId = eventData.pointerId;
             draggingSourceGroup = sourceGroup;
             draggingSourceSlotIndex = sourceSlotIndex;
             draggingSourceStickIndex = sourceStickIndex;
@@ -2875,13 +3109,14 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             feedbackText.color = SketchPalette.MutedInk;
             feedbackText.text = "Drop into a box.";
+            UpdateCheckButtonState();
             PlaySfx(SfxCue.Pick);
             MoveDragGhost(eventData);
         }
 
         private void MoveStickDrag(PointerEventData eventData)
         {
-            if (dragGhost == null)
+            if (dragGhost == null || draggingPointerId != eventData.pointerId)
             {
                 return;
             }
@@ -2892,11 +3127,19 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void EndStickDrag(PointerEventData eventData)
         {
-            if (dragGhost == null)
+            if (dragGhost == null || draggingPointerId != eventData.pointerId)
             {
-                SetDragHoverSlot(-1);
-                RestoreDraggedSource();
                 return;
+            }
+
+            for (var i = 0; i < Input.touchCount; i++)
+            {
+                var touch = Input.GetTouch(i);
+                if (touch.fingerId == eventData.pointerId && touch.phase == TouchPhase.Canceled)
+                {
+                    CancelStickDrag();
+                    return;
+                }
             }
 
             var sourceWasBank = draggingSourceSlotIndex < 0;
@@ -2917,6 +3160,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             dragGhost = null;
             SetDragHoverSlot(-1);
             RestoreDraggedSource();
+            UpdateCheckButtonState();
 
             if (dropped && sourceWasBank)
             {
@@ -2927,10 +3171,20 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             if (!dropped)
             {
+                // A rejected target keeps the original placement and its failure feedback.
+                if (targetSlotIndex >= 0)
+                {
+                    RefreshUi();
+                    return;
+                }
+
                 if (!sourceWasBank)
                 {
                     RemoveStickFromSlot(sourceSlotIndex, sourceStickIndex);
                     bankStickPoses.Add(NormalizeOutsidePose(sourcePose));
+                    var freePosition = 0;
+                    while (bankPositionIndices.Contains(freePosition)) freePosition++;
+                    bankPositionIndices.Add(freePosition);
                     feedbackText.color = SketchPalette.MutedInk;
                     feedbackText.text = "Back outside. Tap to turn.";
                     PlaySfx(SfxCue.Rotate);
@@ -2946,6 +3200,19 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
         }
 
+        private void CancelStickDrag()
+        {
+            if (!draggingPointerId.HasValue) return;
+            if (dragGhost != null)
+            {
+                Destroy(dragGhost.gameObject);
+                dragGhost = null;
+            }
+            SetDragHoverSlot(-1);
+            RestoreDraggedSource();
+            UpdateCheckButtonState();
+        }
+
         private void RemoveBankStick(int bankIndex)
         {
             if (bankStickPoses.Count <= 0)
@@ -2955,6 +3222,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             var index = bankIndex >= 0 && bankIndex < bankStickPoses.Count ? bankIndex : bankStickPoses.Count - 1;
             bankStickPoses.RemoveAt(index);
+            bankPositionIndices.RemoveAt(index);
         }
 
         private static StickPose NormalizeOutsidePose(StickPose pose)
@@ -3018,6 +3286,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void RestoreDraggedSource()
         {
+            draggingPointerId = null;
             if (draggingSourceGroup != null)
             {
                 draggingSourceGroup.alpha = 1f;
@@ -3051,21 +3320,24 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private IEnumerator Bump(RectTransform target, float peakScale)
         {
+            if (target == null) yield break;
             var start = target.localScale;
             var peak = Vector3.one * peakScale;
             for (var i = 0; i < 6; i++)
             {
+                if (target == null) yield break;
                 target.localScale = Vector3.Lerp(start, peak, (i + 1) / 6f);
                 yield return null;
             }
 
             for (var i = 0; i < 8; i++)
             {
+                if (target == null) yield break;
                 target.localScale = Vector3.Lerp(peak, Vector3.one, (i + 1) / 8f);
                 yield return null;
             }
 
-            target.localScale = Vector3.one;
+            if (target != null) target.localScale = Vector3.one;
         }
 
         private IEnumerator BlinkRoutine()
@@ -3088,6 +3360,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 face.LeftEye.localScale = closed;
                 face.RightEye.localScale = closed;
                 yield return new WaitForSeconds(0.11f);
+                if (face.LeftEye == null || face.RightEye == null) continue;
                 face.LeftEye.localScale = Vector3.one;
                 face.RightEye.localScale = Vector3.one;
             }
@@ -3643,6 +3916,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             for (var i = parent.childCount - 1; i >= 0; i--)
             {
                 var child = parent.GetChild(i);
+                child.gameObject.SetActive(false);
                 child.SetParent(null, false);
                 Destroy(child.gameObject);
             }
@@ -3707,7 +3981,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             public void OnPointerClick(PointerEventData eventData)
             {
-                if (didDrag)
+                if (didDrag || eventData.button != PointerEventData.InputButton.Left)
                 {
                     return;
                 }

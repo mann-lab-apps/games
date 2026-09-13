@@ -42,9 +42,33 @@ printBandSummary();
 printIntroductions();
 printTargetSummary();
 printPatternRuns();
+printConstraintRepeats();
 const warningCount = printWarnings();
 if (strict && warningCount > 0) {
   process.exit(1);
+}
+
+function printConstraintRepeats() {
+  const groups = new Map();
+  for (const round of rounds) {
+    const sticks = round.symbols.reduce((sum, symbol) => sum + tokenCosts.get(symbol), 0);
+    // Equality rounds have no fixed target: the sample's value is not a constraint.
+    const target = round.symbols.includes("=") ? "balanced" : String(round.target);
+    const key = `${round.symbols.length} slots / ${sticks} sticks / ${target}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(round.number);
+  }
+  console.log("## Repeated Player Constraints");
+  console.log("Same visible resources/target, regardless of sample. Review candidates, not automatic defects.");
+  let repeats = 0;
+  for (const [key, owners] of groups) {
+    if (owners.length < 2) continue;
+    repeats++;
+    console.log(`- ${key}: Rounds ${owners.join(", ")}`);
+  }
+  if (!repeats) console.log("- none");
+  console.log("Target rounds can also admit player-built equalities; distinct keys do not prove distinct solution spaces.");
+  console.log("");
 }
 
 function printBandSummary() {

@@ -3,6 +3,7 @@ using UnityEngine.UI;
 
 namespace MannLab.Games.OnePlusOneMinusOne
 {
+    [RequireComponent(typeof(CanvasRenderer))]
     public sealed class EllipseGraphic : Graphic
     {
         [SerializeField]

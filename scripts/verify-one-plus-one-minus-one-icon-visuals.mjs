@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync } from "node:fs";
-import { basename, resolve } from "node:path";
+import { resolve } from "node:path";
 import { inflateSync } from "node:zlib";
 
 const repoRoot = resolve(import.meta.dirname, "..");
 const projectRoot = resolve(repoRoot, "prototypes/one-plus-one-minus-one");
 const sourceIcon = resolve(projectRoot, "Assets/_Project/Art/AppIcon-1024.png");
 const webglIcon = resolve(projectRoot, "Builds/WebGL/one-plus-one-minus-one/app-icon.png");
+const webglQaIcon = resolve(projectRoot, "Builds/WebGL/one-plus-one-minus-one-qa/app-icon.png");
+const webglStoreCaptureIcon = resolve(projectRoot, "Builds/WebGL/one-plus-one-minus-one-store-capture/app-icon.png");
 const targets = [
   { label: "source icon", path: sourceIcon },
   { label: "WebGL icon", path: webglIcon, optional: true },
+  { label: "WebGL QA icon", path: webglQaIcon, optional: true },
+  { label: "WebGL store-capture icon", path: webglStoreCaptureIcon, optional: true },
 ];
 const sizes = [180, 120, 64, 32];
 const failures = [];
@@ -61,7 +65,8 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`1 = 1 small-icon visual verification passed for ${targets.map(target => basename(target.path)).join(", ")}.`);
+const checkedLabels = targets.filter(target => existsSync(target.path)).map(target => target.label).join(", ");
+console.log(`1 = 1 small-icon visual verification passed for ${checkedLabels}.`);
 
 function checkIconStats(label, stats, policy) {
   if (stats.darkRatio < policy.minDarkRatio) {

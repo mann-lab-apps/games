@@ -557,7 +557,7 @@ function calculateRoundSelectLayout(safeWidth, safeHeight) {
   safeWidth = safeWidth > 1 ? safeWidth : 560;
   safeHeight = safeHeight > 1 ? safeHeight : 840;
   let panelWidth = Math.min(520, Math.max(300, safeWidth - 40));
-  let panelHeight = Math.min(760, Math.max(500, safeHeight - 72));
+  let panelHeight = Math.min(820, Math.max(500, safeHeight - 72));
 
   if (safeWidth < 360) {
     panelWidth = Math.max(releaseMinRoundSelectPanelWidth, safeWidth - 12);
@@ -574,7 +574,7 @@ function calculateRoundSelectLayout(safeWidth, safeHeight) {
   const cellWidth = clamp((innerWidth - spacing * 2) / 3, cellMinWidth, 140);
   const availableGridHeight = panelHeight - 246;
   const cellMinHeight = panelHeight < 560 ? releaseMinRoundSelectCellHeight : 68;
-  const cellHeight = clamp((availableGridHeight - spacing * 3) / 4, cellMinHeight, 86);
+  const cellHeight = clamp((availableGridHeight - spacing * 3) / 4, cellMinHeight, 100);
   const gridHeight = cellHeight * 4 + spacing * 3;
   const portraitRatio = safeHeight / Math.max(1, safeWidth);
   const spareHeight = Math.max(0, safeHeight - panelHeight);

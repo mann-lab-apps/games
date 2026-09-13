@@ -23,6 +23,7 @@ check_store_capture_build() {
   newer_source="$(
     find \
       "$project/Assets/_Project" \
+      "$project/Assets/Plugins" \
       "$project/ProjectSettings" \
       "$project/Packages" \
       -type f \

@@ -169,6 +169,12 @@ Current code-side polish pass covers:
   `scripts/verify-one-plus-one-minus-one-rounds.mjs`.
 - Existing WebGL artifact smoke can run without rebuilding through
   `scripts/smoke-one-plus-one-minus-one-webgl-build.sh`.
+- Release, QA, and store-capture WebGL verification all require matching
+  product metadata, app icon, apple-touch-icon, theme color, and cache-busted
+  build URLs so screenshot capture builds cannot drift from the public shell.
+- The final ship-ready gate also checks the existing release, QA, and
+  store-capture WebGL shells together, including QA profiler markers and
+  release/store-capture non-development markers.
 - The WebGL smoke warns when the build artifact is older than project source
   files, so a passing smoke result may still require a fresh build.
 - WebGL viewport smoke can capture iPhone SE, standard iPhone, large iPhone,
@@ -220,10 +226,19 @@ Current external blockers before calling this commercially ready:
   - Interstitial opportunity only after newly cleared 10-round milestones.
   - Replayed rounds do not create ad opportunities.
   - Rounds cleared after many failed checks skip ads.
+  - An unavailable ad is skipped, not queued to interrupt the next puzzle.
 - AdMob test build:
   - Uses Google test app ID and test ad units.
   - Test interstitial can be requested on every clear.
   - Closing an ad continues to the next round normally.
+- Privacy options on native iOS/Android:
+  - When UMP reports Required, Rounds shows a Privacy action beside Close.
+  - Reopen the consent form, change a choice, and confirm gameplay continues.
+  - When not required, the action is hidden. Editor/WebGL must not query the
+    unsupported native UMP factory.
+  - UI visibility/layout is automated; form presentation and consent changes
+    still require a configured native test build.
+  - Reference: [Google UMP Unity guide](https://developers.google.com/admob/unity/privacy), reviewed 2026-09-13.
 - Release readiness:
   - Production AdMob App ID must not be Google's test app ID.
 - Production interstitial ad unit IDs must not be blank.
@@ -279,6 +294,7 @@ Run from the repository root.
 ./scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs
 ./scripts/verify-one-plus-one-minus-one-webgl-qa.sh
 ./scripts/verify-one-plus-one-minus-one-webgl-store-capture.sh
+./scripts/verify-one-plus-one-minus-one-webgl-shells.sh
 ./scripts/capture-one-plus-one-minus-one-webgl-qa-rounds.sh
 ./scripts/capture-one-plus-one-minus-one-round-select-pages.sh
 ./scripts/verify-one-plus-one-minus-one-qa-captures.sh
@@ -303,9 +319,9 @@ Final commercial-completion gate:
 ./scripts/verify-one-plus-one-minus-one-ship-ready.sh
 ```
 
-This gate should fail until all fresh builds, QA captures, App Store candidates,
-Firebase/AdMob production settings, Android signing, icon checks, and viewport
-smoke checks are satisfied.
+This gate should fail until all fresh builds, WebGL shell metadata, QA captures,
+App Store candidates, Firebase/AdMob production settings, Android signing, icon
+checks, and viewport smoke checks are satisfied.
 
 Strict release readiness should fail until real Firebase and AdMob values are
 present:

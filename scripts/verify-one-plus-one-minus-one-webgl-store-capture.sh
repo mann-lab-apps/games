@@ -16,6 +16,25 @@ fi
 
 unity_cli="${HOME}/.unity/bin/unity"
 build_log="/tmp/one-plus-one-minus-one-unity-webgl-store-capture-build.log"
+missing=0
+
+require_file() {
+  local path="$1"
+  if [[ ! -f "$path" ]]; then
+    echo "Missing file: $path" >&2
+    missing=1
+  fi
+}
+
+require_text() {
+  local path="$1"
+  local pattern="$2"
+  require_file "$path"
+  if [[ -f "$path" ]] && ! grep -Fq -- "$pattern" "$path"; then
+    echo "Missing expected text in $path: $pattern" >&2
+    missing=1
+  fi
+}
 
 if [[ ! -x "$unity_editor" ]]; then
   echo "Unity Editor not found: $unity_editor" >&2
@@ -42,14 +61,30 @@ fi
   -executeMethod MannLab.Games.OnePlusOneMinusOne.EditorTools.BuildWebGL.BuildStoreCapture \
   -logFile "$build_log"
 
-test -f "$build_output/index.html"
-test -f "$build_output/Build/one-plus-one-minus-one-store-capture.loader.js"
-test -f "$build_output/Build/one-plus-one-minus-one-store-capture.data"
-test -f "$build_output/Build/one-plus-one-minus-one-store-capture.framework.js"
-test -f "$build_output/Build/one-plus-one-minus-one-store-capture.wasm"
+require_file "$build_output/index.html"
+require_file "$build_output/app-icon.png"
+require_file "$build_output/Build/one-plus-one-minus-one-store-capture.loader.js"
+require_file "$build_output/Build/one-plus-one-minus-one-store-capture.data"
+require_file "$build_output/Build/one-plus-one-minus-one-store-capture.framework.js"
+require_file "$build_output/Build/one-plus-one-minus-one-store-capture.wasm"
+require_text "$build_output/index.html" "<title>1 = 1</title>"
+require_text "$build_output/index.html" "app-icon.png"
+require_text "$build_output/index.html" "buildVersion"
+require_text "$build_output/index.html" "name=\"description\""
+require_text "$build_output/index.html" "name=\"application-name\" content=\"1 = 1\""
+require_text "$build_output/index.html" "name=\"apple-mobile-web-app-title\" content=\"1 = 1\""
+require_text "$build_output/index.html" "name=\"theme-color\" content=\"#fffffc\""
+require_text "$build_output/index.html" "rel=\"apple-touch-icon\" href=\"app-icon.png\""
 
 if grep -Fq "Development Build" "$build_output/index.html"; then
   echo "Store capture WebGL shell should not be a Development Build." >&2
+  missing=1
+fi
+
+"$repo_root/scripts/verify-one-plus-one-minus-one-icon.sh"
+
+if [[ "$missing" -ne 0 ]]; then
+  echo "1 = 1 WebGL store-capture build verification failed." >&2
   exit 1
 fi
 

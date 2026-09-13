@@ -13,6 +13,35 @@ inspection alone.
 
 ## Automated Viewport Smoke
 
+### 2026-09-13 Controller And Browser Input Evidence
+
+- Base commit: `65578f4f` plus local `1 = 1` input/progress/layout fixes.
+- `./scripts/verify-one-plus-one-minus-one-playmode.sh`: 16 passing tests;
+  includes runtime layout checks across all 100 rounds and all nine picker pages,
+  44px picker button height, 12px labels and full generated text height.
+- Sound checkbox persistence, reset behavior and local AudioSource mute are
+  covered by controller tests; this is not speaker/headphone listening signoff.
+- Conditional Privacy action visibility/layout is tested. UMP consent form
+  reopening and changed consent on a configured native build remain unverified.
+- Unity EditMode: 15 passing tests, including arithmetic/equality boundaries.
+- Isolated Chrome mobile emulation at 390x844 / DPR 3: Rounds 1-10 solved using
+  touch input, no `qaFillSample`; first-clear events, ad cadence, and reload of
+  saved progress confirmed. Report: `/tmp/one-equals-one-input-smoke/input/results.json`.
+- Alternate Round 5 `1 = 1` was also touch-built without sample fill. Round 39
+  used sample fill followed by actual touch rotation `+` to `=` and back;
+  equality hides only the fixed target and leaves slot geometry unchanged.
+  Round 100 sample-filled clear/reload confirms persisted `Done` on page 9.
+  These assisted late-round checks are not manual full solutions.
+- These checks do not sign off the manual device/touch/audio/SDK rows below.
+  Final layout/platform-guard/equality/Sound build and input refresh passed on 2026-09-13.
+  Release, QA and store-capture builds, key rounds/pages and store candidates
+  passed. Logs: `/tmp/one-equals-one-ship-ready-final.log` and
+  `/tmp/one-equals-one-visual-refresh-final.log`.
+- Native build-only evidence on 2026-09-13: fresh Android AdMob test APK passes;
+  iOS test export passes but unsigned Xcode build fails in the Crashlytics script
+  on missing `GoogleService-Info.plist`. No attached iOS or Android devices were
+  reported by devicectl/ADB. Manual build-under-test fields below remain blank.
+
 Run this after every fresh WebGL build:
 
 ```sh
@@ -62,7 +91,7 @@ The candidate verifier rejects stale screenshots when project source is newer
 than the store-capture build, when PNGs are older than that build, or when the
 PNG visual-content check fails.
 
-Latest automated evidence:
+Earlier automated evidence (September 11-12):
 
 - Release viewport smoke: `/tmp/one-equals-one-webgl-viewports`
 - QA key-round captures: `/tmp/one-equals-one-webgl-qa-rounds`

@@ -1,8 +1,160 @@
 # 1 = 1 Ship-Ready Status
 
-Status date: 2026-09-12
+Status date: 2026-09-13
 
 Current completion judgment: `not yet`
+
+Stage: development checkpoint; native/production release validation pending.
+
+Goal state: user-requested pause after Round 95; Round 96 opened, not attempted.
+An intermittent missing fixed-target rendering observation remains actionable.
+The previous release-only loop was
+blocked on external inputs, but that did not prove the remaining gameplay work
+was complete. The resumed scope separates actionable gameplay work (A) from
+native/production validation (B). Resume with the rendering observation, then
+actual-input play through 96-100; missing Firebase files do not block that work.
+The earlier missing-config iOS failure is superseded by the native release
+checkpoint below; gameplay investigation remains paused by the user.
+
+## iOS Release Build Checkpoint (2026-09-13)
+
+The user supplied the Firebase iOS plist, App Store provisioning profile and
+production iOS AdMob app/interstitial IDs. Bundle ID and signing team match this
+app; the profile matches the installed Apple Distribution certificate and expires
+2027-08-28. Build settings are in Git-ignored
+`prototypes/one-plus-one-minus-one/.env.ios.local`: version `1.0.0`, build `1`,
+team `ZRA4DHHKQ4`, profile `1 = 1`. No production IDs were invented or reused
+from another game. Game logic and ad frequency were not changed.
+
+- Strict iOS release readiness and current 100-round verification: PASS.
+- Fresh release Unity-to-Xcode export: PASS.
+- Signed device Archive with Xcode 26.5: PASS (`ARCHIVE SUCCEEDED`).
+- Deep/strict codesign verification against the macOS trust store: PASS.
+- App Store Connect-format local IPA export: PASS (`EXPORT SUCCEEDED`).
+- Archive metadata: `com.mannlab.games.oneplusoneminusone`, display name `1 = 1`,
+  version `1.0.0`, build `1`, minimum iOS `15.0`.
+- Exported app/IPA contains Firebase config, provisioning profile and the
+  production interstitial ID; archive contains app privacy manifest and dSYMs.
+  GADApplicationIdentifier matches the supplied production app ID.
+- Crashlytics build-phase validation succeeds; this is not console receipt of
+  a device crash. Production ad delivery/consent and device play are unverified.
+
+Artifacts (relative to `prototypes/one-plus-one-minus-one`):
+
+- `Builds/iOS/Xcode/Unity-iPhone.xcworkspace`
+- `Builds/iOS/Archives/OneEqualsOne-1.0.0-1.xcarchive`
+- `Builds/iOS/Export/1.0.0-1/11.ipa` (about 49 MiB)
+- `Builds/iOS/ExportOptions.plist` explicitly uses `destination=export`.
+
+Logs: `/tmp/one-plus-one-minus-one-unity-ios-release-build.log`,
+`/tmp/one-equals-one-ios-release-archive.log`,
+`/tmp/one-equals-one-ios-release-export.log`.
+Re-export the Unity project from the repository root with:
+
+```sh
+env BASH_ENV="$PWD/prototypes/one-plus-one-minus-one/.env.ios.local" \
+  bash scripts/verify-one-plus-one-minus-one-ios-readiness.sh release
+```
+
+Build-time PlayerSettings and scene-ID churn were removed; the local environment
+reapplies release version/signing values on each export. Firebase assets/meta
+remain in the working tree. No commit, push, store upload or review submission.
+The supplied App Store Connect app ID is `6811571680`; remote version/build
+availability has not been authenticated or validated. Check it before upload.
+This proves local iOS buildability, not complete gameplay or App Store approval.
+Older iOS/Firebase-missing entries below are historical and are superseded here;
+Android configuration, device QA and the missing-target gameplay issue remain.
+
+The prior WebGL build/capture gates included alternate-equality display/rotation
+and persistent Sound preference. New gameplay changes below supersede those
+artifacts; the old aggregate is historical evidence, not current signoff.
+
+## Gameplay Audit Checkpoint
+
+See `docs/one-equals-one-gameplay-quality-audit.md` for per-round observations,
+attempts, evidence and remaining coverage. Rounds 11-95 were played using touch
+events without sample-fill; Round 96 was opened but not attempted. Current
+changes: stable bank pickups and cell hit areas, meaningful precedence examples
+in 14/15, replacement of duplicate challenges 42/46, calculated-value failure
+feedback, matching rotation, larger footer commands and readable status text.
+The resumed pass also improved recognition labels and removed ambiguous global
+last-token feedback; revised rounds 65/70/87 passed actual-input replays.
+Current full EditMode passes 27 cases and PlayMode passes 24. All 100 samples
+pass. Latest QA/release builds include the final Round 87 correction. First-ten
+input regression, five viewport smokes and static suite passed before that last
+data-only change; their exact coverage is recorded in the audit checkpoint.
+Rendering captures in Round 80 and revised 87 lack a fixed target; this is not
+resolved by successful calculation. Further A work includes that investigation,
+96-100 and the ending flow. Neither gameplay nor release completion is claimed.
+No commit, push or merge performed.
+
+Checkpoint verification: fresh release WebGL build and final freshness smoke
+pass. Browser touch tests are not native device, audio or production SDK signoff.
+Preview: `http://127.0.0.1:8093/index.html`. QA sessions are closed.
+
+## Current Playtest Loop
+
+The test counts below document earlier stages; the checkpoint above supersedes
+them for the current source.
+
+The 2026-09-13 uncommitted pass is based on `65578f4f` plus the existing local
+release-verification edits. It adds controller PlayMode tests and actual browser
+touch-input playthroughs, rather than treating sample screenshots as interaction
+evidence.
+
+- Unity PlayMode: 16 tests pass, including all 100 rounds instantiated at a
+  compact portrait logical size. Tests cover target/slot overlap, bank and footer
+  bounds, resize, rejected drops, second pointers, cancellation, final completion
+  after controller restart, replay ad suppression, unavailable ads, and audio setup.
+  All nine picker pages also meet 44px button height / 12px text at the 320x568
+  simulated display, including full label-height checks.
+  A conditional Privacy action is wired to the shared UMP privacy form; its
+  visibility/layout is tested, while the native form still needs device QA.
+  In-slot `+` to `=` rotation now spaces horizontal sticks consistently with
+  bank insertion, hides the fixed target, and restores it on rotation back.
+  Sound preference is preserved across round reset and controller restart.
+  Browser touch also confirms the unchecked Sound state after page reload,
+  with no header overlap at 320x568.
+- Unity EditMode: 15 tests pass, including all round samples, alternate player
+  equality, invalid equality, adjacent numbers, and left-to-right precedence.
+- Browser input: Rounds 1-10 were solved with emulated touch rotation/dragging at
+  390x844, DPR 3, with no sample-fill hook. Clear/ad logs and persisted Round 11
+  startup were checked; restored round-select screenshot was visually inspected.
+  Final picker label-height, native-platform guards and Sound UI are included
+  in this run.
+- Fixes include preserving failed drops, single-pointer ownership, safe drag
+  cancellation, explicit CanvasRenderer dependencies, destroyed-animation guards,
+  persistent final-round completion, consistent replay context, ready-only ads,
+  an audio listener fallback, CSS-size-based WebGL scaling, responsive slot
+  reflow, grouped last-row target alignment, and proportional bank fitting.
+- Final QA, store-capture and release WebGL rebuilds passed on 2026-09-13.
+  Key-round/page captures and the eight-shot store candidate set were refreshed.
+  The final ship-ready aggregate passed all nine local gates; its five strict
+  device/production gates failed on the external inputs listed below.
+  Logs: `/tmp/one-equals-one-ship-ready-final.log` and
+  `/tmp/one-equals-one-visual-refresh-final.log`.
+- Strict release-env and device-signoff preflights were rerun: both correctly fail
+  on missing external production settings and unfinished device QA. No native
+  device touch, speaker listening, live ad callback or Firebase-console result is
+  claimed by the browser or controller tests.
+- Fresh native test artifacts were attempted on 2026-09-13: Android AdMob test
+  APK builds successfully; iOS AdMob test Xcode export succeeds. A subsequent
+  unsigned `xcodebuild` fails in the Crashlytics Run Script because the exported
+  `GoogleService-Info.plist` is absent (exit 65), not a successful app build.
+  Logs: `/tmp/one-equals-one-android-test-final.log`,
+  `/tmp/one-equals-one-ios-test-final.log`, and
+  `/tmp/one-equals-one-xcode-unsigned-final.log`.
+  `xcrun devicectl list devices` found no iOS devices. After starting ADB,
+  `adb devices -l` returned an empty attached-device list.
+
+Reproduce controller tests with `./scripts/verify-one-plus-one-minus-one-playmode.sh`.
+The README documents `ONE_EQUALS_ONE_INPUT_PLAYTEST=1` for the browser playthrough;
+its screenshots and event report are written under `/tmp/one-equals-one-input-smoke`.
+Additional emulated-touch picker/page and rejected-drop evidence is under
+`/tmp/one-equals-one-input-qa`. Local release URL: `http://127.0.0.1:8093/index.html`.
+No commit, push or merge was performed. Only this pass's generated scene/settings,
+icon-import whitespace and Android Crashlytics build-ID churn were removed.
+No build/test jobs remain running; the local release preview server remains up.
 
 The project has stronger release infrastructure, fresh WebGL verification, and
 automated viewport smoke coverage, but it must not be called commercially
@@ -15,32 +167,37 @@ pass.
 | --- | --- | --- |
 | Unity batch verify | pass | `BuildWebGL.Build` invokes `VerifyGoalMode.Run`; latest WebGL build succeeded. |
 | WebGL build | pass | Fresh release WebGL build succeeded. |
-| Existing WebGL smoke | pass | Fresh release WebGL build and artifact smoke passed on 2026-09-12, including title, app icon, cache-busting, mobile web app metadata, theme color, and apple-touch-icon checks. |
-| WebGL viewport smoke | pass | Fresh iPhone SE, standard iPhone, large iPhone, Android 20:9, and desktop screenshots passed outside the sandbox on 2026-09-12 after the tall-portrait stage lift. Very tall first screens still have generous whitespace, so final device QA should judge first-screen density. |
-| WebGL QA build | pass | Development QA WebGL build succeeded on 2026-09-12 and supports key-round and round-select screenshot entry. |
-| QA key-round/page captures | pass | Fresh QA WebGL build, expanded key-round captures, round-select page captures, stale managed-folder checks, freshness checks, and PNG visual verification passed on 2026-09-12. |
-| WebGL store-capture build | pass | Fresh non-development store-capture WebGL build passed on 2026-09-12. |
-| App Store candidate screenshots | pass | App Store candidate PNGs were recaptured from the fresh store-capture build and verified for the 8-shot Round 1/5/8/9/30/75/100/round-select set, expected folder list, size, alpha, freshness, and PNG visual content on 2026-09-12. |
-| iOS AdMob test export | pass with warning | Xcode project export verified; iOS version env vars are not set. |
-| Android AdMob test APK | pass | Test APK build verified. |
+| Existing WebGL smoke | pass | Fresh release artifact smoke passed on 2026-09-13, including title, icon, metadata and cache-busting. |
+| WebGL viewport smoke | pass | SE, standard/large iPhone, Android 20:9 and desktop viewport smoke passed on 2026-09-13. Browser checks now reject Unity/JS runtime exceptions as well as invalid pixels. Physical-device density/readability remains manual. |
+| WebGL QA build | pass | Development QA WebGL rebuilt successfully on 2026-09-13. |
+| QA key-round/page captures | pass | Ten key rounds across five viewports, pages 1/5/9, freshness and PNG checks passed on 2026-09-13. |
+| WebGL store-capture build | pass | Non-development store-capture WebGL rebuilt successfully on 2026-09-13. |
+| WebGL shell metadata | pass | Existing release, QA, and store-capture WebGL shells are verified together for product title, app icon, mobile web app metadata, theme color, apple-touch-icon, build URL cache-busting, QA profiler markers, and release/store-capture non-development state. |
+| App Store candidate screenshots | pass | Eight shots at three store sizes were recaptured and passed size, alpha, freshness and content checks on 2026-09-13. These are candidates, not store approval. |
+| iOS AdMob test export | export pass / Xcode build blocked | Fresh export on 2026-09-13 passes. Unsigned Xcode build fails in Crashlytics Run Script on missing GoogleService-Info.plist; no app/device pass claimed. |
+| Android AdMob test APK | build pass / device pending | Fresh test APK built on 2026-09-13; no Android device attached for installation or ad callbacks. |
 | iOS export | blocked | Firebase plist, production AdMob ID, and version/build env are missing. |
 | Android export | blocked | Firebase json, production AdMob ID, signing env, and version env are missing. |
 | Release env preflight | pass with warning | Lightweight no-Unity preflight classifies missing Firebase files, production AdMob IDs, version envs, and Android signing envs; strict mode fails until external settings are present. |
 | 100-round data | pass | `./scripts/verify-one-plus-one-minus-one-rounds.mjs` passes. Round quality report has no token-band review warnings after adding mid/finale equality coverage. |
 | Narrow portrait layout plan | pass | Static verifier now covers 320, 390, and 488px expression widths, compact 4-row wrapping, fixed-target fit, slot aspect bounds, and tall-portrait stage lift for common phone viewports. Fresh viewport smoke passed after this source change. |
-| Round select pagination | partial | Code supports 9 pages, responsive panel lift on tall phones, and compact last-page grid height; QA captures for pages 1, 5, and 9 pass smoke. Needs real touch/device QA. |
-| First-run flow | partial | Code path exists. Needs fresh build/runtime QA. |
-| Character readability | partial | Code-side `1`, `=`, and `*` polish exists. Character-policy automation now rejects arms/hands/legs/cheeks/blush regressions. Fresh viewport screenshots and manual readability pass remain. |
-| Controls | partial | Drag offset, hover, tap rotate, and drag-out return exist. Needs touch QA. |
-| SFX | partial | Generated SFX and cooldown exist. Needs audio QA. |
+| Round select pagination | browser pass / native pending | Nine pages navigated with emulated touch; all labels and button sizes checked in PlayMode. Fresh page 1/5/9 captures pass. |
+| First-run flow | browser pass / native pending | Fresh profile starts Round 1; touch-clearing 1-10 and reloading opens Rounds with 11 available and 12 locked. |
+| Character readability | partial | Fresh key-round and store captures inspected; character policy passes. No character redesign. Final small-device judgment remains open. |
+| Controls | browser/controller pass / native pending | Sixteen PlayMode tests and first-ten touch playthrough pass; full-slot rejection preserves placements. Real finger feel still needs device QA. |
+| SFX | partial | Listener/non-silent signal and persisted Sound mute tested. Browser toggle/reload confirmed. Speaker/headphone listening has not been signed off. |
 | Device QA signoff | blocked | Lightweight signoff preflight detects blank build-under-test fields, `not run` rows, WebGL mobile browser coverage gap, remaining real-touch/manual QA notes, manual-risk signoff text, and TestFlight/internal-test not-ready state. |
-| Ads policy | partial | Code policy/readiness checks exist. Production IDs are missing, and strict checks now reject copied placeholder IDs as well as Google test IDs. |
+| Ads policy | partial | Cadence, replay/final replay, failure exclusion, ready-only show and unavailable-ad continuation tested locally. Conditional UMP Privacy action wired for native platforms. Live ad/form callbacks and production IDs remain open. |
 | Firebase/Crashlytics | partial | Bridge exists. Platform config files missing. |
 | App icon | pass | Source icon and WebGL favicon are 1024x1024 PNGs without alpha; generator now uses RGB24 and avoids rewriting identical PNGs. Small-size PNG visual checks pass at 180, 120, 64, and 32 px for left/center/right `1 = 1` contrast. |
 | Apple privacy manifest | pass | Project includes `Assets/_Project/Store/PrivacyInfo.xcprivacy`; iOS export copies it to `PrivacyInfo.xcprivacy` in the Xcode app bundle and readiness verifies UserDefaults reason `CA92.1`. Final privacy labels still require production Firebase/AdMob review. |
 | Store metadata | partial | Draft exists. Screenshots/final privacy labels need final SDK settings and store review. |
 
 ## Required To Reach Pass
+
+Resume by adding the real Firebase configs and rerunning the failed unsigned
+iOS Xcode build, then device ad/consent/persistence QA on fresh test artifacts. Do not
+repeat unchanged successful WebGL checks as a substitute for that evidence.
 
 1. Add Firebase configs:
    - `prototypes/one-plus-one-minus-one/Assets/GoogleService-Info.plist`
@@ -59,6 +216,18 @@ pass.
 5. Complete the device QA tracker.
 6. Re-run strict readiness checks and resolve all failures after production
    config is available.
+
+After adding the real Firebase plist and re-exporting the iOS test project,
+resume the failed build-only check with:
+
+```sh
+xcodebuild -workspace prototypes/one-plus-one-minus-one/Builds/iOS/AdMobTestXcode/Unity-iPhone.xcworkspace \
+  -scheme Unity-iPhone -configuration Release -sdk iphoneos \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath /tmp/one-equals-one-ios-unsigned CODE_SIGNING_ALLOWED=NO build
+```
+
+An unsigned build does not replace signing, device installation, or ad/consent QA.
 
 ## Current No-Unity Verification
 
@@ -124,6 +293,11 @@ Latest observed result:
   content starts too far down the viewport.
 - App Store candidate verification now rejects stale captures whose source or
   store-capture build is newer than the PNGs; latest fresh candidates pass.
+- Ship-ready now also verifies existing release, QA, and store-capture WebGL
+  shells as a group, so screenshot freshness cannot hide an outdated browser
+  title, icon, mobile web app metadata, theme color, apple-touch-icon, build URL
+  cache-busting, missing QA profiler marker, or leaked release/store-capture
+  development marker.
 - App Store candidate capture now recreates managed `??-*` folders and
   verification rejects unexpected stale candidate directories, so old numbered
   screenshots cannot sit beside the current upload set.
@@ -139,7 +313,7 @@ Latest observed result:
   reported clearly without relying on Unity export failures.
 - Ship-ready now also runs strict device QA signoff, so automated screenshot
   coverage cannot be mistaken for real-device completion.
-- Latest ship-ready run on 2026-09-12 passes every local build, freshness,
+- Historical ship-ready run on 2026-09-12 passed every local build, freshness,
   viewport, WebGL metadata, icon, QA capture, App Store screenshot, and PNG
   visual-content gate before failing on strict device QA signoff and missing
   production Firebase/AdMob/platform release settings.

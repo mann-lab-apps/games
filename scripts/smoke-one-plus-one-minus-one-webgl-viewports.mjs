@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import { resolve } from "node:path";
 import { inflateSync } from "node:zlib";
+import { assertNoRuntimeExceptions, playtestFirstTenRounds } from "./playtest-one-plus-one-minus-one-webgl.mjs";
 
 const repoRoot = resolve(import.meta.dirname, "..");
 const buildDir = process.env.ONE_EQUALS_ONE_WEBGL_BUILD_DIR
@@ -83,7 +84,10 @@ const storeDevices = [
   },
 ];
 
-const devices = process.env.ONE_EQUALS_ONE_VIEWPORT_SET === "store" ? storeDevices : qaDevices;
+const inputPlaytest = process.env.ONE_EQUALS_ONE_INPUT_PLAYTEST === "1";
+const devices = inputPlaytest
+  ? [qaDevices.find(device => device.name === "iphone-standard")]
+  : process.env.ONE_EQUALS_ONE_VIEWPORT_SET === "store" ? storeDevices : qaDevices;
 
 function delay(ms) {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
@@ -202,6 +206,7 @@ async function waitForGame(client, timeoutMs = 120000) {
     if (lastStatus?.failed) throw new Error(`WebGL page failed: ${lastStatus.warningText}`);
     if (lastStatus?.ready) {
       await delay(2500);
+      assertNoRuntimeExceptions(client.events);
       return lastStatus;
     }
 
@@ -424,6 +429,12 @@ async function main() {
         try {
           const screenshotPath = await smokeDevice(client, appUrl, device);
           console.log(`${device.name}: ${screenshotPath}`);
+          if (inputPlaytest) {
+            await playtestFirstTenRounds(client, appUrl, resolve(screenshotDir, "input"), {
+              waitUntilReady: waitForGame,
+              validateScreenshot: assertScreenshotHasGamePixels,
+            });
+          }
         } catch (error) {
           const screenshotPath = resolve(screenshotDir, `${device.name}.png`);
           const message = error instanceof Error ? error.message : String(error);

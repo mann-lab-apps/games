@@ -31,6 +31,7 @@ check_fresh_webgl_artifact() {
   newer_source="$(
     find \
       "$project/Assets/_Project" \
+      "$project/Assets/Plugins" \
       "$project/ProjectSettings" \
       "$project/Packages" \
       -type f \
@@ -46,8 +47,10 @@ check_fresh_webgl_artifact() {
 }
 
 run_check "static suite" "$repo_root/scripts/verify-one-plus-one-minus-one-static.sh"
+run_check "PlayMode input and progress regressions" "$repo_root/scripts/verify-one-plus-one-minus-one-playmode.sh"
 run_check "fresh WebGL build and smoke" "$repo_root/scripts/verify-one-plus-one-minus-one-webgl.sh"
 run_check "WebGL artifact freshness" check_fresh_webgl_artifact
+run_check "WebGL shell metadata" "$repo_root/scripts/verify-one-plus-one-minus-one-webgl-shells.sh"
 run_check "store-ready app icon" "$repo_root/scripts/verify-one-plus-one-minus-one-icon.sh"
 run_check "WebGL viewport smoke" "$repo_root/scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs"
 run_check "QA key-round/page captures" "$repo_root/scripts/verify-one-plus-one-minus-one-qa-captures.sh"

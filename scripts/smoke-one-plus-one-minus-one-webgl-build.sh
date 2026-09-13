@@ -43,6 +43,7 @@ if [[ -f "$build_output/index.html" ]]; then
   newer_source="$(
     find \
       "$repo_root/prototypes/one-plus-one-minus-one/Assets/_Project" \
+      "$repo_root/prototypes/one-plus-one-minus-one/Assets/Plugins" \
       "$repo_root/prototypes/one-plus-one-minus-one/ProjectSettings" \
       "$repo_root/prototypes/one-plus-one-minus-one/Packages" \
       -type f \
