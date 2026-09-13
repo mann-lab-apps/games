@@ -147,6 +147,65 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         }
 
         [UnityTest]
+        public IEnumerator FixedTargetKeepsRenderedGlyphsDuringPlacement()
+        {
+            var safe = Field<RectTransform>("safeRoot");
+            foreach (var behaviour in safe.GetComponents<MonoBehaviour>()) behaviour.enabled = false;
+            safe.anchorMin = safe.anchorMax = new Vector2(0.5f, 0.5f);
+            safe.sizeDelta = new Vector2(720, 1278);
+            Call("LoadRound", 86);
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            AssertTargetGlyphs("Before placement");
+
+            foreach (var step in new[] { (slot: 0, turns: 0), (slot: 1, turns: 0), (slot: 1, turns: 2) })
+            {
+                for (var turn = 0; turn < step.turns; turn++)
+                {
+                    Call("TapBankStick", 0);
+                    yield return null;
+                }
+                var pointer = Pointer(1, SlotPosition(step.slot));
+                Call("BeginStickDrag", pointer, SourceGroup(), -1, 0);
+                Call("EndStickDrag", pointer);
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                AssertTargetGlyphs($"After slot {step.slot} placement");
+            }
+        }
+
+        private void AssertTargetGlyphs(string context)
+        {
+            var target = Field<Text>("targetText");
+            Assert.That(target.gameObject.activeInHierarchy, Is.True, context);
+            Assert.That(target.text, Is.EqualTo("= 122"), context);
+            var mesh = target.canvasRenderer.GetMesh();
+            Assert.That(mesh, Is.Not.Null, context);
+            Assert.That(mesh.vertexCount, Is.GreaterThanOrEqualTo(16), context);
+            Assert.That(target.canvasRenderer.cull, Is.False, context);
+        }
+
+        [UnityTest]
+        public IEnumerator FontAtlasRefreshRepairsStaleTargetMeshOnNextFrame()
+        {
+            Call("LoadRound", 86);
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            AssertTargetGlyphs("Initial target");
+            var target = Field<Text>("targetText");
+            target.canvasRenderer.Clear();
+            Call("OnFontTextureRebuilt", target.font);
+            Assert.That(Field<bool>("pendingFontMeshRefresh"), Is.True);
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            AssertTargetGlyphs("Deferred atlas refresh");
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            Assert.That(Field<bool>("pendingFontMeshRefresh"), Is.False,
+                "Stable text must not require rebuilding every frame");
+        }
+
+        [UnityTest]
         public IEnumerator PrivacyEntryOnlyAppearsWhenRequired()
         {
             Call("ShowRoundSelect");

@@ -326,6 +326,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private LayoutElement tutorialBubbleLayout;
         private LayoutElement tutorialTextLayout;
         private Font font;
+        private bool pendingFontMeshRefresh;
         private Coroutine successRoutine;
 
         private PuzzleRoundData CurrentRound => OnePlusOneMinusOneRules.GoalModeRounds[roundIndex];
@@ -338,6 +339,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             MobileRuntime.ApplyDefaults();
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ??
                    Resources.GetBuiltinResource<Font>("Arial.ttf");
+            Font.textureRebuilt += OnFontTextureRebuilt;
             var savedHighestUnlockedRoundIndex = PlayerPrefs.GetInt(HighestUnlockedRoundKey, 0);
             soundEnabled = PlayerPrefs.GetInt(SoundEnabledKey, 1) != 0;
             goalModeCompleted = PlayerPrefs.GetInt(GoalModeCompletedKey, 0) == 1;
@@ -385,6 +387,29 @@ namespace MannLab.Games.OnePlusOneMinusOne
 #endif
             UpdateStageLayout();
             AnimateFriends();
+        }
+
+        private void LateUpdate()
+        {
+            if (!pendingFontMeshRefresh || canvas == null) return;
+            pendingFontMeshRefresh = false;
+            // Atlas changes during UGUI's rebuild can leave earlier text using stale glyph UVs.
+            foreach (var label in canvas.GetComponentsInChildren<Text>())
+            {
+                if (label.font != font) continue;
+                label.cachedTextGenerator.Invalidate();
+                label.SetVerticesDirty();
+            }
+        }
+
+        private void OnFontTextureRebuilt(Font rebuiltFont)
+        {
+            if (rebuiltFont == font) pendingFontMeshRefresh = true;
+        }
+
+        private void OnDestroy()
+        {
+            Font.textureRebuilt -= OnFontTextureRebuilt;
         }
 
         private void OnApplicationFocus(bool hasFocus)

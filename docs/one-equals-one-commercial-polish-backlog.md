@@ -10,12 +10,14 @@ toward a commercial casual puzzle release.
 - A / paused: actual-input investigation completed through Round 95;
   Round 96 opened but not attempted. Finish 96-100 and the ending flow on resume.
   See the gameplay quality audit for expressions, sample exposure and limits.
-- A / P1 open: fixed target absent in populated Round 80 and revised Round 87
-  captures, despite being present before placement/check. Fresh Round 80 replay
-  did not reproduce it. Correct calculation does not prove rendering fixed.
-  Next investigation: capture the failing state and establish a reproduction;
-  acceptance is persistent target visibility for fixed-target rounds, including
-  placement/check/resize and long sessions, while player equalities hide it.
+- A / P1 follow-up implemented during iOS distribution: reproduced a missing
+  target during Round 87 placement and a missing recognition label in a separate
+  diagnostic build. Defer shared-font text mesh invalidation until the next
+  LateUpdate after an atlas rebuild. Final QA captures retain both labels through
+  Round 87 placement/clear and Round 80 failure/correction/clear, including
+  320x568 resize. PlayMode 26/26 passes, including equality target visibility.
+  Evidence: `artifacts/one-equals-one/2026-09-13-font-refresh/`. This mitigates
+  the observed browser case; long-session/native confirmation remains pending.
 - Completed in the resumed pass: recognition-label readability, removal of
   ambiguous global last-token feedback, and round 65/70/87 quality corrections.
   All three revised rounds pass actual-input replay with saved unlocks preserved.
@@ -27,7 +29,9 @@ toward a commercial casual puzzle release.
 - A / existing evidence: first-ten input regression, sample/math/layout checks
   and browser captures from the prior pass; these do not establish 100-round fun.
 - B / pending: device feel/listening, production consent/ad/crash callbacks,
-  Firebase settings, signing and store submission. B does not block A.
+  Apple processing/TestFlight setup and store submission. iOS Firebase/AdMob
+  configuration, signing, Archive and initial upload now pass; see ship-ready
+  status for exact build numbers. Android setup remains separate. B does not block A.
 - Some early/mid examples appeared in prior conversation, so the audit is not
   a novice blind playtest. Current attempts avoid opening SampleSolution data.
 - Browser observation is Chrome emulation with actual touch events, not a
@@ -35,8 +39,11 @@ toward a commercial casual puzzle release.
   `/tmp/one-equals-one-gameplay` and `/tmp/one-equals-one-gameplay-resumed`.
 
 The entries below are chronological findings, not current pending-state claims.
-User-requested pause is not gameplay completion or ship-ready signoff. No commit,
-push or merge; release preview remains `http://127.0.0.1:8093/index.html`.
+User-requested pause is not gameplay completion or ship-ready signoff. The earlier
+checkpoint was committed/pushed as `fa18d8d7`; the user requested wrap-up and
+push/merge of the font-refresh follow-up, included in this checkpoint on `main`.
+Preview `http://127.0.0.1:8093/index.html` is the older release WebGL;
+the updated QA WebGL was tested separately and its isolated browser was closed.
 
 Initial observations (sample source not opened): Round 11 cleared as `11 - 1`,
 12 as `11 / 11`, and 13 as `1 - 1 + 1 - 1`, using visible constraints/hints.

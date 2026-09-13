@@ -7,22 +7,59 @@ Current completion judgment: `not yet`
 Stage: development checkpoint; native/production release validation pending.
 
 Goal state: user-requested pause after Round 95; Round 96 opened, not attempted.
-An intermittent missing fixed-target rendering observation remains actionable.
+The intermittent fixed-target rendering observation received a font-refresh
+fix during the iOS distribution follow-up; targeted browser checks pass and
+native/long-session confirmation remains pending.
 The previous release-only loop was
 blocked on external inputs, but that did not prove the remaining gameplay work
 was complete. The resumed scope separates actionable gameplay work (A) from
-native/production validation (B). Resume with the rendering observation, then
-actual-input play through 96-100; missing Firebase files do not block that work.
+native/production validation (B). Resume actual-input play through 96-100 and
+confirm rendering on native devices; production validation does not block A.
 The earlier missing-config iOS failure is superseded by the native release
 checkpoint below; gameplay investigation remains paused by the user.
 
 ## iOS Release Build Checkpoint (2026-09-13)
 
+### App Store Connect Upload
+
+After commit `fa18d8d7`, the user requested Archive/distribution. The signed
+`1.0.0 (1)` Archive matches the committed game sources and was uploaded using
+`Builds/iOS/UploadOptions.plist` (`destination=upload`, manual signing, unchanged
+version/build). Xcode reports `Upload succeeded` and `EXPORT SUCCEEDED` at
+2026-09-13 20:01 KST. Delivery logs identify App Store Connect app `6811571680`.
+Upload evidence: `/tmp/one-equals-one-ios-upload-1.log`.
+
+Build `1.0.0 (2)` then added the deferred font-mesh refresh described in the
+gameplay audit. Fresh strict release export, signed Archive, deep/strict
+codesign verification and local IPA export all passed. Upload also passed at
+2026-09-13 20:21 KST (`Upload succeeded`, `EXPORT SUCCEEDED`). **Build 2 is the
+latest uploaded candidate.** It includes the font-refresh follow-up on top of
+`fa18d8d7`. The user subsequently requested wrap-up and push/merge; this
+checkpoint contains those source/test changes and upload evidence. Work was
+already on `main`, so no separate feature-branch merge is needed. Local Firebase,
+signing settings, generated archives and other projects are excluded.
+
+- Archive: `Builds/iOS/Archives/OneEqualsOne-1.0.0-2.xcarchive`
+- IPA: `Builds/iOS/Export/1.0.0-2/11.ipa` (51,351,197 bytes)
+- Upload options: `Builds/iOS/UploadOptions.plist`, `destination=upload`
+- Logs: `/tmp/one-equals-one-ios-release-archive-2.log`,
+  `/tmp/one-equals-one-ios-release-export-2.log`,
+  `/tmp/one-equals-one-ios-upload-2.log`
+- Evidence copies: `artifacts/one-equals-one/2026-09-13-font-refresh/`
+
+Apple processing started for both uploads; processing completion, TestFlight
+tester assignment, installation and device QA are not yet verified. No review
+submission or public release was performed. Future uploads need a new build
+number. iOS display/bundle identity, production AdMob app ID and Firebase bundle
+were checked in Archive 2; privacy manifests and the profile are present.
+
+### Initial Local Archive Evidence
+
 The user supplied the Firebase iOS plist, App Store provisioning profile and
 production iOS AdMob app/interstitial IDs. Bundle ID and signing team match this
 app; the profile matches the installed Apple Distribution certificate and expires
 2027-08-28. Build settings are in Git-ignored
-`prototypes/one-plus-one-minus-one/.env.ios.local`: version `1.0.0`, build `1`,
+`prototypes/one-plus-one-minus-one/.env.ios.local`: version `1.0.0`, now build `2`,
 team `ZRA4DHHKQ4`, profile `1 = 1`. No production IDs were invented or reused
 from another game. Game logic and ad frequency were not changed.
 
@@ -58,12 +95,13 @@ env BASH_ENV="$PWD/prototypes/one-plus-one-minus-one/.env.ios.local" \
 
 Build-time PlayerSettings and scene-ID churn were removed; the local environment
 reapplies release version/signing values on each export. Firebase assets/meta
-remain in the working tree. No commit, push, store upload or review submission.
-The supplied App Store Connect app ID is `6811571680`; remote version/build
-availability has not been authenticated or validated. Check it before upload.
+remain in the working tree. The initial checkpoint was committed/pushed as
+`fa18d8d7`; store uploads are recorded above. The supplied App Store Connect app
+ID is `6811571680`; Apple processing completion still needs checking.
 This proves local iOS buildability, not complete gameplay or App Store approval.
 Older iOS/Firebase-missing entries below are historical and are superseded here;
-Android configuration, device QA and the missing-target gameplay issue remain.
+Android configuration and device QA remain; the rendering fix is browser-verified
+but still needs long-session/native confirmation.
 
 The prior WebGL build/capture gates included alternate-equality display/rotation
 and persistent Sound preference. New gameplay changes below supersede those
@@ -79,18 +117,21 @@ in 14/15, replacement of duplicate challenges 42/46, calculated-value failure
 feedback, matching rotation, larger footer commands and readable status text.
 The resumed pass also improved recognition labels and removed ambiguous global
 last-token feedback; revised rounds 65/70/87 passed actual-input replays.
-Current full EditMode passes 27 cases and PlayMode passes 24. All 100 samples
-pass. Latest QA/release builds include the final Round 87 correction. First-ten
+The prior full EditMode passes 27 cases; current PlayMode passes 26 after the
+font fix. All 100 samples pass. QA WebGL and iOS build 2 include the font fix;
+release WebGL still predates it. First-ten
 input regression, five viewport smokes and static suite passed before that last
 data-only change; their exact coverage is recorded in the audit checkpoint.
-Rendering captures in Round 80 and revised 87 lack a fixed target; this is not
-resolved by successful calculation. Further A work includes that investigation,
-96-100 and the ending flow. Neither gameplay nor release completion is claimed.
-No commit, push or merge performed.
+Earlier captures lacked a fixed target; targeted post-fix placement/failure/
+resize/clear captures now retain it. See the independent follow-up evidence in
+the audit. Further A work includes 96-100 and the ending flow. Neither gameplay
+nor release completion is claimed. Distribution follow-up changes are included
+in this checkpoint; `fa18d8d7` contains the previous checkpoint.
 
-Checkpoint verification: fresh release WebGL build and final freshness smoke
-pass. Browser touch tests are not native device, audio or production SDK signoff.
-Preview: `http://127.0.0.1:8093/index.html`. QA sessions are closed.
+Previous checkpoint verification: release WebGL build/freshness smoke passed
+before the font fix; not current release-WebGL signoff. Browser touch tests are
+not native device, audio or production SDK signoff. Preview:
+`http://127.0.0.1:8093/index.html` (older release). QA sessions are closed.
 
 ## Current Playtest Loop
 

@@ -328,3 +328,44 @@ Next: reproduce and fix intermittent missing fixed-target rendering, then resume
 actual input at Round 96 through 100 and inspect the ending/replay/restart flow.
 Human puzzle-variety/fatigue, touch/listening, native devices, production SDKs,
 credentials and submission checks remain separate unverified work.
+
+## iOS Distribution Follow-Up: Font Refresh (2026-09-13)
+
+The user requested iOS Archive/distribution plus feasible additional work. Kept
+this follow-up limited to the known rendering observation; did not resume 96-100.
+
+Fresh browser input on the old QA build reproduced the missing target after
+placing `1` and `+` in Round 87 (`r87-plus.png`). A diagnostic build later showed
+the target but omitted the recognition `+` label (`diagnostic-plus.png`). Correct
+text state, active/cull state and subsequent reappearance suggest shared dynamic
+font atlas/rebuild timing, but do not prove one specific Unity engine cause.
+
+The controller now queues a refresh when its font texture is rebuilt, then
+invalidates matching active Text generators/meshes in the next LateUpdate. It
+does not scan/rebuild labels unconditionally each frame and unsubscribes on
+destruction. Temporary diagnostic code is removed. No math, recognition or ad
+policy changes were made.
+
+Verification against the final fix:
+
+- PlayMode 26/26 passes. Added placement glyph coverage and synthetic stale-mesh
+  recovery coverage. The original focused Editor placement test passed before
+  the fix; the failing browser capture, not that test, is reproduction evidence.
+- All 100 sample/cost checks and a fresh QA WebGL build pass.
+- Round 87 actual-input `1 + 11 * 11`: target 122 and recognition labels remain
+  visible after placement and the round clears. No sample-fill hook used.
+- Round 80 actual-input `111 - 11 / 11`: target 89 and `Makes 110.` remain visible
+  after failure at 390x844 and 320x568. Rotate `/` to `-`, clear as 89 and reach
+  81. Replay ad remains ineligible; highest unlock 96 is preserved.
+- Native release export and signed Archive build `1.0.0 (2)` include this fix.
+  This is not native runtime/rendering, production SDK or physical-touch signoff.
+
+Screenshots, input trace and full PlayMode XML/log were copied to ignored local
+`artifacts/one-equals-one/2026-09-13-font-refresh/`. The older temporary resumed
+trace was no longer available during this follow-up; its historical claims were
+not revalidated. The new evidence is independent. The QA browser/server is
+closed; the release WebGL preview at 8093 still predates this font change.
+
+Next: verify build 2 on a physical iPhone after Apple processing, including long
+sessions, target/recognition labels, ads/consent and crash reporting. Resume
+96-100/ending investigation only when the broader gameplay work is resumed.
