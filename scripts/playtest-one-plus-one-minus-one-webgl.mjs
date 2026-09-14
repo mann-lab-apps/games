@@ -60,6 +60,35 @@ export async function playtestFirstTenRounds(client, appUrl, outputDir, { waitUn
     await delay(300);
   }
 
+  async function cancelFirstRoundPickup() {
+    await client.send("Input.dispatchTouchEvent", {type: "touchStart", touchPoints: [{x: 194, y: 670, id: 0}]});
+    await delay(100);
+    await client.send("Input.dispatchTouchEvent", {type: "touchMove", touchPoints: [{x: 167, y: 430, id: 0}]});
+    await delay(150);
+    await client.send("Input.dispatchTouchEvent", {type: "touchCancel", touchPoints: []});
+    await delay(250);
+    await screenshot("touch-cancel-preserves-bank");
+
+    await client.send("Input.dispatchTouchEvent", {type: "touchStart", touchPoints: [{x: 194, y: 670, id: 0}]});
+    await delay(100);
+    await client.send("Input.dispatchTouchEvent", {type: "touchMove", touchPoints: [{x: 167, y: 430, id: 0}]});
+    await delay(150);
+    await client.send("Input.dispatchTouchEvent", {type: "touchStart", touchPoints: [
+      {x: 167, y: 430, id: 0}, {x: 194, y: 670, id: 1}
+    ]});
+    await delay(150);
+    // Exercise Unity's focus handler without pretending this is native app suspension.
+    await client.send("Runtime.evaluate", {expression: "window.dispatchEvent(new Event('blur'))"});
+    await delay(150);
+    await client.send("Input.dispatchTouchEvent", {type: "touchEnd", touchPoints: [{x: 194, y: 670, id: 1}]});
+    await delay(150);
+    await client.send("Input.dispatchTouchEvent", {type: "touchEnd", touchPoints: []});
+    await client.send("Runtime.evaluate", {expression: "window.dispatchEvent(new Event('focus'))"});
+    await delay(250);
+    await screenshot("secondary-release-after-focus-cancel");
+    // The ordinary Round 1 drag/clear below must still produce exactly one vertical stick.
+  }
+
   const rounds = [
     { expression: "1", slots: [167], placements: [[0, 0]] },
     { expression: "1 + 1", slots: [70, 157, 243], placements: [[0, 0], [1, 0], [1, 2], [2, 0]] },
@@ -83,6 +112,7 @@ export async function playtestFirstTenRounds(client, appUrl, outputDir, { waitUn
       await waitForLog(l => l.includes("[Telemetry] round_start ") && l.includes(`round=${n},`), `Round ${n} start`);
       await delay(350);
       client.events.length = 0;
+      if (n === 1) await cancelFirstRoundPickup();
       for (const [bankIndex, [slot, turns]] of round.placements.entries()) {
         const x = bankXs[round.placements.length][bankIndex];
         for (let t = 0; t < turns; t++) await tap(x, 670);
@@ -108,10 +138,17 @@ export async function playtestFirstTenRounds(client, appUrl, outputDir, { waitUn
     await waitForLog(l => l.includes("[Telemetry] app_open ") && l.includes("highest_unlocked_round=11,"), "saved progress after reload");
     await waitForLog(l => l.includes("[Telemetry] round_start ") && l.includes("round=11,"), "Round 11 restored");
     await screenshot("restored-round-select");
-    writeFileSync(resolve(outputDir, "results.json"), JSON.stringify({ passed: true, rounds: report, savedProgress: 11, physicalDevice: false }, null, 2));
+    writeFileSync(resolve(outputDir, "results.json"), JSON.stringify({
+      passed: true, rounds: report, savedProgress: 11, physicalDevice: false,
+      inputEdges: ["touch cancellation", "secondary release after synthetic focus loss"]
+    }, null, 2));
   } catch (error) {
-    await screenshot("failure");
-    writeFileSync(resolve(outputDir, "results.json"), JSON.stringify({ passed: false, rounds: report, error: String(error), logs: logs() }, null, 2));
+    let screenshotError;
+    try { await screenshot("failure"); }
+    catch (captureError) { screenshotError = String(captureError); }
+    writeFileSync(resolve(outputDir, "results.json"), JSON.stringify({
+      passed: false, rounds: report, error: String(error), screenshotError, logs: logs()
+    }, null, 2));
     throw error;
   }
 }

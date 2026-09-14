@@ -13,6 +13,46 @@ inspection alone.
 
 ## Automated Viewport Smoke
 
+### 2026-09-14 Continuous Input And Font Follow-Up
+
+- Local fixes beyond build 2: cancellation restores feedback; a press started
+  during another drag cannot become a late rotation after cancellation; picker
+  navigation and Close retain their position on the short final page.
+- PlayMode 31/31 passes. New cancellation/secondary-pointer tests failed before
+  the fix; the extended picker test reproduced movement on page 9 before its fix.
+- 60 mixed-input/resize cycles and 120 settled idle frames retain generated
+  target/recognition glyphs; zero atlas rebuild events in that Editor run. Not
+  an allocation profile or physical-device performance verdict.
+- Bounded browser QA includes 26 placement/rotation/return/Reset cycles,
+  touch cancellation, synthetic focus loss with late second-pointer release,
+  held-drag resize, nine picker pages and actual-input 96 -> 97. Final picker
+  8 <-> 9 navigation and Close replay pass at 390x844 and 320x568.
+- Ordinary WebGL first-ten input regression now includes both cancellation
+  cases; clear results, first-clear ad eligibility and saved progress 11 pass.
+  Actual production ad delivery, native backgrounding and device touch remain
+  unverified. `devicectl` still lists no devices; nothing was installed/uploaded.
+- Evidence: `artifacts/one-equals-one/2026-09-14-continuous-quality/`.
+  Do not use these browser/Editor results to fill the physical signoff rows.
+
+### 2026-09-14 Post-Distribution Evidence
+
+- Supplied 87.989-second iOS screen recording sampled by timestamp: replay from
+  Round 1 through Round 10, entry into 11, prior progress already present. Build
+  and physical model not visible; this is not first-install/first-ad evidence.
+- Video 64/68s shows wrapped `= 111`; local target-line fix passes all 100 rounds
+  at four logical safe widths. No physical capture of the fix yet.
+- Final 28 PlayMode cases pass, including material invalidation and settled
+  idle-font tests. Browser 96-100 input, completion/reload/reset/replay/Sound
+  persistence and first-ten ordinary-release input regression pass.
+- Current QA/store/release WebGL builds and five viewport smokes pass. 24
+  next-build store candidates pass image checks, using native reference scale.
+  They remain browser captures, not replacements for device comparison.
+- Evidence root: `artifacts/one-equals-one/2026-09-14-post-distribution/`.
+- `devicectl list devices`: no devices. Native target rendering over long
+  sessions, consent/ad/crash callbacks, audio and real-touch feel remain open.
+- Current code is newer than uploaded iOS `1.0.0 (2)`. No new native distribution,
+  public privacy-site deployment or manual signoff occurred in this pass.
+
 ### 2026-09-13 Controller And Browser Input Evidence
 
 - Base commit: `65578f4f` plus local `1 = 1` input/progress/layout fixes.

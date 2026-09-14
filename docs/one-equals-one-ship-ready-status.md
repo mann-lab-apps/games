@@ -1,22 +1,141 @@
 # 1 = 1 Ship-Ready Status
 
-Status date: 2026-09-13
+Status date: 2026-09-14
 
 Current completion judgment: `not yet`
 
-Stage: development checkpoint; native/production release validation pending.
+Stage: post-distribution development checkpoint; new native candidate and
+production release validation pending.
 
-Goal state: user-requested pause after Round 95; Round 96 opened, not attempted.
-The intermittent fixed-target rendering observation received a font-refresh
-fix during the iOS distribution follow-up; targeted browser checks pass and
-native/long-session confirmation remains pending.
-The previous release-only loop was
-blocked on external inputs, but that did not prove the remaining gameplay work
-was complete. The resumed scope separates actionable gameplay work (A) from
-native/production validation (B). Resume actual-input play through 96-100 and
-confirm rendering on native devices; production validation does not block A.
-The earlier missing-config iOS failure is superseded by the native release
-checkpoint below; gameplay investigation remains paused by the user.
+## Latest Resume State (2026-09-14)
+
+Goal execution status: `blocked`, not complete. The approval/execution barrier
+persisted across three consecutive goal turns. The final audit found neither
+`/tmp/one-equals-one-resumed-playmode.xml` nor its `.log`; the last executed
+result remains 34/35 at 08:57:37 UTC. No live test handle exists from the rejected
+launches. Independent runner fixes and pending drag-path coverage are preserved;
+further game edits without execution would only widen the verification gap.
+Resume when the authorized Unity execution path is available: run full PlayMode
+(now 36 test methods), build fresh QA WebGL, verify tab interruption and all
+three `111` removals/transfers, then measure a new 30-minute mixed-input session.
+Do not retry the rejected command through a different launch path.
+
+The latest Unity retry was rejected before launch by the same approval-service
+capacity error. Independent verification-runner fixes now preserve browser
+exception events, bound CDP waits and retain the original test failure when a
+screenshot fails. Nine isolated Node regressions pass; the interruption bridge,
+100-round data and strict round-quality report pass. These do not close the
+pending Unity/fresh-browser/30-minute gates below. No new native or WebGL build,
+deployment, upload or commit was performed in this approval-blocked resume.
+
+A subsequent retry was also rejected before execution. Added pending regression
+coverage for all three triple-stick indices through controller drag return and
+cross-slot transfer, including stick-count conservation and ghost cleanup.
+This coverage is not yet executed; latest observed Unity result remains 34/35.
+
+The long-session follow-up found and changed five areas: dead face registry
+retention, numeric equality failure feedback, the nearby Round 57/60 duplicate,
+interrupted drag/tap handling, and `111` side-stick removal recognition.
+Evidence: `artifacts/one-equals-one/2026-09-14-long-session/` and the current
+gameplay audit/backlog. User changes and unrelated projects are preserved.
+
+The first three changes passed 33 PlayMode / 29 EditMode tests, all 100 samples,
+three WebGL builds, small-screen actual-input replay and first-ten/save regression.
+The final two changes have red tests and a subsequent 34/35 PlayMode run.
+The remaining fixture lacked pointer-down; it is corrected, but its final rerun
+and final-binary browser checks are blocked by approval-service capacity errors.
+Node bridge, round data and scoped whitespace checks pass. This is not a fully
+green candidate; do not reuse the earlier build results as final-source proof.
+
+The original browser was observed for about 24m44s before interruption, then
+became unresponsive during the unattended gap. A fresh measured 30-minute soak
+is still required. Resume first with full PlayMode, then QA build and actual
+tab-switch/pending-tap/`111` removal replay. Start the soak on that fixed binary;
+refresh release and capture artifacts afterward. Generated scene-ID/whitespace
+churn was removed, with no game data or user change reverted.
+
+No commits, pushes, uploads, installations, website deployment or store submission
+were performed. Uploaded iOS 1.0.0 (2) still lacks these local fixes. Existing
+native/production/manual QA requirements remain open. The prior 8093 preview
+serves an earlier local binary, not the final interruption/removal fixes.
+
+## Latest Continuous Quality Checkpoint (2026-09-14)
+
+Development follow-up on the existing dirty `main` (`d2abe1b4`), not a native
+release approval. New fixes in this pass:
+
+- Restore the preceding feedback when a drag is cancelled by focus/pause/disable
+  or resize, instead of leaving an obsolete drop instruction.
+- Reject late rotation clicks from a second press started during an active drag.
+- Keep picker Previous/Next/Close in a fixed position across the short last page;
+  absent rounds stay hidden. Both full and small phone layouts are checked.
+
+Evidence: `artifacts/one-equals-one/2026-09-14-continuous-quality/`, including
+before-fix failures, final 31/31 PlayMode results, source patch and browser input
+traces. Bounded browser soak covers 26 manipulation/reset cycles, held-drag
+resize, all nine pages and Round 96 clear/97 entry; no runtime exceptions were
+captured and sampled fixed-target/recognition labels stay visible. Editor
+60-cycle input/layout test settles without repeated font atlas generation.
+Neither result substitutes for a native allocation profile or long-session
+physical-device test.
+
+Ordinary WebGL first-ten regression includes new cancellation/late-pointer
+cases and passes with saved progress 11. The subsequent pager-only change passes
+the full PlayMode suite, final QA 1-9 page navigation, same-position 8/9 reversal,
+Close restoration and final ordinary-build five-size smoke. QA/release/capture
+WebGL builds are current. Basic static suite passes; unloaded environment and
+device signoff warnings remain. Existing iOS credentials were not removed or
+replaced, and this is not a strict production-readiness pass.
+
+All 24 `Candidates-next-build` screenshots were regenerated and pass image size,
+alpha, freshness and content checks; inspected contact sheets include the new
+stable last-page picker. Older submission `Candidates` remain untouched. These
+are browser/native-scale candidates for a future build, not actual iOS build 2
+screens or device signoff.
+
+No iOS device was connected. Remaining external work: authorize a new iOS
+candidate number above 2 and test real rendering/input/audio and SDK callbacks;
+publish the previously amended privacy text; verify actual Apple processing,
+review and privacy declarations; supply Android production config/signing if
+shipping Android. No install/upload/deploy/commit/push/merge in this loop.
+
+Preview remains `http://127.0.0.1:8093/index.html` (HTTP and built game checked).
+Next resume: physical-device pass on an authorized new candidate, starting with
+long-session target rendering and interruption recovery. Human puzzle pacing
+and sound judgments remain distinct from automation. The prior checkpoint
+below describes the earlier fixes, which remain in this local source too.
+
+## Prior Checkpoint (2026-09-14)
+
+The requested post-distribution investigation is wrapped up locally. Video frame
+audit and actual-input 96-100/ending/persistence/replay checks are documented in
+the gameplay audit. New fixes on top of `d2abe1b4` are NOT in uploaded build 2:
+
+- Prevent fixed targets such as `= 111` wrapping onto two lines.
+- Refresh material binding as well as glyph vertices after font atlas changes.
+  Build-2-code QA reproduced missing target at Round 100; final browser sequence
+  keeps it visible through placement/clear/idle/resize. Native retest is pending.
+- Use native reference scale for store-capture builds. 24 new screenshots are
+  kept separately in `Builds/AppStoreScreenshots/Candidates-next-build`.
+- Correct local website privacy text to include this game's SDK use. The public
+  page was checked and still lacks the correction; no deployment was performed.
+
+Validation: PlayMode 28/28, all 100 samples, QA/store/release WebGL builds, first
+10 rounds of ordinary-release touch input, saved progress, five viewport smokes,
+24 candidate image checks, metadata/release safety and basic static suite pass.
+Strict aggregate under the iOS environment fails on missing Android Firebase
+JSON and production Android ad IDs. This remains a failure, not ship-ready PASS.
+No connected iPhone was found. No current native runtime or production SDK
+callback signoff, audio listening or indefinite-runtime validation is claimed.
+
+Evidence: `artifacts/one-equals-one/2026-09-14-post-distribution/`.
+Preview: `http://127.0.0.1:8093/index.html` (current ordinary WebGL).
+No commit/push/native upload/store submission/public website deployment in this
+pass. Next: authorized new iOS build number above 2, physical-device regression,
+privacy deployment and owner review of actual App Store status/declarations.
+
+The following checkpoints are historical build-specific evidence; this section
+supersedes their pending-work and preview-freshness statements.
 
 ## iOS Release Build Checkpoint (2026-09-13)
 

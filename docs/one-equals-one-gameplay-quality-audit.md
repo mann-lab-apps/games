@@ -1,5 +1,148 @@
 # 1 = 1 Gameplay Quality Audit
 
+## Approval-Blocked Resume: QA Reliability (2026-09-14)
+
+The requested full PlayMode retry did not start: automatic approval failed with
+`Selected model is at capacity`. No new game binary or live browser result was
+produced during this resume. Earlier 34/35 results remain the latest Unity run.
+
+Independent runner inspection found dropped browser exception events, unbounded
+CDP waits and failure screenshots masking original input-test errors. Added a
+small shared CDP client and nine isolated Node regressions. Both dropped-event
+and masked-failure cases were observed red before correction; all nine now pass.
+The existing interruption bridge test and 100-round data/strict quality report
+pass as well. The fixture uses a fake WebSocket, not emulated game input.
+
+Resume with the pending Unity suite, fresh QA build, actual tab interruption and
+all-three `111` removals, then the measured uninterrupted 30-minute session.
+Approval infrastructure failure is not a game crash and is not release proof.
+
+## Long-Session Follow-Up (2026-09-14, Interrupted / Resumed)
+
+Baseline browser started at 06:55:01 UTC with the previous local QA build.
+Source baseline: `d2abe1b4` rules plus the preceding local controller changes;
+controller snapshot is in `artifacts/one-equals-one/2026-09-14-long-session/`.
+No navigation/reload is used during the measured session. A separate fresh QA
+browser verifies the changes made during this investigation.
+
+- Round 57 clears as `111 - 11 = 111 - 11`, 58 as `1 x 1 = 1 / 1`
+  (the game uses the multiplication glyph), and 59 as `1 * 1 = 1 x 1`.
+  These formulas were already known; this is input/pacing inspection, not a
+  blind novice test. No sample-fill hook was used in these browser attempts.
+- Before correcting 59, `11 / 1 = 11 / 11` gives `Not balanced.` while logs
+  contain `11 is not 1.`. The new controller keeps the evaluator's comparison.
+  The first test fixture accidentally overlapped both vertical sticks; it was
+  corrected to the actual left/right poses before recording the red assertion.
+- Old Round 60 accepts exactly the Round 57 input sequence. Unlike a distant
+  callback, this repeats within three rounds. Revised 60 has five slots / 12
+  sticks instead of seven / 14. It offers a shorter arrangement with the star
+  representation; this is not evidence that human-rated fun has improved.
+- Round 61 was checked at 390x844 and 320x568, including pickup/return/reset,
+  picker sound toggle and 12 muted manipulation/reset cycles with idle gaps.
+  Small-bank touch comfort still needs physical-device assessment.
+- A same-round registry test found 245 stored faces versus five live roots
+  after 40 rotations / eight resets. Cleanup now occurs before detachment.
+  Placed non-shared faces are not registered for chatter in the existing design;
+  regression checks preserve their visible mouths separately rather than
+  changing that animation design. PlayMode 33/33 and EditMode 29/29 pass.
+- Browser metrics include JS heap, DOM/listener/audio counts and a browser rAF
+  interval histogram. They are not Unity/native heap or GPU/FPS measurements.
+  Transient listener/audio growth decreased again without forced collection.
+  Observed duration before interruption was about 24m44s, not 30 minutes.
+  The resumed browser did not respond after the unattended gap; no endurance
+  pass is claimed. Raw available metric responses are in `browser-metrics.json`.
+  The long rAF gaps include deliberate tab hiding and are not classified as
+  foreground rendering regressions. Neither browser JS heap growth nor its
+  subsequent collection establishes Unity/native allocation behavior.
+- New-code browser replays (`fixed-input/`) show `11 is not 1.` at both sizes
+  and clear revised Round 60 as `111 = 1 * 111` at 320x568. The subsequent
+  ordinary first-ten input/save regression passed, before the interruption fix.
+- Round 96 kept its target and labels through resizing, but synthetic blur
+  alone did not reliably cancel a placed drag. Actual tab activation confirmed
+  `document.hidden=true` while hidden; on return the drag ghost was still alive.
+  Releasing outside returned a stick. Therefore earlier bank-only cancellation
+  smoke coverage must not be treated as a real tab-switch cancellation pass.
+- That outside return also exposed `111 -> 11` normalization: removing a side
+  stick left center/right poses and an unrecognized label. The red test fails
+  on index zero; the fixed test covers removal of all three indices.
+- Browser blur/visibility changes now advance a retained version, even when
+  the game does not update while hidden. Controller polling plus event-entry
+  checks cancel stale drags; per-press versions reject taps begun before pause.
+  The bridge's Node test checks persistence through hide/show and listener
+  non-duplication. This does not replace an actual WebGL replay.
+- Latest PlayMode run after these fixes: 34/35. The pickup-cell test omitted
+  pointer-down; its input sequence is corrected and a new resumed-press assertion
+  added. The final rerun was rejected by automatic approval infrastructure
+  (model capacity). Final QA/release/capture builds and a new 30-minute measured
+  session remain pending. Old browser runners were stopped after losing CDP
+  responses; child-process inspection also requires restored approval access.
+
+## Continuous Quality Follow-Up (2026-09-14)
+
+Base remains `d2abe1b4` plus the preceding local changes. Investigated new input
+boundaries instead of replaying all 100 solutions. Evidence root:
+`artifacts/one-equals-one/2026-09-14-continuous-quality/`.
+
+- Actual emulated `touchCancel` preserved all sticks but left the drag prompt
+  visible. Cancellation now restores the preceding feedback and its color.
+  Focus, pause and disable callbacks are covered by the new PlayMode test.
+- A second pointer-down on the same stick could clear the handler's drag flag;
+  after focus cancellation, its delayed click rotated the bank stick. The event
+  regression failed before the fix. Presses begun during a drag now lose click
+  eligibility; beginning a drag marks it as a drag immediately. No rotation
+  rules, stick costs or drag thresholds changed.
+- Added both cancellation paths to the ordinary WebGL first-ten input script.
+  It passes through Round 10 and restores progress 11. The focus event is
+  synthetic browser focus loss, not native background/resume. Normal Round 1
+  placement must still clear as `1` after these interruptions.
+- Bounded QA browser session 06:30:13-06:38:11 UTC: 26 placement/rotation/return/
+  Reset cycles (52 captured states, active repetition about 160 seconds),
+  390x844 to 320x568 resize during a held drag, all nine picker pages, then
+  actual-input Round 96 `111 - 1 - 1 - 1` and transition to 97. Sample fill was
+  not used, but the solution was already known. No captured runtime exceptions;
+  inspected beginning/middle/end snapshots retain `= 111`, recognition labels,
+  counts and geometry; the final Round 96 target `= 108` remains visible.
+  This is sampled visual evidence, not continuous frame-by-frame proof.
+- The picker exploration uncovered another issue: page 9 moved Previous/Next/
+  Close upward because it contains only four rounds. A click at the previous
+  button location missed. New bounds assertions reproduced 298.286 logical
+  units of pager movement. Flexible grid space now anchors the commands while
+  nonexistent round buttons remain inactive. Existing compact-grid calculations
+  are preserved. Final QA page 1-9 traversal and same-location 8/9 reversal,
+  plus Close restoration, pass at 390x844 and 320x568 (`picker/`).
+- Final PlayMode suite passes 31/31, including a 60-cycle mixed-input/resize
+  test across Rounds 8/30/50/75/90/100. It checks visible targets separately
+  from intentionally hidden equality targets, recognition glyph generation,
+  placement conservation, and 120 settled idle frames. No font atlas rebuilds
+  occurred during this measured Editor run. This does not establish native
+  allocation/frame-time behavior or indefinite font stability.
+- Current quality report still flags no consecutive structural run above two;
+  separated constraint repetitions remain listed for human pacing assessment.
+  Prior adjacent-repeat fixes are retained. No new round replacement is
+  justified by this investigation; no claims about novice learning speed.
+
+Physical-device enumeration still returns no devices. Native audio/touch/Safe
+Area, production consent/ad/crash callbacks and Apple processing/review remain
+external verification. The previous local privacy correction is still pending
+authorized publication; this pass does not redeploy or certify store answers.
+No native installation, upload, commit, push or merge is performed. Uploaded
+`1.0.0 (2)` does not contain any of these local follow-up fixes.
+
+Final artifacts: QA/release/store-capture builds pass; final release five-size
+smoke and basic static suite pass. Static production/device warnings are not a
+strict ship-ready approval; the default invocation does not load the existing
+iOS local environment. Next-build candidates were recaptured (24 images), pass
+dimensions/alpha/freshness/content checks, and were inspected in three contact
+sheets and a full-size final-picker capture. Existing `Candidates` for the prior
+submission were not changed. Final game/source evidence is in `local-source.patch`;
+preview remains `http://127.0.0.1:8093/index.html`.
+
+Tap cancellation before reaching drag threshold also leaves the bank unchanged;
+a subsequent ordinary tap rotates exactly once. This browser boundary needed no
+additional code change. New locally reproduced acceptance items are resolved;
+this is a development checkpoint with physical/production and human evaluation
+still open, not game perfection or release approval.
+
 ## Method And Limits
 
 2026-09-13: agent-directed Chrome touch events at 390x844. Each expression below
@@ -369,3 +512,100 @@ closed; the release WebGL preview at 8093 still predates this font change.
 Next: verify build 2 on a physical iPhone after Apple processing, including long
 sessions, target/recognition labels, ads/consent and crash reporting. Resume
 96-100/ending investigation only when the broader gameplay work is resumed.
+
+## Post-Distribution Loop (2026-09-14)
+
+Base: `d2abe1b4`. No commit, push, native upload or public-site deployment is
+authorized in this pass. Evidence root:
+`artifacts/one-equals-one/2026-09-14-post-distribution/`.
+
+Video: supplied `ScreenRecording_09-14-2026 14-06-47_1.mp4`, duration 87.989s,
+one video/audio track. Inspected timestamped frame samples at four-second
+intervals and denser samples around interactions/end; not continuous playback
+or subjective audio listening. Device/build identity is not visible.
+
+- 0s: picker already shows cleared rounds and Round 22 available. This is not
+  first-install evidence, even though Round 1 is selected afterward.
+- 6-11s: Round 1 placement, removal and replacement; input intent is not visible,
+  so repeated gestures alone do not prove a touch bug.
+- 21/23s: Round 2 accepts adjacent numeral composition as 1111 and reports
+  `Makes 1111.`; 25-31s show removal/rotation and eventual `+` composition.
+- 64/68s: Round 8 target wraps `=` and `111` onto separate lines. Reproduced
+  one-line contract failure in Editor (Round 6, logical safe width 390).
+- 85/86/87s: Round 10 populated, success feedback, then Round 11. Sampled frames
+  show no ad interruption, but these replay rounds cannot validate first-clear
+  ad eligibility or production ad delivery.
+
+Actual browser touch input, no sample-fill/source opened for these attempts:
+
+| Round | Player expression | Result / observation |
+| --- | --- | --- |
+| 96 | `111 - 1 - 1 - 1` | 108; clear, next unlock persisted. |
+| 97 | `11 + 11 = 11 + 11 * 1` | Equal sides 22; nine boxes and 18 sticks accepted. |
+| 98 | `111 - 11 + 1 × 1` | 101; clear. |
+| 99 | `111 - 11 - 1 × 1` | 99; clear. Similar to 98, but not a three-round duplicate run; no speculative replacement. |
+| 100 | `1 + 1 - 1 × 1 / 1` | 1; title concept was already known from the brief. Finale feedback displayed. |
+
+After Round 100: page 9 displays `100 Done`; Sound off survives reload, which
+opens the picker. Re-enter/reset/re-solve preserves completion. First finale
+log offers a milestone opportunity but `will_show=false` (no native ad in
+WebGL); replay logs `eligible=false`, `reason=replay_round`. This is not a test
+of native ad callbacks. Screens/input logs are under `input/`.
+
+P1 recurrence: the original build-2-code QA session lost target `= 1` after
+Round 100 placements, persisting through clear and a later frame. Resize
+restored it. See `r100-filled.png`, `r100-completed-later.png`, and
+`r100-completed-small.png`. Thus the prior vertex-only font repair was not
+sufficient. Target values/evaluation were correct; rendering was not.
+
+Changes under verification:
+
+- Single-line target measurement inside existing bounds; no slot aspect change.
+  Red test: `/tmp/one-equals-one-target-line-red.xml`; all 100 targets now pass
+  at logical safe widths 1080/720/390/320.
+- Refresh font material binding together with glyph vertices after atlas events.
+  Red callback test: `/tmp/one-equals-one-font-material-red.xml`. This exposes
+  missing material invalidation, not a direct proof of the engine's root cause.
+- Idle atlas-settling test and full PlayMode 28/28 pass. This does not replace a
+  native frame-time/allocation profile or long-session test.
+- Store-capture build uses native reference scale; future candidates remain
+  separate from files used for uploaded build 2.
+- Public privacy page omitted this app's SDK usage; local website text amended,
+  not deployed. Official disclosure guidance linked in store metadata.
+
+Final verification and boundary:
+
+- Final QA actual-input replay of 96-100 retains fixed targets and recognition
+  labels through placement/clear. Round 100 also retains its target after idle,
+  320x568 resize and return to 390x844. Round 8 displays `= 111` on one line.
+  Evidence: `input/final-*.png` and `input/trace.jsonl`. Target repair includes
+  both the single-line change and material refresh; no isolated engine-root-cause
+  or indefinite-runtime claim is made.
+- Fresh QA, store-capture and ordinary release WebGL builds pass. The ordinary
+  build passes the first-ten touch-input regression, including saved-progress
+  reload and milestone eligibility, plus five viewport smokes. Results under
+  `release-input/input/results.json` and `release-viewports/`.
+- 24 next-build screenshots (8 scenes x 3 sizes) pass dimensions/alpha/freshness
+  and image-content checks. Inspected device contact sheets and full-size 8/75/
+  100 candidates. Source: `Builds/AppStoreScreenshots/Candidates-next-build`;
+  review sheets: `candidate-sheets/`. These use sample placement for capture,
+  not actual-input evidence. Older `Candidates` files remain untouched.
+- Basic static suite passes with setup/device warnings. Strict aggregate with
+  the existing iOS environment fails on missing Android Firebase JSON and
+  production Android ad IDs. Criteria were not weakened; strict log retained.
+- Public privacy omission reproduced in browser; modified local Vite preview
+  renders the `1 = 1` disclosures without horizontal overflow. Website build
+  passes. Public deployment and store answers remain unchanged/unverified.
+- `xcrun devicectl list devices --timeout 10`: no devices. No fresh native
+  runtime, audio listening, consent/ads/crash-console test was possible.
+
+Development scope in this loop is wrapped up, not a release approval. No new
+round rules/data, monetization frequency, character parts, commit, push, native
+upload or website deployment. Latest ordinary preview:
+`http://127.0.0.1:8093/index.html`.
+
+Next authorized action: prepare a new numbered iOS candidate (greater than 2),
+verify target rendering and real consent/ad/crash flows on device, compare the
+next-build screenshots, and deploy the privacy-page correction. Build 2 on
+App Store Connect does not contain these local fixes. Owner review of store
+privacy answers, age rating and actual processing/review state is still needed.

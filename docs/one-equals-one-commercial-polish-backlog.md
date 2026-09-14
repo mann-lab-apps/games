@@ -5,6 +5,122 @@ toward a commercial casual puzzle release.
 
 ## Current Gate
 
+### Browser Verification Reliability (2026-09-14 Resume)
+
+Unity execution was rejected before startup again by the approval service
+(`Selected model is at capacity`). No alternate Unity launch or approval bypass
+was attempted. Independent Node checks exposed verification defects:
+
+| Priority | Reproduction / impact | Acceptance | Evidence / status |
+| --- | --- | --- | --- |
+| P1 QA | CDP client discarded `Runtime.exceptionThrown`, although the smoke failure gate inspects it. Browser exceptions could be missed. | Preserve exception events and fail the existing gate. | Injected-event regression failed before the extraction/fix; now passes. |
+| P1 QA | Missing CDP replies or a disconnected browser leave commands awaiting forever. | Bound connection/command waits, reject pending commands on close/error, ignore late replies. | Fake-WebSocket tests cover timeout, response IDs, disconnect, explicit close and send failure. No fresh Chrome replay claimed. |
+| P2 QA | Capturing an input-test failure throws, hiding the original error and preventing `results.json`. | Preserve original failure; record screenshot failure separately. | Red test returned `Capture unavailable` instead of `original failure`; fixed test preserves both in the report. |
+
+`node --test scripts/test-one-plus-one-minus-one-cdp-client.mjs` passes 9 tests.
+The viewport bridge test and 100-round data/strict quality report also pass.
+The CDP tests now run in static verification. These are isolated runner tests,
+not Unity, fresh WebGL, native device or 30-minute soak evidence. Next executable
+game gate remains full PlayMode followed by a new QA binary and real tab-switch
+and triple-stick-removal replay. Do not mark the active gameplay goal complete.
+
+Continuation: auto-review rejected the unchanged Unity retry before launch,
+citing the prior approval-capacity failure. No fallback execution was attempted.
+Coverage review found the triple-stick regression only invoked the internal
+removal function. Added a separate controller-drag test covering all three
+indices, both outside return and transfer to another slot, remaining `11`,
+destination `1`, total/bank counts and ghost/source cleanup. This new Unity test
+is NOT RUN; the previous 34/35 execution is unchanged. Do not confuse this
+controller-event fixture with an actual browser/touch replay.
+
+### Long-Session Investigation (2026-09-14, Verification Blocked)
+
+This follow-up continues beyond the preceding checkpoint. Evidence root:
+`artifacts/one-equals-one/2026-09-14-long-session/`.
+
+| Priority | Reproduction / impact | Acceptance | Evidence / status |
+| --- | --- | --- | --- |
+| P2 | Forty bank rotations plus eight resets retain 245 animation-registry entries for only five live faces. Dead entries add iteration work and dilute blink selection during same-round play. | Unregister descendants before detaching/destroying visuals; repeated refresh preserves existing visible faces and does not retain dead roots. | Red PlayMode case reproduces 245/5; fixed case remains 5/5. All 33 PlayMode tests pass, including repeated sample refresh across character combinations. This is a managed registry finding, not a measured native byte-leak claim. |
+| P2 | Round 59 `11 / 1 = 11 / 11` logs calculated sides but displays only `Not balanced.`. | Show `11 is not 1.` without advancing, unlocking, or revealing a solution. | Before browser capture and failing controller assertion; preserve the evaluator's existing numeric comparison. Editor and fresh browser replay at 390/320 widths pass. |
+| P2 | Round 60 accepts the exact Round 57 arrangement, three rounds later, with the same 14 sticks / seven slots / equality constraints. | Change the reviewed repetition's resources, retain 100 indices and alternate-answer rules, validate sample plus an alternative. | Identical actual-input clears captured. Round 60 now `Small Chorus`, five slots / 12 sticks, sample `111 * 1 = 111`; alternative `111 = 1 * 111` passes. EditMode 29/29, 100 data checks and fresh small-screen alternative input clear pass. |
+
+Fresh browser replay confirmed the numeric comparison at 390x844 and 320x568,
+and revised Round 60 cleared through actual touch as `111 = 1 * 111` on the
+small screen. The first three changes passed 33 PlayMode / 29 EditMode tests,
+three WebGL builds and the ordinary first-ten input/save regression.
+
+Further investigation found two more issues, implemented but not yet fully
+revalidated in a fresh WebGL build:
+
+| Priority | Reproduction / impact | Acceptance | Evidence / status |
+| --- | --- | --- | --- |
+| P1 | While a placed stick is dragged, switching to another actual browser tab (`document.hidden=true`) leaves the drag alive after returning. A release then changes placement. A pending non-drag tap also rotates after the native pause callback. | Interruption invalidates both active drags and presses begun before interruption; new presses after resume still work. | Before screenshots `baseline/r96-real-tab-held`, `r96-after-real-tab-return`, `r96-real-tab-release`; pending-tap red test expects vertical, gets slash. Added a browser interruption version and per-press generation guard. JS bridge test passes; latest PlayMode pending-tap case passes; fresh browser verification pending. |
+| P1 | Removing either outside stick from `111` leaves center/side poses that are not recognized as `11`. | Removing any of the three sticks leaves a recognized, spaced `11`, without changing count. | Browser release screenshot shows the failed recognition; red test gets empty symbol. Normalize remaining vertical pairs; three-index removal test passes in the latest PlayMode run. Fresh input replay pending. |
+
+Last full run: 35 tests, 34 passed. The remaining pickup-cell test sent a click
+without pointer-down and failed after press-generation validation was added.
+It now sends pointer-down first; the new pause test also checks a fresh resumed
+press. Rerun was blocked by the automatic approval service reporting model
+capacity errors, not by a new Unity compile failure. Do not label this suite PASS.
+JS interruption bridge, 100-round data and scoped whitespace checks pass.
+
+The baseline session was observed 06:55:01-07:19:45 UTC (about 24m44s) before
+user interruption. On resumption at 08:56 UTC both old CDP sessions were
+unresponsive. The unattended gap is not a completed 30-minute soak. Their
+owned interactive processes were stopped; child-process inspection was blocked
+by the same approval-service error. Native build 2 remains unchanged. Resume:
+rerun PlayMode, rebuild QA, replay both new P1 cases, then start a new measured
+30-minute session on that final binary. Refresh release/capture outputs afterward.
+
+### Continuous Quality Follow-Up (2026-09-14)
+
+| Priority | Reproduction / impact | Acceptance | Evidence / status |
+| --- | --- | --- | --- |
+| P2 | Browser touch cancellation preserves sticks but leaves `Drop into a box.` after the drag is gone. | Cancellation restores the preceding feedback and color, without changing the board or bank. | `cancel-after.png` under `/tmp/one-equals-one-continuous-input`; new PlayMode case fails before fix, passes after. |
+| P1 | Secondary press on the same bank stick during a drag resets the handler's drag flag; after focus cancellation its late click rotates a stick. | Reject click eligibility for presses begun during an active drag; keep normal taps and owning drag working. | Event-handler regression fails with `CenterSlash` instead of `CenterVertical`, then passes. Native timing is not yet verified. |
+| P2 | Page 9 shrinks its grid and moves Previous/Next/Close upward; repeated navigation at the prior location misses. | Pager and Close retain their bounds across all nine pages without showing nonexistent round cards. | Browser `picker-page-8/9.png` plus failing PlayMode pager-distance assertion (298.286 logical units); grid flexible space added. Final 31/31 tests and 390/320 browser page reversal/Close pass. |
+
+Current investigation separates A (local input/font/feedback regressions and
+bounded browser soak) from B (physical device, native SDK callbacks, website
+publication and App Store state). No iOS devices found in this follow-up. No
+installation, upload, deployment or commit is authorized by this goal.
+
+The scoped A issues above pass their acceptance checks. Added cancellation
+coverage to the ordinary first-ten browser test (PASS, progress 11 restored).
+26 browser manipulation/Reset cycles and a 60-cycle Editor input/resize test
+retain visible/generated labels; the browser continuation clears 96 into 97.
+No further reproduced P0/P1 in these inspected states. Bounded soak is not
+native long-session/performance approval, and no human fun rating is inferred.
+Evidence: `artifacts/one-equals-one/2026-09-14-continuous-quality/`.
+
+### Post-Distribution Development Checkpoint (2026-09-14)
+
+- A / completed for this loop: supplied video frame audit, actual-input 96-100,
+  ending/picker/reload/reset/replay, target-line fix, font-material refresh,
+  native-scale store candidates, and local public-privacy wording correction.
+  See the gameplay audit for timestamps, expressions and exact evidence.
+- P1 target wrapping: video 64/68s and failing one-line test; now 100 rounds x
+  four logical widths pass without widening slots.
+- P1 font recurrence: build-2-code QA lost target after Round 100 placement;
+  material binding now refreshes with vertices. Final 96-100 browser replay,
+  idle/resize and 28 PlayMode cases pass. Native/long-duration confirmation pending.
+- P2 store capture scale: use native reference scale in store-capture only.
+  Existing candidates preserved; 24 verified new images in `Candidates-next-build`.
+- Submission discrepancy: public privacy URL omits `1 = 1` SDK usage. Local
+  website patch/build/browser check complete; deployment not authorized/performed.
+- B / still open: new numbered iOS build and device verification, production
+  consent/ad/crash-console evidence, privacy deployment/store declarations,
+  Apple processing/review status, Android config/signing and subjective audio QA.
+- Current validation: 28 PlayMode, 100 samples, three WebGL builds, release
+  first-ten input regression, five viewports, store candidate checks, basic
+  static suite PASS. Strict aggregate fails on Android config/IDs; retained as
+  failure, not downgraded to a passing release gate. No connected iPhone found.
+- No game rule, round data, character direction or ad cadence changes. No commit,
+  push, native upload or public website deployment. Local preview now refreshed
+  at `http://127.0.0.1:8093/index.html`. This is not commercial-release signoff.
+
+The checkpoints below describe earlier states and are superseded by this one.
+
 ### Gameplay Quality Loop (2026-09-13 User-Requested Pause)
 
 - A / paused: actual-input investigation completed through Round 95;

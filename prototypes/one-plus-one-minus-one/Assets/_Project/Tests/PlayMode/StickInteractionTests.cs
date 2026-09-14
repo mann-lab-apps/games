@@ -85,6 +85,10 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             Canvas.ForceUpdateCanvases();
             const float cssScale = 320f / 720f;
             var panel = Field<RectTransform>("roundSelectPanel");
+            var pager = (RectTransform)panel.Find("Round Pager");
+            var actions = (RectTransform)panel.Find("Round Actions");
+            var originalPagerBounds = BoundsIn(pager, safe);
+            var originalActionBounds = BoundsIn(actions, safe);
             var soundBounds = BoundsIn(Field<Toggle>("soundToggle").GetComponent<RectTransform>(), safe);
             Assert.That(soundBounds.height * cssScale, Is.GreaterThanOrEqualTo(44f));
             Assert.That(soundBounds.Overlaps(BoundsIn((RectTransform)panel.Find("Round Select Header/Round Select Title"), safe)), Is.False);
@@ -93,6 +97,10 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
                 if (page > 0) Call("ChangeRoundSelectPage", 1);
                 yield return null;
                 Canvas.ForceUpdateCanvases();
+                Assert.That(Vector2.Distance(BoundsIn(pager, safe).center, originalPagerBounds.center),
+                    Is.LessThan(0.01f), $"Page {page + 1}: navigation moved after changing pages");
+                Assert.That(Vector2.Distance(BoundsIn(actions, safe).center, originalActionBounds.center),
+                    Is.LessThan(0.01f), $"Page {page + 1}: Close moved after changing pages");
                 var buttons = Field<List<Button>>("roundSelectButtons").Where(b => b.gameObject.activeSelf)
                     .Concat(new[] { Field<Button>("roundPrevButton"), Field<Button>("roundNextButton"),
                         panel.Find("Round Actions/Close Round Select").GetComponent<Button>() });
@@ -147,6 +155,34 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         }
 
         [UnityTest]
+        public IEnumerator FixedTargetsStayOnOneLineWithinTheirBounds()
+        {
+            var safe = Field<RectTransform>("safeRoot");
+            foreach (var behaviour in safe.GetComponents<MonoBehaviour>()) behaviour.enabled = false;
+            safe.anchorMin = safe.anchorMax = new Vector2(0.5f, 0.5f);
+            foreach (var width in new[] { 1080f, 720f, 390f, 320f })
+            {
+                safe.sizeDelta = new Vector2(width, width * 2);
+                for (var index = 0; index < 100; index++)
+                {
+                    Call("LoadRound", index);
+                    yield return null;
+                    Canvas.ForceUpdateCanvases();
+                    var target = Field<Text>("targetText");
+                    if (!target.gameObject.activeInHierarchy) continue;
+                    var context = $"Round {index + 1}, safe width {width}, target {target.text}";
+                    Assert.That(target.cachedTextGenerator.lineCount, Is.EqualTo(1), context);
+                    var settings = target.GetGenerationSettings(Vector2.zero);
+                    settings.resizeTextForBestFit = false;
+                    if (target.resizeTextForBestFit)
+                        settings.fontSize = target.cachedTextGenerator.fontSizeUsedForBestFit;
+                    var textWidth = target.cachedTextGeneratorForLayout.GetPreferredWidth(target.text, settings) / target.pixelsPerUnit;
+                    Assert.That(textWidth, Is.LessThanOrEqualTo(target.rectTransform.rect.width + 1f), context);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator FixedTargetKeepsRenderedGlyphsDuringPlacement()
         {
             var safe = Field<RectTransform>("safeRoot");
@@ -193,16 +229,45 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             Canvas.ForceUpdateCanvases();
             AssertTargetGlyphs("Initial target");
             var target = Field<Text>("targetText");
+            var materialRefreshed = false;
+            target.RegisterDirtyMaterialCallback(() => materialRefreshed = true);
             target.canvasRenderer.Clear();
             Call("OnFontTextureRebuilt", target.font);
             Assert.That(Field<bool>("pendingFontMeshRefresh"), Is.True);
             yield return null;
             Canvas.ForceUpdateCanvases();
             AssertTargetGlyphs("Deferred atlas refresh");
+            Assert.That(materialRefreshed, Is.True, "Atlas replacement must refresh the bound texture as well as glyph UVs");
             yield return null;
             Canvas.ForceUpdateCanvases();
             Assert.That(Field<bool>("pendingFontMeshRefresh"), Is.False,
                 "Stable text must not require rebuilding every frame");
+        }
+
+        [UnityTest]
+        public IEnumerator FontAtlasSettlesAfterRoundTransitions()
+        {
+            foreach (var index in new[] { 0, 7, 95, 96, 97, 98, 99 })
+            {
+                Call("LoadRound", index);
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+            }
+            for (var frame = 0; frame < 10; frame++) yield return null;
+            var rebuilds = 0;
+            var gameFont = Field<Font>("font");
+            Action<Font> observe = rebuilt => { if (rebuilt == gameFont) rebuilds++; };
+            Font.textureRebuilt += observe;
+            try
+            {
+                for (var frame = 0; frame < 60; frame++) yield return null;
+                Assert.That(rebuilds, Is.Zero, "Stable idle text must not churn the font atlas");
+                Assert.That(Field<bool>("pendingFontMeshRefresh"), Is.False);
+            }
+            finally
+            {
+                Font.textureRebuilt -= observe;
+            }
         }
 
         [UnityTest]
@@ -485,6 +550,7 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             Assert.That(hits, Is.Not.Empty);
             var handler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(hits[0].gameObject);
             Assert.That(handler, Is.SameAs(view.gameObject), "A near miss within the pickup cell should still select its stick.");
+            ExecuteEvents.Execute(handler, pointer, ExecuteEvents.pointerDownHandler);
             ExecuteEvents.Execute(handler, pointer, ExecuteEvents.pointerClickHandler);
             Assert.That(Bank[0], Is.EqualTo(StickPose.CenterSlash));
         }
@@ -515,6 +581,35 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             Assert.That(Field<int>("roundIndex"), Is.EqualTo(29));
             Assert.That(Field<bool>("isAdvancing"), Is.False);
             Assert.That(Field<int>("currentRoundFailureCount"), Is.EqualTo(1));
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator UnequalSidesShowBothValuesWithoutAdvancing()
+        {
+            Call("LoadRound", 58);
+            var poses = new[] {
+                new[] { StickPose.LeftVertical, StickPose.RightVertical },
+                new[] { StickPose.CenterSlash },
+                new[] { StickPose.CenterVertical },
+                new[] { StickPose.TopHorizontal, StickPose.BottomHorizontal },
+                new[] { StickPose.LeftVertical, StickPose.RightVertical },
+                new[] { StickPose.CenterSlash },
+                new[] { StickPose.LeftVertical, StickPose.RightVertical }
+            };
+            Bank.Clear();
+            for (var i = 0; i < poses.Length; i++)
+            {
+                Slots[i].AddRange(poses[i]);
+                Call("UpdateRecognizedSymbol", i);
+            }
+            Call("RefreshUi");
+            Call("CheckCurrent");
+            Assert.That(Field<Text>("feedbackText").text, Is.EqualTo("11 is not 1."));
+            Assert.That(Field<int>("roundIndex"), Is.EqualTo(58));
+            Assert.That(Field<bool>("isAdvancing"), Is.False);
+            Assert.That(Field<int>("currentRoundFailureCount"), Is.EqualTo(1));
+            Assert.That(PlayerPrefs.GetInt(ProgressKeys[0], 0), Is.EqualTo(0));
             yield return null;
         }
 
@@ -606,6 +701,241 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             Assert.That(Slots[0].Count, Is.EqualTo(1));
             Assert.That(Bank.Count, Is.EqualTo(4));
             yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator CancelledDragRestoresFeedbackAndPreservesTheBoard()
+        {
+            Place(0);
+            foreach (var callback in new[] { "OnApplicationFocus", "OnApplicationPause", "OnDisable" })
+            {
+                var feedback = Field<Text>("feedbackText");
+                feedback.text = "Makes 1111.";
+                feedback.color = Color.red;
+                var pointer = Pointer(1, SlotPosition(1));
+                var group = SourceGroup();
+                Call("BeginStickDrag", pointer, group, 0, 0);
+                if (callback == "OnDisable") Call(callback);
+                else Call(callback, callback == "OnApplicationPause");
+                Call("EndStickDrag", pointer);
+                Assert.That(feedback.text, Is.EqualTo("Makes 1111."), callback);
+                Assert.That(feedback.color, Is.EqualTo(Color.red), callback);
+                Assert.That(Slots[0].Count, Is.EqualTo(1));
+                Assert.That(Slots[1], Is.Empty);
+                Assert.That(Bank.Count, Is.EqualTo(4));
+                Assert.That(group.alpha, Is.EqualTo(1f));
+                Assert.That(Field<RectTransform>("dragGhost"), Is.Null);
+                yield return null;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator SecondaryPressDuringDragCannotBecomeALateRotation()
+        {
+            var view = Field<List<RectTransform>>("bankStickViews")[0].gameObject;
+            var first = Pointer(1, SlotPosition(0));
+            var second = Pointer(2, SlotPosition(0));
+            second.eligibleForClick = true;
+            ExecuteEvents.Execute(view, first, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(view, first, ExecuteEvents.beginDragHandler);
+            ExecuteEvents.Execute(view, first, ExecuteEvents.dragHandler);
+            ExecuteEvents.Execute(view, second, ExecuteEvents.pointerDownHandler);
+            Call("OnApplicationFocus", false);
+            // The second finger is released after the owning drag was cancelled.
+            if (second.eligibleForClick)
+                ExecuteEvents.Execute(view, second, ExecuteEvents.pointerClickHandler);
+            Assert.That(Bank[0], Is.EqualTo(StickPose.CenterVertical));
+            Assert.That(second.eligibleForClick, Is.False);
+            Assert.That(Slots.All(s => s.Count == 0), Is.True);
+            Assert.That(Bank.Count, Is.EqualTo(5));
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator PendingTapDoesNotRotateAfterPause()
+        {
+            var view = Field<List<RectTransform>>("bankStickViews")[0].gameObject;
+            var pointer = Pointer(1, Vector2.zero);
+            pointer.eligibleForClick = true;
+            ExecuteEvents.Execute(view, pointer, ExecuteEvents.pointerDownHandler);
+            Call("OnApplicationPause", true);
+            ExecuteEvents.Execute(view, pointer, ExecuteEvents.pointerClickHandler);
+            Assert.That(Bank[0], Is.EqualTo(StickPose.CenterVertical));
+            Assert.That(pointer.eligibleForClick, Is.False);
+            Call("OnApplicationPause", false);
+            pointer.eligibleForClick = true;
+            ExecuteEvents.Execute(view, pointer, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(view, pointer, ExecuteEvents.pointerClickHandler);
+            Assert.That(Bank[0], Is.EqualTo(StickPose.CenterSlash), "A new press after resuming must still rotate.");
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator RemovingAnyStickFromTripleOneKeepsElevenRecognized()
+        {
+            for (var removed = 0; removed < 3; removed++)
+            {
+                Call("LoadRound", 7);
+                Call("FillCurrentRoundWithSample");
+                Call("RefreshUi");
+                Call("RemoveStickFromSlot", 0, removed);
+                Call("RefreshUi");
+                Assert.That(Field<string[]>("slotSymbols")[0], Is.EqualTo("11"),
+                    $"Removing stick {removed} from 111 should leave 11.");
+                Assert.That(Slots[0], Is.EqualTo(new[] { StickPose.LeftVertical, StickPose.RightVertical }));
+                yield return null;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator DraggingEachTripleStickPreservesCountsAndRemainingEleven()
+        {
+            foreach (var destination in new[] { -1, 1 })
+            {
+                for (var removed = 0; removed < 3; removed++)
+                {
+                    Call("LoadRound", 8);
+                    Place(0);
+                    Place(0);
+                    Place(0);
+                    Call("RefreshUi");
+                    yield return null;
+                    Canvas.ForceUpdateCanvases();
+                    var total = Bank.Count + Slots.Sum(slot => slot.Count);
+                    var bankBefore = Bank.Count;
+                    Assert.That(Field<string[]>("slotSymbols")[0], Is.EqualTo("111"));
+                    var pointer = Pointer(1, destination < 0 ? new Vector2(-100, -100) : SlotPosition(destination));
+                    var group = SourceGroup();
+                    Call("BeginStickDrag", pointer, group, 0, removed);
+                    Assert.That(Field<RectTransform>("dragGhost"), Is.Not.Null);
+                    Call("MoveStickDrag", pointer);
+                    Call("EndStickDrag", pointer);
+                    var context = $"Stick {removed}, destination {destination}";
+                    Assert.That(Field<string[]>("slotSymbols")[0], Is.EqualTo("11"), context);
+                    Assert.That(Slots[0], Is.EqualTo(new[] { StickPose.LeftVertical, StickPose.RightVertical }), context);
+                    Assert.That(Bank.Count + Slots.Sum(slot => slot.Count), Is.EqualTo(total), context);
+                    Assert.That(Bank.Count, Is.EqualTo(bankBefore + (destination < 0 ? 1 : 0)), context);
+                    if (destination >= 0)
+                    {
+                        Assert.That(Slots[destination].Count, Is.EqualTo(1), context);
+                        Assert.That(Field<string[]>("slotSymbols")[destination], Is.EqualTo("1"), context);
+                    }
+                    Assert.That(Field<RectTransform>("dragGhost"), Is.Null, context);
+                    Assert.That(group.alpha, Is.EqualTo(1f), context);
+                    yield return null;
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator RepeatedVisualRefreshDoesNotRetainDestroyedFaces()
+        {
+            var faces = (IList)Field<object>("friendFaces");
+            var baselineCount = faces.Count;
+            for (var i = 0; i < 40; i++)
+            {
+                Call("TapBankStick", 0);
+                if (i % 5 == 0) Call("ResetRound");
+                yield return null;
+            }
+            var liveCount = faces.Cast<object>().Count(face =>
+                (RectTransform)face.GetType().GetProperty("Root").GetValue(face) != null);
+            Debug.Log($"Face registry after repeated refresh: {faces.Count} entries, {liveCount} live roots, baseline {baselineCount}.");
+            Assert.That(faces.Count, Is.EqualTo(liveCount), "Destroyed faces must not remain in the animation/blink registry.");
+            Assert.That(faces.Count, Is.EqualTo(5), "Only the current five bank faces should remain.");
+
+            Place(0);
+            Call("RefreshUi");
+            for (var i = 0; i < 20; i++)
+            {
+                Call("TapDroppedStick", 0, 0);
+                yield return null;
+                Assert.That(faces.Cast<object>().All(face =>
+                    (RectTransform)face.GetType().GetProperty("Root").GetValue(face) != null), Is.True);
+                Assert.That(faces.Count, Is.LessThanOrEqualTo(10));
+            }
+
+            foreach (var round in new[] { 0, 1, 2, 3, 4, 5, 7, 8, 17, 59 })
+            {
+                Call("LoadRound", round);
+                Call("FillCurrentRoundWithSample");
+                Call("RefreshUi");
+                yield return null;
+                var expected = faces.Count;
+                var equation = Field<RectTransform>("equationRow");
+                var mouthCount = equation.GetComponentsInChildren<Transform>().Count(t => t.name == "Mouth");
+                Assert.That(mouthCount, Is.GreaterThan(0));
+                for (var refresh = 0; refresh < 5; refresh++)
+                {
+                    Call("RefreshUi");
+                    yield return null;
+                    var roots = faces.Cast<object>().Select(face =>
+                        (RectTransform)face.GetType().GetProperty("Root").GetValue(face)).ToArray();
+                    Assert.That(roots.Length, Is.EqualTo(expected), $"Round {round + 1}: face count changed");
+                    Assert.That(roots.All(root => root != null && root.gameObject.activeInHierarchy), Is.True);
+                    Assert.That(roots.Distinct().Count(), Is.EqualTo(expected));
+                    Assert.That(equation.GetComponentsInChildren<Transform>().Count(t => t.name == "Mouth"),
+                        Is.EqualTo(mouthCount), "Rebuilding must preserve faces, including non-animated placed faces.");
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator RepeatedInputAndResizeKeepLabelsAndSettleTheFontAtlas()
+        {
+            var gameFont = Field<Font>("font");
+            var safe = Field<RectTransform>("safeRoot");
+            foreach (var behaviour in safe.GetComponents<MonoBehaviour>()) behaviour.enabled = false;
+            safe.anchorMin = safe.anchorMax = new Vector2(0.5f, 0.5f);
+            var rounds = new[] { 7, 29, 49, 74, 89, 99 };
+            var rebuilds = 0;
+            Action<Font> observe = rebuilt => { if (rebuilt == gameFont) rebuilds++; };
+            Font.textureRebuilt += observe;
+            try
+            {
+                for (var cycle = 0; cycle < 60; cycle++)
+                {
+                    var round = rounds[cycle % rounds.Length];
+                    Call("LoadRound", round);
+                    Call("ResetRound");
+                    Place(0);
+                    Call("TapDroppedStick", 0, 0);
+                    Call("RefreshUi");
+                    var pose = Slots[0][0];
+                    var pointer = Pointer(1, SlotPosition(0));
+                    Call("BeginStickDrag", pointer, SourceGroup(), 0, 0);
+                    safe.sizeDelta = new Vector2(cycle % 2 == 0 ? 390f : 720f, 1280f);
+                    Call("UpdateStageLayout");
+                    Call("EndStickDrag", pointer);
+                    Assert.That(Slots[0], Is.EqualTo(new[] { pose }), $"Cycle {cycle}: cancelled resize changed placement");
+                    Assert.That(Field<RectTransform>("dragGhost"), Is.Null);
+                    Call("CheckCurrent");
+                    yield return null;
+                    Canvas.ForceUpdateCanvases();
+                    var target = Field<Text>("targetText");
+                    var expectsTarget = !OnePlusOneMinusOneRules.GoalModeRounds[round].SampleSolution.Contains("=");
+                    Assert.That(target.gameObject.activeInHierarchy, Is.EqualTo(expectsTarget));
+                    if (expectsTarget)
+                    {
+                        Assert.That(target.cachedTextGenerator.lineCount, Is.EqualTo(1));
+                        Assert.That(target.cachedTextGenerator.vertexCount, Is.GreaterThan(0));
+                    }
+                    var views = (IList)Field<object>("slotViews");
+                    var recognition = (Text)views[0].GetType().GetProperty("RecognitionText").GetValue(views[0]);
+                    Assert.That(recognition.text, Is.EqualTo("/"));
+                    Assert.That(recognition.cachedTextGenerator.vertexCount, Is.GreaterThan(0));
+                }
+                for (var i = 0; i < 20; i++) yield return null;
+                var settledRebuilds = rebuilds;
+                for (var i = 0; i < 120; i++) yield return null;
+                Assert.That(rebuilds, Is.EqualTo(settledRebuilds), "Idle text must stop rebuilding after the mixed-input run.");
+                Assert.That(Field<bool>("pendingFontMeshRefresh"), Is.False);
+                Debug.Log($"Mixed-input atlas observation: 60 cycles, {rebuilds} rebuild events, none in final 120 idle frames.");
+            }
+            finally
+            {
+                Font.textureRebuilt -= observe;
+            }
         }
 
         [UnityTest]

@@ -6,6 +6,7 @@ import net from "node:net";
 import { resolve } from "node:path";
 import { inflateSync } from "node:zlib";
 import { assertNoRuntimeExceptions, playtestFirstTenRounds } from "./playtest-one-plus-one-minus-one-webgl.mjs";
+import { CdpClient } from "./one-plus-one-minus-one-cdp-client.mjs";
 
 const repoRoot = resolve(import.meta.dirname, "..");
 const buildDir = process.env.ONE_EQUALS_ONE_WEBGL_BUILD_DIR
@@ -118,55 +119,6 @@ async function waitForHttp(url, timeoutMs = 15000) {
   }
 
   throw new Error(`Timed out waiting for ${url}`);
-}
-
-class CdpClient {
-  constructor(webSocketUrl) {
-    this.nextId = 1;
-    this.pending = new Map();
-    this.events = [];
-    this.socket = new WebSocket(webSocketUrl);
-  }
-
-  async open() {
-    await new Promise((resolveOpen, rejectOpen) => {
-      this.socket.addEventListener("open", resolveOpen, { once: true });
-      this.socket.addEventListener("error", rejectOpen, { once: true });
-      this.socket.addEventListener("message", (event) => this.handleMessage(event));
-    });
-  }
-
-  handleMessage(event) {
-    const message = JSON.parse(event.data);
-    if (message.id && this.pending.has(message.id)) {
-      const { resolveCommand, rejectCommand } = this.pending.get(message.id);
-      this.pending.delete(message.id);
-      if (message.error) {
-        rejectCommand(new Error(`${message.error.message}: ${message.error.data ?? ""}`));
-        return;
-      }
-
-      resolveCommand(message.result ?? {});
-      return;
-    }
-
-    if (message.method === "Runtime.consoleAPICalled" || message.method === "Log.entryAdded") {
-      this.events.push(message);
-    }
-  }
-
-  async send(method, params = {}) {
-    const id = this.nextId++;
-    const result = new Promise((resolveCommand, rejectCommand) => {
-      this.pending.set(id, { resolveCommand, rejectCommand });
-    });
-    this.socket.send(JSON.stringify({ id, method, params }));
-    return await result;
-  }
-
-  close() {
-    this.socket.close();
-  }
 }
 
 async function openDebugTab(debugPort, url) {

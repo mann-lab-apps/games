@@ -85,6 +85,7 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
 
         [TestCase(40, 41)]
         [TestCase(44, 45)]
+        [TestCase(56, 59)]
         [TestCase(62, 64)]
         [TestCase(68, 69)]
         public void ReviewedRoundsDoNotRepeatIdenticalPlayerConstraints(int firstIndex, int secondIndex)
@@ -110,6 +111,7 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
 
         [TestCase(13, "11 / 11 = 1")]
         [TestCase(14, "11 × 1 = 11")]
+        [TestCase(59, "111 = 1 * 111")]
         [TestCase(64, "111 × 1 = 111 / 1")]
         [TestCase(69, "111 = 111 / 1")]
         [TestCase(86, "111 / 1 = 111")]

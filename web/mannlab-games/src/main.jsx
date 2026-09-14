@@ -484,14 +484,14 @@ function PrivacyStage() {
       <article className="privacy-document">
         <span>Mannlab Games</span>
         <h1>Privacy Policy</h1>
-        <p className="privacy-updated">Last updated: August 30, 2026</p>
+        <p className="privacy-updated">Last updated: September 14, 2026</p>
 
         <section>
           <h2>Overview</h2>
           <p>
             Mannlab Games publishes small games including Mannlab 10000,
             Best Ramyeon, Dopamine Swap, 2048 Crash, 2048 Blink, and
-            Thumbwaddle. The mobile app versions do not require account
+            Thumbwaddle, as well as 1 = 1. The mobile app versions do not require account
             creation.
           </p>
         </section>
@@ -500,12 +500,12 @@ function PrivacyStage() {
           <h2>Data Collection</h2>
           <p>
             Mannlab Games apps may store gameplay state, such as score,
-            progress, or best stage, locally on your device where needed. This
-            local gameplay state is not sent to Mannlab.
+            progress, or best stage, locally on your device where needed.
+            Local storage does not provide cloud-save synchronization.
           </p>
           <p>
             2048 Crash, 2048 Blink, Best Ramyeon, Gather & Shot, Wind Gull,
-            and Thumbwaddle may use Firebase Analytics to understand app
+            Thumbwaddle, and 1 = 1 may use Firebase Analytics to understand app
             launches and gameplay interactions, and Firebase Crashlytics to
             diagnose crashes and stability issues. This may
             include device identifiers, product interaction data, crash data,
@@ -513,13 +513,20 @@ function PrivacyStage() {
           </p>
           <p>
             2048 Crash, 2048 Blink, Best Ramyeon, Gather & Shot, and
-            Thumbwaddle may use Google AdMob to show third-party advertising at
+            Thumbwaddle, as well as 1 = 1, may use Google AdMob to show third-party advertising at
             natural breaks, such as after a game over, where production ad IDs
             are configured. Google AdMob may collect or share data such as
             device identifiers, advertising identifiers where available,
             approximate location inferred from IP address, product interaction
             data, advertising interaction data, and diagnostics for advertising,
             analytics, fraud prevention, security, and performance purposes.
+          </p>
+          <p>
+            In 1 = 1, locally saved progress and sound settings are separate
+            from analytics events. Gameplay analytics can include round numbers,
+            clear results, failed checks, and ad eligibility. Interstitial ads
+            are offered at eligible round-completion transitions, not during
+            active puzzle solving.
           </p>
           <p>
             The mobile apps do not currently include account systems, in-app

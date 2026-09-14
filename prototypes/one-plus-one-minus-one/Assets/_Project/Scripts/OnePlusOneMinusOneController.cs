@@ -54,7 +54,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private static extern float OneEqualsOneCanvasDisplayWidth();
         [DllImport("__Internal")]
         private static extern float OneEqualsOneCanvasDisplayHeight();
+        [DllImport("__Internal")]
+        private static extern int OneEqualsOneInputInterruptionVersion();
 #endif
+        private int inputInterruptionVersion;
+        private int webGlInterruptionVersion;
         private const string HighestUnlockedRoundKey = "OnePlusOneMinusOne.GoalMode.HighestUnlockedRound";
         private const string GoalModeCompletedKey = "OnePlusOneMinusOne.GoalMode.Completed";
         private const string SoundEnabledKey = "OnePlusOneMinusOne.Audio.Enabled";
@@ -301,6 +305,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private int draggingSourceStickIndex = -1;
         private int dragHoverSlotIndex = -1;
         private StickPose draggingSourcePose = StickPose.CenterVertical;
+        private string feedbackBeforeDrag;
+        private Color feedbackColorBeforeDrag;
         private AudioSource sfxSource;
         private Text headerTitleText;
         private Text roundText;
@@ -374,6 +380,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void Update()
         {
+            RefreshInputInterruptionVersion();
             if (Time.unscaledTime >= nextPrivacyOptionsRefreshAt)
             {
                 nextPrivacyOptionsRefreshAt = Time.unscaledTime + 1f;
@@ -399,6 +406,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 if (label.font != font) continue;
                 label.cachedTextGenerator.Invalidate();
                 label.SetVerticesDirty();
+                label.SetMaterialDirty();
             }
         }
 
@@ -441,7 +449,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             canvasScaler = canvasObject.GetComponent<CanvasScaler>();
             canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-#if UNITY_WEBGL
+#if UNITY_WEBGL && !MANNLAB_STORE_CAPTURE
             canvasScaler.referenceResolution = ReleaseWebGlReferenceResolution;
 #else
             canvasScaler.referenceResolution = ReleaseNativeReferenceResolution;
@@ -520,7 +528,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void UpdateWebGlReferenceResolution()
         {
-#if UNITY_WEBGL
+#if UNITY_WEBGL && !MANNLAB_STORE_CAPTURE
             if (canvasScaler == null)
             {
                 return;
@@ -603,6 +611,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
             equationRowLayout.spacing = 12f;
 
             targetText = CreateText("Fixed Target", holder, string.Empty, 42, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
+            targetText.resizeTextForBestFit = false;
+            targetText.horizontalOverflow = HorizontalWrapMode.Overflow;
             targetText.rectTransform.anchorMin = new Vector2(0.5f, 0.48f);
             targetText.rectTransform.anchorMax = new Vector2(0.5f, 0.48f);
             targetText.rectTransform.pivot = new Vector2(0.5f, 0.5f);
@@ -707,6 +717,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             var gridRoot = CreateRect("Round Grid", roundSelectPanel);
             roundSelectGridLayout = gridRoot.gameObject.AddComponent<LayoutElement>();
             roundSelectGridLayout.preferredHeight = 392f;
+            roundSelectGridLayout.flexibleHeight = 1f;
             roundSelectGrid = gridRoot.gameObject.AddComponent<GridLayoutGroup>();
             roundSelectGrid.cellSize = new Vector2(140f, 86f);
             roundSelectGrid.spacing = new Vector2(16f, 16f);
@@ -1105,6 +1116,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 var lastRowGroupWidth = lastRowWidth + plan.TargetGap + plan.TargetWidth;
                 targetText.rectTransform.anchoredPosition = new Vector2(-lastRowGroupWidth * 0.5f + lastRowWidth + plan.TargetGap + plan.TargetWidth * 0.5f, lastRowY);
             }
+            RefreshFixedTarget();
         }
 
         private float AvailableEquationWidth()
@@ -1561,12 +1573,21 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             slotStickPoses[slotIndex].RemoveAt(stickIndex);
-            NormalizeSingleStickInSlot(slotIndex);
+            NormalizeRemainingSticksInSlot(slotIndex);
             UpdateRecognizedSymbol(slotIndex);
         }
 
-        private void NormalizeSingleStickInSlot(int slotIndex)
+        private void NormalizeRemainingSticksInSlot(int slotIndex)
         {
+            var poses = slotStickPoses[slotIndex];
+            if (poses.Count == 2 && poses.TrueForAll(pose => pose == StickPose.LeftVertical ||
+                pose == StickPose.CenterVertical || pose == StickPose.RightVertical))
+            {
+                poses[0] = StickPose.LeftVertical;
+                poses[1] = StickPose.RightVertical;
+                return;
+            }
+
             if (slotStickPoses[slotIndex].Count != 1)
             {
                 return;
@@ -1710,7 +1731,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             if (reason.IndexOf("not", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return "Not balanced.";
+                return reason.Contains(" is not ") ? reason : "Not balanced.";
             }
 
             if (reason.Contains("Operator"))
@@ -2230,10 +2251,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             var remaining = RemainingSticks();
             stickText.text = $"left {remaining} / total {CurrentRound.StickCount}";
             bankHintText.text = remaining > 0 ? "tap outside sticks to rotate" : "tap placed sticks or drag them outside";
-            targetText.gameObject.SetActive(CurrentRoundUsesFixedTarget);
-            targetText.text = CurrentRoundUsesFixedTarget
-                ? $"= {OnePlusOneMinusOneRules.FormatNumber(CurrentRound.TargetValue)}"
-                : string.Empty;
+            RefreshFixedTarget();
 
             for (var i = 0; i < slotViews.Count; i++)
             {
@@ -2254,6 +2272,30 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             LayoutBankSticks(remaining);
             UpdateCheckButtonState();
+        }
+
+        private void RefreshFixedTarget()
+        {
+            targetText.gameObject.SetActive(CurrentRoundUsesFixedTarget);
+            targetText.text = CurrentRoundUsesFixedTarget
+                ? $"= {OnePlusOneMinusOneRules.FormatNumber(CurrentRound.TargetValue)}"
+                : string.Empty;
+            if (!CurrentRoundUsesFixedTarget) return;
+
+            // Best-fit in a tall slot can keep a large font by wrapping "=" onto its own line.
+            // Measure a single line instead, without widening the equation or its slots.
+            var settings = targetText.GetGenerationSettings(Vector2.zero);
+            var availableWidth = targetText.rectTransform.rect.width - 2f;
+            var size = targetText.resizeTextMaxSize;
+            while (size > targetText.resizeTextMinSize)
+            {
+                settings.fontSize = size;
+                var width = targetText.cachedTextGeneratorForLayout.GetPreferredWidth(targetText.text, settings)
+                    / targetText.pixelsPerUnit;
+                if (width <= availableWidth) break;
+                size--;
+            }
+            targetText.fontSize = size;
         }
 
         private int RemainingSticks()
@@ -3119,6 +3161,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             draggingPointerId = eventData.pointerId;
+            feedbackBeforeDrag = feedbackText.text;
+            feedbackColorBeforeDrag = feedbackText.color;
             draggingSourceGroup = sourceGroup;
             draggingSourceSlotIndex = sourceSlotIndex;
             draggingSourceStickIndex = sourceStickIndex;
@@ -3141,6 +3185,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void MoveStickDrag(PointerEventData eventData)
         {
+            RefreshInputInterruptionVersion();
             if (dragGhost == null || draggingPointerId != eventData.pointerId)
             {
                 return;
@@ -3152,6 +3197,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void EndStickDrag(PointerEventData eventData)
         {
+            RefreshInputInterruptionVersion();
             if (dragGhost == null || draggingPointerId != eventData.pointerId)
             {
                 return;
@@ -3225,8 +3271,22 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
         }
 
+        private int RefreshInputInterruptionVersion()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            var version = OneEqualsOneInputInterruptionVersion();
+            if (version != webGlInterruptionVersion)
+            {
+                webGlInterruptionVersion = version;
+                CancelStickDrag();
+            }
+#endif
+            return inputInterruptionVersion;
+        }
+
         private void CancelStickDrag()
         {
+            inputInterruptionVersion++;
             if (!draggingPointerId.HasValue) return;
             if (dragGhost != null)
             {
@@ -3235,6 +3295,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
             SetDragHoverSlot(-1);
             RestoreDraggedSource();
+            feedbackText.text = feedbackBeforeDrag;
+            feedbackText.color = feedbackColorBeforeDrag;
             UpdateCheckButtonState();
         }
 
@@ -3936,8 +3998,16 @@ namespace MannLab.Games.OnePlusOneMinusOne
             return angle;
         }
 
-        private static void ClearChildren(Transform parent)
+        private void ClearChildren(Transform parent)
         {
+            // Unregister before detaching; Destroy completes at the end of the frame.
+            for (var i = friendFaces.Count - 1; i >= 0; i--)
+            {
+                var root = friendFaces[i].Root;
+                if (root == null || (root != parent && root.IsChildOf(parent)))
+                    friendFaces.RemoveAt(i);
+            }
+
             for (var i = parent.childCount - 1; i >= 0; i--)
             {
                 var child = parent.GetChild(i);
@@ -3970,6 +4040,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             private OnePlusOneMinusOneController controller;
             private CanvasGroup sourceGroup;
             private bool didDrag;
+            private int pressInterruptionVersion;
 
             public void Initialize(OnePlusOneMinusOneController owner, CanvasGroup group, int sourceSlotIndex, int sourceStickIndex)
             {
@@ -3977,6 +4048,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 sourceGroup = group;
                 SourceSlotIndex = sourceSlotIndex;
                 SourceStickIndex = sourceStickIndex;
+                pressInterruptionVersion = owner.RefreshInputInterruptionVersion();
             }
 
             private int SourceSlotIndex { get; set; }
@@ -3984,12 +4056,20 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             public void OnPointerDown(PointerEventData eventData)
             {
+                pressInterruptionVersion = controller != null ? controller.RefreshInputInterruptionVersion() : 0;
+                // A press rejected during another drag must not become a tap after cancellation.
+                if (controller != null && controller.draggingPointerId.HasValue)
+                {
+                    eventData.eligibleForClick = false;
+                    return;
+                }
                 didDrag = false;
             }
 
             public void OnBeginDrag(PointerEventData eventData)
             {
-                didDrag = false;
+                didDrag = true;
+                if (!IsCurrentPress(eventData)) return;
                 controller?.BeginStickDrag(eventData, sourceGroup, SourceSlotIndex, SourceStickIndex);
             }
 
@@ -4006,7 +4086,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             public void OnPointerClick(PointerEventData eventData)
             {
-                if (didDrag || eventData.button != PointerEventData.InputButton.Left)
+                if (!IsCurrentPress(eventData) || didDrag || eventData.button != PointerEventData.InputButton.Left)
                 {
                     return;
                 }
@@ -4018,6 +4098,14 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 }
 
                 controller?.TapBankStick(SourceStickIndex);
+            }
+
+            private bool IsCurrentPress(PointerEventData eventData)
+            {
+                if (controller != null && pressInterruptionVersion == controller.RefreshInputInterruptionVersion())
+                    return true;
+                eventData.eligibleForClick = false;
+                return false;
             }
         }
 

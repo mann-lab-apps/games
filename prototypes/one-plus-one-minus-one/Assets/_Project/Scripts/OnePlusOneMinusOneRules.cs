@@ -179,7 +179,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 Puzzle("High Echo Two", "111 - 11 = 111 - 11"),
                 Puzzle("Two Ways", "1 × 1 = 1 / 1"),
                 Puzzle("Bright Ways", "1 * 1 = 1 × 1"),
-                Puzzle("Big Fold", "11 / 11 = 111 / 111"),
+                Puzzle("Small Chorus", "111 * 1 = 111"),
                 Puzzle("Busy Echo", "1 + 1 + 1 = 1 + 1 + 1"),
                 Puzzle("Tucked Step", "11 + 1 = 11 × 1 + 1"),
                 Puzzle("Hidden Slide", "11 - 1 = 11 / 1 - 1"),
