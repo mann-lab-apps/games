@@ -7,6 +7,8 @@ build_output="$project/Builds/WebGL/one-plus-one-minus-one"
 failures=0
 unity_license_available=0
 webgl_artifact_fresh=0
+failed_checks=()
+skipped_checks=()
 
 run_check() {
   local name="$1"
@@ -21,6 +23,7 @@ run_check() {
 
   echo "FAIL: $name (exit $status)" >&2
   failures=1
+  failed_checks+=("$name (exit $status)")
   return "$status"
 }
 
@@ -30,6 +33,7 @@ skip_check() {
   echo "== $name =="
   echo "SKIP: $name ($reason)"
   failures=1
+  skipped_checks+=("$name ($reason)")
 }
 
 check_fresh_webgl_artifact() {
@@ -68,6 +72,7 @@ if [[ "$unity_license_status" -eq 0 ]]; then
 else
   echo "FAIL: Unity licensing preflight (exit $unity_license_status)" >&2
   failures=1
+  failed_checks+=("Unity licensing preflight (exit $unity_license_status)")
 fi
 
 if [[ "$unity_license_available" -eq 1 ]]; then
@@ -126,6 +131,13 @@ else
 fi
 
 if [[ "$failures" -ne 0 ]]; then
+  echo "1 = 1 ship-ready blockers:" >&2
+  for failed_check in "${failed_checks[@]}"; do
+    echo "- FAIL: $failed_check" >&2
+  done
+  for skipped_check in "${skipped_checks[@]}"; do
+    echo "- SKIP: $skipped_check" >&2
+  done
   echo "1 = 1 ship-ready gate failed. Resolve the failed checks above before calling the build commercially complete." >&2
   exit 2
 fi

@@ -80,6 +80,53 @@ check_required_sections() {
   require_text "## Sign-Off"
 }
 
+check_required_rows() {
+  local row
+  for row in \
+    "| iPhone SE portrait |" \
+    "| Standard iPhone portrait |" \
+    "| Large iPhone portrait |" \
+    "| Android 20:9 portrait |" \
+    "| WebGL desktop browser |" \
+    "| WebGL mobile browser |" \
+    "| Bank drag | Stick picks up" \
+    "| Slot hover | Target slot highlights" \
+    "| Drop | Stick snaps" \
+    "| Drag-out return | Placed stick dragged outside" \
+    "| Placed tap rotate | Tapping a placed stick" \
+    "| Max 3 sticks | Fourth stick attempt" \
+    "| Check disabled | Disabled Check button" \
+    "| Failure recovery | After a failed check" \
+    "| \`1\` |" \
+    "| \`-\` |" \
+    "| \`/\` |" \
+    "| \`+\` |" \
+    "| \`×\` |" \
+    "| \`*\` |" \
+    "| \`=\` |" \
+    "| \`11\` |" \
+    "| \`111\` |" \
+    "| Button | Quiet click" \
+    "| Pick up | Small lift cue" \
+    "| Drop | Satisfying but gentle" \
+    "| Rotate | Light chirp" \
+    "| Fail | Soft negative cue" \
+    "| Success | Pleasant clear cue" \
+    "| Finale | Slightly special" \
+    "| Round 1-5 | No interstitial opportunity" \
+    "| Round 10 clear | Interstitial opportunity eligible" \
+    "| Replay clear | No interstitial opportunity" \
+    "| Hard clear | Interstitial skipped" \
+    "| Ad close | Next round continues" \
+    "| Analytics | \`app_open\`" \
+    "| Crashlytics | Development test crash" \
+    "| Apple privacy manifest | \`PrivacyInfo.xcprivacy\`" \
+    "| App privacy labels | Firebase Analytics"
+  do
+    require_text "$row"
+  done
+}
+
 check_status_vocabulary() {
   local unknown_statuses
   unknown_statuses="$(
@@ -261,6 +308,7 @@ NEXT_STEPS
 require_file
 if [[ "$failures" -eq 0 ]]; then
   check_required_sections
+  check_required_rows
   check_status_vocabulary
   check_terminal_status_notes
   check_build_under_test

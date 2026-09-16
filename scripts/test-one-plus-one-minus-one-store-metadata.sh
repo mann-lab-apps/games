@@ -26,6 +26,10 @@ write_metadata() {
 
 - Tiny stick equation puzzles
 
+## Promotional Text
+
+Tiny sticks become numbers, signs, and strange little equations across 100 compact puzzles.
+
 ## Short Description
 
 Drag little stick friends into boxes and make each equation work.
@@ -169,6 +173,27 @@ fi
 if ! grep -Fq 'capture_shot "08-round-select-progression"' <<< "$missing_slug_output"; then
   echo "Missing screenshot slug failure text." >&2
   echo "$missing_slug_output" >&2
+  exit 1
+fi
+
+long_promo_metadata="$tmp_dir/long-promo.md"
+write_metadata "$long_promo_metadata" "puzzle,math,logic,equation,numbers,sticks"
+perl -0pi -e 's/Tiny sticks become numbers, signs, and strange little equations across 100 compact puzzles\./Tiny sticks become numbers, signs, and strange little equations across 100 compact puzzles with a deliberately far too long promotional text field that should fail the App Store submission budget before anyone pastes it into App Store Connect./' "$long_promo_metadata"
+
+set +e
+long_promo_output="$(run_with_fixtures "$long_promo_metadata" 2>&1)"
+long_promo_status="$?"
+set -e
+
+if [[ "$long_promo_status" -eq 0 ]]; then
+  echo "Expected overlong promotional text to fail metadata verification." >&2
+  echo "$long_promo_output" >&2
+  exit 1
+fi
+
+if ! grep -Fq "Promotional text" <<< "$long_promo_output"; then
+  echo "Missing promotional-text length failure text." >&2
+  echo "$long_promo_output" >&2
   exit 1
 fi
 

@@ -58,6 +58,17 @@ iPhone SE/standard/large, Android 20:9 and desktop captures are available under
 `/tmp/one-equals-one-webgl-viewports/`; this is still older-build evidence, not
 runtime verification for the numeric fix.
 
+The top-level ship-ready control flow now has a no-Unity fixture test. It
+asserts that `LICENSING_CLIENT_UNAVAILABLE` skips PlayMode/WebGL/native full
+builds, stale WebGL artifacts skip viewport/capture evidence, and strict
+iOS/Android `--preflight-only` checks still run so platform blockers remain
+visible while Unity is down. The aggregate gate also prints a concise final
+blocker summary so a long failed run ends with the actionable failed/skipped
+check list instead of burying it in the full log. The same fixture also covers
+the fresh-artifact/available-license path, asserting PlayMode, fresh WebGL,
+viewport/capture checks and full native readiness all run before the aggregate
+can pass.
+
 Additional source hardening: tiny nonzero exact-rational results now fall back
 to fraction text if the compact decimal formatter would display `0`. This keeps
 future zero-target failures from saying `Result is 0.` for nonzero values such
@@ -534,6 +545,10 @@ Current checklist status is tracked in
 | Release | Release env checks only verified presence for versions and Android signing. | Added iOS/Android marketing version, build/version-code, Android keystore path format/existence validation, plus env documentation. | Release-env failure-mode tests cover invalid versions and relative Android keystore paths; static suite passes. |
 | Release | External release blockers were scattered across heavier Unity/platform readiness scripts. | Added a no-Unity release-env preflight for Firebase configs, production AdMob IDs, iOS/Android version envs, and Android signing envs; strict ship-ready runs it before platform exports. | Default preflight passes with warnings; `scripts/test-one-plus-one-minus-one-release-env.sh` covers missing values, placeholders, malformed values, Google test AdMob IDs and a strict success fixture with injected Firebase/keystore paths. |
 | Device QA | Ship-ready could pass automated visual gates without explicitly failing on unfinished manual device QA. | Added a device QA signoff preflight that checks the tracker for blank build-under-test fields, `not run` rows, incomplete WebGL mobile coverage, remaining real-touch/manual QA notes, unknown Status values, terminal `pass`/`fail`/`blocked` rows without Notes evidence, and inconsistent TestFlight-ready signoff while external blockers remain; strict ship-ready runs it before external config checks. | `scripts/test-one-plus-one-minus-one-device-qa-signoff.sh` covers passable fixture, unknown-status failure, missing terminal-status Notes evidence and inconsistent external-blocker signoff; default preflight passes with warnings; strict mode fails until manual QA is signed off. |
+| Device QA | A manual QA tracker could delete a difficult required row and still satisfy only section/status checks. | Added required-row checks for the core screen matrix, touch, character, audio, ads/analytics and privacy rows, using precise row prefixes where labels are duplicated across sections. | `scripts/test-one-plus-one-minus-one-device-qa-signoff.sh` now includes missing-row fixtures for the WebGL mobile browser row and the touch `Drop` row while an audio `Drop` row remains. |
+| Store metadata | App Store promotional text was discussed but not persisted as a verified metadata field. | Added a Promotional Text section to the store metadata draft and verifier length checks against the 170-byte submission field. | `scripts/test-one-plus-one-minus-one-store-metadata.sh` now includes an overlong promotional-text fixture. |
+| Release env | iOS build env accepted build numbers lower than the already uploaded `1.0.0 (2)` candidate, which would fail the next App Store upload. | Added a default minimum iOS build number of `3` to release-env and iOS readiness preflight, overrideable via `ONE_EQUALS_ONE_MIN_IOS_BUILD_NUMBER`, and updated `RELEASE_ENV.example`. | Release-env and platform-readiness preflight tests now cover stale iOS build number rejection. |
+| Release env | Android version code only required a positive integer, allowing stale `1`/`2` candidate envs. | Added a default minimum Android version code of `3`, overrideable via `ONE_EQUALS_ONE_MIN_ANDROID_VERSION_CODE`, and updated `RELEASE_ENV.example`. | Release-env and platform-readiness preflight tests now cover stale Android version code rejection. |
 
 ## Active Risks
 

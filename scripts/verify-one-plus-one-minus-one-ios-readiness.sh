@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$repo_root/scripts/lib-one-plus-one-minus-one-unity-license.sh"
 project="$repo_root/prototypes/one-plus-one-minus-one"
 firebase_ios="${ONE_EQUALS_ONE_FIREBASE_IOS_CONFIG:-$project/Assets/GoogleService-Info.plist}"
+min_ios_build_number="${ONE_EQUALS_ONE_MIN_IOS_BUILD_NUMBER:-3}"
 project_unity_version="$(awk '/m_EditorVersion:/ {print $2; exit}' "$project/ProjectSettings/ProjectVersion.txt")"
 unity_version="${UNITY_EDITOR_VERSION:-$project_unity_version}"
 unity_root="/Applications/Unity/Hub/Editor/$unity_version/Unity.app/Contents"
@@ -126,6 +127,20 @@ warn_or_fail_invalid_env_format() {
   warn_or_fail "$message" "$strict"
 }
 
+warn_or_fail_min_integer_env() {
+  local message="$1"
+  local value="$2"
+  local min_value="$3"
+  local strict="$4"
+  if [[ -z "$value" || ! "$value" =~ ^[1-9][0-9]*$ ]]; then
+    return
+  fi
+
+  if (( value < min_value )); then
+    warn_or_fail "$message" "$strict"
+  fi
+}
+
 require_file() {
   local path="$1"
   if [[ ! -f "$path" ]]; then
@@ -211,6 +226,11 @@ else
     "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER should be a positive integer." \
     "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER:-}" \
     '^[1-9][0-9]*$' \
+    "${REQUIRE_IOS_VERSION_ENV:-0}"
+  warn_or_fail_min_integer_env \
+    "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER should be at least $min_ios_build_number for the next App Store candidate." \
+    "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER:-}" \
+    "$min_ios_build_number" \
     "${REQUIRE_IOS_VERSION_ENV:-0}"
 fi
 

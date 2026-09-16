@@ -8,6 +8,7 @@ project_settings="$project/ProjectSettings/ProjectSettings.asset"
 android_build="$project/Assets/_Project/Editor/BuildAndroidAab.cs"
 gma_settings="$project/Assets/GoogleMobileAds/Resources/GoogleMobileAdsSettings.asset"
 firebase_android_json="${ONE_EQUALS_ONE_FIREBASE_ANDROID_CONFIG:-$project/Assets/google-services.json}"
+min_android_version_code="${ONE_EQUALS_ONE_MIN_ANDROID_VERSION_CODE:-3}"
 controller="$project/Assets/_Project/Scripts/OnePlusOneMinusOneController.cs"
 app_icon="$project/Assets/_Project/Art/AppIcon-1024.png"
 project_unity_version="$(awk '/m_EditorVersion:/ {print $2; exit}' "$project/ProjectSettings/ProjectVersion.txt")"
@@ -124,6 +125,20 @@ warn_or_fail_invalid_env_format() {
   warn_or_fail "$message" "$strict"
 }
 
+warn_or_fail_min_integer_env() {
+  local message="$1"
+  local value="$2"
+  local min_value="$3"
+  local strict="$4"
+  if [[ -z "$value" || ! "$value" =~ ^[1-9][0-9]*$ ]]; then
+    return
+  fi
+
+  if (( value < min_value )); then
+    warn_or_fail "$message" "$strict"
+  fi
+}
+
 require_file() {
   local path="$1"
   if [[ ! -f "$path" ]]; then
@@ -229,6 +244,11 @@ if [[ "$mode" != "admob-test" ]]; then
       "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_VERSION_CODE should be a positive integer." \
       "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_VERSION_CODE:-}" \
       '^[1-9][0-9]*$' \
+      "${REQUIRE_ANDROID_VERSION_ENV:-0}"
+    warn_or_fail_min_integer_env \
+      "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_VERSION_CODE should be at least $min_android_version_code for the next Play Store candidate." \
+      "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_VERSION_CODE:-}" \
+      "$min_android_version_code" \
       "${REQUIRE_ANDROID_VERSION_ENV:-0}"
   fi
 fi

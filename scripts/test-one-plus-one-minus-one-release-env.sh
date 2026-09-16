@@ -105,6 +105,42 @@ require_failure_text "google test ad ids" "$test_id_output" "Production Android 
 require_failure_text "google test ad ids" "$test_id_output" "Production iOS interstitial ad unit ID uses Google's test ID"
 require_failure_text "google test ad ids" "$test_id_output" "Production Android interstitial ad unit ID uses Google's test ID"
 
+stale_ios_build_output="$(
+  capture_failure "stale iOS build number" env -i PATH="$PATH" HOME="$HOME" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_APP_ID="ca-app-pub-1234567890123456~1234567890" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_ANDROID_APP_ID="ca-app-pub-1234567890123456~1234567891" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_INTERSTITIAL_ID="ca-app-pub-1234567890123456/1234567892" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_ANDROID_INTERSTITIAL_ID="ca-app-pub-1234567890123456/1234567893" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_MARKETING_VERSION="1.0.0" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER="2" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_MARKETING_VERSION="1.0.0" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_VERSION_CODE="3" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYSTORE_PATH="/tmp/one-equals-one-release.keystore" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYSTORE_PASS="secret" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYALIAS_NAME="release" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYALIAS_PASS="secret" \
+    "$script" --strict
+)"
+require_failure_text "stale iOS build number" "$stale_ios_build_output" "iOS build number should be at least 3"
+
+stale_android_version_output="$(
+  capture_failure "stale Android version code" env -i PATH="$PATH" HOME="$HOME" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_APP_ID="ca-app-pub-1234567890123456~1234567890" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_ANDROID_APP_ID="ca-app-pub-1234567890123456~1234567891" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_INTERSTITIAL_ID="ca-app-pub-1234567890123456/1234567892" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_ANDROID_INTERSTITIAL_ID="ca-app-pub-1234567890123456/1234567893" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_MARKETING_VERSION="1.0.0" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER="3" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_MARKETING_VERSION="1.0.0" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_VERSION_CODE="2" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYSTORE_PATH="/tmp/one-equals-one-release.keystore" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYSTORE_PASS="secret" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYALIAS_NAME="release" \
+    MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYALIAS_PASS="secret" \
+    "$script" --strict
+)"
+require_failure_text "stale Android version code" "$stale_android_version_output" "Android version code should be at least 3"
+
 admob_placeholder_output="$(
   capture_failure "admob readiness mixed-case placeholders" env -i PATH="$PATH" HOME="$HOME" \
     REQUIRE_PRODUCTION_ADMOB_IDS=1 \

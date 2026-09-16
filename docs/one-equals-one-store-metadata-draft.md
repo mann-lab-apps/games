@@ -33,6 +33,10 @@ saves from gameplay analytics. This correction has not been deployed publicly.
 - Make math with little sticks
 - A tiny logic puzzle
 
+## Promotional Text
+
+Tiny sticks become numbers, signs, and strange little equations across 100 compact puzzles.
+
 ## Short Description
 
 Drag little stick friends into boxes and make each equation work.

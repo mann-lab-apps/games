@@ -55,6 +55,15 @@ the iOS and Android native build entrypoints: release exports must stay
 non-development, require production AdMob IDs where applicable, and keep
 forced-test-ad paths confined to explicit test builds.
 
+Latest follow-up after commit `9fa9799e`: the top-level ship-ready gate now has
+a fixture test for this blocked mode and prints a final blocker summary. The
+2026-09-16 rerun still exits 2, but the ending list now explicitly separates
+failed checks (Unity licensing preflight, stale WebGL artifact freshness, strict
+device QA, strict release env, strict Firebase/AdMob code readiness, strict
+iOS/Android release preflight) from skipped Unity/freshness-dependent checks
+(PlayMode, fresh WebGL, viewport smoke, QA captures, App Store candidates and
+full native readiness).
+
 Unity licensing recovery check:
 
 ```sh

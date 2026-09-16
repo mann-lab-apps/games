@@ -128,6 +128,7 @@ require_text "$metadata" "App name: \`1 = 1\`"
 require_text "$metadata" "Bundle ID: \`com.mannlab.games.oneplusoneminusone\`"
 require_text "$metadata" "Privacy policy URL: \`https://games.mannlab.app/privacy\`"
 require_text "$metadata" "## Subtitle Candidates"
+require_text "$metadata" "## Promotional Text"
 require_text "$metadata" "## Short Description"
 require_text "$metadata" "## Full Description Draft"
 require_text "$metadata" "Complete 100 compact puzzles"
@@ -158,6 +159,7 @@ app_name="$(field_value "$metadata" "App name")"
 bundle_id="$(field_value "$metadata" "Bundle ID")"
 privacy_url="$(field_value "$metadata" "Privacy policy URL")"
 short_description="$(first_paragraph_after_heading "$metadata" "## Short Description")"
+promotional_text="$(first_paragraph_after_heading "$metadata" "## Promotional Text")"
 keywords="$(first_paragraph_after_heading "$metadata" "## Keywords")"
 full_description="$(block_after_heading "$metadata" "## Full Description Draft")"
 review_notes="$(block_after_heading "$metadata" "## Review Notes Draft")"
@@ -166,6 +168,7 @@ privacy_disclosure="$(block_after_heading "$metadata" "## Privacy Disclosure Dra
 require_value_present "App name" "$app_name"
 require_value_present "Bundle ID" "$bundle_id"
 require_value_present "Privacy policy URL" "$privacy_url"
+require_value_present "Promotional text" "$promotional_text"
 require_value_present "Short description" "$short_description"
 require_value_present "Keywords" "$keywords"
 require_value_present "Full description" "$full_description"
@@ -173,6 +176,7 @@ require_value_present "Review notes" "$review_notes"
 require_value_present "Privacy disclosure" "$privacy_disclosure"
 
 require_max_bytes "App name" "$app_name" 30
+require_max_bytes "Promotional text" "$promotional_text" 170
 require_max_bytes "Short description" "$short_description" 80
 require_min_bytes "Full description" "$full_description" 200
 require_max_bytes "Full description" "$full_description" 4000

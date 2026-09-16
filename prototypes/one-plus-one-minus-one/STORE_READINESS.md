@@ -67,6 +67,16 @@ Unity-gated checks when it fails instead of repeating the same Unity timeout.
     launcher sizes.
 - iOS marketing icon after export:
   - `Builds/iOS/Xcode/Unity-iPhone/Images.xcassets/AppIcon.appiconset/Icon-AppStore-1024.png`
+- Next iOS build number:
+  - App Store Connect already has iOS `1.0.0 (2)`, so the next release candidate
+    must use build number `3` or higher unless the submitted version changes.
+  - `ONE_EQUALS_ONE_MIN_IOS_BUILD_NUMBER` can override this verifier minimum for
+    future releases.
+- Next Android version code:
+  - Use version code `3` or higher for the next Play Store candidate by default;
+    lower values are treated as stale release inputs.
+  - `ONE_EQUALS_ONE_MIN_ANDROID_VERSION_CODE` can override this verifier minimum
+    for future releases.
 - Screenshot checklist:
   - Round 1 first-play screen
   - Round 5 multiply discovery

@@ -5,6 +5,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 project="$repo_root/prototypes/one-plus-one-minus-one"
 firebase_ios="${ONE_EQUALS_ONE_FIREBASE_IOS_CONFIG:-$project/Assets/GoogleService-Info.plist}"
 firebase_android="${ONE_EQUALS_ONE_FIREBASE_ANDROID_CONFIG:-$project/Assets/google-services.json}"
+min_ios_build_number="${ONE_EQUALS_ONE_MIN_IOS_BUILD_NUMBER:-3}"
+min_android_version_code="${ONE_EQUALS_ONE_MIN_ANDROID_VERSION_CODE:-3}"
 failures=0
 warnings=0
 
@@ -133,6 +135,22 @@ check_version_env() {
   fi
 }
 
+check_min_integer_env() {
+  local label="$1"
+  local env_name="$2"
+  local min_value="$3"
+  local require_env="$4"
+  local value="${!env_name:-}"
+
+  if [[ -z "$value" || ! "$value" =~ ^[1-9][0-9]*$ ]]; then
+    return
+  fi
+
+  if (( value < min_value )); then
+    warn_or_fail "$label should be at least $min_value for the next App Store candidate ($env_name)." "$require_env"
+  fi
+}
+
 check_android_signing_env() {
   local path_value="${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_KEYSTORE_PATH:-}"
 
@@ -220,6 +238,11 @@ check_version_env \
   MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER \
   '^[1-9][0-9]*$' \
   REQUIRE_IOS_VERSION_ENV
+check_min_integer_env \
+  "iOS build number" \
+  MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER \
+  "$min_ios_build_number" \
+  REQUIRE_IOS_VERSION_ENV
 check_version_env \
   "Android marketing version" \
   MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_MARKETING_VERSION \
@@ -229,6 +252,11 @@ check_version_env \
   "Android version code" \
   MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_VERSION_CODE \
   '^[1-9][0-9]*$' \
+  REQUIRE_ANDROID_VERSION_ENV
+check_min_integer_env \
+  "Android version code" \
+  MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_VERSION_CODE \
+  "$min_android_version_code" \
   REQUIRE_ANDROID_VERSION_ENV
 
 check_android_signing_env
