@@ -8,10 +8,14 @@ unity_editor="/Applications/Unity/Hub/Editor/${UNITY_EDITOR_VERSION:-$project_ve
 results="${ONE_EQUALS_ONE_PLAYMODE_RESULTS:-/tmp/one-equals-one-playmode.xml}"
 log="${ONE_EQUALS_ONE_PLAYMODE_LOG:-/tmp/one-equals-one-playmode.log}"
 
+. "$repo_root/scripts/lib-one-plus-one-minus-one-unity-license.sh"
+
 if [[ ! -x "$unity_editor" ]]; then
   echo "Unity Editor not found: $unity_editor" >&2
   exit 2
 fi
+
+check_one_plus_one_minus_one_unity_license "this script"
 
 "$unity_editor" -batchmode -projectPath "$project" \
   -runTests -testPlatform PlayMode -testFilter MannLab.Games.OnePlusOneMinusOne.Tests \

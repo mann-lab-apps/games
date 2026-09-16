@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-tracker="$repo_root/docs/one-equals-one-device-qa-tracker.md"
+tracker="${ONE_EQUALS_ONE_DEVICE_QA_TRACKER:-$repo_root/docs/one-equals-one-device-qa-tracker.md}"
 failures=0
 warnings=0
 
@@ -51,7 +51,7 @@ warn_or_fail() {
 
 count_literal() {
   local pattern="$1"
-  grep -F "$pattern" "$tracker" | wc -l | awk '{print $1}'
+  { grep -F "$pattern" "$tracker" || true; } | wc -l | awk '{print $1}'
 }
 
 require_text() {
@@ -78,6 +78,105 @@ check_required_sections() {
   require_text "## Ads And Analytics"
   require_text "## Store Privacy"
   require_text "## Sign-Off"
+}
+
+check_status_vocabulary() {
+  local unknown_statuses
+  unknown_statuses="$(
+    awk -F '|' '
+      function trim(value) {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        return value
+      }
+
+      /^\|/ {
+        if ($0 ~ /\|[[:space:]]*---/) {
+          next
+        }
+
+        if ($0 ~ /\|.*Status.*\|/) {
+          status_col = 0
+          for (column = 2; column < NF; column++) {
+            if (trim($column) == "Status") {
+              status_col = column
+            }
+          }
+          next
+        }
+
+        if (status_col > 0) {
+          status = trim($status_col)
+          if (status == "") {
+            print "blank"
+          } else if (status !~ /^(not run|automated pass|key automated pass|automated source check pass|pass|fail|blocked|real touch QA still needed|real touch QA and first-screen density judgment still needed|browser smoke pass; manual playthrough still useful)$/) {
+            print status
+          }
+        }
+        next
+      }
+
+      {
+        status_col = 0
+      }
+    ' "$tracker" | sort -u
+  )"
+
+  if [[ -n "$unknown_statuses" ]]; then
+    warn_or_fail "Device QA tracker has unknown Status value(s): ${unknown_statuses//$'\n'/, }"
+  fi
+}
+
+check_terminal_status_notes() {
+  local missing_notes
+  missing_notes="$(
+    awk -F '|' '
+      function trim(value) {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        return value
+      }
+
+      function clear_columns() {
+        status_col = 0
+        notes_col = 0
+      }
+
+      /^\|/ {
+        if ($0 ~ /\|[[:space:]]*---/) {
+          next
+        }
+
+        if ($0 ~ /\|.*Status.*\|/) {
+          clear_columns()
+          for (column = 2; column < NF; column++) {
+            if (trim($column) == "Status") {
+              status_col = column
+            }
+            if (trim($column) == "Notes") {
+              notes_col = column
+            }
+          }
+          next
+        }
+
+        if (status_col > 0 && notes_col > 0) {
+          status = trim($status_col)
+          notes = trim($notes_col)
+          if ((status == "pass" || status == "fail" || status == "blocked") && notes == "") {
+            print "row " NR " status " status
+          }
+        }
+        next
+      }
+
+      {
+        clear_columns()
+      }
+    ' "$tracker"
+  )"
+
+  if [[ -n "$missing_notes" ]]; then
+    warn_or_fail "Device QA tracker terminal Status row(s) need Notes evidence: ${missing_notes//$'\n'/, }"
+  fi
 }
 
 check_incomplete_rows() {
@@ -108,6 +207,43 @@ check_incomplete_rows() {
   fi
 }
 
+signoff_value() {
+  local label="$1"
+  awk -v prefix="- ${label}:" '
+    index($0, prefix) == 1 {
+      value = substr($0, length(prefix) + 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      print value
+      exit
+    }
+  ' "$tracker"
+}
+
+check_signoff_consistency() {
+  local release_blockers
+  local external_blockers
+  local testflight_ready
+  release_blockers="$(signoff_value "Release blocker count")"
+  external_blockers="$(signoff_value "External blockers")"
+  testflight_ready="$(signoff_value "Ready for TestFlight/internal test")"
+
+  if [[ -z "$release_blockers" ]]; then
+    warn_or_fail "Device QA tracker Sign-Off is missing Release blocker count."
+  fi
+
+  if [[ -z "$external_blockers" ]]; then
+    warn_or_fail "Device QA tracker Sign-Off is missing External blockers."
+  fi
+
+  if [[ "$release_blockers" == "none" && "$external_blockers" != "none" ]]; then
+    warn_or_fail "Device QA tracker says Release blocker count is none while External blockers remain."
+  fi
+
+  if [[ "$testflight_ready" == "yes" && "$external_blockers" != "none" ]]; then
+    warn_or_fail "Device QA tracker cannot be ready for TestFlight/internal test while External blockers remain."
+  fi
+}
+
 print_next_steps() {
   cat >&2 <<'NEXT_STEPS'
 
@@ -125,8 +261,11 @@ NEXT_STEPS
 require_file
 if [[ "$failures" -eq 0 ]]; then
   check_required_sections
+  check_status_vocabulary
+  check_terminal_status_notes
   check_build_under_test
   check_incomplete_rows
+  check_signoff_consistency
 fi
 
 if [[ "$failures" -ne 0 ]]; then

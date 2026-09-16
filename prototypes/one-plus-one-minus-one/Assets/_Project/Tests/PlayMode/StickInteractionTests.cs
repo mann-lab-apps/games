@@ -132,11 +132,15 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         [UnityTest]
         public IEnumerator PlayerEqualityHidesFixedTargetAndRestoresItWhenRemoved()
         {
-            Call("LoadRound", 38);
+            const int roundIndex = 38;
+            var expectedTarget = "= " + OnePlusOneMinusOneRules.FormatNumber(
+                OnePlusOneMinusOneRules.GoalModeRounds[roundIndex].TargetValue);
+            Call("LoadRound", roundIndex);
             Call("FillCurrentRoundWithSample");
             Call("RefreshUi");
             yield return null;
             Canvas.ForceUpdateCanvases();
+            Assert.That(Field<Text>("targetText").text, Is.EqualTo(expectedTarget));
             var originalSlotPosition = SlotPosition(0);
             var symbols = Field<string[]>("slotSymbols");
             Call("CycleStickPose", 1, 0);
@@ -151,7 +155,7 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             yield return null;
             Assert.That(symbols[1], Is.EqualTo("+"));
             Assert.That(Field<Text>("targetText").gameObject.activeSelf, Is.True);
-            Assert.That(Field<Text>("targetText").text, Is.EqualTo("= 22"));
+            Assert.That(Field<Text>("targetText").text, Is.EqualTo(expectedTarget));
         }
 
         [UnityTest]
@@ -584,6 +588,20 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             yield return null;
         }
 
+        [Test]
+        public void ValidWrongResultFeedbackReusesExactReasonText()
+        {
+            Assert.That(StaticCall("CalculatedValueFailureText",
+                    new EquationResult(true, 0d, string.Empty), "Result is 0."),
+                Is.EqualTo("Makes 0."));
+            Assert.That(StaticCall("CalculatedValueFailureText",
+                    new EquationResult(true, 0d, string.Empty), "Result is 1/111111111."),
+                Is.EqualTo("Makes 1/111111111."));
+            Assert.That(StaticCall("CalculatedValueFailureText",
+                    new EquationResult(true, 0.25d, string.Empty), string.Empty),
+                Is.EqualTo("Makes 0.25."));
+        }
+
         [UnityTest]
         public IEnumerator UnequalSidesShowBothValuesWithoutAdvancing()
         {
@@ -767,6 +785,30 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             ExecuteEvents.Execute(view, pointer, ExecuteEvents.pointerDownHandler);
             ExecuteEvents.Execute(view, pointer, ExecuteEvents.pointerClickHandler);
             Assert.That(Bank[0], Is.EqualTo(StickPose.CenterSlash), "A new press after resuming must still rotate.");
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator NewPressAfterResumeDoesNotReviveAnOlderPointersClick()
+        {
+            var view = Field<List<RectTransform>>("bankStickViews")[0].gameObject;
+            var interrupted = Pointer(1, Vector2.zero);
+            interrupted.eligibleForClick = true;
+            ExecuteEvents.Execute(view, interrupted, ExecuteEvents.pointerDownHandler);
+            Call("OnApplicationPause", true);
+            Call("OnApplicationPause", false);
+            var fresh = Pointer(2, Vector2.zero);
+            fresh.eligibleForClick = true;
+            ExecuteEvents.Execute(view, fresh, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(view, interrupted, ExecuteEvents.pointerClickHandler);
+            Assert.That(Bank[0], Is.EqualTo(StickPose.CenterVertical), "A new finger must not revive the interrupted finger's click.");
+            Assert.That(interrupted.eligibleForClick, Is.False);
+            ExecuteEvents.Execute(view, interrupted, ExecuteEvents.beginDragHandler);
+            ExecuteEvents.Execute(view, interrupted, ExecuteEvents.dragHandler);
+            ExecuteEvents.Execute(view, interrupted, ExecuteEvents.endDragHandler);
+            Assert.That(Field<RectTransform>("dragGhost"), Is.Null);
+            ExecuteEvents.Execute(view, fresh, ExecuteEvents.pointerClickHandler);
+            Assert.That(Bank[0], Is.EqualTo(StickPose.CenterSlash), "The fresh finger must still rotate once.");
             yield return null;
         }
 
@@ -1006,6 +1048,12 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             var method = typeof(OnePlusOneMinusOneController).GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
                 .Single(m => m.Name == name && m.GetParameters().Length == args.Length);
             return method.Invoke(controller, args);
+        }
+        private static object StaticCall(string name, params object[] args)
+        {
+            var method = typeof(OnePlusOneMinusOneController).GetMethods(BindingFlags.Static | BindingFlags.NonPublic)
+                .Single(m => m.Name == name && m.GetParameters().Length == args.Length);
+            return method.Invoke(null, args);
         }
     }
 }

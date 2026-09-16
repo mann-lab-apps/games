@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Numerics;
 using System.Text;
 using UnityEngine;
 
@@ -96,6 +97,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
     public static class OnePlusOneMinusOneRules
     {
+        // Legacy double-test/display tolerance only. Solve acceptance must stay exact-rational.
         public const double TargetTolerance = 0.0001d;
 
         public static readonly PuzzleTokenData[] Tokens =
@@ -130,95 +132,95 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 Round("Triple One", "Pack three upright sticks together: 111.", "111"),
                 Round("Star Multiply", "Three crossed sticks can become *.", "1 * 1"),
                 Round("Eleven Joins", "Now mix a packed 11 into an equation.", "11 + 1"),
-                Round("Make Ten", "Subtract a small friend from 11.", "11 - 1"),
-                Round("Back To One", "The same number can divide itself.", "11 / 11"),
+                Round("Make Ten", "Subtract a small friend from 11.", "1 1 - 1"),
+                Round("Back To One", "The same number can divide itself.", "1 1 / 11"),
                 Round("Zero Trick", "Add and subtract back to zero.", "1 - 1 + 1 - 1"),
                 Round("Order Trick", "× acts before +.", "1 + 1 × 11"),
                 Round("Divide Then Add", "/ acts before + too.", "11 + 11 / 11"),
                 Puzzle("Little Choir", "1 + 1 + 1"),
                 Puzzle("Mirror Drop", "11 - 11"),
-                Puzzle("Quiet Match", "1 = 1"),
+                Puzzle("Quiet Match", "11 = 1 1"),
                 Puzzle("Twin Paths", "1 + 1 = 1 + 1"),
                 Puzzle("Soft Match", "11 = 11"),
                 Puzzle("Small Turn", "1 + 1 - 1"),
                 Puzzle("Side Path", "11 + 1 = 1 + 11"),
-                Puzzle("High Step", "111 - 11"),
-                Puzzle("Long Slide", "111 / 1 - 11"),
+                Puzzle("High Step", "111 - 111"),
+                Puzzle("Long Slide", "11 / 1 - 1 1"),
                 Puzzle("Warmup Line", "1 + 1 - 1 × 1"),
-                Puzzle("Soft Save", "1 + 1 - 1 / 1"),
-                Puzzle("Hidden Path", "11 * 1 / 11"),
+                Puzzle("Soft Save", "1 1 1 / 1 1 1"),
+                Puzzle("Hidden Path", "11 * 1 / 1 1"),
                 Puzzle("High Fold", "111 / 111"),
-                Puzzle("Short Balance", "1 + 1 - 1 = 1"),
+                Puzzle("Short Balance", "11 + 1 = 1 1 + 1"),
                 Puzzle("Familiar Shape", "1 + 1 - 1 × 1 / 1"),
-                Puzzle("Busy Row", "1 + 1 + 1 + 1"),
-                Puzzle("Soft Lift", "11 + 1 + 1"),
-                Puzzle("Soft Dip", "11 - 1 - 1"),
-                Puzzle("Small Loop", "1 + 11 / 11"),
-                Puzzle("High Loop", "111 / 111 + 1"),
-                Puzzle("Clean Slide", "111 / 111 + 11 + 1"),
-                Puzzle("Almost There", "111 - 11 - 1"),
-                Puzzle("Heavy Pair", "11 × 11"),
-                Puzzle("Side By Side", "11 + 11"),
+                Puzzle("Busy Row", "1 + 1 + 1 + 1 1"),
+                Puzzle("Soft Lift", "1 + 1 + 1 1"),
+                Puzzle("Soft Dip", "1 11 - 1"),
+                Puzzle("Small Loop", "1 1 / 1 / 1"),
+                Puzzle("High Loop", "11 - 1 1"),
+                Puzzle("Clean Slide", "111 / 111 + 11 + 11"),
+                Puzzle("Almost There", "11 1 - 1 - 1"),
+                Puzzle("Heavy Pair", "1 1 × 1"),
+                Puzzle("Side By Side", "111 + 11"),
                 Puzzle("High Trim", "111 - 1"),
-                Puzzle("First Switch", "1 + 11 × 1"),
-                Puzzle("Second Switch", "11 + 11 + 11"),
-                Puzzle("Clear Turn", "11 / 1 + 1"),
+                Puzzle("First Switch", "1 1 + 1"),
+                Puzzle("Second Switch", "11 + 11 + 1 1"),
+                Puzzle("Clear Turn", "1 / 1 + 1 1"),
                 Puzzle("Even Still", "111 - 111 = 11 - 11"),
-                Puzzle("Bright Friend", "1 * 11"),
+                Puzzle("Bright Friend", "11 * 1 1"),
                 Puzzle("Reverse Bright", "11 * 11"),
-                Puzzle("Hidden Whisper", "1 + 1 * 11"),
-                Puzzle("Hidden Step", "11 * 1 - 1"),
-                Puzzle("High Return", "111 - 11 + 1"),
-                Puzzle("Crowded Step", "11 + 11 - 1"),
-                Puzzle("Tiny Match", "1 / 1 = 1"),
-                Puzzle("Soft Echo", "11 / 11 = 1"),
+                Puzzle("Hidden Whisper", "1 11 + 11"),
+                Puzzle("Hidden Step", "111 - 1 11"),
+                Puzzle("High Return", "1 - 1 + 1 1"),
+                Puzzle("Crowded Step", "1 - 1 - 1"),
+                Puzzle("Tiny Match", "1 1 / 1 - 1"),
+                Puzzle("Soft Echo", "1 11 / 111"),
                 Puzzle("High Echo", "111 = 111"),
                 Puzzle("Small Echo", "1 + 1 = 1 / 1 + 1"),
                 Puzzle("Side Echo", "11 + 1 = 11 / 1 + 1"),
-                Puzzle("Trim Echo", "11 - 1 = 11 - 1"),
-                Puzzle("High Echo Two", "111 - 11 = 111 - 11"),
-                Puzzle("Two Ways", "1 × 1 = 1 / 1"),
+                Puzzle("Trim Echo", "11 + 11 = 1 1 + 11"),
+                Puzzle("High Echo Two", "111 + 11 = 11 + 11 1"),
+                Puzzle("Two Ways", "1 / 1 = 1 1 / 11"),
                 Puzzle("Bright Ways", "1 * 1 = 1 × 1"),
                 Puzzle("Small Chorus", "111 * 1 = 111"),
                 Puzzle("Busy Echo", "1 + 1 + 1 = 1 + 1 + 1"),
                 Puzzle("Tucked Step", "11 + 1 = 11 × 1 + 1"),
-                Puzzle("Hidden Slide", "11 - 1 = 11 / 1 - 1"),
+                Puzzle("Hidden Slide", "1 - 1 = 1 / 1 - 1"),
                 Puzzle("High Hidden", "111 - 11 = 111 / 1 - 11"),
                 Puzzle("Gentle Echo", "111 / 111 = 1 × 1"),
                 Puzzle("Quick Echo", "1 + 1 × 1 = 1 + 1"),
-                Puzzle("Neighbor Talk", "11 = 1 1"),
-                Puzzle("Tiny Parade", "111 = 1 1 1"),
+                Puzzle("Neighbor Talk", "1 1 / 1"),
+                Puzzle("Tiny Parade", "1 11 = 1 * 111"),
                 Puzzle("Left Tuck", "111 = 1 11"),
-                Puzzle("Right Tuck", "111 / 1 = 111"),
-                Puzzle("Double Tuck", "11 + 11 = 1 1 + 11"),
-                Puzzle("High Tuck", "111 - 1 = 11 1 - 1"),
-                Puzzle("Quick Secret", "1 + 1 - 1 = 1 × 1"),
-                Puzzle("Lean Secret", "1 + 1 - 1 = 1 / 1"),
-                Puzzle("Bright Secret", "1 * 1 + 1 = 1 + 1"),
-                Puzzle("Fold Secret", "111 / 111 + 1 = 1 + 1"),
-                Puzzle("Still Here", "11 + 1 - 1 = 11"),
+                Puzzle("Right Tuck", "111 * 111 / 111"),
+                Puzzle("Double Tuck", "1 - 1 / 1 - 11 / 1 1"),
+                Puzzle("High Tuck", "1 1 × 11 - 11 + 11 - 11"),
+                Puzzle("Quick Secret", "1 / 1 1 - 1 / 11 + 1"),
+                Puzzle("Lean Secret", "1 1 - 1 - 1"),
+                Puzzle("Bright Secret", "111 = 11 1 + 11 - 11"),
+                Puzzle("Fold Secret", "111 - 111 + 11 / 11 + 1"),
+                Puzzle("Still Here", "1 / 1 1 - 1 / 11 + 11"),
                 Puzzle("Nearly Twin", "111 - 11 - 1 = 111 - 11 - 1"),
                 Puzzle("Old Friend", "1 + 1 - 1 × 1 / 1 = 1"),
-                Puzzle("Deep Cut", "111 - 11 - 11"),
-                Puzzle("Little Dip", "111 - 11 - 1 - 1"),
-                Puzzle("High Lift", "111 + 11 - 1"),
-                Puzzle("Trade Step", "111 + 1 - 11"),
-                Puzzle("Fold Lift", "111 / 111 + 11"),
+                Puzzle("Deep Cut", "1 - 1 / 1"),
+                Puzzle("Little Dip", "11 1 - 1 - 1 - 1"),
+                Puzzle("High Lift", "111 + 11 - 11 1"),
+                Puzzle("Trade Step", "11 11 / 11"),
+                Puzzle("Fold Lift", "111 * 1 11 / 111"),
                 Puzzle("Bright Drop", "11 * 11 - 111"),
-                Puzzle("Quick Drop", "111 - 11 × 1"),
+                Puzzle("Quick Drop", "1 1 - 1 × 1"),
                 Puzzle("Bright Drop Two", "1 + 11 * 11"),
-                Puzzle("Heavy Drop", "11 * 11 - 11"),
-                Puzzle("High Slide", "111 / 1 - 1"),
-                Puzzle("Loop A", "11 + 1 × 1 - 1"),
-                Puzzle("Loop Two", "11 + 1 / 1 - 1"),
-                Puzzle("Heavy Lift", "1 + 11 × 11"),
-                Puzzle("High Again", "111 - 11 + 11"),
-                Puzzle("Fold Again", "111 / 111 + 11 - 1"),
-                Puzzle("Bright Nudge", "1 + 1 + 11 * 1"),
-                Puzzle("Small Steps", "111 - 1 - 1 - 1"),
+                Puzzle("Heavy Drop", "111 - 111 / 111 * 11"),
+                Puzzle("High Slide", "11 1 / 1 - 1"),
+                Puzzle("Loop A", "11 - 1 1 - 1"),
+                Puzzle("Loop Two", "1 + 1 1 / 1 - 1"),
+                Puzzle("Heavy Lift", "11 + 111 / 111 * 111"),
+                Puzzle("High Again", "1 11 + 1 - 1 - 11 / 11"),
+                Puzzle("Fold Again", "11 - 1 / 111 * 1 11 + 1"),
+                Puzzle("Bright Nudge", "1 + 1 1 × 11 / 11 + 1"),
+                Puzzle("Small Steps", "111 - 1 - 1 - 1 / 1 - 1"),
                 Puzzle("Final Balance", "11 * 11 = 111 + 11 - 1"),
-                Puzzle("Quick Nudge", "111 - 11 + 1 × 1"),
-                Puzzle("Quick Trim", "111 - 11 - 1 × 1"),
+                Puzzle("Quick Nudge", "111 - 11 + 1 × 1 1"),
+                Puzzle("Quick Trim", "111 - 11 - 1 / 1 + 1 - 1"),
                 Puzzle("Last Shape", "1 + 1 - 1 × 1 / 1")
             };
         }
@@ -412,6 +414,13 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         public static bool IsRoundSolved(PuzzleRoundData round, IReadOnlyList<string> placedTokens, out EquationResult result, out string reason)
         {
+            if (placedTokens.Count != round.SlotTypes.Length)
+            {
+                result = new EquationResult(false, 0d, "Slot count mismatch");
+                reason = placedTokens.Count < round.SlotTypes.Length ? "Fill every box." : "Too many boxes.";
+                return false;
+            }
+
             var usedSticks = UsedSticks(placedTokens);
             if (usedSticks != round.StickCount)
             {
@@ -432,9 +441,17 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 return false;
             }
 
-            if (Math.Abs(result.Value - round.TargetValue) >= TargetTolerance)
+            var exact = EvaluateExact(placedTokens);
+            if (!exact.IsValid)
             {
-                reason = $"Result is {FormatNumber(result.Value)}.";
+                result = new EquationResult(false, 0d, exact.Error);
+                reason = exact.Error;
+                return false;
+            }
+
+            if (!MatchesTarget(exact.Value, round.TargetValue))
+            {
+                reason = $"Result is {FormatNumber(exact.Value)}.";
                 return false;
             }
 
@@ -478,30 +495,30 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             var leftSymbols = Slice(symbols, 0, equalsIndex);
             var rightSymbols = Slice(symbols, equalsIndex + 1, symbols.Count - equalsIndex - 1);
-            var left = Evaluate(leftSymbols);
+            var left = EvaluateExact(leftSymbols);
             if (!left.IsValid)
             {
-                result = left;
+                result = new EquationResult(false, 0d, left.Error);
                 reason = $"Left side: {left.Error}";
                 return true;
             }
 
-            var right = Evaluate(rightSymbols);
+            var right = EvaluateExact(rightSymbols);
             if (!right.IsValid)
             {
-                result = right;
+                result = new EquationResult(false, 0d, right.Error);
                 reason = $"Right side: {right.Error}";
                 return true;
             }
 
-            if (Math.Abs(left.Value - right.Value) >= TargetTolerance)
+            if (!left.Value.Equals(right.Value))
             {
-                result = new EquationResult(false, left.Value, "Equality mismatch");
+                result = new EquationResult(false, left.Value.ToDouble(), "Equality mismatch");
                 reason = $"{FormatNumber(left.Value)} is not {FormatNumber(right.Value)}.";
                 return true;
             }
 
-            result = new EquationResult(true, left.Value, string.Empty);
+            result = new EquationResult(true, left.Value.ToDouble(), string.Empty);
             reason = "Good!";
             return true;
         }
@@ -519,7 +536,15 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         public static EquationResult Evaluate(IReadOnlyList<string> symbols)
         {
-            var numbers = new List<double>();
+            var result = EvaluateExact(symbols);
+            return result.IsValid
+                ? new EquationResult(true, result.Value.ToDouble(), string.Empty)
+                : new EquationResult(false, 0d, result.Error);
+        }
+
+        private static ExactResult EvaluateExact(IReadOnlyList<string> symbols)
+        {
+            var numbers = new List<ExactNumber>();
             var operators = new List<string>();
             var numberBuffer = new StringBuilder();
 
@@ -528,7 +553,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 var symbol = symbols[i];
                 if (string.IsNullOrEmpty(symbol))
                 {
-                    return new EquationResult(false, 0d, "Empty box.");
+                    return ExactResult.Invalid("Empty box.");
                 }
 
                 var token = GetToken(symbol);
@@ -540,7 +565,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
                 if (numberBuffer.Length <= 0)
                 {
-                    return new EquationResult(false, 0d, "Operator first.");
+                    return ExactResult.Invalid("Operator first.");
                 }
 
                 numbers.Add(ParseBufferedNumber(numberBuffer));
@@ -550,14 +575,14 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             if (numberBuffer.Length <= 0)
             {
-                return new EquationResult(false, 0d, "Operator last.");
+                return ExactResult.Invalid("Operator last.");
             }
 
             numbers.Add(ParseBufferedNumber(numberBuffer));
 
             if (numbers.Count != operators.Count + 1)
             {
-                return new EquationResult(false, 0d, "Bad expression order.");
+                return ExactResult.Invalid("Bad expression order.");
             }
 
             for (var i = 0; i < operators.Count;)
@@ -571,9 +596,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
                 var left = numbers[i];
                 var right = numbers[i + 1];
-                if (op == "/" && Math.Abs(right) < TargetTolerance)
+                if (op == "/" && right.IsZero)
                 {
-                    return new EquationResult(false, 0d, "Cannot divide by zero.");
+                    return ExactResult.Invalid("Cannot divide by zero.");
                 }
 
                 numbers[i] = op == "*" || op == "x" || op == "×" ? left * right : left / right;
@@ -596,26 +621,154 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 }
                 else
                 {
-                    return new EquationResult(false, 0d, $"Unknown operator: {op}");
+                    return ExactResult.Invalid($"Unknown operator: {op}");
                 }
             }
 
-            return new EquationResult(true, value, string.Empty);
+            return ExactResult.Valid(value);
         }
 
         public static string FormatNumber(double value)
         {
-            if (Math.Abs(value - Math.Round(value)) < TargetTolerance)
+            if (Math.Abs(value - Math.Round(value)) < 0.0000000001d)
             {
                 return Math.Round(value).ToString(CultureInfo.InvariantCulture);
             }
 
-            return value.ToString("0.###", CultureInfo.InvariantCulture);
+            return value.ToString("0.#####", CultureInfo.InvariantCulture);
         }
 
-        private static double ParseBufferedNumber(StringBuilder buffer)
+        private static string FormatNumber(ExactNumber value)
         {
-            return double.Parse(buffer.ToString(), CultureInfo.InvariantCulture);
+            if (value.IsInteger)
+            {
+                return value.IntegerValue.ToString(CultureInfo.InvariantCulture);
+            }
+
+            var rounded = FormatNumber(value.ToDouble());
+            return rounded == "0" || rounded == "-0"
+                ? $"{value.Numerator.ToString(CultureInfo.InvariantCulture)}/{value.Denominator.ToString(CultureInfo.InvariantCulture)}"
+                : rounded;
+        }
+
+        private static ExactNumber ParseBufferedNumber(StringBuilder buffer)
+        {
+            return ExactNumber.FromInteger(BigInteger.Parse(buffer.ToString(), CultureInfo.InvariantCulture));
+        }
+
+        private static bool MatchesTarget(ExactNumber value, double target)
+        {
+            if (double.IsNaN(target) || double.IsInfinity(target))
+            {
+                return false;
+            }
+
+            var rounded = Math.Round(target);
+            if (Math.Abs(target - rounded) < 0.0000000001d)
+            {
+                return value.Equals(ExactNumber.FromInteger(new BigInteger(rounded)));
+            }
+
+            return value.ToDouble().Equals(target);
+        }
+
+        private readonly struct ExactResult
+        {
+            public bool IsValid { get; }
+            public ExactNumber Value { get; }
+            public string Error { get; }
+
+            private ExactResult(bool isValid, ExactNumber value, string error)
+            {
+                IsValid = isValid;
+                Value = value;
+                Error = error;
+            }
+
+            public static ExactResult Valid(ExactNumber value)
+            {
+                return new ExactResult(true, value, string.Empty);
+            }
+
+            public static ExactResult Invalid(string error)
+            {
+                return new ExactResult(false, default, error);
+            }
+        }
+
+        private readonly struct ExactNumber : IEquatable<ExactNumber>
+        {
+            public BigInteger Numerator { get; }
+            public BigInteger Denominator { get; }
+            public bool IsZero => Numerator.IsZero;
+            public bool IsInteger => Denominator.IsOne;
+            public BigInteger IntegerValue => Numerator / Denominator;
+
+            private ExactNumber(BigInteger numerator, BigInteger denominator)
+            {
+                if (denominator.IsZero)
+                {
+                    throw new DivideByZeroException();
+                }
+
+                if (denominator.Sign < 0)
+                {
+                    numerator = BigInteger.Negate(numerator);
+                    denominator = BigInteger.Negate(denominator);
+                }
+
+                var divisor = BigInteger.GreatestCommonDivisor(BigInteger.Abs(numerator), denominator);
+                Numerator = numerator / divisor;
+                Denominator = denominator / divisor;
+            }
+
+            public static ExactNumber FromInteger(BigInteger value)
+            {
+                return new ExactNumber(value, BigInteger.One);
+            }
+
+            public double ToDouble()
+            {
+                return (double)Numerator / (double)Denominator;
+            }
+
+            public bool Equals(ExactNumber other)
+            {
+                return Numerator.Equals(other.Numerator) && Denominator.Equals(other.Denominator);
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is ExactNumber other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return (Numerator.GetHashCode() * 397) ^ Denominator.GetHashCode();
+                }
+            }
+
+            public static ExactNumber operator +(ExactNumber left, ExactNumber right)
+            {
+                return new ExactNumber(left.Numerator * right.Denominator + right.Numerator * left.Denominator, left.Denominator * right.Denominator);
+            }
+
+            public static ExactNumber operator -(ExactNumber left, ExactNumber right)
+            {
+                return new ExactNumber(left.Numerator * right.Denominator - right.Numerator * left.Denominator, left.Denominator * right.Denominator);
+            }
+
+            public static ExactNumber operator *(ExactNumber left, ExactNumber right)
+            {
+                return new ExactNumber(left.Numerator * right.Numerator, left.Denominator * right.Denominator);
+            }
+
+            public static ExactNumber operator /(ExactNumber left, ExactNumber right)
+            {
+                return new ExactNumber(left.Numerator * right.Denominator, left.Denominator * right.Numerator);
+            }
         }
     }
 }

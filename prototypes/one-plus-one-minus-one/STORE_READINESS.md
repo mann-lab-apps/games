@@ -6,6 +6,24 @@ This file tracks the remaining real-device and store-submission checks for the
 Current completion judgment is tracked in
 `../../docs/one-equals-one-ship-ready-status.md`.
 
+## Current Runtime Caveat
+
+The local source is newer than uploaded iOS `1.0.0 (2)` and the existing WebGL
+artifacts. In particular, the exact-rational Round 48 correctness fix and the
+latest round-identity edits require a fresh Unity runtime pass before they can
+be treated as player-build evidence.
+
+Before running PlayMode, WebGL rebuilds, iOS readiness or Android readiness,
+run:
+
+```sh
+./scripts/check-one-plus-one-minus-one-unity-license.sh
+```
+
+If this reports `LICENSING_CLIENT_UNAVAILABLE`, repair Unity Hub licensing
+first. The final ship-ready gate performs the same preflight once and skips
+Unity-gated checks when it fails instead of repeating the same Unity timeout.
+
 ## Store Metadata Draft
 
 - App name: `1 = 1`
@@ -163,6 +181,10 @@ Current code-side polish pass covers:
   the stick itself stays the character.
 - Release-safety verification keeps QA round-jump/sample-fill and Crashlytics
   test hooks out of release-active code.
+- Release-safety verification also checks that iOS release exports require
+  production AdMob IDs and non-development device builds, while Android release
+  AAB builds require production AdMob IDs and cannot use the forced-test-ad
+  build path.
 - iOS export includes `Assets/_Project/Store/PrivacyInfo.xcprivacy` as an app
   bundle resource for app-local PlayerPrefs/UserDefaults progress storage.
 - Static 100-round verification can run without Unity through
@@ -187,8 +209,9 @@ Current code-side polish pass covers:
 
 Current external blockers before calling this commercially ready:
 
-- `Assets/GoogleService-Info.plist` must be added for real iOS Firebase and
-  Crashlytics verification.
+- `Assets/GoogleService-Info.plist` is present locally with bundle ID
+  `com.mannlab.games.oneplusoneminusone`; keep it in the next fresh iOS export
+  and verify Crashlytics delivery from that build.
 - `Assets/google-services.json` must be added for real Android Firebase and
   Crashlytics verification.
 - Production AdMob app/ad unit IDs must be provided through
@@ -261,7 +284,7 @@ Current external blockers before calling this commercially ready:
 - Confirm exported iOS app bundle includes `PrivacyInfo.xcprivacy`.
 - Confirm the manifest declares `NSPrivacyAccessedAPICategoryUserDefaults` with
   reason `CA92.1` for app-local saved progress.
-- Add `Assets/GoogleService-Info.plist`.
+- Ensure `Assets/GoogleService-Info.plist` is present.
 - Confirm plist `BUNDLE_ID` is `com.mannlab.games.oneplusoneminusone`.
 - Confirm events:
   - `app_open`
@@ -285,6 +308,8 @@ Run from the repository root.
 ./scripts/verify-one-plus-one-minus-one-admob-crashlytics-readiness.sh
 ./scripts/verify-one-plus-one-minus-one-release-env.sh
 ./scripts/verify-one-plus-one-minus-one-device-qa-signoff.sh
+./scripts/verify-one-plus-one-minus-one-ios-readiness.sh release --preflight-only
+./scripts/verify-one-plus-one-minus-one-android-readiness.sh release --preflight-only
 ./scripts/verify-one-plus-one-minus-one-ios-readiness.sh admob-test
 ./scripts/verify-one-plus-one-minus-one-android-readiness.sh admob-test
 ./scripts/verify-one-plus-one-minus-one-icon.sh
@@ -324,22 +349,24 @@ App Store candidates, Firebase/AdMob production settings, Android signing, icon
 checks, and viewport smoke checks are satisfied.
 
 Strict release readiness should fail until real Firebase and AdMob values are
-present:
+present. Add `--preflight-only` when Unity licensing is unavailable and you
+only need the source/env gate:
 
 ```sh
 REQUIRE_FIREBASE_CONFIG=1 \
 REQUIRE_PRODUCTION_ADMOB_IDS=1 \
 REQUIRE_IOS_VERSION_ENV=1 \
-./scripts/verify-one-plus-one-minus-one-ios-readiness.sh release
+./scripts/verify-one-plus-one-minus-one-ios-readiness.sh release --preflight-only
 ```
 
 Android strict release readiness should fail until real AdMob and signing values
-are present:
+are present. Omit `--preflight-only` only when Unity licensing is healthy and a
+real export/build should run:
 
 ```sh
 REQUIRE_FIREBASE_CONFIG=1 \
 REQUIRE_PRODUCTION_ADMOB_IDS=1 \
 REQUIRE_ANDROID_SIGNING_ENV=1 \
 REQUIRE_ANDROID_VERSION_ENV=1 \
-./scripts/verify-one-plus-one-minus-one-android-readiness.sh release
+./scripts/verify-one-plus-one-minus-one-android-readiness.sh release --preflight-only
 ```

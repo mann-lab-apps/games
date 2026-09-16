@@ -5,6 +5,267 @@ toward a commercial casual puzzle release.
 
 ## Current Gate
 
+### Numerical Correctness / Identity Batch 5 (2026-09-16)
+
+P1 numeric correctness is fixed in source and Node mirror: solve/equality
+acceptance now uses exact rational arithmetic rather than the old 0.0001
+acceptance tolerance. Round 48 no longer accepts `1 / 11 111` as target zero;
+the wrong division arrays are gone from its complete canonical solution set.
+Fraction cancellation and equal fractional equations are covered by new Unity
+and Node regressions. Display formatting now exposes small nonzero results
+instead of printing them as `0`.
+
+All 12 non-callback reuse pairs were redesigned in source: 26, 71, 72, 73, 76,
+77, 92, 93, 94, 95, 96 and 99. Node identity evidence now shows 72 unique
+resource pairs, one intentional identical group (30/100), and only 2 proven
+equality-sharing pairs total. The remaining sharing is intentional: 2/5 as the
+early tutorial echo and 30/100 as the title callback. The round quality report
+now labels those as intentional instead of warning on them as unresolved reuse.
+Do not treat this as full ship-ready completion until Unity/runtime/WebGL
+verification is healthy.
+
+Verification: Node identity tests pass 46/46; static 100-round verification
+passes; selected solution enumeration for 11/33/48/83 passes with Round 48 at
+4 complete canonical arrays. Full static verification passes with a stale-WebGL
+warning because the player build predates these source edits. After clearing a
+stale Unity licensing child process, Unity EditMode passes 61/61 on the latest
+source. PlayMode still could not reach game tests because Unity batchmode
+licensing timed out waiting for the 6000.3.23 licensing channel. QA/ordinary/
+store-capture WebGL scripts, the PlayMode wrapper, and iOS/Android readiness
+scripts now distinguish empty license data from an unavailable licensing
+service through the shared
+`scripts/lib-one-plus-one-minus-one-unity-license.sh` helper: they may use the
+local entitlement file for the former, but fast-fail on
+`LICENSING_CLIENT_UNAVAILABLE`. Current PlayMode, QA WebGL, ordinary WebGL,
+store-capture WebGL, and native readiness ad-test verification exit with `Unity
+licensing client is unavailable. Open Unity Hub or repair its licensing service
+before running this script.` The standalone
+`scripts/check-one-plus-one-minus-one-unity-license.sh` diagnostic reports the
+same current blocker and should be the first retry command. This is an
+environment blocker, not a game assertion failure. Required next evidence:
+Unity Hub license activation/repair, successful PlayMode rerun, fresh WebGL
+build, and browser input check that Round 48 rejects `1 / 11 111` without
+advancing progress.
+
+Follow-up hardening: iOS/Android readiness now use the same license helper, and
+the ship-ready gate performs one license preflight before skipping Unity-gated
+checks. A latest ship-ready run fails clearly on that preflight, stale WebGL
+artifacts, strict release env, strict device QA, and strict Firebase/AdMob
+config. When artifact freshness fails, viewport smoke, QA captures and App Store
+candidate screenshot gates now skip instead of producing stale-build evidence.
+Standalone WebGL viewport smoke passes outside the sandbox and the generated
+iPhone SE/standard/large, Android 20:9 and desktop captures are available under
+`/tmp/one-equals-one-webgl-viewports/`; this is still older-build evidence, not
+runtime verification for the numeric fix.
+
+Additional source hardening: tiny nonzero exact-rational results now fall back
+to fraction text if the compact decimal formatter would display `0`. This keeps
+future zero-target failures from saying `Result is 0.` for nonzero values such
+as `1 / 111 111 111`. The controller's visible wrong-result feedback now reuses
+the exact solve reason as well, preventing the separate `Makes 0.` fallback path
+for tiny nonzero misses. The new EditMode/PlayMode regressions are present in
+source but still await Unity execution while licensing is unavailable.
+Release-safety verification now also guards iOS/Android native build entrypoints
+so release builds remain non-development and production AdMob requirements do
+not drift into the explicit test-ad build paths.
+
+### Batch 4 Runtime Gate Closed (2026-09-15)
+
+Same reviewed retry succeeds: PlayMode 37/37; QA/ordinary/store-capture WebGL
+rebuilt; 12 changed/neighbor samples and four small-screen inputs pass. First
+ten touch/cancel/save/reload checks and five ordinary startup viewports pass.
+Static passes without old-build freshness warnings. Previous approval-service
+block below is historical, not a current environment blocker.
+
+P1 numerical bug now reproduced through actual WebGL touch: Round 48 clears
+`1 / 11 111` as zero and advances. Harness PASS only proves reproduction.
+Fix correct numerical comparison with fraction/cancellation regressions before
+closing this issue; no division ban or round-specific workaround. After that,
+recompute inventories and continue the 12 non-callback shared-pair redesigns.
+No further round data changed in this retry. Full objective remains unfinished.
+See the latest gameplay audit and `batch4-tolerance/results.json` for evidence.
+
+### Execution Block (2026-09-15)
+
+Fourth same-command PlayMode request failed in approval review before launch,
+across three consecutive affected goal turns. Goal is blocked, not complete.
+Previous independent Node inventory work remains valid by rules-source hash;
+no current batch 4 player evidence exists. Restore approval service/model and
+run the recorded normal PlayMode command, then fresh build/input QA before
+more data changes. The 12 non-callback shared pairs and numerical tolerance
+risk remain open. No rule changes or verification waivers close this blocker.
+
+### Solution Inventory Follow-Up (2026-09-15)
+
+- Node tooling now passes 32/32, including bounded full enumeration, unpruned
+  small-board comparison, input immutability and CLI completeness/error cases.
+  No additional runtime/data edits were made. Inventory completes 98 rounds;
+  61/78 remain limited, explicitly not counted as fully explored.
+- P1 numerical correctness candidate: Round 48 accepts `1 / 11 111` at target
+  zero under existing 0.0001 tolerance. Observed in the Node evaluator and
+  matched threshold in C# source, not yet native/input reproduced. Acceptance
+  criteria: distinguish this nonzero rational value from zero without rejecting
+  correct fractional expressions, preserve Node/native parity, and recheck
+  sample/cross-answer sets after any numerical change. No symbol restrictions.
+- P2 answer reuse remains material: 64/76 share 2,710 canonical arrays, 22/95
+  share 167, and 25/96 share 14. Both sets for each comparison are complete;
+  array counts include numeral packing and operator spelling, not human
+  strategies. Keep all 12 non-callback pairs open for evidenced redesign.
+- Approval service rejected the same PlayMode request again before starting.
+  Three requests across two affected goal turns; no bypass. Fresh batch 4
+  player/input checks still precede any further round-data changes.
+- Evidence and reproduction CLI: latest gameplay audit and
+  `batch4-solution-summary.json` in the existing identity evidence folder.
+
+### Round Identity Batch 4 (2026-09-15, Runtime Verification Pending)
+
+Applied 11/33/48 together, then 83's shorter target-101 construction using
+neighboring 11 tokens. Source now has 49 cumulative changed indices, 14 shared
+equality pairs, 60 resource pairs, mean slots 5.86 / sticks 9.00. No new rules,
+token bans, save migration or ad changes. Exact duplicate exception stays 30/100.
+EditMode 47/47, 100 samples and native/Node 10,000-pair parity pass after recorded
+red tests. Node 26/26 includes a promoted reproducible candidate search and a
+new regression for truncated piped JSON; the report now flushes before exit.
+
+P1 verification gap: PlayMode launch was rejected twice before process creation
+because the approval service's model is at capacity. Same-script review/retry
+was used, not an indirect execution route. No fresh WebGL or input evidence for
+these four edits exists. The running preview still has batch 3's 47-index / 18
+pair candidate, proven by unchanged binary hashes. Do not call batch 4 verified.
+
+Resume: same PlayMode command, QA build, 12 changed/neighbor inputs, small-screen
+11/33/48/83, ordinary/capture builds and save/viewport regression. Further data
+edits wait until this runtime gap is closed. Meanwhile candidate suggestions
+are reproducible with `report-one-plus-one-minus-one-round-quality.mjs
+--candidates --samples 600000 --seed 15092026`; they never edit rounds directly.
+The remaining 12 non-callback shared pairs remain open, not intentional-repeat
+exceptions. Evidence and exact pending commands are in the latest audit.
+
+### Round Identity Batch 3 (2026-09-15)
+
+Verified changes: 35/43/57/75/88, with 35/43 moved together to avoid a new
+duplicate. Shared equality pairs 22 -> 18; sample transfers 18 -> 14; resource
+pairs 57 -> 60; cumulative changed indices 47. Mean slots 5.88, mean sticks
+9.00, maximum 18. Exact duplicate exception remains only the title's 30/100.
+
+The actual rules API lacked slot-length validation even though the controller
+fixed the board length. Two equal-cost/wrong-length regressions fail 0/2, then
+pass with the guard; the 10,000-pair native matrix now calls the rules API with
+no external length filter. Final EditMode 43/43, PlayMode 37/37, Node 17/17,
+100 data, parity and static gates pass. All three WebGL variants are fresh.
+
+Actual input: five revised samples plus ten neighbors at 390x844, and five
+alternate answers at 320x568. A small-screen connected-outline detector failure
+is preserved and fixed in the temporary harness via separate fill interiors;
+same game binary passes the repeated inputs. First-ten/save and five ordinary
+viewports also pass. Evidence prefix: `batch3-*` in the existing identity folder.
+The gameplay audit details caveats and images. Native build 2 is unchanged.
+
+Open P2: 16 resource groups still yield 18 shared pairs, not an approved-repeat
+list. Keeping only 2/5 and 30/100 recurrence leaves at least 15 resource moves.
+Next investigate the coupled 11/33/48 candidate recorded in the audit; it avoids
+making target-9 subtraction longer or padding with division by one. Its
+18 -> 15 projection is analysis only, not applied or play-verified. Continue
+with failing native/Node tests and neighboring input before accepting it.
+
+### Round Identity Batch 2 (2026-09-15)
+
+The next safe action was candidate exploration, not waiting for a recurrence
+preference. Five more resource changes (38/39/52/70/90) reduce shared equality
+pairs 27 -> 22 and directed sample transfers 23 -> 18. Cumulative changed
+indices: 44. Mean slots/sticks decline to 5.88/8.94; maximum stays 18 sticks.
+The 30/100 callback remains the only exact duplicate group. This does not prove
+the remaining 22 shared pairs are resolved or approved as repetition.
+
+New native regressions reproduce all five old shared answers (31/36 red), then
+pass 35/35 after resource changes and replacement of the obsolete Round 70
+equality fixture. Its unchanged owner 87 still accepts that equality and keeps
+its precedence lesson. Node 12/12 and native/Node 10,000-pair parity pass.
+PlayMode exposed a hardcoded old target in the display-restoration test (36/37);
+derive the expected target from the selected round, assert it before and after
+the same hide/show interaction, and the full suite passes 37/37.
+
+Fresh QA touch passes all five changed samples plus eight neighbors. At 320x568
+all five alternative answers pass actual touch as well, with inspected filled
+captures. No sample-fill hook is used by these tests. Current evidence:
+`artifacts/one-equals-one/2026-09-15-round-identity/batch2-*`.
+Fresh QA/ordinary/capture builds and final static gate pass. Ordinary startup
+renders at five sizes; small/desktop boundaries were inspected. The
+previous section's 27 pairs/40 indices are historical, not the current state.
+
+Open P2 next: prioritize 16/43, 21/33 and 82/88 shared-resource pairs against
+the candidate pool. Do not choose division-by-one chains or longer layouts
+merely to remove a count. Preserve each band's symbols and meaningful operator
+precedence. No symbol bans, new rules, save migration or release is authorized.
+
+### Round Identity Redesign (2026-09-15, Verified Candidate / Reuse Open)
+
+Contract: retain 100 indices, unrestricted token recognition, alternate answers,
+save keys and ad policy. Remove unexplained identical resource/target constraints,
+review cross-round equality witnesses and verify changed rounds through actual
+input. Do not claim all answer sets are different from sample-only comparisons.
+Baseline: 38 resource pairs, ten identical resource/target groups. The old quality
+report classified equality samples as a separate mode and did not fail duplicates.
+Shared Node evaluation now mirrors the actual numerical fallback/equality rule;
+bounded equality search distinguishes found, exhausted and limited results.
+
+Acceptance: sample cross-matrix and non-sample witnesses; unexplained identical
+constraints fail strict checks; Unity parity and all samples pass; changed inputs,
+layout, save and end-flow are rechecked. New six-slot samples exposed a real
+height-only aspect clamp (ratio 1.088 at width 390); a Unity regression is added.
+No additional rule or native deployment is authorized by this work.
+
+Implemented: 40 changed indices, 56 resource pairs (was 38), one exact duplicate
+group (explicit 30/100 title callback, was ten), 27 common-equality pairs (was
+158). The only near pair left is tutorial 2/5. Distant sharing is NOT signed off
+as intentional review merely because the blocking gates pass. A new explicit
+warning keeps it visible. Each group is recorded in `remaining-reuse-review.json`
+under `artifacts/one-equals-one/2026-09-15-round-identity/`.
+
+EditMode 31/31, PlayMode 37/37, 10,000 Unity/Node sample pairs, 100 data samples,
+static and all three WebGL builds pass. Actual input evidence matches every
+changed final sample, plus neighbors, first-ten/save and small-screen 34/84/100.
+The separate end-state fixture preserves Done/Sound off across reload and Reset.
+See the gameplay audit for binary versions, sample-fill boundaries and counts.
+
+Open P2: 25 resource groups still share equality witnesses. Target-only changes
+cannot fix them under the actual rule. Removing all sharing except tutorial
+2/5 and title 30/100 requires at least 24 more resource reassignments. This is
+not proof of impossibility: select further candidates only with a judgment/
+placement-cost rationale, not to turn the metric green. User preference for
+strict reuse removal versus deliberate recurrence is still unanswered. Do not
+call the overall identity goal complete or quietly whitelist these groups.
+
+### Post-Checkpoint Resume (2026-09-15)
+
+Base `26d8508a`; authorized Unity execution now works. The pending 36 PlayMode
+tests and 29 EditMode tests pass. Fresh QA input verifies all three `111`
+returns/transfers, real hidden-tab drag cancellation, pending-tap rejection,
+fresh rotation and full-slot rejection. Ordinary first-ten/save replay passes.
+These results precede the additional pointer fix below.
+
+| Priority | Reproduction / impact | Acceptance | Evidence / status |
+| --- | --- | --- | --- |
+| P1 | Finger 1 presses, pause/resume occurs, finger 2 presses the same view, then finger 1's delayed click arrives. The shared press version now matches and rotates unexpectedly. | Reject the older pointer's click/drag without poisoning the fresh pointer's valid tap. | New controller-event test fails with CenterSlash instead of CenterVertical (36/37). Track press pointer ID and check ownership before changing drag state. Full 37/37 pass. Fixed-binary browser touch trace/screenshots confirm only the fresh finger rotates; native suspension remains unverified. |
+| P2 QA | Browser replay sends a nonempty touchEnd when trying to release only one of two fingers, contrary to the CDP contract. | Use an active-set touchMove to remove the older finger and an empty touchEnd for the final release. | Corrected first-ten/save browser regression passes; isolated two-finger trace verifies both release IDs and visible before/after poses. |
+
+Evidence: `artifacts/one-equals-one/2026-09-15-post-checkpoint/` test XML and
+`/tmp/one-equals-one-sept15-live/` initial browser trace/captures. The first
+session ended intentionally after the new issue was reproduced, with the last
+sample at 340.909 seconds. It is not a completed 30-minute final-binary soak.
+
+Final verification: QA/ordinary/capture builds, corrected first-ten/save input,
+five inspected viewport captures, static checks and 100-round data pass. The
+final measured session lasts 1818.709 seconds, with 66 observations and no
+captured runtime exception. All three return/transfer paths, full-slot rejection,
+96-100 actual placement, valid alternative equality, hard-clear/replay ad
+exclusion and final completion pass. Reload retains page 9 Done and Sound off.
+Evidence and measured browser-only limits are in the current gameplay audit.
+No further reproduced local P0/P1 in this investigated scope. Native suspension,
+production ad return/console evidence, listening and human pacing remain open;
+the next useful step is an authorized native candidate, not another unchanged
+browser run. No native release approval or deployment is implied.
+
 ### Browser Verification Reliability (2026-09-14 Resume)
 
 Unity execution was rejected before startup again by the approval service
@@ -259,17 +520,20 @@ Current checklist status is tracked in
 | Android | AdMob test APK path was not proven end to end. | Ran Android AdMob-test build successfully. | `./scripts/verify-one-plus-one-minus-one-android-readiness.sh admob-test`. |
 | Store | Store copy and privacy disclosure were only embedded in readiness notes. | Added dedicated store metadata draft and linked privacy policy. | Needs final build and SDK settings before submission. |
 | Store | Store metadata could drift away from required submission fields. | Added a store metadata verifier for identity, privacy URL, screenshots, ads/privacy disclosure, age-rating notes, final checks, and unresolved placeholders. | `./scripts/verify-one-plus-one-minus-one-store-metadata.sh`; included in static suite. |
-| Store | Store copy could fit structurally but still be too long, empty, or out of sync with screenshot capture slugs. | Strengthened store metadata verification with conservative local copy budgets, keyword-shape checks, required release-env notes, and screenshot slug alignment against the App Store candidate capture script. | `./scripts/verify-one-plus-one-minus-one-store-metadata.sh`; included in static suite. |
+| Store | Store copy could fit structurally but still be too long, empty, or out of sync with screenshot capture slugs. | Strengthened store metadata verification with conservative local copy budgets, keyword-shape checks, required release-env notes, and screenshot slug alignment against the App Store candidate capture script. | `./scripts/verify-one-plus-one-minus-one-store-metadata.sh`; fixture coverage in `scripts/test-one-plus-one-minus-one-store-metadata.sh` checks keyword failures and missing screenshot capture slugs; included in static suite. |
 | Store | iOS export had no app-level privacy manifest under project control. | Added `PrivacyInfo.xcprivacy` with app-local UserDefaults reason `CA92.1`, copied it into the Xcode app bundle, and made iOS readiness require it. | Static suite passes; iOS readiness reaches Unity license/version-env blockers. |
 | Analytics | `app_open` had little context for progress/debugging. | Added app open parameters and progress/replay context on round events. | Static readiness checks required telemetry text. |
 | Analytics | Readiness only checked that events existed, not that useful debugging context stayed attached. | Added static checks for round name, stick count, slot count, expression, failure count, cadence, ad show decision, app version, and platform parameters. | `./scripts/verify-one-plus-one-minus-one-static.sh` passes. |
 | Ads | Production interstitial IDs were source constants, so env-only release setup could never fully pass. | Added build-time `Resources` config generation for iOS/Android interstitial ad units and strict env checks. | Static suite and readiness scripts cover env names and reject Google test interstitial IDs in production env vars. |
+| Ads | The shared AdMob/Crashlytics readiness gate could warn/fail correctly in the live tree but lacked an isolated strict success fixture. | Added Firebase config path overrides and a dedicated readiness fixture test that proves strict success with injected Firebase files and production-shaped IDs, then proves Google test IDs fail. | `scripts/test-one-plus-one-minus-one-admob-crashlytics-readiness.sh`; included in static suite. |
 | Ads | Release build entry points could rely on test/default AdMob app IDs if env was missing. | Made iOS/Android release build methods require production AdMob app IDs and reject Google test app/ad-unit IDs before building. | iOS/Android AdMob-test builds still pass; strict readiness still fails on missing production config as intended. |
-| Ads | Strict readiness could miss copied placeholder AdMob IDs from `RELEASE_ENV.example`. | Added placeholder rejection for production AdMob app/ad-unit env vars in common, iOS, Android readiness and release build scripts. | Placeholder env smoke checks fail as intended; static suite passes. |
-| Ads | Strict readiness could accept non-empty but malformed production AdMob IDs. | Added production AdMob app/ad-unit format validation in common, iOS, and Android readiness scripts, plus release env documentation. | Invalid-ID strict smoke fails as intended; static suite passes. |
-| Release | Release env checks only verified presence for versions and Android signing. | Added iOS/Android marketing version, build/version-code, Android keystore path format/existence validation, plus env documentation. | Invalid-version/signing smoke fails as intended; static suite passes. |
-| Release | External release blockers were scattered across heavier Unity/platform readiness scripts. | Added a no-Unity release-env preflight for Firebase configs, production AdMob IDs, iOS/Android version envs, and Android signing envs; strict ship-ready runs it before platform exports. | Default preflight passes with warnings; strict and malformed-env smoke checks fail as intended. |
-| Device QA | Ship-ready could pass automated visual gates without explicitly failing on unfinished manual device QA. | Added a device QA signoff preflight that checks the tracker for blank build-under-test fields, `not run` rows, incomplete WebGL mobile coverage, and remaining real-touch/manual QA notes; strict ship-ready runs it before external config checks. | Default preflight passes with warnings; strict mode fails until manual QA is signed off. |
+| Release | iOS/Android readiness mixed Unity availability with release-env validation, making Unity licensing failures obscure whether platform env/source preflight was healthy. | Added `--preflight-only` to iOS and Android readiness scripts, plus Firebase config path overrides and fixture tests for strict release success and Google test AdMob ID failure without launching Unity. | `scripts/test-one-plus-one-minus-one-platform-readiness-preflight.sh`; included in static suite. Full export/build still requires Unity licensing. |
+| Release | Ship-ready skipped all iOS/Android readiness when Unity licensing was unavailable, hiding platform-specific env/source blockers behind the Unity blocker. | Ship-ready now always runs strict iOS/Android release `--preflight-only` checks, then only skips the full Unity-gated export/build checks when licensing is unavailable. | `./scripts/verify-one-plus-one-minus-one-ship-ready.sh` reports platform preflight blockers independently from Unity licensing. |
+| Ads | Strict readiness could miss copied placeholder AdMob IDs from `RELEASE_ENV.example`. | Added case-insensitive placeholder rejection for production AdMob app/ad-unit env vars in common, iOS, Android readiness and release build scripts. | `scripts/test-one-plus-one-minus-one-release-env.sh` now exercises mixed-case placeholder strict failures; static suite passes. |
+| Ads | Strict readiness could accept non-empty but malformed production AdMob IDs. | Added production AdMob app/ad-unit format validation in common, iOS, and Android readiness scripts, plus release env documentation. | `scripts/test-one-plus-one-minus-one-release-env.sh` now exercises malformed strict failures; static suite passes. |
+| Release | Release env checks only verified presence for versions and Android signing. | Added iOS/Android marketing version, build/version-code, Android keystore path format/existence validation, plus env documentation. | Release-env failure-mode tests cover invalid versions and relative Android keystore paths; static suite passes. |
+| Release | External release blockers were scattered across heavier Unity/platform readiness scripts. | Added a no-Unity release-env preflight for Firebase configs, production AdMob IDs, iOS/Android version envs, and Android signing envs; strict ship-ready runs it before platform exports. | Default preflight passes with warnings; `scripts/test-one-plus-one-minus-one-release-env.sh` covers missing values, placeholders, malformed values, Google test AdMob IDs and a strict success fixture with injected Firebase/keystore paths. |
+| Device QA | Ship-ready could pass automated visual gates without explicitly failing on unfinished manual device QA. | Added a device QA signoff preflight that checks the tracker for blank build-under-test fields, `not run` rows, incomplete WebGL mobile coverage, remaining real-touch/manual QA notes, unknown Status values, terminal `pass`/`fail`/`blocked` rows without Notes evidence, and inconsistent TestFlight-ready signoff while external blockers remain; strict ship-ready runs it before external config checks. | `scripts/test-one-plus-one-minus-one-device-qa-signoff.sh` covers passable fixture, unknown-status failure, missing terminal-status Notes evidence and inconsistent external-blocker signoff; default preflight passes with warnings; strict mode fails until manual QA is signed off. |
 
 ## Active Risks
 
@@ -360,7 +624,7 @@ this session; the repo's local Chrome/CDP approach was used instead.
 
 | Area | Risk | Classification | Next Slice |
 | --- | --- | --- | --- |
-| Analytics | Firebase config files are missing. | external blocker | Add `Assets/GoogleService-Info.plist` and `Assets/google-services.json` for `com.mannlab.games.oneplusoneminusone`. |
+| Analytics | iOS Firebase plist is present locally; Android Firebase json is still missing. | external blocker | Keep `Assets/GoogleService-Info.plist` in the next iOS export, add `Assets/google-services.json`, then rerun strict readiness and Crashlytics delivery checks. |
 | Ads | Production AdMob IDs are blank or still test IDs. | external blocker | Add production app/ad unit IDs, then run strict readiness. |
 | Android | Release signing env vars are unset. | external blocker | Add keystore path/password and key alias env vars before Play Store AAB builds. |
 | Store | Final privacy labels are not confirmed against a configured production build. | manual QA | Re-check SDK data collection after final Firebase/AdMob configs. |

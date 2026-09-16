@@ -12,9 +12,19 @@ const buildWebGlPath = path.join(
   repoRoot,
   "prototypes/one-plus-one-minus-one/Assets/_Project/Editor/BuildWebGL.cs",
 );
+const buildIosPath = path.join(
+  repoRoot,
+  "prototypes/one-plus-one-minus-one/Assets/_Project/Editor/BuildIosXcode.cs",
+);
+const buildAndroidPath = path.join(
+  repoRoot,
+  "prototypes/one-plus-one-minus-one/Assets/_Project/Editor/BuildAndroidAab.cs",
+);
 
 const controller = fs.readFileSync(controllerPath, "utf8");
 const buildWebGl = fs.readFileSync(buildWebGlPath, "utf8");
+const buildIos = fs.readFileSync(buildIosPath, "utf8");
+const buildAndroid = fs.readFileSync(buildAndroidPath, "utf8");
 const lines = controller.split(/\r?\n/);
 const activeStack = [];
 const violations = [];
@@ -40,7 +50,21 @@ for (let index = 0; index < lines.length; index += 1) {
   const line = lines[index];
   const trimmed = line.trim();
   if (trimmed.startsWith("#if ")) {
-    activeStack.push({ parentActive: isActive(), conditionActive: evaluateReleaseCondition(trimmed.slice(4)) });
+    const conditionActive = evaluateReleaseCondition(trimmed.slice(4));
+    activeStack.push({ parentActive: isActive(), conditionActive, branchMatched: conditionActive });
+    continue;
+  }
+
+  if (trimmed.startsWith("#elif ")) {
+    const frame = activeStack.at(-1);
+    if (!frame) {
+      violations.push(`${index + 1}: unexpected #elif`);
+      continue;
+    }
+
+    const conditionActive = !frame.branchMatched && evaluateReleaseCondition(trimmed.slice(6));
+    frame.conditionActive = conditionActive;
+    frame.branchMatched = frame.branchMatched || conditionActive;
     continue;
   }
 
@@ -51,7 +75,8 @@ for (let index = 0; index < lines.length; index += 1) {
       continue;
     }
 
-    frame.conditionActive = !frame.conditionActive;
+    frame.conditionActive = !frame.branchMatched;
+    frame.branchMatched = true;
     continue;
   }
 
@@ -88,6 +113,38 @@ if (!buildWebGl.includes("BuildInternal(QaOutputPath, true);")) {
 
 if (!buildWebGl.includes("BuildInternal(StoreCaptureOutputPath, false, true);")) {
   violations.push("Store-capture WebGL build should be non-development with the store-capture define only.");
+}
+
+if (!buildIos.includes("BuildIos(ReleaseOutputPath, false, iOSSdkVersion.DeviceSDK, false, true);")) {
+  violations.push("iOS release build should be non-development device SDK and require production AdMob IDs.");
+}
+
+if (!buildIos.includes("BuildIos(CrashlyticsTestOutputPath, true, iOSSdkVersion.DeviceSDK);")) {
+  violations.push("iOS Crashlytics test build should stay explicit and development-only.");
+}
+
+if (!buildIos.includes("BuildIos(AdMobTestOutputPath, false, iOSSdkVersion.DeviceSDK, true);")) {
+  violations.push("iOS AdMob test build should stay explicit and force test ads only.");
+}
+
+if (!buildIos.includes("options = developmentBuild ? BuildOptions.Development | BuildOptions.AllowDebugging : BuildOptions.None")) {
+  violations.push("iOS release builds should use BuildOptions.None when not development builds.");
+}
+
+if (!buildAndroid.includes("BuildAndroid(AabOutputPath, true, false);")) {
+  violations.push("Android AAB release build should be an app bundle without forced test ads.");
+}
+
+if (!buildAndroid.includes("BuildAndroid(AdMobTestApkOutputPath, false, true);")) {
+  violations.push("Android AdMob test APK should stay explicit and force test ads only.");
+}
+
+if (!buildAndroid.includes("var requireProductionAds = buildAppBundle && !forceAdMobTestAds;")) {
+  violations.push("Android production AdMob IDs should be required for non-test AAB builds.");
+}
+
+if (!buildAndroid.includes("options = BuildOptions.None")) {
+  violations.push("Android builds should not enable development build options by default.");
 }
 
 if (!controller.includes("#if DEVELOPMENT_BUILD || UNITY_EDITOR || MANNLAB_STORE_CAPTURE")) {

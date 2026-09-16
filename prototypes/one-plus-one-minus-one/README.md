@@ -43,7 +43,8 @@ Players place living stick tokens into every slot to complete either a true expr
 
 The runtime calls `FirebaseTelemetry` for `app_open`, `round_start`, `round_reset`, `round_clear`, `round_check_failed`, and `crashlytics_test_trigger`. Events include game, round, progress, replay, app version, or platform context where relevant. The bridge logs to Unity even before Firebase config is present, and forwards to Firebase Analytics/Crashlytics when the SDK and app config are available.
 
-Add this game's Firebase iOS config before real Crashlytics testing:
+Ensure this game's Firebase config files are present before real Crashlytics
+testing:
 
 - iOS: `Assets/GoogleService-Info.plist` for `com.mannlab.games.oneplusoneminusone`
 - Android: `Assets/google-services.json` for `com.mannlab.games.oneplusoneminusone`
@@ -64,7 +65,8 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
 ## Release Checklist
 
 - Keep the public app name as `1 = 1`; use the full equation as the internal finale concept.
-- Add `Assets/GoogleService-Info.plist` for `com.mannlab.games.oneplusoneminusone` before real Crashlytics verification.
+- Run `./scripts/check-one-plus-one-minus-one-unity-license.sh` before Unity-gated PlayMode/WebGL/iOS/Android readiness. If it reports `LICENSING_CLIENT_UNAVAILABLE`, repair Unity Hub licensing before rerunning Unity batch commands.
+- Ensure `Assets/GoogleService-Info.plist` exists for `com.mannlab.games.oneplusoneminusone` before real Crashlytics verification.
 - Add `Assets/google-services.json` for `com.mannlab.games.oneplusoneminusone` before Android Firebase verification.
 - Keep `Assets/_Project/Store/PrivacyInfo.xcprivacy` in the iOS export; it declares app-local UserDefaults access for saved progress.
 - Override the production iOS AdMob App ID with `MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_APP_ID` before export.
@@ -90,12 +92,19 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
   envs, and Android signing envs. Add `REQUIRE_ONE_EQUALS_ONE_RELEASE_ENV=1`
   or pass `--strict` when you want missing or malformed external settings to
   fail immediately.
+- Run `./scripts/verify-one-plus-one-minus-one-ios-readiness.sh release --preflight-only`
+  and `./scripts/verify-one-plus-one-minus-one-android-readiness.sh release --preflight-only`
+  for platform source/env checks that do not launch Unity. Full platform
+  readiness still requires Unity licensing and an export/build.
 - Run `./scripts/verify-one-plus-one-minus-one-device-qa-signoff.sh` for a fast
   no-Unity preflight of the manual device QA tracker. Pass `--strict` before
   store submission so unfinished touch/audio/privacy rows fail the gate.
 - Run `./scripts/verify-one-plus-one-minus-one-icon.sh` to verify the source icon and WebGL favicon are 1024x1024 PNGs without alpha channels and keep enough contrast at small launcher sizes.
 - Run `./scripts/verify-one-plus-one-minus-one-character-policy.sh` to reject arms, hands, legs, cheeks, blush, or missing symbol face-style hooks.
-- Run `./scripts/verify-one-plus-one-minus-one-release-safety.mjs` to ensure QA URL overrides and Crashlytics test hooks stay out of release-active code.
+- Run `./scripts/verify-one-plus-one-minus-one-release-safety.mjs` to ensure
+  QA URL overrides and Crashlytics test hooks stay out of release-active code,
+  and that iOS/Android release build entrypoints stay separated from explicit
+  AdMob-test build paths.
 - Run `./scripts/verify-one-plus-one-minus-one-store-metadata.sh` to keep store copy, privacy URL, screenshot plan, ads/privacy disclosure, and final upload checklist intact.
 - Run `./scripts/verify-one-plus-one-minus-one-png-visuals.mjs --all` to inspect
   QA and App Store capture PNGs for dimensions, alpha policy, blank/dark
@@ -124,7 +133,7 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
 - Run `./scripts/verify-one-plus-one-minus-one-webgl-store-capture.sh`, then `./scripts/capture-one-plus-one-minus-one-app-store-candidates.sh`, to generate watermark-free App Store candidate screenshots from a non-development WebGL capture build.
 - Run `./scripts/verify-one-plus-one-minus-one-app-store-candidates.sh` after capture; it checks required sizes, alpha, store-capture freshness, and rejects stale screenshots.
 - Run `./scripts/refresh-one-plus-one-minus-one-visual-qa.sh` after Unity license activation when both QA captures and App Store candidates need to be regenerated.
-- Run `./scripts/verify-one-plus-one-minus-one-ship-ready.sh` as the final commercial-completion gate; it should fail until fresh builds, WebGL shell metadata, QA captures, App Store candidates, strict release-env preflight, real Firebase/AdMob values, signing, icon checks, and viewport smoke all pass.
+- Run `./scripts/verify-one-plus-one-minus-one-ship-ready.sh` as the final commercial-completion gate; it should fail until fresh builds, WebGL shell metadata, QA captures, App Store candidates, strict release-env/platform preflights, real Firebase/AdMob values, signing, icon checks, and viewport smoke all pass.
 - Use `STORE_READINESS.md` for metadata, device QA, screenshot, Firebase, and AdMob checks.
 - Use `../../docs/one-equals-one-commercial-polish-backlog.md` for the continuous commercial-quality polish loop.
 - Use `../../docs/one-equals-one-device-qa-tracker.md` for fresh-build device and viewport sign-off.

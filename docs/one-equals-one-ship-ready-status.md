@@ -1,11 +1,192 @@
 # 1 = 1 Ship-Ready Status
 
-Status date: 2026-09-14
+Status date: 2026-09-16
 
 Current completion judgment: `not yet`
 
+Current execution: local source now includes the numerical correctness fix and
+twelve round-identity data edits. `IsRoundSolved` and direct equality checks
+use exact rational arithmetic in Unity source and the shared Node mirror, so the
+known Round 48 bad answer (`1 / 11 111`) is fixed in source. All non-callback
+shared-answer pairs were redesigned without token bans. Node identity tests
+pass 46/46, static 100-round verification passes, and selected solution
+enumeration reports Round 48 with 4 canonical arrays instead of the old 6. The
+corrected identity map now has only the intentional 2/5 tutorial echo and
+30/100 title callback as proven equality-sharing pairs.
+
+Latest Unity evidence is partial: after clearing a stale Unity licensing child
+process, EditMode passed 61/61 for the current source. PlayMode still did not
+reach game tests because Unity batchmode licensing timed out waiting for the
+6000.3.23 licensing channel. The WebGL build scripts, PlayMode wrapper, and
+native readiness scripts now distinguish empty license data from an unavailable
+licensing service through the shared
+`scripts/lib-one-plus-one-minus-one-unity-license.sh` helper: they may use the
+local Unity entitlement file for the former, but fast-fail on
+`LICENSING_CLIENT_UNAVAILABLE`. Current PlayMode, QA WebGL, ordinary WebGL,
+store-capture WebGL, and iOS/Android readiness ad-test verification exit with
+`Unity licensing client is unavailable. Open Unity Hub or repair its licensing
+service before running this script.` This is an environment blocker, not a game
+assertion failure, but it leaves runtime verification open. Full static
+verification passes with a
+stale-WebGL warning; fresh WebGL build/input QA has not yet been rerun
+successfully for this source state. The ship-ready gate now runs a single Unity
+licensing preflight before Unity-gated PlayMode/WebGL/native readiness checks,
+then marks full export/build checks skipped when the licensing client is
+unavailable instead of repeating the same Unity failure. It still runs strict
+iOS/Android `--preflight-only` checks so platform env/source blockers are
+visible even while Unity is down. A sandboxed ship-ready run still fails, as
+expected, on Unity licensing, stale WebGL artifacts, strict release env, strict
+device QA, strict Firebase/AdMob config and platform preflight blockers. Because
+freshness fails,
+the final gate now skips viewport smoke, QA key-round/page captures and App
+Store candidate screenshot checks instead of producing old-build evidence for
+the local source. The standalone WebGL viewport smoke passes when rerun outside
+the filesystem/network sandbox and generated fresh captures for iPhone SE,
+standard/large iPhone, Android 20:9 and desktop. This remains older-build smoke
+evidence, not runtime verification for the latest numerical fix.
+
+Latest source-only hardening also changes tiny nonzero result display to avoid
+rounding exact rational failures to `0` in player feedback. The controller's
+visible wrong-result message now reuses the exact solve reason, so tiny nonzero
+misses do not re-enter the legacy `Makes 0.` double-formatting path. The
+corresponding EditMode/PlayMode regressions are added but await Unity execution
+with the rest of the runtime gate. Release-safety static checks now also guard
+the iOS and Android native build entrypoints: release exports must stay
+non-development, require production AdMob IDs where applicable, and keep
+forced-test-ad paths confined to explicit test builds.
+
+Unity licensing recovery check:
+
+```sh
+scripts/check-one-plus-one-minus-one-unity-license.sh
+$HOME/.unity/bin/unity license --json
+```
+
+Current blocking output reports `LICENSING_CLIENT_UNAVAILABLE` with no `data`.
+Unity Hub can be focused with `open -a "Unity Hub"`, but the latest check still
+returns the same CLI error. Before rerunning PlayMode/WebGL, repair Unity Hub's
+licensing service from the Hub UI, sign in again if needed, or fully restart
+Unity Hub so the CLI returns active license data or a non-unavailable empty-data
+state that can use the local entitlement file. Do not repeat Unity batchmode
+tests while this command still reports `LICENSING_CLIENT_UNAVAILABLE`; the
+scripts will fast-fail by design.
+
+Latest browser URL: http://127.0.0.1:8093/ is still the older batch 4 ordinary
+build unless rebuilt. Uploaded iOS `1.0.0 (2)` does not include these local
+source changes.
+
+Latest evidence: the 2026-09-16 sections atop the gameplay audit and commercial
+polish backlog. Older sections below retain historical pending/blocked results.
+
 Stage: post-distribution development checkpoint; new native candidate and
 production release validation pending.
+
+## Current Round Identity Batch 4 (2026-09-15, Runtime Pending)
+
+Follow-up analysis: Node tests now pass 32/32. Bounded canonical solution
+enumeration completes 98 rounds; 61/78 remain limited. It exposed a zero-target
+tolerance risk (`1 / 11111` accepted as zero), recorded for native reproduction
+and correctness review. Existing native/sample parity is not exhaustive proof
+for the new inventory. No additional runtime/data edits or player builds.
+The same approved-path request again failed in the approval service before
+starting; three requests across two affected goal turns. Runtime gate remains.
+
+Source-only candidate updates 11/33/48/83. Cumulative changed indices 49;
+proven shared-equality pairs 14; exact duplicate remains only 30/100. EditMode
+47/47, Node 26/26, 100 samples and 10,000 native/Node pairs pass. Static passes
+with the expected old-WebGL freshness and external readiness warnings.
+
+PlayMode was not started: two ordinary approval requests failed because the
+approval service's selected model was at capacity. No player build or input QA
+has validated these four edits. WebGL hashes still match batch 3; the preview
+at `http://127.0.0.1:8093/` is NOT the latest source candidate. iOS 1.0.0 (2) is
+unchanged. No commit, push or deployment occurred. The identity goal is unfinished;
+see the current execution block above.
+
+First pending action is the same PlayMode verification after approval recovery,
+then fresh QA/WebGL and changed/neighbor/small-screen input. Evidence:
+`artifacts/one-equals-one/2026-09-15-round-identity/batch4-verification-status.json`.
+The latest audit distinguishes the completed source work from this execution gap.
+
+## Current Round Identity Batch 3 (2026-09-15)
+
+Latest verified batch revises 35/43/57/75/88 and adds rules-level slot-count
+validation matching the fixed UI board. Cumulative changed indices: 47;
+resource pairs: 60; proven shared-equality pairs: 18 (baseline 158).
+The title 30/100 is the only identical constraint group. Identity goal is open.
+
+EditMode 43/43, PlayMode 37/37, Node 17/17, native/Node 10,000-pair parity,
+100 data, static and fresh QA/ordinary/capture WebGL pass. Revised samples and
+ten neighbors pass actual browser touch; five alternate answers pass at 320x568.
+First-ten input/save and five ordinary viewports are freshly checked as well.
+Evidence prefix: `artifacts/one-equals-one/2026-09-15-round-identity/batch3-*`.
+No native/device/production SDK signoff is inferred. iOS 1.0.0 (2) is unchanged;
+no commit, push or upload occurred. Preview HTTP 200: `http://127.0.0.1:8093/`.
+Next 11/33/48 coupled redesign is an unapplied candidate, not part of this build.
+
+## Current Round Identity Batch 2 (2026-09-15)
+
+Latest data changes 38/39/52/70/90 after the preceding 40-index candidate.
+Cumulative changed indices: 44; resource pairs: 57; proven shared-equality
+pairs: 22 (original baseline 158). Only the explicit 30/100 title callback
+remains an identical constraint group. The identity goal remains active.
+
+Unity EditMode 35/35, PlayMode 37/37, Node identity tests 12/12, 10,000 native/
+Node sample pairs, all 100 samples, static and three fresh WebGL builds pass.
+Five revised samples plus eight neighbors pass actual browser touch; all five
+alternative answers also pass at 320x568. Existing save/first-ten/last-round
+evidence is reused for unchanged behavior, not claimed as a new end-to-end run.
+Artifact prefix: `artifacts/one-equals-one/2026-09-15-round-identity/batch2-*`.
+Local preview `http://127.0.0.1:8093/` returns HTTP 200. No commit, push, native
+build, upload or submission occurred. Native 1.0.0 (2) is unchanged. See the
+audit/backlog for the next shared-resource groups and remaining design work.
+
+## Post-Checkpoint Resume (2026-09-15)
+
+Latest local continuation: round-identity redesign is verified, with 40 changed
+indices and an aspect-ratio clamp fix. EditMode 31/31, PlayMode 37/37, all 100
+samples, 10,000 cross-acceptance pairs, static and three fresh WebGL builds pass.
+All changed final expressions have actual browser input evidence; small-screen
+34/84/100, first-ten/save and final completion/Reset/reload were checked.
+Evidence: `artifacts/one-equals-one/2026-09-15-round-identity/`.
+The identity goal remains open: common-equality pairs fall 158 -> 27, but their
+remaining design disposition is not resolved by build success. Exact duplicate
+groups fall ten -> one (the explicit 30/100 title callback). See the latest
+gameplay audit/backlog, which supersede the round-quality conclusions below.
+Preview remains `http://127.0.0.1:8093/`, HTTP 200 verified on this run. Native
+1.0.0 (2) is unchanged; new store-capture binary is not newly submitted imagery.
+
+Base is `26d8508a`. The prior approval blocker is resolved for this run:
+PlayMode 36/36 and EditMode 29/29 passed, followed by QA/ordinary WebGL builds
+and actual first-ten/save regression. Initial QA replay verified all three
+triple-stick returns/transfers, real hidden-tab cancellation, stale tap rejection
+and full-slot recovery. The initial soak was intentionally stopped before 30
+minutes after a new controller-event race was reproduced.
+
+New finding: a fresh second-finger press after resume overwrites the view's
+shared press version, reviving the first finger's delayed click. The new test
+failed 36/37; pointer identity and pre-mutation drag guards now pass 37/37.
+Final-binary QA replay verifies old/fresh finger release order, actual tab
+interruption and every triple-stick return/transfer. QA, ordinary and capture
+WebGL builds succeed. The corrected first-ten/save regression and five inspected
+viewport captures pass. Static verification passes with external readiness
+warnings; existing local iOS configuration is not absent merely because this
+shell did not load its env file. Android production configuration/signing and
+physical/production SDK evidence remain separate open gates.
+The final same-binary/browser session ran 05:18:56.985-05:49:15.694 UTC
+(30m18s), with 66 observations and no captured runtime exceptions. Actual
+96-100 input, an alternative equality, final completion, full-slot rejection
+and replay ad exclusion pass. Subsequent reload preserves completion and Sound
+off. Browser heap/listener trends are not native performance signoff.
+
+Current local stage: gameplay development checkpoint passed, not release-ready.
+Evidence: `artifacts/one-equals-one/2026-09-15-post-checkpoint/`.
+Latest ordinary preview: `http://127.0.0.1:8093/` (HTTP 200 verified).
+Uploaded iOS 1.0.0 (2) remains unchanged. No commit, push, install, upload,
+deployment or submission was performed. Next: after separate authorization,
+build a native candidate with the accumulated fixes and execute the open device
+and production SDK checks. Historical September 14 blocked results below are
+superseded by this section, not the current execution state.
 
 ## Latest Resume State (2026-09-14)
 
@@ -355,13 +536,16 @@ pass.
 
 ## Required To Reach Pass
 
-Resume by adding the real Firebase configs and rerunning the failed unsigned
-iOS Xcode build, then device ad/consent/persistence QA on fresh test artifacts. Do not
+Resume by keeping the present iOS Firebase plist in the next export, adding the
+missing Android Firebase config, and rerunning the failed unsigned iOS Xcode
+build, then device ad/consent/persistence QA on fresh test artifacts. Do not
 repeat unchanged successful WebGL checks as a substitute for that evidence.
 
-1. Add Firebase configs:
-   - `prototypes/one-plus-one-minus-one/Assets/GoogleService-Info.plist`
-   - `prototypes/one-plus-one-minus-one/Assets/google-services.json`
+1. Firebase config state:
+   - iOS plist present locally:
+     `prototypes/one-plus-one-minus-one/Assets/GoogleService-Info.plist`
+   - Android json still needed:
+     `prototypes/one-plus-one-minus-one/Assets/google-services.json`
 2. Add production AdMob app IDs and interstitial ad unit IDs.
    - Do not use `RELEASE_ENV.example` placeholder values; strict readiness
      rejects copied placeholder IDs.
@@ -393,6 +577,9 @@ An unsigned build does not replace signing, device installation, or ad/consent Q
 
 ```sh
 ./scripts/verify-one-plus-one-minus-one-static.sh
+./scripts/verify-one-plus-one-minus-one-admob-crashlytics-readiness.sh
+./scripts/verify-one-plus-one-minus-one-ios-readiness.sh release --preflight-only
+./scripts/verify-one-plus-one-minus-one-android-readiness.sh release --preflight-only
 ./scripts/verify-one-plus-one-minus-one-release-env.sh
 ./scripts/verify-one-plus-one-minus-one-release-env.sh --strict
 ./scripts/verify-one-plus-one-minus-one-device-qa-signoff.sh
@@ -407,13 +594,26 @@ Expected current result:
   test rejects mobile captures whose meaningful content begins too low, which
   guards against the earlier tall-portrait whitespace regression.
 - Passes code readiness with Firebase/AdMob warnings.
+- The AdMob/Crashlytics readiness verifier now has no-Unity fixture coverage
+  for strict success with injected Firebase config files and production-shaped
+  IDs, plus strict failure when Google test AdMob IDs are copied into
+  production env vars.
+- iOS and Android readiness now support `--preflight-only` for source/env
+  validation without launching Unity. Fixture tests prove strict release
+  preflight can pass with injected Firebase/keystore files and production-shaped
+  IDs, and that Google test AdMob IDs fail before export. This does not replace
+  native export/build verification after Unity licensing is repaired.
 - The release-env preflight passes with warnings in normal mode and fails in
   strict mode until Firebase files, production AdMob IDs, version envs, and
-  Android signing envs are provided. Its output now includes the required
-  external input checklist and the strict rerun command.
+  Android signing envs are provided. Its fixture tests cover missing values,
+  placeholders, malformed values, Google test AdMob IDs, and a strict success
+  path with injected Firebase config and keystore files. Its output now includes
+  the required external input checklist and the strict rerun command.
 - The device QA signoff preflight passes with warnings in normal mode and fails
   in strict mode until the tracker has a named build under test and all manual
-  device/touch/audio/privacy rows are signed off.
+  device/touch/audio/privacy rows are signed off. Its fixture tests now cover
+  unknown Status values, terminal pass/fail/blocked rows without Notes evidence,
+  and inconsistent TestFlight-ready signoff while external blockers remain.
 
 ## Final Gate
 
@@ -471,6 +671,9 @@ Latest observed result:
 - Ship-ready now runs a strict lightweight release-env preflight before the
   heavier platform readiness scripts, so external configuration blockers are
   reported clearly without relying on Unity export failures.
+- Ship-ready now also runs strict iOS/Android release preflight-only checks
+  before the Unity-gated native export/build checks, so platform env/source
+  blockers remain visible while Unity licensing is unavailable.
 - Ship-ready now also runs strict device QA signoff, so automated screenshot
   coverage cannot be mistaken for real-device completion.
 - Historical ship-ready run on 2026-09-12 passed every local build, freshness,
@@ -479,6 +682,9 @@ Latest observed result:
   production Firebase/AdMob/platform release settings.
 - Strict AdMob readiness now rejects malformed production app/ad unit ID
   values, not only missing, placeholder, or Google test values.
+- Static suite now includes focused fixture tests for AdMob/Crashlytics
+  readiness, platform preflight readiness, release-env readiness, device QA
+  signoff, and store metadata verifier failure modes.
 - iOS/Android readiness also reject malformed production AdMob IDs before a
   release export is attempted.
 - iOS/Android readiness now validate release version/build formats and Android

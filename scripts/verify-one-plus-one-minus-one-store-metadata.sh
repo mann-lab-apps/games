@@ -2,10 +2,10 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-metadata="$repo_root/docs/one-equals-one-store-metadata-draft.md"
-privacy_policy="$repo_root/docs/privacy-policy.md"
-readiness="$repo_root/prototypes/one-plus-one-minus-one/STORE_READINESS.md"
-capture_script="$repo_root/scripts/capture-one-plus-one-minus-one-app-store-candidates.sh"
+metadata="${ONE_EQUALS_ONE_STORE_METADATA:-$repo_root/docs/one-equals-one-store-metadata-draft.md}"
+privacy_policy="${ONE_EQUALS_ONE_PRIVACY_POLICY:-$repo_root/docs/privacy-policy.md}"
+readiness="${ONE_EQUALS_ONE_STORE_READINESS:-$repo_root/prototypes/one-plus-one-minus-one/STORE_READINESS.md}"
+capture_script="${ONE_EQUALS_ONE_APP_STORE_CAPTURE_SCRIPT:-$repo_root/scripts/capture-one-plus-one-minus-one-app-store-candidates.sh}"
 failures=0
 
 require_text() {

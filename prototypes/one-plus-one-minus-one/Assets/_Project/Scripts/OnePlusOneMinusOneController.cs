@@ -1168,9 +1168,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 maxSlotWidth = Mathf.Min(maxSlotWidth, fitWidth);
             }
 
-            var slotWidth = Mathf.Clamp(maxSlotWidth, minSlotWidth, idealSlotWidth);
             var heightRatio = rows >= 4 ? 1.12f : rows >= 3 ? 1.16f : slotCount <= 3 ? 1.13f : 1.22f;
             var maxSlotHeight = slotCount <= 3 ? 210f : rows >= 4 ? 128f : rows >= 3 ? 148f : 188f;
+            // Constrain both dimensions when the row's height budget is limiting.
+            maxSlotWidth = Mathf.Min(maxSlotWidth, maxSlotHeight / heightRatio);
+            var slotWidth = Mathf.Clamp(maxSlotWidth, minSlotWidth, idealSlotWidth);
             var slotHeight = Mathf.Clamp(slotWidth * heightRatio, minSlotHeight, maxSlotHeight);
             var rowGap = rows >= 4 ? 8f : rows >= 3 ? 10f : rows == 2 ? 12f : 18f;
             var contentHeight = rows * slotHeight + (rows - 1) * rowGap;
@@ -1675,7 +1677,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             TrackCheckFailure(reason);
             feedbackText.color = FailureColor;
             feedbackText.text = result.IsValid
-                ? $"Makes {OnePlusOneMinusOneRules.FormatNumber(result.Value)}."
+                ? CalculatedValueFailureText(result, reason)
                 : FriendlyFailureText(reason);
             PlaySfx(SfxCue.Fail);
             StartCoroutine(ShakeEquation());
@@ -1685,6 +1687,21 @@ namespace MannLab.Games.OnePlusOneMinusOne
         {
             var messages = Array.IndexOf(slotSymbols, "=") >= 0 ? EqualitySuccessMessages : TargetSuccessMessages;
             return messages[Mathf.Abs(roundIndex * 7 + currentRoundFailureCount * 3) % messages.Length];
+        }
+
+        private static string CalculatedValueFailureText(EquationResult result, string reason)
+        {
+            const string prefix = "Result is ";
+            if (!string.IsNullOrWhiteSpace(reason) && reason.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                var valueText = reason.Substring(prefix.Length).TrimEnd('.');
+                if (!string.IsNullOrWhiteSpace(valueText))
+                {
+                    return $"Makes {valueText}.";
+                }
+            }
+
+            return $"Makes {OnePlusOneMinusOneRules.FormatNumber(result.Value)}.";
         }
 
         private static string FriendlyFailureText(string reason)
@@ -4041,6 +4058,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             private CanvasGroup sourceGroup;
             private bool didDrag;
             private int pressInterruptionVersion;
+            private int pressPointerId = int.MinValue;
 
             public void Initialize(OnePlusOneMinusOneController owner, CanvasGroup group, int sourceSlotIndex, int sourceStickIndex)
             {
@@ -4063,18 +4081,20 @@ namespace MannLab.Games.OnePlusOneMinusOne
                     eventData.eligibleForClick = false;
                     return;
                 }
+                pressPointerId = eventData.pointerId;
                 didDrag = false;
             }
 
             public void OnBeginDrag(PointerEventData eventData)
             {
-                didDrag = true;
                 if (!IsCurrentPress(eventData)) return;
+                didDrag = true;
                 controller?.BeginStickDrag(eventData, sourceGroup, SourceSlotIndex, SourceStickIndex);
             }
 
             public void OnDrag(PointerEventData eventData)
             {
+                if (!IsCurrentPress(eventData)) return;
                 didDrag = true;
                 controller?.MoveStickDrag(eventData);
             }
@@ -4102,7 +4122,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             private bool IsCurrentPress(PointerEventData eventData)
             {
-                if (controller != null && pressInterruptionVersion == controller.RefreshInputInterruptionVersion())
+                if (controller != null && pressPointerId == eventData.pointerId &&
+                    pressInterruptionVersion == controller.RefreshInputInterruptionVersion())
                     return true;
                 eventData.eligibleForClick = false;
                 return false;

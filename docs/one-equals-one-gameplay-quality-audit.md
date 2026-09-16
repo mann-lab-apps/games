@@ -1,5 +1,614 @@
 # 1 = 1 Gameplay Quality Audit
 
+## Numerical Correctness And Round Identity Pass (2026-09-16)
+
+Fixed the zero-target numerical correctness bug by moving solve/equality
+acceptance to exact rational arithmetic in both Unity rules and the shared Node
+identity mirror. `Evaluate()` still exposes a double for existing display and
+telemetry callers, but `IsRoundSolved` and direct equality now compare reduced
+fractions. `1 / 11 111` in Round 48 is rejected as a nonzero value; fractional
+cancellation such as `1 / 11 * 11` and equal fraction equations still pass.
+Display formatting now shows small nonzero values such as `0.00009` instead of
+rounding them to `0`. The controller failure message also reuses the exact
+solve reason when a valid expression misses the target, so a future tiny
+nonzero miss can say `Makes 1/111111111.` instead of falling back through the
+legacy double formatter and saying `Makes 0.`.
+
+Node regressions were changed from characterizing the old tolerance bug to
+requiring exact rejection. Round 48's complete canonical solution count changed
+from 6 to 4 under the corrected evaluator; the two removed arrays are the
+previous tolerance-admitted division answers. Static 100-round verification and
+selected solution enumeration pass under the corrected Node mirror.
+
+Twelve non-callback shared-answer pairs were redesigned without token bans:
+
+| Round | Previous sample | Current sample | Reason |
+| --- | --- | --- | --- |
+| 76 | `111 / 111 + 1 = 1 + 1` | `111 - 111 + 11 / 11 + 1` | Moves out of the 9-slot/16-stick group shared with Round 64 while keeping a target-2 cancellation/division idea. |
+| 95 | `1 + 1 + 11 * 1` | `1 + 1 1 × 11 / 11 + 1` | Moves out of the 7-slot/12-stick group shared with Round 22 and keeps a precedence/adjacent-number late-round pattern. |
+| 96 | `111 - 1 - 1 - 1` | `111 - 1 - 1 - 1 / 1 - 1` | Moves out of the 7-slot/9-stick group shared with Round 25 using a longer final-band subtraction/division expression. |
+| 72 | `111 - 1 = 11 1 - 1` | `1 1 × 11 - 11 + 11 - 11` | Moves out of the 8-slot/12-stick group shared with Round 29 while preserving a target-110 adjacent-number calculation. |
+| 73 | `1 + 1 - 1 = 1 × 1` | `1 / 1 1 - 1 / 11 + 1` | Replaces a repeated equality shell with exact fractional cancellation. |
+| 77 | `11 + 1 - 1 = 1 1` | `1 / 1 1 - 1 / 11 + 11` | Moves out of the 8-slot/11-stick group shared with Round 31 using a related target-11 fractional cancellation. |
+| 93 | `11 1 - 11 + 11` | `1 11 + 1 - 1 - 11 / 11` | Moves out of the 6-slot/10-stick group shared with Round 42 while keeping split triple-one arithmetic. |
+| 71 | `1 - 1 = 11 - 1 1` | `1 - 1 / 1 - 11 / 1 1` | Replaces a widely reusable zero equality with a unique-resource negative target. |
+| 92 | `1 + 11 × 11` | `11 + 111 / 111 * 111` | Moves out of the 5-slot/9-stick group shared with Round 15 while keeping target 122. |
+| 99 | `111 - 11 - 1 × 1` | `111 - 11 - 1 / 1 + 1 - 1` | Moves out of the 7-slot/11-stick group shared with Round 59 while preserving target 99. |
+| 26 | `1 + 1 - 1 / 1` | `1 1 1 / 1 1 1` | Moves out of the 7-slot/8-stick group shared with Round 13 while keeping a readable divide-to-one idea. |
+| 94 | `111 / 111 + 11 - 1` | `11 - 1 / 111 * 1 11 + 1` | Moves out of the 7-slot/13-stick group shared with Round 65 using exact fractional cancellation. |
+
+Fresh Node identity summary after these edits: only the intentional identical
+resource/target callback 30/100 remains; unique resource pairs increased from
+60 to 72. Proven equality-sharing pairs dropped from 14 to 2. The remaining
+shared pairs are intentional: the tutorial echo 2/5 and title callback 30/100.
+All 12 previously open non-callback pairs are now separated by resource and/or
+complete canonical-set overlap under the corrected evaluator. These are
+token-array counts and witness searches, not human strategy counts.
+
+Verification completed: `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs`
+passes 46/46; `node scripts/verify-one-plus-one-minus-one-rounds.mjs` passes;
+selected `--solutions 11,33,48,83 --strict` passes and reports Round 48 with 4
+solutions. Full static verification passes, with the expected stale WebGL
+warning because the player build is older than these source edits. After
+clearing a stale Unity licensing child process, latest Unity EditMode passes
+61/61 for the corrected numeric code and all round-data edits. PlayMode still
+could not reach game tests because Unity batchmode licensing timed out while
+waiting for `Unity-LicenseClient-jaemankim-6000.3.23`. The WebGL build scripts
+and native readiness scripts now distinguish an installed local entitlement
+from an unavailable Unity licensing service through the shared
+`scripts/lib-one-plus-one-minus-one-unity-license.sh` helper: empty CLI data can
+fall back to `UnityEntitlementLicense.xml`, but
+`LICENSING_CLIENT_UNAVAILABLE` fails fast. PlayMode, QA WebGL, ordinary WebGL,
+store-capture WebGL, iOS readiness and Android readiness all use the same guard
+instead of launching Unity into the known licensing timeout. Current
+Unity-gated verification exits with
+`Unity licensing client is unavailable. Open Unity Hub or repair its licensing
+service before running this script.` No failing game test result was produced.
+Use `scripts/check-one-plus-one-minus-one-unity-license.sh` as the first retry
+step before rerunning Unity PlayMode/WebGL verification.
+Next required evidence after Unity Hub licensing is restored: PlayMode, fresh
+WebGL build and browser input check that Round 48 rejects `1 / 11 111`.
+The ship-ready gate now performs this license preflight once and skips
+Unity-gated PlayMode/WebGL/native readiness checks when it fails, so a blocked
+run does not waste time repeating identical Unity launches. Current ship-ready
+still fails because runtime builds are stale/blocked and release/device inputs
+remain incomplete. Existing WebGL viewport smoke passes outside the sandbox;
+iPhone SE and desktop startup captures show no obvious clipping or overlap, but
+that older player is not evidence for the latest numeric fix.
+Release-safety static coverage was extended after this numeric pass to guard
+iOS/Android native build entrypoints as well as controller QA hooks, so explicit
+AdMob-test paths remain separated from production release exports.
+
+## Batch 4 Runtime Recovery (2026-09-15)
+
+User-requested retry succeeded through the same reviewed PlayMode script.
+Approval-service blockage below is historical and resolved for this run.
+PlayMode: 37/37. Fresh QA, ordinary and store-capture WebGL builds all succeed;
+hashes/timestamps are recorded in `batch4-builds.json`. No additional gameplay
+or round-data changes were made. Build-generated scene IDs/order and settings
+whitespace were removed after inspecting the diff; unrelated edits preserved.
+
+Actual screenshot-guided CDP touch passes 12 samples/neighbors at 390x844:
+10/11/12, 32/33/34, 47/48/49 and 82/83/84. At 320x568, sample 11 and alternate
+arrays in 33/48/83 also clear. Bank/slot counts are checked before placing;
+the clear event must contain the intended expression. No sample-fill hook is
+used. QA round/unlock flags seed these targeted tests; they are not new-player
+discovery or physical-device testing. Placed captures for 11/33/48/83 were
+inspected, including small-screen packing of triple-one and target placement.
+
+Ordinary-build first-ten input regression passes all ten rounds, touch cancel
+and secondary release after synthetic focus loss. Reload preserves unlocked
+Round 11; restored round selection shows 1-10 Done, 11 Now, 12 Locked and
+Page 1/9. The restored screenshot was inspected. Five ordinary startup
+viewports pass (SE, standard/large iPhone, Android 20:9, desktop); SE/desktop
+captures were inspected. This is browser evidence, not real-device or native
+ad/Crashlytics signoff. WebGL ad opportunity assertions remain unchanged.
+
+The zero-target correctness risk is now REPRODUCED IN WEBGL, not merely a
+Node/source finding: actual touch builds `1 / 11 111` in Round 48; telemetry
+emits `round_clear ... result=0, expression=1 / 11 111` and advances to 49.
+The harness's PASS here means successful bug reproduction, NOT a correct
+mathematical answer or a fixed defect. 1/11111 remains nonzero. Numerical
+correction with exact-fraction/cancellation regressions is the next priority;
+do not hide the issue by banning division or changing only this sample.
+
+Final static verification passes, with no stale-WebGL warning. Other external
+release environment/device warnings remain; existing iOS Firebase config is
+not being claimed missing. Node identity tests remain 32/32; prior EditMode
+47/47 and 10,000 native/sample comparisons apply to unchanged rules source.
+Evidence in the existing identity folder: `batch4-play.xml`, `batch4-builds.json`,
+`batch4-input/`, `batch4-small/`, `batch4-firstten/`, `batch4-viewports/`,
+`batch4-tolerance/`, `batch4-runtime-static.log` and updated verification status.
+Local ordinary URL returns HTTP 200 with the fresh build: http://127.0.0.1:8093/.
+
+Checkpoint: batch 4 runtime gap closed; full round-identity objective remains
+unfinished. Twelve non-callback shared pairs, numerical correctness and limited
+inventories 61/78 remain open. Next: numerical regression/fix, update affected
+answer inventories, then remaining resource redesign in verified batches.
+No commit, push, merge, native build, upload or store deployment occurred.
+
+## Execution Block / Resume Contract (2026-09-15)
+
+The normal reviewed PlayMode command was rejected before process creation for
+the fourth request across three consecutive affected goal turns. The unchanged
+cause is `Automatic approval review failed: Selected model is at capacity`.
+No Unity session or batch 4 PlayMode result exists. Do not bypass the rejection
+via a direct editor call or another execution route. Goal status is blocked,
+not complete; no new game edits were made in this checkpoint.
+
+The previous turn made substantive progress: bounded solution enumeration,
+32 passing Node tests, full sets for 98 rounds and the numerical-correctness
+finding. Current SHA256 confirms that inventory still matches the rules source.
+The independent analysis is recorded; the next required acceptance evidence
+is actual execution of the four pending round changes. Further unverified
+round or numeric-runtime edits would expand that verification gap rather
+than close it. Twelve non-callback shared pairs and the zero-target tolerance
+issue remain unresolved. Neither static passes nor the old preview closes them.
+
+External resume condition: restore a working approval review/model, then
+authorize the same local Unity test command:
+
+`env ONE_EQUALS_ONE_PLAYMODE_RESULTS=/tmp/one-equals-one-identity-batch4-play.xml ONE_EQUALS_ONE_PLAYMODE_LOG=/tmp/one-equals-one-identity-batch4-play.log bash scripts/verify-one-plus-one-minus-one-playmode.sh`
+
+After it passes: fresh QA build; changed/neighbor inputs for 10/11/12,
+32/33/34, 47/48/49, 82/83/84; small-screen alternatives and save regression.
+Then native reproduction/correction review for `1 / 11 111` at target zero,
+followed by remaining shared-resource redesign in verified batches. Existing
+WebGL is still batch 3 and native iOS build 2 is unchanged. No commit, push,
+merge, upload or deployment was performed.
+
+## Round Identity Solution Inventory (2026-09-15, Node Analysis Only)
+
+Added `enumerateRoundSolutions` and the report's `--solutions 11,33,48,83`
+mode, with bounded nodes/results and explicit completeness/limit reasons.
+Canonical registered token arrays are enumerated, with adjacent numeral
+concatenation and both arithmetic and player-made equalities. The `x` alias
+is represented by `×`; physical poses and human solution strategies are not
+counted. Small-board results match an independent unpruned token-product
+traversal through the existing acceptance predicate. No game data or runtime
+code changed in this follow-up.
+
+RED: missing enumerator fails three tests; missing CLI fails its JSON test.
+Final Node suite passes 32/32; 100 samples, native/sample parity and static
+verification pass, with old-build/external readiness warnings retained in
+`batch4-inventory-static.log`. The scoped diff whitespace check passes;
+unrelated 2048-blink generated-file whitespace was left untouched.
+A first expected-count assertion also exposed
+an actual acceptance behavior: Round 48 accepts `1 / 11 111` and `1 / 111 11`
+for target zero, because 1/11111 is nonzero but below the current 0.0001
+tolerance. Both the Node mirror and C# `TargetTolerance` use this threshold.
+The test now characterizes that behavior instead of suppressing those answers.
+This is an open numerical-correctness risk, NOT an approved alternate exact
+answer or a player/native reproduction. Do not change the tolerance blindly;
+native regressions must cover legitimate fractional cancellation as well.
+
+| Round | Complete canonical accepted arrays | Interpretation |
+| --- | ---: | --- |
+| 11 | 1 | Sample only; no second distinct answer claimed. |
+| 33 | 2 | Two packings of the adjacent triple-one operand. |
+| 48 | 6 | Four exact-zero subtraction arrays plus two tolerance-admitted divisions. |
+| 83 | 3 | Three registered-token packings of 1111 divided by 11. |
+
+Initial per-round limits of 200,000 nodes / 1,000 answers complete 86 rounds.
+Only incomplete rounds were expanded to 2,000,000 / 10,000, then remaining
+ones to 10,000,000 / 100,000. Final completeness: 98/100 in this Node grammar.
+Rounds 61 and 78 hit the final node limit with 12,377 and 11,524 known arrays;
+these are lower bounds, not full counts. Full token sets are not human gameplay
+or native numerical equivalence proofs. The 10,000 native/sample comparison
+still passes, but it does not cover all these newly enumerated arrays.
+
+All 14 currently shared resource pairs have complete sets. Only 30/100 has an
+identical full canonical accepted set (315 arrays each). Substantial partial
+reuse remains: 64/76 share 2,710 of 3,145 / 3,231 arrays; 22/95 share 167 of
+216 / 185; 25/96 share 14 of 66 / 15. These support continued redesign, not a
+claim that the remaining pairs are adequately differentiated. Keep the 12
+non-callback pairs open. Round 48's numerical issue is a separate correctness
+item, not a reason to ban division or another token.
+
+Reproduce selected inventories with:
+
+`node scripts/report-one-plus-one-minus-one-round-quality.mjs --solutions 11,33,48,83 --strict`
+
+For bounded larger searches, use `--max-nodes` and `--max-solutions`;
+`--strict` fails incomplete enumeration. Evidence in the existing identity
+folder: `batch4-solution-inventory*.json`, `batch4-solution-summary.json`.
+The summary records source SHA256, per-round budgets and shared-set counts.
+
+The same reviewed PlayMode command was retried at this continuation's start
+and again rejected before process creation by the approval service's capacity
+error. That is three requests across two affected goal turns, not a Unity
+test failure. No alternate execution route was used. Batch 4 player/build
+verification remains pending; the old batch 3 preview is not new evidence.
+Resume with that verification, then reproduce the zero-target tolerance case
+in native tests and input before choosing a correctness fix. Further round
+data changes remain gated on closing batch 4's player-verification gap.
+
+## Round Identity Batch 4 (2026-09-15, EditMode Passed / Runtime Pending)
+
+Four data changes are applied, not yet validated in a fresh player build:
+
+| Round | Previous sample | Current source sample | Reason |
+| --- | --- | --- | --- |
+| 11 | 11 - 1 | 1 1 - 1 | Preserve target 10 and four sticks, but require neighboring-number construction; 1 = 1 no longer fits four slots. |
+| 33 | 11 - 1 - 1 | 1 11 - 1 | Fewer slots/sticks, split triple-one packing instead of two repeated subtractions; removes the equality shared with 21. |
+| 48 | 1 1 - 1 | 111 - 1 11 | Moves the former Round 11-equivalent condition to a packed/split triple-one comparison so the coupled edit does not recreate a duplicate. |
+| 83 | 111 + 1 - 1 1 | 11 11 / 11 | Preserve target 101 while reducing six slots/nine sticks to four/seven. Adjacent registered 11 tokens form 1111 before division; no new 1111 token or recognition rule is introduced. |
+
+Initial three regressions fail Node 17/20 and EditMode 43/46, then pass after
+the coupled edit. The added 83 regression separately fails Node 20/21 and
+EditMode 46/47 before its data change. Final EditMode passes 47/47, all 100
+samples and 10,000 native/Node sample pairs match. Each test rejects the former
+shared answer, preserves its valid owner and accepts a revised answer. For 11
+that last answer is its sample, not a claimed second distinct solution; 33/48/83
+also have differently packed alternatives awaiting actual input verification.
+
+Current source: 49 cumulative changed indices, 60 resource pairs, 14 proven
+shared-equality pairs (batch 3: 18), and 14 directed sample transfers (unchanged).
+Mean slots decreases 5.88 -> 5.86; mean sticks stays 9.00; maximum remains 18.
+The only exact duplicate is the explicit 30/100 title callback. These figures
+describe source/evaluator results, not a new verified browser build or 100
+independent human experiences. Remaining 14 pairs include 2/5 and 30/100;
+at least 12 further resource reassignments are still needed for the others.
+
+The old candidate search excluded composed numbers above 111 and missed 83's
+shorter 101 solution. The expanded bounded search allows numeric operands up to
+1111, formed only from registered 1/11/111 tokens, integer results -2..122,
+2-5 terms, at most one split operand, 11 slots and 18 sticks. Its 600,000
+deterministic attempts produce 314 candidate condition/target keys across 24
+resource pairs. This is not exhaustive, does not find every coupled reassignment,
+and its workload scores do not measure fun or human difficulty.
+
+The search is now exported by the shared identity module and available through:
+
+`node scripts/report-one-plus-one-minus-one-round-quality.mjs --candidates --samples 600000 --seed 15092026`
+
+It suggests candidates without editing the game. Tests cover reproducibility,
+input immutability, supported tokens, budgets/seeds, numerical validity, unique
+condition keys and rejection of occupied/shared-equality conditions. The CLI
+test exposed a real truncation: console output followed by immediate exit lost
+the tail of large piped JSON (25/26 tests). Both JSON modes now await stdout's
+write callback. All 26 Node tests pass; a complete 288,500-character candidate
+report parses correctly. Candidate values match the temporary search's 314
+results; tie ordering is now locale independent. Existing static verification
+includes these tests automatically. The temporary helper delegates to the
+shared implementation instead of keeping a second solver.
+
+Runtime gap: PlayMode did not start. Both normal approval attempts were rejected
+by the approval service with `Selected model is at capacity` (the second also
+mentions a remote compact task). Script review and `bash -n` confirm a local
+Unity test plus /tmp XML/log parsing only; the retry used the same command,
+not a bypass. This is an execution-service problem, not a failed game test or
+a live process to poll. No QA/ordinary/capture build or browser run follows it.
+Hashes confirm all three WebGL outputs still match `batch3-builds.json`; the
+preview remains the older verified 47-index / 18-shared-pair candidate. Native
+iOS build 2 is also unchanged. Static passes with an expected build-freshness
+warning plus the existing external environment/device warnings.
+
+Evidence prefix: `artifacts/one-equals-one/2026-09-15-round-identity/batch4-*`.
+`batch4-verification-status.json` separates source passes from missing runtime
+evidence. Also see `resource-candidate-pool-v2.json` / `-v3.json` and the full
+candidate CLI JSON. No commit, push, native export or deployment occurred.
+
+Resume first: run the same PlayMode command after approval-service recovery,
+then fresh QA and actual input for 10/11/12, 32/33/34, 47/48/49, 82/83/84.
+Check 11's sample and alternatives in 33/48/83 at 320x568, followed by ordinary
+and capture builds, first-ten/save and relevant viewport checks. Do not add more
+unvalidated round edits before closing this gap. Next candidate review can use
+6/13's `11 * 111 - 11 11` and 8/9's reciprocal cancellation, but neither is
+assigned or approved as a better puzzle yet. The goal is active, not complete.
+
+## Round Identity Batch 3 (2026-09-15, Verified Candidate / Goal Open)
+
+Continued from batch 2's 22 proven shared-equality pairs. This coupled batch
+preserves 100 indices, free recognition, alternate answers and the ad policy:
+
+| Round | Previous sample | Revised sample | Reason |
+| --- | --- | --- | --- |
+| 35 | 1 / 1 + 1 1 | 11 - 1 1 | Shorter comparison of packed and neighboring numbers; frees its old condition for 43 without creating another duplicate. |
+| 43 | 11 / 1 + 1 | 1 / 1 + 1 1 | Keeps target 12 but removes the equality shared with 16; six slots/seven sticks has no valid equality in the searched grammar. |
+| 57 | 111 - 11 = 111 - 11 | 111 + 11 = 11 + 11 1 | Replace identical sides with reordered terms and different number packing, removing the shared answer with 44. |
+| 75 | 1 * 1 + 1 = 1 + 1 | 111 = 11 1 + 11 - 11 | One packed side versus a split number and cancelling pair; eight instead of nine slots, distinct resources from 55. |
+| 88 | 11 * 11 - 11 1 | 111 - 111 / 111 * 11 | A mixed-precedence challenge: correct result 100 versus left-to-right 0; removes sharing with 82. |
+
+New finding: `IsRoundSolved` checked total sticks but not token-array length.
+The controller already supplies the board's fixed slot array, but the raw API
+accepted two separate ones in the single-slot Round 6 and one packed 11 in
+two-slot Round 7. Both new regression tests fail before the guard (0/2).
+The guard now enforces the existing board contract, not a new token restriction.
+The native cross-matrix no longer has a separate length pre-filter: all 10,000
+pairs go through the actual rules API and match Node acceptance directly.
+
+Pre-change redesign tests: Node 12/17, EditMode 35/41; separate slot-contract
+regressions 0/2. Final: Node 17/17, EditMode 43/43, PlayMode 37/37, all 100 data
+samples and strict quality gates pass. Exact duplicate exception stays 30/100.
+Resource pairs 57 -> 60; shared-equality pairs 22 -> 18; directed sample transfers
+18 -> 14. Mean slots stays 5.88; mean sticks 8.94 -> 9.00, below original 9.12;
+maximum stays 18. Cumulative changed indices: 47. None of these metrics proves
+100 different answer sets or human difficulty/fun.
+
+Fresh QA touch passes 34/35/36, 42/43/44, 56/57/58, 74/75/76 and 87/88/89.
+Separate 320x568 input passes alternatives in all five changed rounds, with
+filled captures inspected for triple sticks, equality, target 100 and footer
+separation. A detector-only failure at small-screen Round 57 is preserved:
+eight visible boxes became six connected ink components because neighboring
+hand-drawn outlines touched. The temporary input harness now finds separate
+slot interiors by fill color, also waiting past the dim startup transition.
+The preserved failure image yields eight interiors/sixteen bank sticks, then
+all five alternative inputs pass on the unchanged game binary. Assertions and
+game rules were not weakened to hide the detector failure.
+
+Fresh QA/ordinary/store-capture WebGL builds pass. Ordinary first-ten input,
+focus/cancel edges and saved progress 11 pass. A separate run renders all five
+viewport sizes, with SE/desktop boundaries inspected; this is browser QA, not
+native device or human pacing signoff. Static passes with the existing external
+environment/device warnings. Existing iOS config is not absent just because
+this shell did not load release env values. Previous picker/final-state evidence
+is retained for unchanged code/data, not reported as a new 100-round playthrough.
+
+Evidence: `artifacts/one-equals-one/2026-09-15-round-identity/batch3-*`, including
+failed/passing XML, cross-matrix, changes, build SHA-256, input and viewport images.
+Preview returns HTTP 200 at `http://127.0.0.1:8093/`. Only generated scene IDs and
+settings whitespace were removed afterward. No commit, native build or upload.
+
+Sixteen resource groups still produce 18 shared-equality pairs. Apart from the
+tutorial 2/5 and title 30/100 recurrences, eliminating them requires at least
+15 further resource reassignments. No impossibility claim is made. Filtering the
+old bounded candidate pool rejects division-by-one chains and long target-9
+subtraction variants rather than replacing 33 solely for a better count.
+Next unimplemented coupled candidate: 11 `1 1 - 1`, 33 `1 11 - 1`, 48
+`111 - 1 11`. In-memory analysis passes identity gates, reduces shared pairs to
+15 and keeps mean slots 5.88 / mean sticks 9.02. It preserves 11's target and
+stick count, introduces split triple-one packing earlier, and moves 48 out of
+11's new condition. Still needs native red tests, data edits, neighboring input
+and a review of whether this improves actual judgments. It is NOT in this build.
+The identity goal remains active; remaining reuse is not an external blocker.
+
+## Round Identity Batch 2 (2026-09-15, Verified Candidate / Goal Open)
+
+Continued from the verified 40-index candidate instead of treating its remaining
+27 shared pairs as an external blocker. Bounded deterministic sampling produced
+386 candidate condition/target keys across 28 resource pairs, with integer
+targets -2..122, literals at most 111, at most one split number and 11 slots /
+18 sticks. It is NOT exhaustive; the score estimates placement/redundant-operation
+cost, not human difficulty or fun. `resource-candidate-pool.json` records scope.
+
+Selected batch changes resources, not recognition or the equality rule:
+
+| Round | Previous sample | Revised sample | Reason |
+| --- | --- | --- | --- |
+| 38 | 1 1 × 11 | 1 1 × 1 | Keep the middle band's cross-multiply practice; four slots/five sticks has no valid equality, unlike 18/38's former resources. |
+| 39 | 11 + 11 | 111 + 11 | Three slots/seven sticks removes the reusable 11 = 11; mix two number sizes rather than force a symbol. |
+| 52 | 11 / 11 = 1 | 1 11 / 111 | Number packing and division preserve target 1 with one fewer slot/stick; no equality witness exists at four/seven. |
+| 70 | 111 / 1 = 111 | 111 * 111 / 111 | Keep the compact five-slot shape but require a different resource allocation; preserves 87's meaningful precedence challenge unchanged. |
+| 90 | 11 + 1 × 1 - 1 | 11 - 1 1 - 1 | Return to the negative target introduced at 50 with packing and fewer placements; eliminates 19/90's common equality. |
+
+Five new Node/Unity regressions reject the old shared answer in the revised
+round, still accept it in its unchanged owner, and accept a valid alternative
+in the revised round. Before edits: Node 7/12, Unity 31/36. After edits: Node
+12/12 and Unity 35/35. The old Round 70 equality fixture is replaced by the
+stronger resource/owner/alternative case; Round 87's equality and precedence
+coverage remains. Native/Node sample parity passes all 10,000 pairs.
+
+The first candidate removed the middle band's only cross-multiply sample;
+the existing band check failed and prompted the revised 38 shown above. The
+check was not weakened. Current data/strict quality pass with remaining reuse
+explicitly warned. Shared equality pairs: 27 -> 22; resource pairs: 56 -> 57;
+mean sticks: 8.95 -> 8.94; mean slots: 5.90 -> 5.88. Exact duplicate exception
+remains only 30/100. This is still not 100 independent answer sets.
+
+Fresh QA input passes 37/38/39/40, 51/52/53, 69/70/71 and 89/90/91. Separate
+320x568 touch input passes alternatives `1 × 1 1`, `11 + 111`, `11 1 / 111`,
+`111 / 111 * 111`, and `1 1 - 11 - 1` in the corresponding five changed rounds.
+All five filled small-screen captures were inspected; targets 122/-1/111,
+triple sticks and the cross/star silhouettes remain visible. These tests use
+known inputs and QA-seeded progress, not unassisted human solving or sample-fill.
+
+PlayMode initially fails 36/37 because its target hide/restore test expects the
+old Round 39 target 22. It now derives the target from the selected round and
+asserts that value both before and after the same rotation sequence; hiding,
+restoring and no slot movement assertions remain. Full PlayMode passes 37/37.
+The old failure XML is preserved; it is a stale fixture, not a new UI regression.
+Fresh QA/ordinary/capture WebGL builds pass, as does static verification with
+the existing external environment/device warnings. The ordinary build renders
+in five viewport sizes; the small/desktop boundaries were inspected. SHA-256
+fingerprints are in `batch2-builds.json`. The preview responds HTTP 200 at
+`http://127.0.0.1:8093/`. Only build-generated scene IDs/settings whitespace were
+removed afterward; no gameplay data was reverted.
+
+This batch changes neither saved indices/keys, first-ten samples, picker code,
+last-round data nor ads. Their previous final-state/first-ten browser evidence
+is retained rather than claimed as a new full-game replay. Current PlayMode
+also rechecks all 100 target layouts and picker pages. Native device and human
+pacing signoff remain open. Earlier screenshots and native build 2 are not
+proof of the five revised expressions. Evidence prefix:
+`artifacts/one-equals-one/2026-09-15-round-identity/batch2-*`.
+
+Cumulative difference from the original baseline is now 44 indices. Twenty
+resource groups still yield 22 shared equality pairs, recorded in
+`batch2-remaining-reuse.json`; preserving tutorial/title recurrence still leaves
+a lower bound of 19 further resource reassignments. No impossibility or complete
+solution-set claim is made. Next inspect 16/43, 21/33 and 82/88 against the
+bounded candidate pool, and reject replacements that only add repetitive
+division-by-one or a longer board. The active identity goal is not complete.
+
+## Round Identity Redesign (2026-09-15, Verified Candidate / Reuse Open)
+
+Baseline and candidate evidence is under
+`artifacts/one-equals-one/2026-09-15-round-identity/`. The actual rule is a
+resource-valid expression matching the target OR a valid player-built equality.
+An equality in SampleSolution does not select a separate puzzle mode.
+
+| Metric | Baseline | Latest candidate |
+| --- | --- | --- |
+| Distinct slot/stick pairs | 38 | 56 |
+| Identical resource/numeric-target groups | 10 | 1 |
+| Directed sample transfers to other rounds | 89 | 23 |
+| Unordered pairs with a proven common equality | 158 | 27 |
+| Common-equality pairs within three rounds | 15 | 1 (tutorial 2/5) |
+| Mean sticks / maximum sticks | 9.12 / 18 | 8.95 / 18 |
+| Mean slots | 5.67 | 5.90 |
+
+These are NOT counts of unique puzzles or complete answer-set similarities.
+The remaining identical group is exactly Round 30/100: the same title expression
+first closes the original short sequence and returns as the final callback.
+This is a narrow, checked exception, not permission for additional duplicates.
+Tutorial 2/5 still permits `1 = 1`; teaching two gestures does not make their
+answer sets independent. No token restriction was added to force that lesson.
+
+Forty indices differ from baseline: 12, 18, 23, 24, 27, 29, 31, 32, 34-38,
+41, 42, 45, 47-51, 56, 58, 63, 67, 68, 71, 74, 77, 80-84, 86, 88, 89,
+91, 93, 98. Names, indices, save keys and the first ten samples are preserved.
+The JSON snapshots give exact before/after expressions and resource conditions.
+Examples: 12 separates division from the three-slot star puzzle; 18 introduces
+an equality with number packing; 48/67 share four single sticks but no equality
+exists in that grammar, and their different targets require different answers.
+34 and 84 use equality-free resource conditions instead of merely changing a
+target. 56/71 exchange positions to remove nearby reuse; that exchange is a
+pacing change, NOT increased identity. 50 introduces a supported negative target.
+
+### Remaining Reuse And Design Boundary
+
+The report deliberately retains an unresolved shared-equality section. Apart
+from the explicit title/tutorial cases, distant shared pairs are not signed off
+as educational exceptions. In particular 2/5/11 share one witness, while
+14/52, 19/90, 22/95 and 65/94 illustrate reuse spanning large distances.
+All groups and concrete witnesses are in final-candidate.json. Moving them
+apart reduces immediate repetition but does not remove their common answers.
+
+For any two rounds with the same slot/stick resources, a valid equality witness
+is accepted independently of both targets. Therefore changing only target,
+title or sample CANNOT remove that overlap under the current rules. Further
+removal requires changing resource conditions, accepting explicit recurrence,
+or separately authorizing a rule change. A token ban or target-bound equality
+would change existing valid answers and was not introduced. More resource
+variants can increase concatenation, calculation or placement burden; they are
+not automatically better puzzles. No impossibility of 100 distinct answer sets
+is claimed. Human pacing review and the user's recurrence preference remain open.
+The 25 disjoint resource groups contain 27 shared pairs. Eliminating every such
+pair requires at least 26 resource reassignments; preserving tutorial 2/5 and
+title 30/100 still requires at least 24. This is a lower bound from the groups,
+not proof that further redesign is impossible. Per-group dispositions are in
+`remaining-reuse-review.json`; they remain open, not silently approved exceptions.
+
+The search stops at the first witness or 200,000 visited nodes per resource
+pair, with found/exhausted/limited reported separately. It covers supported
+number tokens, concatenation and a single equality; `x` is represented by its
+equivalent `\u00d7`. It is not a full solution enumerator. Node sample acceptance is
+cross-checked against the real Unity evaluator for all 10,000 sample/round pairs.
+
+### Verification Results
+
+Final candidate EditMode 31/31 and PlayMode 37/37 pass. The new aspect-ratio
+test first failed at six slots / logical width 390 (1.088 ratio). Limiting
+width together with the height cap fixes all 1-11 slot plans at four widths,
+with both target display modes. Round data and strict identity checks pass.
+The quality report now explicitly warns about the 27 shared pairs even when
+its blocking duplicate/nearby/coverage gates pass.
+
+- QA, ordinary and store-capture WebGL builds succeed. `final-builds.json`
+  records hashes/timestamps. No native build, upload, commit or push was done.
+- Candidate-1 actual touch covers 75 distinct rounds. The final four data edits
+  (34/56/71/84) and their neighbors were replayed on the final binary. Combined
+  input records cover 78 distinct mid/late rounds, including all 40 changed
+  indices with their final expressions. Initial placement uses known samples,
+  not blind solving and not sample-fill hooks.
+- Separate final ordinary-build first-ten/save input regression passes. This
+  does not constitute a single natural playthrough from Round 1 to Round 100.
+- At 320x568, actual placement/rotation/check pass for 34, 84 and 100. Inspected
+  filled captures retain six-slot aspect, `= 111`, triple sticks and end text.
+  Candidate-1 input also covered 18-stick/11-slot layouts (97/78).
+- Five final ordinary-build viewport renders were inspected. All nine picker
+  pages were traversed both ways in a separate final-binary state fixture.
+- That state fixture intentionally uses QA sample-fill only to establish the
+  final board. Actual Check emits the clear and milestone-100 candidate event;
+  WebGL does not show a native ad. Reload without QA query opens page 9 with
+  Done retained and Sound off. Reset also preserves completion. Evidence is
+  `final-state/`; do not conflate this fixture with the actual placement tests.
+- Static verification passes with external environment/device signoff warnings.
+  Existing iOS settings were not deleted or deemed absent simply because this
+  shell did not load release environment variables. Native/audio/human pacing
+  evidence remains outside these browser tests. Previously generated store
+  submission screenshots need refresh before any newly authorized upload.
+
+Current result: a verified 40-index redesign and a reproducible identity gate,
+NOT 100 independent answer sets or complete game release. Next design decision
+is how much distant recurrence to retain before another resource-changing batch;
+do not remove accepted equalities or add symbol restrictions without approval.
+
+## Post-Checkpoint Investigation (2026-09-15, Local Gates Passed)
+
+Base `26d8508a`; prior blocked suite now passes 36/36, with EditMode 29/29.
+A new interleaving (old finger down, pause/resume, new finger down, old click)
+reproduces an unwanted rotation: red result 36/37. Tracking accepted pointer ID
+and guarding drag-state mutation fixes it; full PlayMode is now 37/37. The test
+also sends the old begin/drag/end before releasing the new finger.
+
+The final QA binary has SHA-256 WASM
+`ed49b0b0937de6d21f204fc3960e54a755c9b174674702b724bddc2d4fae84ea`
+and data `064561c67bf83cc4c889a0611ca4b11a83e35bef5b2ac39feabad2fa8ba55ccb`.
+Its observed session begins 05:18:56 UTC, time origin 1789449526207.9.
+Trace/screenshots: `artifacts/one-equals-one/2026-09-15-post-checkpoint/final-browser/`;
+observations and CDP responses are timestamped in `trace.jsonl`. Observed end
+05:49:15.694 UTC: 1818.709 seconds (30m18s), 66 observations, unchanged time
+origin and binary hashes, no captured runtime exception or runner error.
+Planned idle gaps and observed tab hiding are included; the old stopped session
+is excluded. This is sampled observation, not continuous frame inspection.
+
+Final-binary input checks so far:
+- Three separate `111` removals and three transfers preserve `11`, free-stick
+  counts and destination `1`; further `11 -> 1` return is also visible.
+- Actual tab hiding is verified with `document.hidden=true`. Held-drag return
+  clears its ghost, ignores late release, and accepts a fresh rotation.
+- Two-finger release evidence was initially ambiguous due to an invalid CDP
+  command. The protocol requires empty touch points for touchEnd; changing the
+  active set with touchMove releases only the removed point. The first-ten
+  script is corrected, and its full input/save regression passes again.
+- After correcting that sequence, DOM tracing confirms finger 0 then finger 1
+  release order. The old-finger screenshot retains the vertical bank stick;
+  only the fresh release turns it into slash. This is browser emulated touch,
+  not a physical-device suspension test.
+- All nine picker pages are reachable; page 9 preserves control positions and
+  keeps rounds 97-100 locked when the QA seed unlocks through 96 only.
+- Round 96 is entered through the picker. Known expression
+  `111 - 1 - 1 / 1` yields `Makes 109.` against 108, at 390 and 320 widths.
+  This is deliberate regression input, not blind novice solving.
+- After 11 failed checks, changing the slash to minus clears 96 as 108;
+  telemetry excludes the hard clear from ad eligibility. Round 97 accepts
+  `111 = 111 + 11 - 11 x 1`, a valid alternative to its sample, through actual
+  placement. Rounds 98/99 clear as 101/99, and 100 as the title expression.
+- Round 100 displays `Goal Mode clear!`; the picker marks 97-100 Done. A second
+  check is classified as replay and excluded from ad eligibility. Milestone
+  100's first clear is eligible in telemetry but WebGL shows no native ad.
+- All placements above are real emulated touch, not sample-fill hooks. QA
+  initially seeded progress through 96; this is not a natural 100-round run.
+- The ordinary first-ten/save regression passes with the corrected partial
+  touch release. Five ordinary-build viewports were rendered and inspected:
+  small/standard/large iPhone sizes, Android 20:9 and desktop. No native
+  device, human difficulty or speaker/headphone signoff is inferred.
+- Final repeat groups comprise eight short manipulation cycles, ten small-screen
+  equation cycles and ten muted Round 100 replay cycles. A fourth stick dropped
+  into `111` is rejected with `Box fits 3.` and eight of eleven remain in bank.
+- After the end marker, navigation without QA query parameters opens page 9
+  with 97-100 Done and Sound off. Reset/replay did not erase completion.
+  This reload has a new time origin and is not counted in endurance duration.
+- Browser JS heap samples range from 6,862,724 to 9,570,192 bytes, ending at
+  8,466,848; listeners peak at 173 and return to 48, DOM nodes stabilize at
+  112 after startup, and AudioHandlers peak at 125 then fall to nine. No
+  forced collection was requested. These are browser metrics, not a native
+  memory-leak verdict. See generated `soak-summary.json` for exact bounds.
+
+Local checkpoint: the pending verification gaps and newly reproduced pointer
+issue are resolved in the inspected scope. Next meaningful gate is a separately
+authorized native candidate containing these fixes, then real-device old/fresh
+finger suspension, long-session labels/audio and ad-return verification. Keep
+human pacing assessment and production console evidence open; do not invent
+additional code changes solely to extend the run.
+
+Protocol reference checked:
+[Chrome DevTools Input protocol](https://github.com/ChromeDevTools/devtools-protocol/blob/master/pdl/domains/Input.pdl).
+The initial 5m40s session before the pointer fix is separate, not added to this
+final-binary run. Native touch, listening and production SDK checks remain open.
+
 ## Approval-Blocked Resume: QA Reliability (2026-09-14)
 
 The requested full PlayMode retry did not start: automatic approval failed with

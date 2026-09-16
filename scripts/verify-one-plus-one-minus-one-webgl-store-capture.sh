@@ -14,9 +14,10 @@ if [[ ! -x "$unity_editor" ]]; then
   fi
 fi
 
-unity_cli="${HOME}/.unity/bin/unity"
 build_log="/tmp/one-plus-one-minus-one-unity-webgl-store-capture-build.log"
 missing=0
+
+. "$repo_root/scripts/lib-one-plus-one-minus-one-unity-license.sh"
 
 require_file() {
   local path="$1"
@@ -41,16 +42,7 @@ if [[ ! -x "$unity_editor" ]]; then
   exit 2
 fi
 
-if [[ ! -x "$unity_cli" ]]; then
-  echo "Unity CLI not found: $unity_cli" >&2
-  exit 2
-fi
-
-license_state="$("$unity_cli" license --json 2>/dev/null || true)"
-if ! python3 -c 'import json,sys; data=json.load(sys.stdin).get("data", []); sys.exit(0 if data else 1)' <<< "$license_state"; then
-  echo "No Unity Editor license found. Activate a license in Unity Hub before running this script." >&2
-  exit 2
-fi
+check_one_plus_one_minus_one_unity_license "this script" || exit 2
 
 "$repo_root/scripts/verify-one-plus-one-minus-one-rounds.mjs"
 

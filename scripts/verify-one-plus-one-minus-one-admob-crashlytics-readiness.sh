@@ -13,8 +13,8 @@ android_build="$project/Assets/_Project/Editor/BuildAndroidAab.cs"
 gma_settings="$project/Assets/GoogleMobileAds/Resources/GoogleMobileAdsSettings.asset"
 gma_linker="$project/Assets/GoogleMobileAds/link.xml"
 crashlytics_settings="$project/Assets/Editor Default Resources/CrashlyticsSettings.asset"
-firebase_plist="$project/Assets/GoogleService-Info.plist"
-firebase_android_json="$project/Assets/google-services.json"
+firebase_plist="${ONE_EQUALS_ONE_FIREBASE_IOS_CONFIG:-$project/Assets/GoogleService-Info.plist}"
+firebase_android_json="${ONE_EQUALS_ONE_FIREBASE_ANDROID_CONFIG:-$project/Assets/google-services.json}"
 readme="$project/README.md"
 failures=0
 warnings=0
@@ -48,18 +48,22 @@ require_text() {
 }
 
 warn_or_fail_missing_config() {
+  local label="$1"
   local path="$1"
+  if [[ "$#" -gt 1 ]]; then
+    path="$2"
+  fi
   if [[ -f "$path" ]]; then
     return
   fi
 
   if [[ "${REQUIRE_FIREBASE_CONFIG:-0}" == "1" ]]; then
-    echo "Missing Firebase config: $path" >&2
+    echo "Missing Firebase $label config: $path" >&2
     failures=1
     return
   fi
 
-  echo "Warning: Firebase config not present yet: $path" >&2
+  echo "Warning: Firebase $label config not present yet: $path" >&2
   warnings=1
 }
 
@@ -106,20 +110,26 @@ warn_or_fail_test_production_ad_unit_env() {
   fi
 
   if [[ "${REQUIRE_PRODUCTION_ADMOB_IDS:-0}" == "1" ]]; then
-    echo "Production AdMob ad unit env uses Google's test ID: $name ($env_name)" >&2
+    echo "Production AdMob env uses Google's test ID: $name ($env_name)" >&2
     failures=1
     return
   fi
 
-  echo "Warning: production AdMob ad unit env uses Google's test ID: $name ($env_name)" >&2
+  echo "Warning: production AdMob env uses Google's test ID: $name ($env_name)" >&2
   warnings=1
+}
+
+has_placeholder_text() {
+  local value
+  value="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  [[ "$value" == *xxxx* || "$value" == *replace* ]]
 }
 
 warn_or_fail_placeholder_production_admob_env() {
   local name="$1"
   local env_name="$2"
   local value="${!env_name:-}"
-  if [[ "$value" != *XXXX* && "$value" != *replace* && "$value" != *REPLACE* ]]; then
+  if ! has_placeholder_text "$value"; then
     return
   fi
 
@@ -138,7 +148,7 @@ warn_or_fail_invalid_production_admob_env() {
   local env_name="$2"
   local pattern="$3"
   local value="${!env_name:-}"
-  if [[ -z "$value" || "$value" == *XXXX* || "$value" == *replace* || "$value" == *REPLACE* ]]; then
+  if [[ -z "$value" ]] || has_placeholder_text "$value"; then
     return
   fi
 
@@ -210,8 +220,8 @@ require_text "$readme" "Firebase / Crashlytics"
 require_text "$readme" "AdMob"
 require_text "$readme" "Release Checklist"
 
-warn_or_fail_missing_config "$firebase_plist"
-warn_or_fail_missing_config "$firebase_android_json"
+warn_or_fail_missing_config "iOS" "$firebase_plist"
+warn_or_fail_missing_config "Android" "$firebase_android_json"
 warn_or_fail_missing_production_admob_env "iOS app ID" "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_APP_ID"
 warn_or_fail_missing_production_admob_env "Android app ID" "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_ANDROID_APP_ID"
 warn_or_fail_missing_production_ad_unit_env "iOS interstitial" "MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_INTERSTITIAL_ID"

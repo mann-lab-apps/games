@@ -2,7 +2,9 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$repo_root/scripts/lib-one-plus-one-minus-one-unity-license.sh"
 project="$repo_root/prototypes/one-plus-one-minus-one"
+firebase_ios="${ONE_EQUALS_ONE_FIREBASE_IOS_CONFIG:-$project/Assets/GoogleService-Info.plist}"
 project_unity_version="$(awk '/m_EditorVersion:/ {print $2; exit}' "$project/ProjectSettings/ProjectVersion.txt")"
 unity_version="${UNITY_EDITOR_VERSION:-$project_unity_version}"
 unity_root="/Applications/Unity/Hub/Editor/$unity_version/Unity.app/Contents"
@@ -14,9 +16,27 @@ if [[ ! -x "$unity_root/MacOS/Unity" ]]; then
 fi
 
 unity_editor="$unity_root/MacOS/Unity"
-unity_cli="${HOME}/.unity/bin/unity"
 ios_engine="$(dirname "$(dirname "$unity_root")")/PlaybackEngines/iOSSupport"
-mode="${1:-release}"
+mode="release"
+preflight_only=0
+for arg in "$@"; do
+  case "$arg" in
+    release|crashlytics-test|admob-test)
+      mode="$arg"
+      ;;
+    --preflight-only)
+      preflight_only=1
+      ;;
+    --help|-h)
+      echo "Usage: $0 [release|crashlytics-test|admob-test] [--preflight-only]" >&2
+      exit 0
+      ;;
+    *)
+      echo "Usage: $0 [release|crashlytics-test|admob-test] [--preflight-only]" >&2
+      exit 64
+      ;;
+  esac
+done
 build_log="/tmp/one-plus-one-minus-one-unity-ios-${mode}-build.log"
 missing=0
 warnings=0
@@ -44,10 +64,6 @@ case "$mode" in
     output_path="$project/Builds/iOS/AdMobTestXcode"
     expected_gad_app_id="ca-app-pub-3940256099942544~1458002511"
     ;;
-  *)
-    echo "Usage: $0 [release|crashlytics-test|admob-test]" >&2
-    exit 64
-    ;;
 esac
 
 warn_or_fail() {
@@ -63,10 +79,16 @@ warn_or_fail() {
   warnings=1
 }
 
+has_placeholder_text() {
+  local value
+  value="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  [[ "$value" == *xxxx* || "$value" == *replace* ]]
+}
+
 warn_or_fail_placeholder() {
   local message="$1"
   local value="$2"
-  if [[ "$value" != *XXXX* && "$value" != *replace* && "$value" != *REPLACE* ]]; then
+  if ! has_placeholder_text "$value"; then
     return
   fi
 
@@ -77,7 +99,7 @@ warn_or_fail_invalid_admob_id() {
   local message="$1"
   local value="$2"
   local pattern="$3"
-  if [[ -z "$value" || "$value" == *XXXX* || "$value" == *replace* || "$value" == *REPLACE* ]]; then
+  if [[ -z "$value" ]] || has_placeholder_text "$value"; then
     return
   fi
 
@@ -112,25 +134,18 @@ require_file() {
   fi
 }
 
-if [[ ! -x "$unity_editor" ]]; then
-  echo "Unity Editor not found: $unity_editor" >&2
-  missing=1
-fi
-
-if [[ ! -d "$ios_engine" ]]; then
-  echo "Unity iOS Build Support is not installed: $ios_engine" >&2
-  missing=1
-fi
-
-if [[ ! -x "$unity_cli" ]]; then
-  echo "Unity CLI not found: $unity_cli" >&2
-  missing=1
-else
-  license_state="$("$unity_cli" license --json 2>/dev/null || true)"
-  if ! python3 -c 'import json,sys; data=json.load(sys.stdin).get("data", []); sys.exit(0 if data else 1)' <<< "$license_state"; then
-    echo "No Unity Editor license found. Activate a license in Unity Hub before running this script." >&2
+if [[ "$preflight_only" -eq 0 ]]; then
+  if [[ ! -x "$unity_editor" ]]; then
+    echo "Unity Editor not found: $unity_editor" >&2
     missing=1
   fi
+
+  if [[ ! -d "$ios_engine" ]]; then
+    echo "Unity iOS Build Support is not installed: $ios_engine" >&2
+    missing=1
+  fi
+
+  check_one_plus_one_minus_one_unity_license "this script" || missing=1
 fi
 
 if [[ ! -f "$project/Assets/_Project/Art/AppIcon-1024.png" ]]; then
@@ -153,18 +168,21 @@ else
 fi
 
 if [[ "$mode" != "admob-test" ]]; then
-  if [[ ! -f "$project/Assets/GoogleService-Info.plist" ]]; then
-    warn_or_fail "Missing Firebase iOS config: $project/Assets/GoogleService-Info.plist" "${REQUIRE_FIREBASE_CONFIG:-0}"
-  elif ! /usr/libexec/PlistBuddy -c 'Print :BUNDLE_ID' "$project/Assets/GoogleService-Info.plist" | grep -Fxq "com.mannlab.games.oneplusoneminusone"; then
+  if [[ ! -f "$firebase_ios" ]]; then
+    warn_or_fail "Missing Firebase iOS config: $firebase_ios" "${REQUIRE_FIREBASE_CONFIG:-0}"
+  elif ! /usr/libexec/PlistBuddy -c 'Print :BUNDLE_ID' "$firebase_ios" | grep -Fxq "com.mannlab.games.oneplusoneminusone"; then
     echo "Firebase iOS config bundle ID does not match com.mannlab.games.oneplusoneminusone." >&2
     missing=1
   fi
 
-  if [[ "$expected_gad_app_id" == "ca-app-pub-3940256099942544~1458002511" ]]; then
+  if [[ -z "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_APP_ID:-}" ]]; then
+    warn_or_fail "Production iOS AdMob App ID is not set." "${REQUIRE_PRODUCTION_ADMOB_IDS:-0}"
+  elif [[ "$expected_gad_app_id" == "ca-app-pub-3940256099942544~1458002511" ]]; then
     warn_or_fail "Production iOS AdMob App ID is still Google's test app ID." "${REQUIRE_PRODUCTION_ADMOB_IDS:-0}"
+  else
+    warn_or_fail_placeholder "Production iOS AdMob App ID is a placeholder." "$expected_gad_app_id"
+    warn_or_fail_invalid_admob_id "Production iOS AdMob App ID has invalid format." "$expected_gad_app_id" '^ca-app-pub-[0-9]{16}~[0-9]{10}$'
   fi
-  warn_or_fail_placeholder "Production iOS AdMob App ID is a placeholder." "$expected_gad_app_id"
-  warn_or_fail_invalid_admob_id "Production iOS AdMob App ID has invalid format." "$expected_gad_app_id" '^ca-app-pub-[0-9]{16}~[0-9]{10}$'
 
   if [[ -z "${MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_INTERSTITIAL_ID:-}" ]]; then
     warn_or_fail "Production iOS interstitial ad unit env is not set." "${REQUIRE_PRODUCTION_ADMOB_IDS:-0}"
@@ -197,7 +215,17 @@ else
 fi
 
 if [[ "$missing" -ne 0 ]]; then
+  echo "1 = 1 iOS $mode readiness failed before Unity export." >&2
   exit 2
+fi
+
+if [[ "$preflight_only" -eq 1 ]]; then
+  if [[ "$warnings" -ne 0 ]]; then
+    echo "1 = 1 iOS $mode preflight verified with release warnings."
+  else
+    echo "1 = 1 iOS $mode preflight verified."
+  fi
+  exit 0
 fi
 
 "$unity_editor" \

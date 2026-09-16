@@ -3,8 +3,8 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 project="$repo_root/prototypes/one-plus-one-minus-one"
-firebase_ios="$project/Assets/GoogleService-Info.plist"
-firebase_android="$project/Assets/google-services.json"
+firebase_ios="${ONE_EQUALS_ONE_FIREBASE_IOS_CONFIG:-$project/Assets/GoogleService-Info.plist}"
+firebase_android="${ONE_EQUALS_ONE_FIREBASE_ANDROID_CONFIG:-$project/Assets/google-services.json}"
 failures=0
 warnings=0
 
@@ -53,8 +53,9 @@ warn_or_fail() {
 }
 
 has_placeholder_text() {
-  local value="$1"
-  [[ "$value" == *XXXX* || "$value" == *replace* || "$value" == *REPLACE* || "$value" == *"/absolute/path/"* ]]
+  local value
+  value="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  [[ "$value" == *xxxx* || "$value" == *replace* || "$value" == *"/absolute/path/"* ]]
 }
 
 check_firebase_ios() {
@@ -160,7 +161,10 @@ check_android_signing_env() {
 print_next_steps() {
   cat >&2 <<'NEXT_STEPS'
 
-Required external release inputs:
+Required external release inputs checklist:
+The failing or warning lines above identify what is missing or malformed in this
+environment. The full release checklist below is repeated for submission
+bookkeeping even when some files are already present:
 - Assets/GoogleService-Info.plist with bundle ID com.mannlab.games.oneplusoneminusone
 - Assets/google-services.json with package name com.mannlab.games.oneplusoneminusone
 - MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ADMOB_IOS_APP_ID

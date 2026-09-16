@@ -2,6 +2,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import assert from 'node:assert/strict';
+import { extractRounds, analyzeIdentity, findEqualityWitness, identityErrors, operatorTokens, generateCandidatePool, enumerateRoundSolutions } from './one-plus-one-minus-one-round-identity.mjs';
 
 const repoRoot = process.cwd();
 const rulesPath = path.join(
@@ -10,19 +12,6 @@ const rulesPath = path.join(
 );
 const strict = process.argv.includes("--strict");
 
-const tokenCosts = new Map([
-  ["1", 1],
-  ["11", 2],
-  ["111", 3],
-  ["-", 1],
-  ["/", 1],
-  ["=", 2],
-  ["+", 2],
-  ["×", 2],
-  ["x", 2],
-  ["*", 3],
-]);
-const operatorTokens = new Set(["+", "-", "/", "=", "×", "x", "*"]);
 const trackedTokens = ["1", "11", "111", "+", "-", "/", "×", "*", "="];
 const bands = [
   [1, 15, "tutorial"],
@@ -32,7 +21,48 @@ const bands = [
   [81, 100, "finale"],
 ];
 
-const rounds = extractRounds(fs.readFileSync(rulesPath, "utf8"));
+const rounds = extractRounds(fs.readFileSync(rulesPath, "utf8")).map(r => ({...r,
+  signature:r.symbols.map(s=>operatorTokens.has(s)?s:'N').join(' ')}));
+const unityIndex = process.argv.indexOf('--unity-report');
+if (unityIndex >= 0) {
+  const native = JSON.parse(fs.readFileSync(process.argv[unityIndex + 1], 'utf8'));
+  assert.deepEqual(native.rows, analyzeIdentity(rounds).crossSamples,
+    'Unity/Node cross acceptance differs or the Unity report is stale');
+  console.error(`Unity/Node acceptance parity: ${rounds.length * rounds.length} sample pairs passed.`);
+}
+const numberOption = name => {
+  const index = process.argv.indexOf(name);
+  return index < 0 ? undefined : Number(process.argv[index + 1]);
+};
+const solutionsIndex = process.argv.indexOf('--solutions');
+if (solutionsIndex >= 0) {
+  const selected = (process.argv[solutionsIndex + 1] ?? '').split(',').map(Number);
+  if (selected.some(n => !Number.isInteger(n) || n < 1 || n > rounds.length) ||
+      new Set(selected).size !== selected.length)
+    throw new Error('--solutions expects unique round numbers from 1 to 100, comma separated');
+  const reports = selected.map(number => {
+    const round = rounds[number - 1];
+    return {number, sample:round.sample, target:round.target, slots:round.symbols.length, sticks:round.stickCount,
+      ...enumerateRoundSolutions(round, {maxNodes:numberOption('--max-nodes'), maxSolutions:numberOption('--max-solutions')})};
+  });
+  await writeJson({rounds:reports});
+  process.exit(strict && (reports.some(r => !r.complete) || identityErrors(rounds).length) ? 1 : 0);
+}
+if (process.argv.includes('--candidates')) {
+  await writeJson(generateCandidatePool(rounds, {
+    seed:numberOption('--seed'), samples:numberOption('--samples')
+  }));
+  process.exit(strict && identityErrors(rounds).length ? 1 : 0);
+}
+if (process.argv.includes('--json')) {
+  const identity = analyzeIdentity(rounds);
+  await writeJson({rounds, ...identity, equalitySearch:identity.resourceRepeats.map(g=>({
+    ...g,
+    intentionalReason:intentionalSharedEqualityReason(g),
+    ...findEqualityWitness(...g.key.split('/').map(Number))
+  }))});
+  process.exit(strict && identityErrors(rounds).length ? 1 : 0);
+}
 
 console.log(`# 1 = 1 Round Quality Report`);
 console.log("");
@@ -48,27 +78,58 @@ if (strict && warningCount > 0) {
   process.exit(1);
 }
 
+function writeJson(value) {
+  return new Promise((resolve, reject) => {
+    process.stdout.write(`${JSON.stringify(value,null,2)}\n`, error => error ? reject(error) : resolve());
+  });
+}
+
 function printConstraintRepeats() {
-  const groups = new Map();
-  for (const round of rounds) {
-    const sticks = round.symbols.reduce((sum, symbol) => sum + tokenCosts.get(symbol), 0);
-    // Equality rounds have no fixed target: the sample's value is not a constraint.
-    const target = round.symbols.includes("=") ? "balanced" : String(round.target);
-    const key = `${round.symbols.length} slots / ${sticks} sticks / ${target}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(round.number);
+  const identity = analyzeIdentity(rounds);
+  console.log("## Actual Accepted-Answer Constraints");
+  console.log(`- resource pairs: ${identity.uniqueResources}; identical resource/target groups: ${identity.duplicates.length}`);
+  for (const group of identity.duplicates) console.log(`- identical ${group.key}: Rounds ${group.rounds.join(", ")}`);
+  console.log("## Shared Equality Witnesses (Reuse Review)");
+  let unresolvedSharedPairs = 0;
+  let intentionalSharedPairs = 0;
+  for (const group of identity.resourceRepeats) {
+    const [slots, sticks] = group.key.split("/").map(Number);
+    const witness = findEqualityWitness(slots, sticks);
+    const pairCount = group.rounds.length * (group.rounds.length - 1) / 2;
+    const intentional = intentionalSharedEqualityReason(group);
+    if (witness.status === "found") {
+      if (intentional) {
+        intentionalSharedPairs += pairCount;
+      } else {
+        unresolvedSharedPairs += pairCount;
+      }
+    }
+
+    const suffix = intentional ? `; intentional: ${intentional}` : "";
+    console.log(`- ${group.key}, Rounds ${group.rounds.join(", ")}: ${witness.status}; ${witness.symbols?.join(" ") ?? "no witness"} (${witness.nodes}/${witness.maxNodes} nodes)${suffix}`);
   }
-  console.log("## Repeated Player Constraints");
-  console.log("Same visible resources/target, regardless of sample. Review candidates, not automatic defects.");
-  let repeats = 0;
-  for (const [key, owners] of groups) {
-    if (owners.length < 2) continue;
-    repeats++;
-    console.log(`- ${key}: Rounds ${owners.join(", ")}`);
+  if (intentionalSharedPairs > 0) {
+    console.log(`Intentional proven shared-equality pairs: ${intentionalSharedPairs}.`);
   }
-  if (!repeats) console.log("- none");
-  console.log("Target rounds can also admit player-built equalities; distinct keys do not prove distinct solution spaces.");
+
+  if (unresolvedSharedPairs > 0) {
+    console.warn(`Warning: ${unresolvedSharedPairs} unresolved round pairs share a proven equality answer. Passing duplicate gates does not resolve this reuse.`);
+  }
+  console.log("Found witnesses prove shared answers, not identical full answer sets. Limited searches do not prove absence.");
   console.log("");
+}
+
+function intentionalSharedEqualityReason(group) {
+  const roundsKey = group.rounds.join(",");
+  if (group.key === "3/4" && roundsKey === "2,5") {
+    return "early tutorial echo";
+  }
+
+  if (group.key === "9/11" && roundsKey === "30,100") {
+    return "title callback";
+  }
+
+  return "";
 }
 
 function printBandSummary() {
@@ -138,8 +199,9 @@ function printPatternRuns() {
 }
 
 function printWarnings() {
-  console.log("## Review Warnings");
+  console.log("## Blocking Duplicate / Coverage Errors");
   const warnings = [];
+  warnings.push(...identityErrors(rounds));
   for (const [start, end, label] of bands) {
     const bandRounds = rounds.slice(start - 1, end);
     const equalityCount = bandRounds.filter((round) => round.symbols.includes("=")).length;
@@ -160,101 +222,10 @@ function printWarnings() {
   }
 
   if (warnings.length === 0) {
-    console.log("- none");
+    console.log("- none; see reuse review above for intentional callbacks and bounded-search limits");
   } else {
     for (const warning of warnings) console.log(`- ${warning}`);
   }
 
   return warnings.length;
-}
-
-function extractRounds(text) {
-  const roundBlock = text.match(/return new\[\]\s*\{([\s\S]*?)\n\s*\};\n\s*\}/);
-  if (!roundBlock) throw new Error("Could not find GoalModeRounds initializer.");
-
-  const result = [];
-  const entryPattern = /(Puzzle|Round)\("((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"(?:,\s*"((?:[^"\\]|\\.)*)")?\)/g;
-  let match;
-  while ((match = entryPattern.exec(roundBlock[1])) !== null) {
-    const kind = match[1];
-    const name = unescapeCsharpString(match[2]);
-    const tutorial = kind === "Round" ? unescapeCsharpString(match[3]) : "";
-    const sample = kind === "Round" ? unescapeCsharpString(match[4]) : unescapeCsharpString(match[3]);
-    const symbols = sample.split(/\s+/).filter(Boolean);
-    const target = sampleTarget(symbols);
-    result.push({
-      number: result.length + 1,
-      name,
-      tutorial,
-      sample,
-      symbols,
-      target,
-      signature: symbols.map((symbol) => (operatorTokens.has(symbol) ? symbol : "N")).join(" "),
-    });
-  }
-
-  return result;
-}
-
-function unescapeCsharpString(value) {
-  return value.replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-}
-
-function sampleTarget(symbols) {
-  const equalityIndex = symbols.indexOf("=");
-  if (equalityIndex > 0 && equalityIndex < symbols.length - 1) {
-    const left = evaluate(symbols.slice(0, equalityIndex));
-    if (!left.valid) throw new Error(`Invalid left side '${symbols.join(" ")}': ${left.reason}`);
-    return left.value;
-  }
-
-  const value = evaluate(symbols);
-  if (!value.valid) throw new Error(`Invalid sample '${symbols.join(" ")}': ${value.reason}`);
-  return value.value;
-}
-
-function evaluate(symbols) {
-  const numbers = [];
-  const operators = [];
-  let numberBuffer = "";
-
-  for (const symbol of symbols) {
-    if (!tokenCosts.has(symbol)) return { valid: false, reason: `unknown token ${symbol}` };
-    if (!operatorTokens.has(symbol)) {
-      numberBuffer += symbol;
-      continue;
-    }
-
-    if (numberBuffer.length === 0) return { valid: false, reason: "operator first" };
-    numbers.push(Number.parseFloat(numberBuffer));
-    numberBuffer = "";
-    operators.push(symbol);
-  }
-
-  if (numberBuffer.length === 0) return { valid: false, reason: "operator last" };
-  numbers.push(Number.parseFloat(numberBuffer));
-
-  for (let i = 0; i < operators.length; ) {
-    const op = operators[i];
-    if (op !== "*" && op !== "x" && op !== "×" && op !== "/") {
-      i += 1;
-      continue;
-    }
-
-    const left = numbers[i];
-    const right = numbers[i + 1];
-    if (op === "/" && Math.abs(right) < 0.0001) return { valid: false, reason: "divide by zero" };
-    numbers[i] = op === "/" ? left / right : left * right;
-    numbers.splice(i + 1, 1);
-    operators.splice(i, 1);
-  }
-
-  let value = numbers[0];
-  for (let i = 0; i < operators.length; i += 1) {
-    if (operators[i] === "+") value += numbers[i + 1];
-    else if (operators[i] === "-") value -= numbers[i + 1];
-    else return { valid: false, reason: `unknown operator ${operators[i]}` };
-  }
-
-  return { valid: true, value };
 }

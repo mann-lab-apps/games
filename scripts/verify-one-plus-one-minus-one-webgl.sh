@@ -14,11 +14,12 @@ if [[ ! -x "$unity_root/MacOS/Unity" ]]; then
 fi
 
 unity_editor="$unity_root/MacOS/Unity"
-unity_cli="${HOME}/.unity/bin/unity"
 webgl_engine="$(dirname "$(dirname "$unity_root")")/PlaybackEngines/WebGLSupport"
 build_log="/tmp/one-plus-one-minus-one-unity-webgl-build.log"
 build_output="$project/Builds/WebGL/one-plus-one-minus-one"
 missing=0
+
+. "$repo_root/scripts/lib-one-plus-one-minus-one-unity-license.sh"
 
 if command -v node >/dev/null 2>&1; then
   node "$repo_root/scripts/verify-one-plus-one-minus-one-rounds.mjs"
@@ -54,16 +55,7 @@ if [[ ! -d "$webgl_engine" ]]; then
   missing=1
 fi
 
-if [[ ! -x "$unity_cli" ]]; then
-  echo "Unity CLI not found: $unity_cli" >&2
-  missing=1
-else
-  license_state="$("$unity_cli" license --json 2>/dev/null || true)"
-  if ! python3 -c 'import json,sys; data=json.load(sys.stdin).get("data", []); sys.exit(0 if data else 1)' <<< "$license_state"; then
-    echo "No Unity Editor license found. Activate a license in Unity Hub before running this script." >&2
-    missing=1
-  fi
-fi
+check_one_plus_one_minus_one_unity_license "this script" || missing=1
 
 if [[ "$missing" -ne 0 ]]; then
   exit 2

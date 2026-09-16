@@ -13,6 +13,124 @@ inspection alone.
 
 ## Automated Viewport Smoke
 
+### 2026-09-16 Numerical Fix Runtime Pending
+
+- Local source now includes the exact-rational correctness fix, the Round 48
+  bad-answer rejection in source/Node, and the 12 non-callback round-identity
+  redesigns. Uploaded iOS `1.0.0 (2)` and the existing WebGL player do not
+  include this local candidate.
+- Static evidence currently passes: Node identity 46/46, 100-round static
+  verification, round quality report, icon/character/release-safety/store
+  metadata checks and existing WebGL shell/smoke checks. The existing WebGL
+  smoke passes only as old-build evidence and reports stale source warnings.
+- Unity runtime evidence is still blocked by `LICENSING_CLIENT_UNAVAILABLE`.
+  PlayMode, QA WebGL, ordinary WebGL, store-capture WebGL, and native readiness
+  scripts share the same license preflight helper and fast-fail instead of
+  launching Unity into the known timeout.
+- Ship-ready now runs one Unity licensing preflight, then skips Unity-gated
+  checks when that preflight fails. The latest ship-ready run still fails on
+  Unity licensing, stale WebGL artifacts/captures, strict release env, strict
+  device QA and strict Firebase/AdMob config. This is not a launch-ready build.
+- Outside-sandbox viewport smoke passes on the older WebGL build, and generated
+  iPhone SE, standard/large iPhone, Android 20:9 and desktop captures under
+  `/tmp/one-equals-one-webgl-viewports/` were available for clipping/overlap
+  inspection. These captures do not validate the latest numeric fix.
+- Next runtime QA after Unity Hub licensing is repaired: PlayMode, fresh QA
+  WebGL, actual input confirmation that Round 48 rejects `1 / 11 111`, normal
+  Round 48 solution acceptance, representative changed-round inputs, ordinary
+  WebGL rebuild and fresh screenshot/candidate capture verification.
+
+### 2026-09-15 Batch 4 Browser Verification Recovered
+
+- Same reviewed PlayMode retry: 37/37; fresh QA/ordinary/capture WebGL builds.
+- Screenshot-guided CDP touch clears 10/11/12, 32/33/34, 47/48/49, 82/83/84
+  at 390x844. Small 320x568 clears sample 11 and alternatives in 33/48/83.
+- Ordinary first-ten, touch cancellation, secondary-release/focus-loss and
+  reload-to-Round-11 checks pass; restored round selection screenshot inspected.
+- Five ordinary startup sizes pass; SE/desktop screenshots inspected. Targeted
+  changed-round screenshots also inspected. These do not replace device rows.
+- Zero-target bug reproduced in QA via actual input `1 / 11 111`: Round 48
+  incorrectly clears. A passing reproduction harness is NOT defect resolution.
+- Evidence folders: `batch4-input`, `batch4-small`, `batch4-firstten`,
+  `batch4-viewports`, `batch4-tolerance` in the existing identity artifact folder.
+- Prior approval blockage below resolved. No native/device/SDK signoff implied.
+
+### 2026-09-15 Round Identity Batch 4: Not Run In Player
+
+- Follow-up Node tooling: 32/32; 98 complete canonical solution inventories,
+  61/78 still limited. These are not device or player tests. Add native/input
+  reproduction of target-zero `1 / 11 111` acceptance to pending correctness QA.
+- The next same-command PlayMode request also failed before starting in the
+  approval service. There are still no fresh batch 4 player results.
+- Source edits 11/33/48/83 pass EditMode 47/47 and all sample/parity checks.
+  Node tooling passes 26/26. These are not runtime/input passes.
+- PlayMode launch was denied before starting by approval-service capacity errors.
+  Fresh QA/ordinary/capture builds and touch checks have not run for these edits.
+- Current WebGL outputs match batch 3 hashes. Its earlier screenshots/input
+  results do not validate batch 4. Native iOS build 2 is unchanged as well.
+- Pending: 10/11/12, 32/33/34, 47/48/49, 82/83/84 actual input, 320x568 sample
+  11 and alternate answers in 33/48/83, followed by relevant save/viewport checks.
+  See `batch4-verification-status.json` in the existing identity evidence folder.
+
+### 2026-09-15 Round Identity Batch 3
+
+- Revised 35/43/57/75/88 and ten neighbors pass actual browser touch at 390x844.
+  All five alternate answers pass at 320x568, with filled captures inspected.
+- Round 57's first small-screen run fails only screenshot coordinate detection:
+  touching outlines merge into six components although eight boxes are visible.
+  Fill-based interior detection separates all eight, and repeated actual inputs
+  pass on the unchanged game binary. Failure evidence is retained.
+- EditMode 43/43, PlayMode 37/37, Node 17/17, static and three fresh WebGL builds
+  pass. Ordinary first-ten/save and a separate five-viewport run also pass.
+- Evidence prefix: `artifacts/one-equals-one/2026-09-15-round-identity/batch3-*`.
+  Physical device, audio, operational SDK and human difficulty remain unverified.
+  iOS build 2 is unchanged. Next 11/33/48 candidate is not yet applied.
+
+### 2026-09-15 Round Identity Batch 2
+
+- Revised 38/39/52/70/90 and eight neighbors pass actual QA browser touch at
+  390x844. All five alternate answers also pass at 320x568; filled captures
+  were inspected for targets, triple sticks and cross/star readability.
+- EditMode 35/35, PlayMode 37/37, static and QA/ordinary/capture WebGL pass.
+  Ordinary startup renders at five sizes; small/desktop edges were inspected.
+- Evidence prefix: `artifacts/one-equals-one/2026-09-15-round-identity/batch2-*`.
+  This is not physical-device, audio, SDK or human difficulty signoff, nor a
+  new natural 100-round playthrough. Saved indices/keys and ad policy are unchanged.
+
+### 2026-09-15 Round Identity Candidate
+
+- Forty changed indices have final-expression CDP touch evidence, with additional
+  neighbor coverage. At 320x568, 34/84/100 pass actual rotation/drop/check.
+- Final ordinary first-ten/save and five inspected viewports pass. A separate
+  QA-filled end-state fixture checks actual Check, all nine picker pages,
+  Sound off, query-free reload and Reset preserving completion.
+- EditMode 31/31, PlayMode 37/37 and fresh QA/ordinary/capture WebGL pass.
+  Evidence: `artifacts/one-equals-one/2026-09-15-round-identity/`.
+- These are browser/Editor results, not physical touch, audio, native SDK or
+  human pacing signoff. Remaining shared equality answers are a separate open
+  design issue, not resolved by these tests. No new native deployment occurred.
+
+### 2026-09-15 Post-Checkpoint Input Follow-Up
+
+- Base `26d8508a` plus pointer-ownership fix, not a new native distribution.
+  The pending 36 PlayMode tests pass; a new stale-finger interleaving then
+  fails 36/37 before correction and passes 37/37 afterward. EditMode 29/29 pass.
+- Fresh QA browser verifies actual hidden-tab drag cancellation, all three
+  `111` return/transfer paths and old/fresh two-finger releases. The CDP test
+  now uses the proper active-point-set update for a partial touch release.
+- Ordinary first-ten/save replay and five inspected viewport captures pass.
+  Actual-input 96-100 includes an alternative equality, hard-clear/replay ad
+  exclusions and the final completion/picker state. Initial progress was QA
+  seeded through 96; this is not an unassisted full-game human playthrough.
+- QA, ordinary and capture WebGL outputs were rebuilt. Test XML, browser
+  traces/captures and observation results live under
+  `artifacts/one-equals-one/2026-09-15-post-checkpoint/`.
+- Same final binary/browser observed for 30m18s, 66 samples and no captured
+  runtime exceptions. A separate subsequent reload retains completion and
+  Sound off. Browser object/heap trends do not establish native memory or FPS.
+- Physical touch, native performance, audio listening and production SDK
+  callbacks remain unverified. Do not fill physical signoff from these results.
+
 ### 2026-09-14 Continuous Input And Font Follow-Up
 
 - Local fixes beyond build 2: cancellation restores feedback; a press started

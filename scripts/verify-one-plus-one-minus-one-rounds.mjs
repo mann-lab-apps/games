@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { extractRounds, splitSymbols, solveRound, tokenCosts, identityErrors } from './one-plus-one-minus-one-round-identity.mjs';
 
 const repoRoot = process.cwd();
 const rulesPath = path.join(
@@ -16,20 +17,6 @@ const controllerPath = path.join(
 const source = fs.readFileSync(rulesPath, "utf8");
 const controllerSource = fs.readFileSync(controllerPath, "utf8");
 
-const tokenCosts = new Map([
-  ["1", 1],
-  ["11", 2],
-  ["111", 3],
-  ["-", 1],
-  ["/", 1],
-  ["=", 2],
-  ["+", 2],
-  ["×", 2],
-  ["x", 2],
-  ["*", 3],
-]);
-
-const operatorTokens = new Set(["+", "-", "/", "=", "×", "x", "*"]);
 const postTutorialForbiddenWords = [
   "Star",
   "Cross",
@@ -74,6 +61,7 @@ const rounds = extractRounds(source);
 
 let failures = 0;
 const seenSamples = new Map();
+for (const error of identityErrors(rounds)) assert(false, error);
 
 assert(rounds.length === releaseRoundCount, `Expected ${releaseRoundCount} rounds, got ${rounds.length}.`);
 assert(
@@ -140,171 +128,6 @@ if (failures > 0) {
 
 console.log(`1 = 1 static round verification passed: ${rounds.length} rounds.`);
 
-function extractRounds(text) {
-  const roundBlock = text.match(/return new\[\]\s*\{([\s\S]*?)\n\s*\};\n\s*\}/);
-  if (!roundBlock) {
-    throw new Error("Could not find GoalModeRounds initializer.");
-  }
-
-  const result = [];
-  const entryPattern = /(Puzzle|Round)\("((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"(?:,\s*"((?:[^"\\]|\\.)*)")?\)/g;
-  let match;
-  while ((match = entryPattern.exec(roundBlock[1])) !== null) {
-    const kind = match[1];
-    const name = unescapeCsharpString(match[2]);
-    const tutorial = kind === "Round" ? unescapeCsharpString(match[3]) : "";
-    const sample = kind === "Round" ? unescapeCsharpString(match[4]) : unescapeCsharpString(match[3]);
-    const symbols = splitSymbols(sample);
-    result.push({
-      name,
-      tutorial,
-      sample,
-      stickCount: symbols.reduce((total, symbol) => total + (tokenCosts.get(symbol) ?? 0), 0),
-      target: sampleTarget(symbols),
-    });
-  }
-
-  return result;
-}
-
-function unescapeCsharpString(value) {
-  return value.replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-}
-
-function splitSymbols(sample) {
-  return sample.split(/\s+/).filter(Boolean);
-}
-
-function sampleTarget(symbols) {
-  const equality = evaluateEquality(symbols);
-  if (equality.handled && equality.valid) {
-    return equality.value;
-  }
-
-  const value = evaluate(symbols);
-  if (!value.valid) {
-    throw new Error(`Invalid sample '${symbols.join(" ")}': ${value.reason}`);
-  }
-
-  return value.value;
-}
-
-function solveRound(symbols, target) {
-  const equality = evaluateEquality(symbols);
-  if (equality.handled) {
-    return equality;
-  }
-
-  const value = evaluate(symbols);
-  if (!value.valid) {
-    return value;
-  }
-
-  const valid = Math.abs(value.value - target) < 0.0001;
-  return valid ? { valid: true, value: value.value } : { valid: false, reason: `expected ${target}, got ${value.value}` };
-}
-
-function evaluateEquality(symbols) {
-  const equalsIndexes = symbols
-    .map((symbol, index) => (symbol === "=" ? index : -1))
-    .filter((index) => index >= 0);
-
-  if (equalsIndexes.length === 0) {
-    return { handled: false, valid: false, reason: "" };
-  }
-
-  if (equalsIndexes.length > 1) {
-    return { handled: true, valid: false, reason: "too many equals" };
-  }
-
-  const equalsIndex = equalsIndexes[0];
-  if (equalsIndex === 0 || equalsIndex === symbols.length - 1) {
-    return { handled: true, valid: false, reason: "equals needs both sides" };
-  }
-
-  const left = evaluate(symbols.slice(0, equalsIndex));
-  const right = evaluate(symbols.slice(equalsIndex + 1));
-  if (!left.valid) {
-    return { handled: true, valid: false, reason: `left side: ${left.reason}` };
-  }
-
-  if (!right.valid) {
-    return { handled: true, valid: false, reason: `right side: ${right.reason}` };
-  }
-
-  const valid = Math.abs(left.value - right.value) < 0.0001;
-  return valid
-    ? { handled: true, valid: true, value: left.value }
-    : { handled: true, valid: false, reason: `${left.value} is not ${right.value}` };
-}
-
-function evaluate(symbols) {
-  const numbers = [];
-  const operators = [];
-  let numberBuffer = "";
-
-  for (const symbol of symbols) {
-    if (!symbol) {
-      return { valid: false, reason: "empty box" };
-    }
-
-    if (!tokenCosts.has(symbol)) {
-      return { valid: false, reason: `unknown token ${symbol}` };
-    }
-
-    if (!operatorTokens.has(symbol)) {
-      numberBuffer += symbol;
-      continue;
-    }
-
-    if (numberBuffer.length === 0) {
-      return { valid: false, reason: "operator first" };
-    }
-
-    numbers.push(Number.parseFloat(numberBuffer));
-    numberBuffer = "";
-    operators.push(symbol);
-  }
-
-  if (numberBuffer.length === 0) {
-    return { valid: false, reason: "operator last" };
-  }
-
-  numbers.push(Number.parseFloat(numberBuffer));
-
-  for (let i = 0; i < operators.length; ) {
-    const op = operators[i];
-    if (op !== "*" && op !== "x" && op !== "×" && op !== "/") {
-      i += 1;
-      continue;
-    }
-
-    const left = numbers[i];
-    const right = numbers[i + 1];
-    if (op === "/" && Math.abs(right) < 0.0001) {
-      return { valid: false, reason: "cannot divide by zero" };
-    }
-
-    numbers[i] = op === "/" ? left / right : left * right;
-    numbers.splice(i + 1, 1);
-    operators.splice(i, 1);
-  }
-
-  let value = numbers[0];
-  for (let i = 0; i < operators.length; i += 1) {
-    const op = operators[i];
-    const right = numbers[i + 1];
-    if (op === "+") {
-      value += right;
-    } else if (op === "-") {
-      value -= right;
-    } else {
-      return { valid: false, reason: `unknown operator ${op}` };
-    }
-  }
-
-  return { valid: true, value };
-}
 
 function calculateLayoutPlan(slotCount, usesFixedTarget, availableWidth) {
   availableWidth = clamp(availableWidth, 300, 1040);
@@ -345,9 +168,10 @@ function calculateLayoutPlan(slotCount, usesFixedTarget, availableWidth) {
     maxSlotWidth = Math.min(maxSlotWidth, fitWidth);
   }
 
-  const slotWidth = clamp(maxSlotWidth, minSlotWidth, idealSlotWidth);
   const heightRatio = rows >= 4 ? 1.12 : rows >= 3 ? 1.16 : slotCount <= 3 ? 1.13 : 1.22;
   const maxSlotHeight = slotCount <= 3 ? 210 : rows >= 4 ? 128 : rows >= 3 ? 148 : 188;
+  maxSlotWidth = Math.min(maxSlotWidth, maxSlotHeight / heightRatio);
+  const slotWidth = clamp(maxSlotWidth, minSlotWidth, idealSlotWidth);
   const slotHeight = clamp(slotWidth * heightRatio, minSlotHeight, maxSlotHeight);
   const rowGap = rows >= 4 ? 8 : rows >= 3 ? 10 : rows === 2 ? 12 : 18;
   const contentHeight = rows * slotHeight + (rows - 1) * rowGap;

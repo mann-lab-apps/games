@@ -80,7 +80,8 @@ export async function playtestFirstTenRounds(client, appUrl, outputDir, { waitUn
     // Exercise Unity's focus handler without pretending this is native app suspension.
     await client.send("Runtime.evaluate", {expression: "window.dispatchEvent(new Event('blur'))"});
     await delay(150);
-    await client.send("Input.dispatchTouchEvent", {type: "touchEnd", touchPoints: [{x: 194, y: 670, id: 1}]});
+    // CDP releases removed points when the active set changes; touchEnd ends all points.
+    await client.send("Input.dispatchTouchEvent", {type: "touchMove", touchPoints: [{x: 194, y: 670, id: 1}]});
     await delay(150);
     await client.send("Input.dispatchTouchEvent", {type: "touchEnd", touchPoints: []});
     await client.send("Runtime.evaluate", {expression: "window.dispatchEvent(new Event('focus'))"});
