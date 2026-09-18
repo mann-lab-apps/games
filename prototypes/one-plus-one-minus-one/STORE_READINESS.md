@@ -30,18 +30,25 @@ Unity-gated checks when it fails instead of repeating the same Unity timeout.
 - Internal concept title: `1+1-1*1/1=1`
 - Detailed store copy draft: `../../docs/one-equals-one-store-metadata-draft.md`
 - Subtitle candidates:
-  - Tiny stick equation puzzles
-  - Make math with little sticks
-  - A small logic puzzle
+  - Build with stick friends
+  - Living stick logic
+  - Tiny equation builders
 - Short description:
-  - Drag lively little sticks into place and make each equation work.
+  - Build strange equations with living stick friends.
 - Full description draft:
-  - `1 = 1` is a small puzzle game about turning simple sticks into numbers and
-    operators. Drag, rotate, and combine stick friends to make equations that
-    actually work. Start with one stick, then discover plus, minus, divide,
-    multiply, equals, 11, 111, and more across 100 compact rounds.
+  - `1 = 1` is a character-based equation builder. Each round starts with empty
+    boxes and animated stick pieces that can become `1`, `11`, `111`, `+`,
+    `-`, `/`, `×`, `*`, or `=`. Players compose expressions from scratch, and
+    the solver accepts mathematically valid alternate answers and direct
+    equalities across 100 compact rounds.
 - Keyword candidates:
-  - puzzle, math, logic, equation, numbers, sticks, brain, casual, minimal
+  - puzzle, logic, equation, characters, numbers, brain, casual, math
+- 4.3(a) differentiation:
+  - Avoid positioning this as a generic matchstick repair puzzle.
+  - Emphasize empty-slot expression construction, living stick characters,
+    alternate valid answers, and direct equality validation.
+  - Review notes should explicitly explain that the player composes equations
+    rather than moving one match to fix a prebuilt equation.
 - Age rating notes:
   - No violence, user-generated content, chat, gambling, or mature content.
   - Contains ads when production AdMob IDs are configured.
@@ -220,16 +227,19 @@ Current code-side polish pass covers:
 Current external blockers before calling this commercially ready:
 
 - `Assets/GoogleService-Info.plist` is present locally with bundle ID
-  `com.mannlab.games.oneplusoneminusone`; keep it in the next fresh iOS export
-  and verify Crashlytics delivery from that build.
+  `com.mannlab.games.oneplusoneminusone`; it passed local iOS release preflight
+  for build `3`, but Crashlytics delivery still needs to be verified from a
+  fresh installed build.
 - `Assets/google-services.json` must be added for real Android Firebase and
   Crashlytics verification.
-- Production AdMob app/ad unit IDs must be provided through
-  `RELEASE_ENV.example` env vars during store builds. Strict readiness rejects
-  missing values, malformed values, Google test IDs, and copied placeholder IDs.
+- Production iOS AdMob app/ad unit IDs were provided locally and passed strict
+  iOS release preflight for build `3`; keep using those env vars for the next
+  iOS export. Android production AdMob IDs still need release-env verification
+  before Play Store builds.
 - Android release signing env vars are required before Play Store AAB builds.
-- iOS and Android fresh release exports still need to run after production
-  config values are present.
+- A fresh iOS Xcode export for build `3` is still blocked by Unity licensing
+  channel/protocol errors in this environment. Android fresh release export is
+  also still pending.
 - `RELEASE_ENV.example` lists the local/CI env vars required by strict release
   readiness.
 - Real device/simulator QA is still required for touch feel, SFX loudness, safe

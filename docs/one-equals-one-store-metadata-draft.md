@@ -23,57 +23,75 @@ saves from gameplay analytics. This correction has not been deployed publicly.
 - App name: `1 = 1`
 - Bundle ID: `com.mannlab.games.oneplusoneminusone`
 - Category: Games / Puzzle
-- Public concept: tiny stick equation puzzles
+- Public concept: character-based equation builder
 - Internal concept title: `1+1-1*1/1=1`
 - Privacy policy URL: `https://games.mannlab.app/privacy`
 
 ## Subtitle Candidates
 
-- Tiny stick equation puzzles
-- Make math with little sticks
-- A tiny logic puzzle
+- Build with stick friends
+- Living stick logic
+- Tiny equation builders
 
 ## Promotional Text
 
-Tiny sticks become numbers, signs, and strange little equations across 100 compact puzzles.
+Build odd little equations from living stick friends. Empty boxes, flexible answers, and 100 handmade rounds.
 
 ## Short Description
 
-Drag little stick friends into boxes and make each equation work.
+Build strange equations with living stick friends.
 
 ## Full Description Draft
 
-`1 = 1` is a small puzzle game about turning simple sticks into numbers and
-operators.
+`1 = 1` is a small logic puzzle about building expressions from living stick
+friends.
 
-Drag, rotate, and combine lively stick friends to build expressions that really
-work. A single stick can be `1`, a lazy line can be `-`, crossed sticks can
-multiply, and packed sticks can become `11` or `111`.
+Each round starts with empty boxes and a handful of animated pieces. Drag,
+rotate, and combine them into tokens such as `1`, `11`, `111`, `+`, `-`, `/`,
+`×`, `*`, and `=`.
 
-The rules stay simple, but the solutions get stranger as the rounds grow.
+You compose each expression yourself, and the game checks whether the result is
+truly correct.
+Some rounds ask for a target value, while others let you build a direct equality
+with your own `=` token.
+
 Complete 100 compact puzzles, discover alternate answers, and finish with the
 odd little equation that started it all.
 
 ## Keywords
 
-puzzle,math,logic,equation,numbers,sticks,brain,casual,minimal
+puzzle,logic,equation,characters,numbers,brain,casual,math
 
 ## Screenshot Plan
 
-1. `01-round-1-first-stick`: Round 1 first `1` stick friend.
-2. `02-round-5-cross-multiply`: Round 5 multiply discovery.
-3. `03-round-8-triple-one`: Round 8 `111` discovery.
-4. `04-round-9-star-multiply`: Round 9 star multiply discovery.
-5. `05-round-30-medium-expression`: Round 30 medium expression.
-6. `06-round-75-equality-puzzle`: Round 75 equality puzzle.
-7. `07-round-100-finale`: Round 100 finale expression.
-8. `08-round-select-progression`: Round select progression with locked/open states.
+1. `01-round-1-first-stick`: Round 1 shows the core `1` character and empty-slot construction.
+2. `02-round-5-cross-multiply`: Round 5 shows crossed pieces forming a multiply token, not a repaired preset equation.
+3. `03-round-8-triple-one`: Round 8 shows three pieces combining into `111`.
+4. `04-round-9-star-multiply`: Round 9 shows the three-piece `*` token as a distinct construction.
+5. `05-round-30-medium-expression`: Round 30 shows a player-built multi-token expression.
+6. `06-round-75-equality-puzzle`: Round 75 shows direct equality building with `=`.
+7. `07-round-100-finale`: Round 100 shows the finale expression and late-game density.
+8. `08-round-select-progression`: Round select progression with 100 handmade rounds and locked/open states.
 
 ## Review Notes Draft
 
 The app is a local single-player puzzle game. It does not require accounts,
 chat, user-generated content, purchases, online leaderboards, or remote gameplay
 content.
+
+Guideline 4.3(a) clarification: `1 = 1` is not a repackaged one-match repair
+puzzle. Traditional match-based equation games generally present a prebuilt
+incorrect equation and ask the player to move one piece to fix it. This game
+starts from empty boxes and a limited set of animated stick characters. The
+player constructs the expression from scratch by dragging, rotating, and
+combining pieces into tokens such as `1`, `11`, `111`, `+`, `-`, `/`, `×`, `*`,
+and `=`.
+
+The solver does not force a single preset answer. It accepts mathematically
+valid alternate expressions, and if the player creates an `=` token directly it
+checks whether the left and right sides are actually equal. The release set
+contains 100 handmade rounds, including rounds focused on packed numbers,
+operator combinations, and direct equality construction.
 
 Interstitial ads may appear only after newly cleared milestone rounds when
 production AdMob IDs are configured. Early tutorial rounds, replayed rounds, and
@@ -82,11 +100,16 @@ hard clears after multiple failed checks should not show ads.
 The iOS candidate includes Firebase Analytics for gameplay event analytics and
 Firebase Crashlytics for crash diagnostics.
 
-No account or login is required. Drag sticks into boxes and tap them to rotate.
-Use all available sticks to reach the target or create a valid equality, then
-tap Check. Alternative valid solutions are accepted. Reset affects the current
-puzzle only. First launch starts Round 1; returning players with cleared rounds
-see round selection.
+No account or login is required. Drag stick characters into boxes and tap them
+to rotate. Use all available pieces to reach the target or create a valid
+equality, then tap Check. Alternative valid solutions are accepted. Reset
+affects the current puzzle only. First launch starts Round 1; returning players
+with cleared rounds see round selection.
+
+Suggested review path: Round 1 introduces the living `1` piece, Round 5 shows a
+constructed `×`, Round 8 shows `111`, Round 9 shows `*`, Round 18/19 introduce
+player-built equality, and Round 30 or Round 100 show larger expressions that
+are composed from empty slots rather than repaired from a preset equation.
 
 The supplied review video shows Rounds 1-10 and entry into Round 11. It is a
 replay with prior progress, not a fresh-install or first-ad demonstration. Add

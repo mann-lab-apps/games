@@ -20,6 +20,7 @@ write_metadata() {
 
 - App name: \`1 = 1\`
 - Bundle ID: \`com.mannlab.games.oneplusoneminusone\`
+- Public concept: character-based equation builder
 - Privacy policy URL: \`https://games.mannlab.app/privacy\`
 
 ## Subtitle Candidates
@@ -36,11 +37,12 @@ Drag little stick friends into boxes and make each equation work.
 
 ## Full Description Draft
 
-1 = 1 is a small puzzle game about turning simple sticks into numbers and
-operators. Drag, rotate, and combine lively stick friends to build expressions
-that really work. A single stick can be 1, a lazy line can be minus, crossed
-sticks can multiply, and packed sticks can become 11 or 111. Complete 100 compact puzzles,
-discover alternate answers, and finish with the odd little equation that started it all.
+1 = 1 is a small puzzle game about turning living stick friends into numbers
+and operators. Each round starts with empty boxes. Drag, rotate, and combine
+lively stick friends to build expressions that really work. A single stick can
+be 1, a lazy line can be minus, crossed sticks can multiply, and packed sticks
+can become 11 or 111. Complete 100 compact puzzles, discover alternate answers,
+and finish with the odd little equation that started it all.
 
 ## Keywords
 
@@ -112,6 +114,27 @@ EOF
   fi
 }
 
+write_review_response() {
+  cat > "$1" <<'EOF'
+We would like to clarify that 1 = 1 is not a repackaged matchstick puzzle app.
+The game starts with empty boxes and living stick pieces.
+EOF
+}
+
+write_differentiation_doc() {
+  cat > "$1" <<'EOF'
+1 = 1 should be positioned as a character-based equation builder.
+Each round starts with empty boxes.
+EOF
+}
+
+write_resubmission_plan() {
+  cat > "$1" <<'EOF'
+Because source changed, use build `3` or higher.
+Prepare a new 60-90 second review video.
+EOF
+}
+
 run_with_fixtures() {
   local metadata="$1"
   local capture_script="${2:-$tmp_dir/capture.sh}"
@@ -119,12 +142,18 @@ run_with_fixtures() {
   ONE_EQUALS_ONE_PRIVACY_POLICY="$tmp_dir/privacy.md" \
   ONE_EQUALS_ONE_STORE_READINESS="$tmp_dir/readiness.md" \
   ONE_EQUALS_ONE_APP_STORE_CAPTURE_SCRIPT="$capture_script" \
+  ONE_EQUALS_ONE_APP_REVIEW_RESPONSE="$tmp_dir/review-response.md" \
+  ONE_EQUALS_ONE_APP_REVIEW_DIFFERENTIATION="$tmp_dir/differentiation.md" \
+  ONE_EQUALS_ONE_RESUBMISSION_PLAN="$tmp_dir/resubmission-plan.md" \
     "$script"
 }
 
 write_privacy_policy "$tmp_dir/privacy.md"
 write_readiness "$tmp_dir/readiness.md"
 write_capture_script "$tmp_dir/capture.sh"
+write_review_response "$tmp_dir/review-response.md"
+write_differentiation_doc "$tmp_dir/differentiation.md"
+write_resubmission_plan "$tmp_dir/resubmission-plan.md"
 
 valid_metadata="$tmp_dir/valid.md"
 write_metadata "$valid_metadata" "puzzle,math,logic,equation,numbers,sticks"

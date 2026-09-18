@@ -6,6 +6,9 @@ metadata="${ONE_EQUALS_ONE_STORE_METADATA:-$repo_root/docs/one-equals-one-store-
 privacy_policy="${ONE_EQUALS_ONE_PRIVACY_POLICY:-$repo_root/docs/privacy-policy.md}"
 readiness="${ONE_EQUALS_ONE_STORE_READINESS:-$repo_root/prototypes/one-plus-one-minus-one/STORE_READINESS.md}"
 capture_script="${ONE_EQUALS_ONE_APP_STORE_CAPTURE_SCRIPT:-$repo_root/scripts/capture-one-plus-one-minus-one-app-store-candidates.sh}"
+review_response="${ONE_EQUALS_ONE_APP_REVIEW_RESPONSE:-$repo_root/docs/one-equals-one-app-review-response-4-3a.md}"
+differentiation_doc="${ONE_EQUALS_ONE_APP_REVIEW_DIFFERENTIATION:-$repo_root/docs/one-equals-one-app-review-4-3a-differentiation.md}"
+resubmission_plan="${ONE_EQUALS_ONE_RESUBMISSION_PLAN:-$repo_root/docs/one-equals-one-4-3a-resubmission-plan.md}"
 failures=0
 
 require_text() {
@@ -127,10 +130,14 @@ require_text "$metadata" "## App Identity"
 require_text "$metadata" "App name: \`1 = 1\`"
 require_text "$metadata" "Bundle ID: \`com.mannlab.games.oneplusoneminusone\`"
 require_text "$metadata" "Privacy policy URL: \`https://games.mannlab.app/privacy\`"
+require_text "$metadata" "Public concept: character-based equation builder"
 require_text "$metadata" "## Subtitle Candidates"
 require_text "$metadata" "## Promotional Text"
 require_text "$metadata" "## Short Description"
 require_text "$metadata" "## Full Description Draft"
+require_text "$metadata" "living stick friends"
+require_text "$metadata" "empty boxes"
+require_text "$metadata" "alternate answers"
 require_text "$metadata" "Complete 100 compact puzzles"
 require_text "$metadata" "## Screenshot Plan"
 require_text "$metadata" "Round 100"
@@ -152,6 +159,12 @@ require_text "$readiness" "Assets/_Project/Store/PrivacyInfo.xcprivacy"
 require_text "$readiness" "Production interstitial ad unit IDs must not be placeholders"
 require_text "$readiness" "./scripts/verify-one-plus-one-minus-one-release-env.sh"
 require_text "$readiness" "REQUIRE_ONE_EQUALS_ONE_RELEASE_ENV=1"
+require_text "$review_response" "not a repackaged matchstick puzzle app"
+require_text "$review_response" "starts with empty boxes"
+require_text "$differentiation_doc" "character-based equation builder"
+require_text "$differentiation_doc" "empty boxes"
+require_text "$resubmission_plan" "use build \`3\` or higher"
+require_text "$resubmission_plan" "new 60-90 second review video"
 
 reject_text "$metadata" "TODO|TBD|lorem|placeholder"
 
@@ -181,6 +194,11 @@ require_max_bytes "Short description" "$short_description" 80
 require_min_bytes "Full description" "$full_description" 200
 require_max_bytes "Full description" "$full_description" 4000
 require_keyword_budget "$keywords"
+
+if grep -Eiq "matchstick|one-match|repair game|fix the broken equation" <<< "$full_description"; then
+  echo "Public full description should avoid generic matchstick/repair-game positioning." >&2
+  failures=1
+fi
 
 if [[ "$bundle_id" != "com.mannlab.games.oneplusoneminusone" ]]; then
   echo "Unexpected store bundle ID: $bundle_id" >&2

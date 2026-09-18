@@ -213,7 +213,7 @@ html, body {
             html = EnsureHeadTag(
                 html,
                 "name=\"description\"",
-                "    <meta name=\"description\" content=\"A tiny stick-friend equation puzzle about making 1 equal 1.\">");
+                "    <meta name=\"description\" content=\"A character-based equation builder with living stick friends and flexible answers.\">");
             html = EnsureHeadTag(html, "name=\"application-name\"", $"    <meta name=\"application-name\" content=\"{ProductName}\">");
             html = EnsureHeadTag(html, "name=\"apple-mobile-web-app-title\"", $"    <meta name=\"apple-mobile-web-app-title\" content=\"{ProductName}\">");
             html = EnsureHeadTag(html, "name=\"theme-color\"", "    <meta name=\"theme-color\" content=\"#fffffc\">");
