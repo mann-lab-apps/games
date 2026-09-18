@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import assert from 'node:assert/strict';
-import { extractRounds, analyzeIdentity, findEqualityWitness, identityErrors, operatorTokens, generateCandidatePool, enumerateRoundSolutions, analyzeRoundPatterns, findDominantPatternCandidates } from './one-plus-one-minus-one-round-identity.mjs';
+import { extractRounds, analyzeIdentity, findEqualityWitness, identityErrors, operatorTokens, generateCandidatePool, enumerateRoundSolutions, analyzeRoundPatterns, findDominantPatternCandidates, findEqualityEchoCandidates } from './one-plus-one-minus-one-round-identity.mjs';
 
 const repoRoot = process.cwd();
 const rulesPath = path.join(
@@ -80,6 +80,29 @@ if (dominantCandidatesIndex >= 0) {
     minRecommendedSolutions:numberOption('--min-recommended-solutions'),
     minVisibleDiversity:numberOption('--min-visible-diversity'),
     minRecommendedImprovement:numberOption('--min-recommended-improvement'),
+    minCombinationScore:numberOption('--min-combination-score'),
+  }));
+  process.exit(strict && identityErrors(rounds).length ? 1 : 0);
+}
+const equalityCandidatesIndex = process.argv.indexOf('--equality-candidates');
+if (equalityCandidatesIndex >= 0) {
+  const selected = process.argv[equalityCandidatesIndex + 1]?.startsWith('--') === false
+    ? process.argv[equalityCandidatesIndex + 1]
+    : '';
+  const roundNumbers = selected
+    ? selected.split(',').map(Number)
+    : [];
+  await writeJson(findEqualityEchoCandidates(rounds, {
+    roundNumbers,
+    maxNodes:numberOption('--max-nodes'),
+    maxSolutions:numberOption('--max-solutions'),
+    maxResults:numberOption('--max-results'),
+    maxEvaluations:numberOption('--max-evaluations'),
+    maxSideExpressions:numberOption('--max-side-expressions'),
+    maxResourceDelta:numberOption('--max-resource-delta'),
+    minRecommendedSolutions:numberOption('--min-recommended-solutions'),
+    minRecommendedImprovement:numberOption('--min-recommended-improvement'),
+    minCombinationScore:numberOption('--min-combination-score'),
   }));
   process.exit(strict && identityErrors(rounds).length ? 1 : 0);
 }

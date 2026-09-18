@@ -5,7 +5,7 @@ import {spawnSync} from 'node:child_process';
 import * as identity from './one-plus-one-minus-one-round-identity.mjs';
 const { extractRounds, acceptsRound, analyzeIdentity, findEqualityWitness, identityErrors,
   generateCandidatePool, evaluate, tokenCosts, classifySolutionPatterns, analyzeRoundPatterns,
-  findDominantPatternCandidates } = identity;
+  findDominantPatternCandidates, findEqualityEchoCandidates } = identity;
 
 const round = (number, sample, target) => ({number, sample, symbols: sample.split(' '),
   stickCount: sample.split(' ').reduce((n, t) => n + ({'1':1,'11':2,'111':3,'+':2,'-':1,'/':1,'×':2,'*':3,'=':2}[t]), 0), target});
@@ -256,12 +256,14 @@ test('dominant shortcut candidate search is deterministic and reports bounded ev
   assert.match(first.method, /bounded and heuristic/);
   assert.match(first.method, /analysis-only/);
   assert.match(first.method, /visibly similar/);
+  assert.match(first.method, /combination cues/);
   assert.equal(first.rounds.length, 1);
   assert.equal(first.rounds[0].number, 91);
   assert.equal(first.rounds[0].search.evaluated <= options.maxEvaluations, true);
   assert.equal(first.rounds[0].search.minRecommendedSolutions, 8);
   assert.equal(first.rounds[0].search.minVisibleDiversity, 2);
   assert.equal(first.rounds[0].search.minRecommendedImprovement, 0.05);
+  assert.equal(first.rounds[0].search.minCombinationScore, 2);
   assert.equal(first.rounds[0].current.solutionCount > 0, true);
   assert.ok(first.rounds[0].current.rankedPatterns.every(row =>
     typeof row.pattern === 'string' && Number.isFinite(row.ratio)));
@@ -272,6 +274,8 @@ test('dominant shortcut candidate search is deterministic and reports bounded ev
     Number.isInteger(candidate.visibleDiversityScore) &&
     Array.isArray(candidate.samplePatterns) &&
     Array.isArray(candidate.sourceSamplePatterns) &&
+    Array.isArray(candidate.combinationTags) &&
+    Number.isInteger(candidate.combinationScore) &&
     typeof candidate.analysisOnly === 'boolean' &&
     Array.isArray(candidate.analysisNotes)));
 });
@@ -288,12 +292,55 @@ test('dominant shortcut candidate CLI handles explicit and inferred targets', ()
   assert.equal(explicitReport.rounds[0].search.minRecommendedSolutions, 8);
   assert.equal(explicitReport.rounds[0].search.minVisibleDiversity, 2);
   assert.equal(explicitReport.rounds[0].search.minRecommendedImprovement, 0.05);
+  assert.equal(explicitReport.rounds[0].search.minCombinationScore, 2);
   const inferred = run(['--dominant-candidates', '--samples', '2000', '--max-evaluations', '1', '--max-results', '1', '--candidate-budget', '1', '--max-extra-slots', '0', '--max-extra-sticks', '0']);
   assert.equal(inferred.status, 0, inferred.stderr);
   const inferredReport = JSON.parse(inferred.stdout);
   assert.ok(inferredReport.rounds.length > 0);
   assert.ok(inferredReport.rounds.some(row => row.number === 61));
   assert.notEqual(run(['--dominant-candidates', '0']).status, 0);
+});
+
+test('equality echo candidate search is bounded and reports non-echo samples', () => {
+  const rounds = extractRounds(fs.readFileSync(new URL('../prototypes/one-plus-one-minus-one/Assets/_Project/Scripts/OnePlusOneMinusOneRules.cs', import.meta.url), 'utf8'));
+  const before = structuredClone(rounds);
+  const report = findEqualityEchoCandidates(rounds, {
+    roundNumbers:[97],
+    maxEvaluations:4,
+    maxResults:2,
+    maxSideExpressions:16,
+    maxResourceDelta:0,
+  });
+  assert.deepEqual(rounds, before);
+  assert.match(report.method, /Equality-echo candidate search/);
+  assert.equal(report.rounds[0].number, 97);
+  assert.equal(report.rounds[0].search.evaluated <= 4, true);
+  assert.equal(report.rounds[0].search.maxSideExpressions, 16);
+  assert.ok(report.rounds[0].candidates.every(candidate =>
+    candidate.complete &&
+    candidate.improvement > 0 &&
+    Array.isArray(candidate.combinationTags) &&
+    !candidate.samplePatterns.includes('same-expression-equality') &&
+    typeof candidate.analysisOnly === 'boolean'));
+});
+
+test('equality echo candidate CLI handles explicit targets', () => {
+  const run = spawnSync(process.execPath, [
+    'scripts/report-one-plus-one-minus-one-round-quality.mjs',
+    '--equality-candidates', '97',
+    '--max-evaluations', '2',
+    '--max-results', '1',
+    '--max-side-expressions', '80',
+    '--max-resource-delta', '0',
+  ], {cwd:new URL('../', import.meta.url), encoding:'utf8'});
+  assert.equal(run.status, 0, run.stderr);
+  const report = JSON.parse(run.stdout);
+  assert.equal(report.rounds[0].number, 97);
+  assert.equal(report.rounds[0].search.evaluated <= 2, true);
+  assert.notEqual(spawnSync(process.execPath, [
+    'scripts/report-one-plus-one-minus-one-round-quality.mjs',
+    '--equality-candidates', '101',
+  ], {cwd:new URL('../', import.meta.url), encoding:'utf8'}).status, 0);
 });
 
 test('solution CLI reports completeness and validates selected rounds', () => {

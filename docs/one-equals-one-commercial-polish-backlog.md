@@ -815,3 +815,33 @@ Implemented so far: dominant-candidate rows now include `analysisOnly`,
 resource neighborhoods and visibly similar samples, and sorting prefers
 non-analysis-only candidates. This is a tool-quality improvement only; it does
 not by itself redesign 61/73/71.
+
+Follow-up search after this tool change:
+
+- 63, 96 and 98 currently produce only analysis-only candidates.
+- 73 also produces only analysis-only candidates under the new thresholds.
+- 61 and 71 remain without a clean replacement from the current candidate pool.
+- 97 is too heavy for the general dominant-candidate search at current budgets;
+  interrupt long runs and build an equality-specific probe before trying to edit
+  it.
+
+Next practical improvement: add a generator that explicitly searches for
+combined-pattern samples, for example a useful adjacent-number construction plus
+one nontrivial cancellation, instead of only scoring nearby resource variants.
+The current tool is now good at saying "do not apply this candidate"; it is less
+good at inventing genuinely different late-round puzzle identities.
+
+Latest tooling increment: candidate rows now include `combinationTags` and
+`combinationScore`. This exposes visible sample cues such as packed numbers,
+operator mix, nontrivial division/multiplication and non-echo equality. It is
+not a replacement for playtesting: Round 63 shows why, because several
+candidates look like combined-pattern expressions but still fail as production
+edits due to tiny answer sets or reviewed resource reuse.
+
+Round 97 follow-up tooling exists now: `--equality-candidates` searches
+non-echo equality samples by pairing exact-equal left and right sides. The
+bounded Round 97 pass now terminates instead of hanging the general candidate
+search, but it found no candidate with `maxEvaluations=120`,
+`maxSideExpressions=240`, and `maxResourceDelta=1`. Next useful work is a
+hand-designed Round 97 replacement or a deliberately scheduled wider equality
+search, not another unbounded general probe.

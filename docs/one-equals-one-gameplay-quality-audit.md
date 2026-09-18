@@ -1411,3 +1411,41 @@ visible but are marked analysis-only. Re-running Round 73 after this change
 classifies all eight sampled candidates as analysis-only: the two broadest
 candidates improve the dominant pattern by only about 0.004 and 0.020, while the
 stronger ratio changes are too narrow or reuse the 71/65/81/91 neighborhoods.
+
+Additional focused probes:
+
+- Round 63: all returned candidates are analysis-only. The strong-ratio
+  candidates have only one or two accepted answers; the broader candidate
+  reuses the reviewed 65/81/91 slot/stick neighborhood.
+- Round 98: all returned candidates are analysis-only. The candidates that
+  remove `multiply-by-one` dominance are narrow or reuse 71, 59/84, or
+  65/81/91 resource neighborhoods.
+- Round 96: only one candidate appeared in the bounded pass, and it has two
+  accepted answers plus the reviewed Round 71 slot/stick neighborhood.
+- Round 97: the 9-slot/18-stick equality-echo candidate search is too expensive
+  for the current loop; a 60-evaluation/900-candidate run exceeded two minutes
+  and was interrupted. Future 97 work should use a narrower equality-specific
+  generator instead of the general dominant-candidate pass.
+
+Current conclusion: the remaining high-priority rows are not clean one-line
+data edits. Further progress likely requires a smarter generator that searches
+for multi-pattern combinations directly, rather than nearby resource variants
+that merely lower one ratio.
+
+The candidate report now emits `combinationTags` and `combinationScore` for the
+visible sample itself. Tags include cues such as `packed-number`,
+`triple-number`, `operator-mix`, `nontrivial-division`,
+`nontrivial-multiply`, nontrivial self-cancellation and non-echo equality. This
+lets review distinguish "looks like a combined idea" from "actually playable
+and distinct enough." For example, Round 63 candidates can have strong
+combination tags, but they remain analysis-only when they have only one or two
+accepted answers or reuse the 65/81/91 resource neighborhood.
+
+Round 97 follow-up: added a bounded equality-specific candidate search that
+pairs exact-equal left/right side expressions and filters out visible
+same-expression samples before scoring candidates. This avoids the earlier
+multi-minute general search path. A focused pass for Round 97 completed cleanly
+with `maxEvaluations=120`, `maxSideExpressions=240`, and `maxResourceDelta=1`,
+but found no replacement candidates in that budget. Treat Round 97 as requiring
+either a wider search with explicit time budgeting or a hand-designed late
+equality puzzle rather than a quick data tweak.
