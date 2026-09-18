@@ -1,18 +1,43 @@
 # 1 = 1 Ship-Ready Status
 
-Status date: 2026-09-16
+Status date: 2026-09-18
 
 Current completion judgment: `not yet`
 
-Current execution: local source now includes the numerical correctness fix and
-twelve round-identity data edits. `IsRoundSolved` and direct equality checks
-use exact rational arithmetic in Unity source and the shared Node mirror, so the
-known Round 48 bad answer (`1 / 11 111`) is fixed in source. All non-callback
-shared-answer pairs were redesigned without token bans. Node identity tests
-pass 46/46, static 100-round verification passes, and selected solution
-enumeration reports Round 48 with 4 canonical arrays instead of the old 6. The
-corrected identity map now has only the intentional 2/5 tutorial echo and
-30/100 title callback as proven equality-sharing pairs.
+Current execution: local source now includes the numerical correctness fix,
+round-identity data edits, and the 2026-09-18 universal-shortcut redesign.
+`IsRoundSolved` and direct equality checks use exact rational arithmetic in
+Unity source and the shared Node mirror, so the known Round 48 bad answer
+(`1 / 11 111`) is fixed in source. All non-callback shared-answer pairs were
+redesigned without token bans, and the late `N / N = 1` shortcut candidates
+52/59/65/100 were also redesigned without banning `/` or forcing sample answers.
+Follow-up dominant-pattern tooling now evaluates nearby resource candidates,
+excludes replacement candidates that would introduce proven shared equality
+witnesses, and redesigned Round 91 from `1 + 1 1 / 1 - 1` to
+`1 1 1 - 1 + 1 1`; the round keeps 8 slots/9 sticks but no longer appears in
+the high-priority `/1` dominant-pattern list. The same pass also redesigned
+Round 65 from `1 / 1 1 - 1 / 11` to `1 - 1 1 / 11 - 1`, keeping 8 slots/9
+sticks while dropping it below the high-priority dominant shortcut threshold.
+Candidate ranking now includes a review score that penalizes extremely narrow
+or target-jumpy replacements. Node identity tests pass 52/52, static
+100-round verification passes, the
+regular strict round-quality report passes, and `--patterns --strict-patterns`
+now reports no late pure self-division violations. Round 100 is no longer the
+30/100 identical title callback; it now uses `11 × 11 - 111 + 1`.
+The pattern report also records late same-expression/same-number equality echo
+review rows for the next quality pass; these are legal alternate answers, not
+current strict failures. Cleanup removes copied-equation samples from
+53/56/61/69/78 without adding shared equality witnesses; there are no late
+sample-level equality echoes left, and 16 alternate-only equality-echo review
+rows remain for future play/design review. Full static verification passes
+after this redesign with expected stale-WebGL/external-release warnings.
+
+Local iOS `1.0.0 (3)` archive/export artifacts exist
+(`Builds/iOS/Archives/OneEqualsOne-1.0.0-3.xcarchive` and
+`Builds/iOS/Export/1.0.0-3/11.ipa`), but this status file does not verify App
+Store Connect upload, processing, TestFlight installation or review selection
+for build 3. Uploaded iOS `1.0.0 (2)` remains the last App Store candidate
+confirmed by repo evidence.
 
 Latest Unity evidence is partial: after clearing a stale Unity licensing child
 process, EditMode passed 61/61 for the current source. PlayMode still did not

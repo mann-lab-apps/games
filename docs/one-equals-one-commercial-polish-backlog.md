@@ -5,6 +5,71 @@ toward a commercial casual puzzle release.
 
 ## Current Gate
 
+### Universal Shortcut Pattern Tightening (2026-09-18)
+
+The round-quality tooling now has a separate `--patterns --strict-patterns`
+design gate for broad shortcut families. It is intentionally stricter than the
+regular release `--strict` report and currently targets late standalone
+`N / N = 1` solutions that can behave like a universal key.
+
+Late pure self-division candidates initially appeared in 52, 59, 65 and 100.
+All four were redesigned without token bans or forced samples: 52 now uses
+`1 1 1 - 1`, 59 uses `111 * 11 - 11 11`, 65 uses
+`1 - 1 1 / 11 - 1`, and 100 uses `11 × 11 - 111 + 1`. Static round
+verification, the regular strict quality report and the strict pattern gate pass
+after these edits. Round 100 is no longer the identical 30/100 title callback;
+it now acts as a finale that revisits the `11 × 11 - 111` ten-making trick and
+closes at target 11.
+
+The same pattern report also lists legal late same-expression/same-number
+equality echo candidates as review rows. The first cleanup changed 53 from
+`111 = 111` to `111 / 1`, 61 from `1 + 1 + 1 = 1 + 1 + 1` to
+`11 / 11 + 1 + 1`, and 78 from `111 - 11 - 1 = 111 - 11 - 1` to
+`111 × 111 - 111 1 × 11`. These edits remove the most obvious copied-equation
+samples without creating new shared equality witnesses. Remaining review rows:
+54, 55, 56, 57, 58, 60, 63, 64, 68, 69, 72, 73, 79, 87, 88, 93 and 97. These
+answers remain valid; the list exists so playtesting can decide whether
+equality echoes are becoming another universal key.
+
+Follow-up cleanup removed the remaining sample-level equality echoes: 56 now
+uses `11 * 11 / 11 + 1 1`, and 69 now uses `1 11 * 1`. The strict pattern
+report now has no late `sampleEchoRows`; the remaining alternate-only review
+rows are 54, 55, 56, 57, 58, 60, 63, 64, 68, 72, 73, 79, 87, 88, 93 and 97.
+The report ranks 97 and 64 as the current high-priority alternate-only echo
+rows. Initial replacement candidates for these two created new shared equality
+witnesses, so leave them as review targets until a candidate improves both the
+ratio and the shared-witness map.
+Follow-up six-seed deterministic candidate search found no conflict-free 64/97
+replacement that also lowers their same-expression ratio, so do not churn these
+two with nearby arithmetic variants unless a stronger candidate appears.
+
+Next-pattern-review command:
+`node scripts/report-one-plus-one-minus-one-round-quality.mjs --patterns
+--summary --strict-patterns --max-nodes 200000 --max-solutions 1000`.
+Use the full `--patterns` report only when examples for a specific round are
+needed.
+
+The compact report now broadens the map beyond pure `N / N` through
+`dominantPatternReview`. Current high-priority arithmetic-pattern review rows
+include 61, 73, 71, 98, 96 and 63, plus the already-known 97 equality echo.
+Rounds 91 and 65 were removed from that high-priority list by the follow-up
+dominant-pattern pass. These are design review targets, not token bans; improve
+them only when a candidate reduces the dominant pattern without creating a
+broader shared-answer or equality-echo problem.
+
+A first quick candidate probe for the strongest row, 91, reused the existing
+bounded candidate pool and direct pattern-ratio scoring. The old candidate pool
+is tuned for shared-equality resource replacement, so it produced no suitable
+dominant-pattern replacement for 91/61/73/71/98/96/65/63. Next implementation
+work should add a dedicated dominant-pattern candidate generator/evaluator
+rather than hand-editing one of these rounds from the equality-focused pool.
+
+That dedicated path now exists. It closed 91 and 65, and the next tool-quality
+slice adds `analysisOnly` notes for candidates with too few accepted answers,
+already-reviewed slot/stick neighborhoods, low visible-arithmetic diversity, or
+less than 0.05 dominant-pattern improvement. This prevents the report from
+presenting tiny mathematical ratio changes as production-ready round redesigns.
+
 ### Numerical Correctness / Identity Batch 5 (2026-09-16)
 
 P1 numeric correctness is fixed in source and Node mirror: solve/equality
@@ -21,10 +86,12 @@ resource pairs, one intentional identical group (30/100), and only 2 proven
 equality-sharing pairs total. The remaining sharing is intentional: 2/5 as the
 early tutorial echo and 30/100 as the title callback. The round quality report
 now labels those as intentional instead of warning on them as unresolved reuse.
+This paragraph is superseded for the 30/100 callback by the 2026-09-18 shortcut
+pass above: Round 100 no longer shares the Round 30 resource/target callback.
 Do not treat this as full ship-ready completion until Unity/runtime/WebGL
 verification is healthy.
 
-Verification: Node identity tests pass 46/46; static 100-round verification
+Verification: Node identity tests pass 49/49; static 100-round verification
 passes; selected solution enumeration for 11/33/48/83 passes with Round 48 at
 4 complete canonical arrays. Full static verification passes with a stale-WebGL
 warning because the player build predates these source edits. After clearing a
@@ -677,3 +744,74 @@ this session; the repo's local Chrome/CDP approach was used instead.
    - Add real Firebase and AdMob settings.
    - Confirm app icon at small sizes.
    - Prepare screenshots and privacy disclosures.
+
+## 2026-09-18 Round Identity / Universal-Key Backlog
+
+Completed in this slice:
+
+- Added a bounded `--dominant-candidates` report path that searches nearby
+  resource candidates and ranks replacements by reduction of the strongest
+  reusable shortcut-family ratio.
+- Added regression coverage so the candidate search is deterministic, reports
+  its budget, and does not mutate round data.
+- Hardened candidate filtering after a rejected Round 91 trial created a proven
+  shared-equality reuse with Round 31.
+- Added a replacement `reviewScore` so the dominant-candidate report prefers
+  broadly playable improvements over narrow candidates with one or two accepted
+  answers, large target jumps, or unnecessary resource drift.
+- Redesigned Round 91 from `1 + 1 1 / 1 - 1` to
+  `1 1 1 - 1 + 1 1`, preserving 8 slots and 9 sticks while removing it from
+  the high-priority `/1` dominant-pattern list.
+- Redesigned Round 65 from `1 / 1 1 - 1 / 11` to
+  `1 - 1 1 / 11 - 1`, preserving 8 slots and 9 sticks while lowering the
+  dominant `/1` family below the high-priority threshold.
+- Rebalanced the tests so routine Node verification remains fast enough for
+  the static suite; large candidate searches stay opt-in via CLI budgets.
+
+Current next candidates from the latest pattern summary:
+
+| Priority | Round | Pattern | Notes |
+| --- | ---: | --- | --- |
+| P2 | 61 | `multiply-by-one` | Highest remaining high-priority dominant row. Needs candidate search with shared-equality guard. |
+| P2 | 73 | `/1`, `N/N` | Complete enumeration; high solution count. Avoid replacing one universal key with another. |
+| P2 | 71 | `/1`, `N-N`, `N/N` | Several high rows on the same round; likely needs a resource/target rethink, not a title tweak. |
+| P2 | 98/96 | `×1` or `/1` | Incomplete enumeration at current node budget; treat ratios as prefix evidence, not full proof. |
+| P2 | 97 | `A=A` echo | Tied to finale-style equality; review for App Review optics before changing. |
+| P2 | 63 | `/1` | Smaller complete round. Recent top candidates overlapped with the new Round 65 identity, so rerun after the current edits before applying anything. |
+
+Useful commands:
+
+```sh
+node scripts/report-one-plus-one-minus-one-round-quality.mjs \
+  --patterns --summary --strict-patterns --max-nodes 200000 --max-solutions 1000
+
+node scripts/report-one-plus-one-minus-one-round-quality.mjs \
+  --dominant-candidates 61,73,71,98,96,97,63 \
+  --samples 120000 --max-evaluations 80 --max-results 5 \
+  --candidate-budget 1200 --allow-fewer-slots --allow-fewer-sticks
+```
+
+Do not auto-apply candidate output. Check adjacent pacing, repeated targets,
+resource/equality reuse, mobile slot load, and review-video optics before
+editing another round.
+
+Follow-up probe result: the current candidate generator found no clean immediate
+edit for 61, 73 or 71. Top candidates either had only two to six accepted
+answers, reduced the stick budget enough to feel like a different difficulty
+band, jumped to far targets, or reused reviewed resource neighborhoods such as
+8/9 and 10/11. Before another data edit, tighten the candidate search itself:
+
+- require a minimum accepted-answer count for "recommended" candidates;
+- down-rank candidates that reuse a resource neighborhood already under review;
+- include a visible-arithmetic diversity score so `target changed, same
+  universal-key feel` is not treated as a good replacement;
+- keep narrow candidates visible as "analysis only" rather than top
+  recommendations.
+
+Implemented so far: dominant-candidate rows now include `analysisOnly`,
+`analysisNotes`, `reviewedResourceCount`, `visibleDiversityScore`,
+`minRecommendedSolutions`, `minVisibleDiversity`, and
+`minRecommendedImprovement` in the search metadata. The score penalizes reviewed
+resource neighborhoods and visibly similar samples, and sorting prefers
+non-analysis-only candidates. This is a tool-quality improvement only; it does
+not by itself redesign 61/73/71.

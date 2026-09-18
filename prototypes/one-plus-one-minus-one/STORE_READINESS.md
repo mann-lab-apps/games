@@ -9,9 +9,11 @@ Current completion judgment is tracked in
 ## Current Runtime Caveat
 
 The local source is newer than uploaded iOS `1.0.0 (2)` and the existing WebGL
-artifacts. In particular, the exact-rational Round 48 correctness fix and the
-latest round-identity edits require a fresh Unity runtime pass before they can
-be treated as player-build evidence.
+artifacts. A local iOS `1.0.0 (3)` archive and IPA export exist, but App Store
+Connect upload, processing, TestFlight installation and review selection for
+build 3 are not verified here. In particular, the exact-rational Round 48
+correctness fix and the latest round-identity edits require a fresh Unity
+runtime pass before they can be treated as player-build evidence.
 
 Before running PlayMode, WebGL rebuilds, iOS readiness or Android readiness,
 run:
@@ -49,6 +51,8 @@ Unity-gated checks when it fails instead of repeating the same Unity timeout.
     alternate valid answers, and direct equality validation.
   - Review notes should explicitly explain that the player composes equations
     rather than moving one match to fix a prebuilt equation.
+  - Recent round-design evidence also removes late standalone `N / N = 1`
+    shortcut keys and copied-expression equality samples without token bans.
 - Age rating notes:
   - No violence, user-generated content, chat, gambling, or mature content.
   - Contains ads when production AdMob IDs are configured.
@@ -202,6 +206,8 @@ Current code-side polish pass covers:
   production AdMob IDs and non-development device builds, while Android release
   AAB builds require production AdMob IDs and cannot use the forced-test-ad
   build path.
+- Strict readiness rejects missing or placeholder production inputs before a
+  store build is treated as upload-ready.
 - iOS export includes `Assets/_Project/Store/PrivacyInfo.xcprivacy` as an app
   bundle resource for app-local PlayerPrefs/UserDefaults progress storage.
 - Static 100-round verification can run without Unity through

@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import * as identity from './one-plus-one-minus-one-round-identity.mjs';
 const { extractRounds, acceptsRound, analyzeIdentity, findEqualityWitness, identityErrors,
-  generateCandidatePool, evaluate, tokenCosts } = identity;
+  generateCandidatePool, evaluate, tokenCosts, classifySolutionPatterns, analyzeRoundPatterns,
+  findDominantPatternCandidates } = identity;
 
 const round = (number, sample, target) => ({number, sample, symbols: sample.split(' '),
   stickCount: sample.split(' ').reduce((n, t) => n + ({'1':1,'11':2,'111':3,'+':2,'-':1,'/':1,'×':2,'*':3,'=':2}[t]), 0), target});
@@ -21,7 +22,6 @@ const redesigned = [
   [88, '1 11 = 1 × 111', 82, '111 - 11 * 111 / 111'],
   [38, '11 = 1 1', 18, '1 × 1 1'],
   [39, '11 = 11', 20, '11 + 111'],
-  [52, '11 / 11 = 1', 14, '11 1 / 111'],
   [70, '111 / 1 = 111', 87, '111 / 111 * 111'],
   [90, '1 + 1 = 1 + 1', 19, '1 1 - 11 - 1'],
   [76, '1 1 1 1 111 = 1 111 111', 64, '111 - 111 + 11 / 11 + 1'],
@@ -33,9 +33,7 @@ const redesigned = [
   [93, '1 1 11 = 1 111', 42, '1 11 + 1 - 1 - 11 / 11'],
   [71, '1 1 1 1 = 1 1 11', 58, '1 - 1 / 1 - 11 / 1 1'],
   [92, '1 × 11 = 11', 15, '11 + 111 / 111 * 111'],
-  [99, '1 1 1 = 1 × 111', 59, '111 - 11 - 1 / 1 + 1 - 1'],
   [26, '1 1 1 = 1 1 1', 13, '1 1 1 / 1 1 1'],
-  [94, '1 111 = 1 111 × 1', 65, '11 - 1 / 111 * 1 11 + 1'],
 ];
 for (const [number, shared, owner, alternative] of redesigned) {
   test(`Round ${number} separates a shared answer without banning it globally`, () => {
@@ -246,6 +244,58 @@ test('candidate CLI reports its budget without editing game data', () => {
   assert.equal(fs.readFileSync(rules, 'utf8'), before);
 });
 
+test('dominant shortcut candidate search is deterministic and reports bounded evidence', () => {
+  const rounds = extractRounds(fs.readFileSync(new URL('../prototypes/one-plus-one-minus-one/Assets/_Project/Scripts/OnePlusOneMinusOneRules.cs', import.meta.url), 'utf8'));
+  const before = structuredClone(rounds);
+  const options = {roundNumbers:[91], seed:424242, samples:2000, maxEvaluations:4, maxResults:2, candidateBudget:8};
+  const first = findDominantPatternCandidates(rounds, options);
+  assert.deepEqual(first, findDominantPatternCandidates(rounds, options));
+  assert.deepEqual(rounds, before);
+  assert.equal(first.seed, options.seed);
+  assert.equal(first.samples, options.samples);
+  assert.match(first.method, /bounded and heuristic/);
+  assert.match(first.method, /analysis-only/);
+  assert.match(first.method, /visibly similar/);
+  assert.equal(first.rounds.length, 1);
+  assert.equal(first.rounds[0].number, 91);
+  assert.equal(first.rounds[0].search.evaluated <= options.maxEvaluations, true);
+  assert.equal(first.rounds[0].search.minRecommendedSolutions, 8);
+  assert.equal(first.rounds[0].search.minVisibleDiversity, 2);
+  assert.equal(first.rounds[0].search.minRecommendedImprovement, 0.05);
+  assert.equal(first.rounds[0].current.solutionCount > 0, true);
+  assert.ok(first.rounds[0].current.rankedPatterns.every(row =>
+    typeof row.pattern === 'string' && Number.isFinite(row.ratio)));
+  assert.ok(first.rounds[0].candidates.every(candidate =>
+    candidate.complete && candidate.improvement > 0 &&
+    candidate.slots >= first.rounds[0].slots &&
+    candidate.sticks >= first.rounds[0].sticks &&
+    Number.isInteger(candidate.visibleDiversityScore) &&
+    Array.isArray(candidate.samplePatterns) &&
+    Array.isArray(candidate.sourceSamplePatterns) &&
+    typeof candidate.analysisOnly === 'boolean' &&
+    Array.isArray(candidate.analysisNotes)));
+});
+
+test('dominant shortcut candidate CLI handles explicit and inferred targets', () => {
+  const run = args => spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', ...args], {
+    cwd:new URL('../', import.meta.url), encoding:'utf8'
+  });
+  const explicit = run(['--dominant-candidates', '91', '--samples', '2000', '--max-evaluations', '2', '--max-results', '1', '--candidate-budget', '4']);
+  assert.equal(explicit.status, 0, explicit.stderr);
+  const explicitReport = JSON.parse(explicit.stdout);
+  assert.equal(explicitReport.rounds[0].number, 91);
+  assert.equal(explicitReport.rounds[0].search.evaluated <= 4, true);
+  assert.equal(explicitReport.rounds[0].search.minRecommendedSolutions, 8);
+  assert.equal(explicitReport.rounds[0].search.minVisibleDiversity, 2);
+  assert.equal(explicitReport.rounds[0].search.minRecommendedImprovement, 0.05);
+  const inferred = run(['--dominant-candidates', '--samples', '2000', '--max-evaluations', '1', '--max-results', '1', '--candidate-budget', '1', '--max-extra-slots', '0', '--max-extra-sticks', '0']);
+  assert.equal(inferred.status, 0, inferred.stderr);
+  const inferredReport = JSON.parse(inferred.stdout);
+  assert.ok(inferredReport.rounds.length > 0);
+  assert.ok(inferredReport.rounds.some(row => row.number === 61));
+  assert.notEqual(run(['--dominant-candidates', '0']).status, 0);
+});
+
 test('solution CLI reports completeness and validates selected rounds', () => {
   const run = args => spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', ...args], {
     cwd:new URL('../', import.meta.url), encoding:'utf8'
@@ -260,4 +310,118 @@ test('solution CLI reports completeness and validates selected rounds', () => {
   assert.equal(JSON.parse(limited.stdout).rounds[0].limitReason, 'node_budget');
   for (const value of ['0', '101', '11,', '11,11', 'garbage'])
     assert.notEqual(run(['--solutions', value]).status, 0, value);
+});
+
+test('solution pattern classifier identifies universal shortcut families', () => {
+  assert.deepEqual(classifySolutionPatterns(['11', '/', '11']), ['pure-self-division', 'self-division']);
+  assert.deepEqual(classifySolutionPatterns(['111', '-', '111']), ['pure-self-subtraction', 'self-subtraction']);
+  assert.deepEqual(classifySolutionPatterns(['111', '-', '11', '=', '111', '-', '11']),
+    ['constructed-equality', 'same-expression-equality']);
+  assert.deepEqual(classifySolutionPatterns(['11', '=', '11']),
+    ['constructed-equality', 'same-expression-equality', 'same-number-equality']);
+  assert.deepEqual(classifySolutionPatterns(['1', '/', '1', '+', '11']),
+    ['divide-by-one', 'self-division']);
+  assert.deepEqual(classifySolutionPatterns(['11', '*', '1']),
+    ['multiply-by-one']);
+});
+
+test('round pattern map exposes shortcut solutions without changing acceptance', () => {
+  const rows = analyzeRoundPatterns([
+    round(1, '1 / 1', 1),
+    round(2, '1 + 1', 2),
+    round(3, '1 + 1 = 1 + 1', 2),
+  ]);
+  assert.equal(rows.length, 3);
+  assert.equal(rows[0].complete, true);
+  assert.ok(rows[0].pureShortcutSolutions.some(solution => solution.expression === '1 / 1'));
+  assert.ok(rows[1].patternCounts['same-number-equality'] >= 1);
+  assert.ok(rows[2].samplePatterns.includes('same-expression-equality'));
+});
+
+test('late N over N redesign removes standalone self-division keys from revised rounds', () => {
+  const rounds = extractRounds(fs.readFileSync(new URL('../prototypes/one-plus-one-minus-one/Assets/_Project/Scripts/OnePlusOneMinusOneRules.cs', import.meta.url), 'utf8'));
+  for (const [number, sample] of [
+    [52, '1 1 1 - 1'],
+    [59, '111 * 11 - 11 11'],
+    [65, '1 - 1 1 / 11 - 1'],
+    [100, '11 × 11 - 111 + 1'],
+  ]) {
+    const round = rounds[number - 1];
+    assert.equal(round.sample, sample);
+    const enumeration = identity.enumerateRoundSolutions(round, {maxNodes:200000, maxSolutions:1000});
+    assert.equal(enumeration.complete, true, `Round ${number} enumeration`);
+    assert.equal(enumeration.solutions.some(solution =>
+      classifySolutionPatterns(solution).includes('pure-self-division')), false, `Round ${number}`);
+  }
+});
+
+test('pattern CLI reports shortcut review rows', () => {
+  const run = spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', '--patterns', '--max-nodes', '200000', '--max-solutions', '1000'], {
+    cwd:new URL('../', import.meta.url), encoding:'utf8'
+  });
+  assert.equal(run.status, 0, run.stderr);
+  const report = JSON.parse(run.stdout);
+  assert.match(report.method, /design-review map/);
+  assert.equal(report.rows.length, 100);
+  assert.ok(report.shortcutPolicy.learningRounds.some(row => row.number === 4));
+  assert.ok(report.shortcutPolicy.reviewRounds.every(row => row.number > 30));
+  assert.deepEqual(report.shortcutPolicy.reviewRounds.map(row => row.number), []);
+  assert.deepEqual(report.shortcutPolicy.violations, []);
+  assert.match(report.shortcutPolicy.equalityEchoReview.reviewWindow, /after Round 50/);
+  assert.ok(report.shortcutPolicy.equalityEchoReview.reviewRows.every(row => row.number > 50));
+  assert.deepEqual(report.shortcutPolicy.equalityEchoReview.sampleEchoRows, []);
+  assert.deepEqual(
+    report.shortcutPolicy.equalityEchoReview.alternateOnlyRows.map(row => row.number),
+    report.shortcutPolicy.equalityEchoReview.reviewRows.map(row => row.number),
+  );
+  assert.deepEqual(report.shortcutPolicy.equalityEchoReview.highPriorityAlternateRows.map(row => row.number), [97, 64]);
+  assert.ok(report.shortcutPolicy.equalityEchoReview.reviewRows.some(row => row.number === 54));
+  assert.equal(report.shortcutPolicy.equalityEchoReview.reviewRows.some(row => row.number === 53), false);
+  assert.equal(report.shortcutPolicy.equalityEchoReview.reviewRows.some(row => row.number === 61), false);
+  assert.equal(report.shortcutPolicy.equalityEchoReview.reviewRows.some(row => row.number === 78), false);
+  assert.ok(report.shortcutReview.some(row =>
+    row.pureShortcutSolutions.some(solution => solution.patterns.includes('pure-self-division'))));
+});
+
+test('pattern CLI summary omits bulky per-round rows while keeping policy targets', () => {
+  const run = spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', '--patterns', '--summary', '--max-nodes', '200000', '--max-solutions', '1000'], {
+    cwd:new URL('../', import.meta.url), encoding:'utf8'
+  });
+  assert.equal(run.status, 0, run.stderr);
+  const report = JSON.parse(run.stdout);
+  assert.match(report.method, /Summary/);
+  assert.equal(report.rows, undefined);
+  assert.equal(report.summary.rounds, 100);
+  assert.deepEqual(report.shortcutPolicy.violations, []);
+  assert.deepEqual(report.shortcutPolicy.equalityEchoReview.highPriorityAlternateRows.map(row => row.number), [97, 64]);
+  assert.ok(report.shortcutPolicy.dominantPatternReview.highPriorityRows.some(row =>
+    row.number === 61 && row.pattern === 'multiply-by-one'));
+  assert.equal(report.shortcutPolicy.dominantPatternReview.highPriorityRows.some(row =>
+    row.number === 91), false);
+  assert.equal(report.shortcutPolicy.dominantPatternReview.highPriorityRows.some(row =>
+    row.number === 65), false);
+  assert.ok(report.shortcutPolicy.dominantPatternReview.highPriorityRows.every(row =>
+    row.ratio >= 0.6 && row.solutionCount >= 20));
+});
+
+test('late equality echo redesign removes same-expression samples from targeted rounds', () => {
+  const rounds = extractRounds(fs.readFileSync(new URL('../prototypes/one-plus-one-minus-one/Assets/_Project/Scripts/OnePlusOneMinusOneRules.cs', import.meta.url), 'utf8'));
+  for (const [number, sample] of [
+    [53, '111 / 1'],
+    [61, '11 / 11 + 1 + 1'],
+    [78, '111 × 111 - 111 1 × 11'],
+  ]) {
+    const round = rounds[number - 1];
+    assert.equal(round.sample, sample);
+    assert.equal(classifySolutionPatterns(round.symbols).includes('same-expression-equality'), false);
+  }
+});
+
+test('strict pattern policy passes after late pure N/N review candidates are redesigned', () => {
+  const run = spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', '--patterns', '--strict-patterns', '--max-nodes', '200000', '--max-solutions', '1000'], {
+    cwd:new URL('../', import.meta.url), encoding:'utf8'
+  });
+  assert.equal(run.status, 0, run.stderr);
+  const report = JSON.parse(run.stdout);
+  assert.deepEqual(report.shortcutPolicy.violations, []);
 });

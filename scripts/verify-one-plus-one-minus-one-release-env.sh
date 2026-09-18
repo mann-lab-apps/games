@@ -140,6 +140,7 @@ check_min_integer_env() {
   local env_name="$2"
   local min_value="$3"
   local require_env="$4"
+  local candidate_label="$5"
   local value="${!env_name:-}"
 
   if [[ -z "$value" || ! "$value" =~ ^[1-9][0-9]*$ ]]; then
@@ -147,7 +148,7 @@ check_min_integer_env() {
   fi
 
   if (( value < min_value )); then
-    warn_or_fail "$label should be at least $min_value for the next App Store candidate ($env_name)." "$require_env"
+    warn_or_fail "$label should be at least $min_value for the next $candidate_label candidate ($env_name)." "$require_env"
   fi
 }
 
@@ -242,7 +243,8 @@ check_min_integer_env \
   "iOS build number" \
   MANNLAB_ONE_PLUS_ONE_MINUS_ONE_IOS_BUILD_NUMBER \
   "$min_ios_build_number" \
-  REQUIRE_IOS_VERSION_ENV
+  REQUIRE_IOS_VERSION_ENV \
+  "App Store"
 check_version_env \
   "Android marketing version" \
   MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_MARKETING_VERSION \
@@ -257,7 +259,8 @@ check_min_integer_env \
   "Android version code" \
   MANNLAB_ONE_PLUS_ONE_MINUS_ONE_ANDROID_VERSION_CODE \
   "$min_android_version_code" \
-  REQUIRE_ANDROID_VERSION_ENV
+  REQUIRE_ANDROID_VERSION_ENV \
+  "Play Store"
 
 check_android_signing_env
 

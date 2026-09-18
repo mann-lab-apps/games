@@ -1,5 +1,112 @@
 # 1 = 1 Gameplay Quality Audit
 
+## Universal Shortcut Pattern Map (2026-09-18)
+
+Added a reusable solution-pattern classifier to the Node round-identity mirror.
+`report-one-plus-one-minus-one-round-quality.mjs --patterns` now labels accepted
+canonical solutions with broad shortcut families such as `pure-self-division`
+(`N / N`), `self-division`, `pure-self-subtraction`, `same-expression-equality`,
+`same-number-equality`, `multiply-by-one` and `divide-by-one`. This is a
+design-review map, not a human difficulty proof.
+
+The first focused policy is `N / N = 1`: Rounds 1-30 may intentionally teach or
+echo the pattern, but later pure `N / N` acceptance should be reviewed unless it
+is deliberately combined with another required idea. Initial complete
+enumeration found pure self-division answers in:
+
+- Learning/early window: 4, 9, 12, 25, 26, 27, 28, 30.
+- Later review candidates: 52, 59, 65, 100.
+
+This supports the player's observation that `N / N` can become a universal key
+for target-1 rounds. The redesign should not ban `/` or force a single sample.
+Instead, late affected rounds should require a combined pattern or a distinct
+resource judgment, then rerun `--patterns --strict-patterns` to confirm late
+pure `N / N` no longer passes the stricter design gate.
+
+The stricter policy is intentionally separate from the regular static `--strict`
+gate. It is a redesign target, not a release-blocking code failure while the
+affected rounds are still being actively reshaped.
+
+Follow-up redesign removed standalone `N / N` keys from all four late rounds
+without token bans:
+
+| Round | Previous sample | Current sample | Reason |
+| --- | --- | --- | --- |
+| 52 | `1 11 / 111` | `1 1 1 - 1` | Replaces pure self-division with adjacent-number construction and subtraction (`111 - 1 = 110`). |
+| 59 | `1 * 1 = 1 × 1` | `111 * 11 - 11 11` | Replaces a wide target-1 equality shell with high-value multiplication/subtraction. |
+| 65 | `111 / 111 = 1 × 1` | `1 / 1 1 - 1 / 11` | Replaces direct self-division equality with fractional cancellation. |
+| 100 | `1 + 1 - 1 × 1 / 1` | `11 × 11 - 111 + 1` | Replaces the title callback duplicate with a finale that uses the `11 × 11 - 111` ten-making trick and closes at target 11. |
+
+After these edits, `--patterns --strict-patterns` reports no late pure
+self-division violations. Round 100 is no longer an identical resource/target
+callback to Round 30; the regular strict report now has zero identical
+resource/target groups.
+
+Verification: `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs`
+passes 49/49; `node scripts/verify-one-plus-one-minus-one-rounds.mjs` passes;
+`node scripts/report-one-plus-one-minus-one-round-quality.mjs --strict` passes.
+`node scripts/report-one-plus-one-minus-one-round-quality.mjs --patterns
+--strict-patterns --max-nodes 200000 --max-solutions 1000` passes.
+Full static verification also passes after restoring the store-readiness
+strict-readiness anchor; it still reports the expected stale-WebGL and external
+release/device warnings. Unity licensing remains blocked by
+`LICENSING_CLIENT_UNAVAILABLE`, so this is source/static evidence rather than a
+fresh player-build runtime pass.
+
+Follow-up map: the same `--patterns` report now also surfaces late
+same-expression/same-number equality echo candidates without failing the strict
+gate. These legal answers are not token bans or bugs, but they are the next
+round-design review list because they can bypass a round's intended resource
+judgment. The first equality-echo cleanup changed three sample-first echo
+rounds without adding shared equality witnesses:
+
+| Round | Previous sample | Current sample | Reason |
+| --- | --- | --- | --- |
+| 53 | `111 = 111` | `111 / 1` | Removes a one-solution same-number equality and keeps a compact high-number check. |
+| 61 | `1 + 1 + 1 = 1 + 1 + 1` | `11 / 11 + 1 + 1` | Removes a copied expression equality while keeping target 3. |
+| 78 | `111 - 11 - 1 = 111 - 11 - 1` | `111 × 111 - 111 1 × 11` | Replaces copied-expression equality with adjacent-number multiplication contrast. |
+
+Second cleanup removed the remaining sample-level equality echoes:
+
+| Round | Previous sample | Current sample | Reason |
+| --- | --- | --- | --- |
+| 56 | `11 + 11 = 1 1 + 11` | `11 * 11 / 11 + 1 1` | Removes an equivalent `11 + 11` equality while keeping a square/division path to 22. |
+| 69 | `111 = 1 11` | `1 11 * 1` | Removes same-number equality while preserving the tucked adjacent-number idea. |
+
+Current sample-level late equality echoes: none. Remaining alternate-only
+review rows are 54, 55, 56, 57, 58, 60, 63, 64, 68, 72, 73, 79, 87, 88, 93
+and 97.
+
+The report now ranks alternate-only equality echoes by same-expression share.
+At the current 200k-node/1000-solution budget, high-priority rows are 97
+(`sameExpressionRatio` about 0.62) and 64 (about 0.53). A first hand search for
+64/97 replacements lowered the ratio but introduced new shared equality
+witnesses in candidate resource groups, so those edits were not applied. A
+broader deterministic candidate search over six seeds and up to 2,000,000
+samples per seed found conflict-free target-100 candidates for 64 and
+target-121 candidates for 97, but none improved the same-expression ratio:
+64 stayed around 0.53 or worsened, and 97 stayed around 0.62 or worsened.
+Next redesign should avoid trading one shortcut family for broader equality
+reuse, and should only edit 64/97 if a candidate improves both the ratio and
+the shared-witness map.
+
+Tooling note: use
+`node scripts/report-one-plus-one-minus-one-round-quality.mjs --patterns
+--summary --strict-patterns --max-nodes 200000 --max-solutions 1000` for the
+compact next-action map. It preserves high-priority pattern rows and strict
+violations without printing the full per-round solution-pattern JSON.
+
+The compact map now also includes `dominantPatternReview`, which ranks late
+rounds where one shortcut family accounts for a large share of the enumerated
+accepted answers. The current high-priority arithmetic families are not strict
+failures, but they identify the next play-design review targets: Round 91
+(`divide-by-one`/`self-division`), 61 (`multiply-by-one`), 73
+(`divide-by-one`/`self-division`), 71 (`divide-by-one`, `self-subtraction`,
+`self-division`), 98 (`multiply-by-one`), 96 (`divide-by-one`), 65
+(`divide-by-one`), 63 (`divide-by-one`) and the existing 97
+same-expression-equality concern. This deliberately broadens the map beyond
+pure `N / N` without banning tokens or rejecting valid alternate answers.
+
 ## Numerical Correctness And Round Identity Pass (2026-09-16)
 
 Fixed the zero-target numerical correctness bug by moving solve/equality
@@ -46,7 +153,7 @@ complete canonical-set overlap under the corrected evaluator. These are
 token-array counts and witness searches, not human strategy counts.
 
 Verification completed: `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs`
-passes 46/46; `node scripts/verify-one-plus-one-minus-one-rounds.mjs` passes;
+passes 49/49; `node scripts/verify-one-plus-one-minus-one-rounds.mjs` passes;
 selected `--solutions 11,33,48,83 --strict` passes and reports Round 48 with 4
 solutions. Full static verification passes, with the expected stale WebGL
 warning because the player build is older than these source edits. After
@@ -1218,3 +1325,89 @@ verify target rendering and real consent/ad/crash flows on device, compare the
 next-build screenshots, and deploy the privacy-page correction. Build 2 on
 App Store Connect does not contain these local fixes. Owner review of store
 privacy answers, age rating and actual processing/review state is still needed.
+
+## 2026-09-18 Dominant Shortcut Follow-Up
+
+Dominant-pattern review is now backed by a candidate search command instead of
+manual one-off guesses:
+
+```sh
+node scripts/report-one-plus-one-minus-one-round-quality.mjs \
+  --dominant-candidates 91 --samples 20000 --max-evaluations 40 \
+  --max-results 8 --candidate-budget 1200 --allow-fewer-slots --allow-fewer-sticks
+```
+
+The first promising Round 91 candidate lowered the `/1` dominance but reused
+the 8-slot/11-stick resource group and introduced an unresolved shared equality
+witness with Round 31. That sample was rejected and the tool now filters nearby
+resource candidates whose existing resource group has a proven equality witness.
+
+Accepted Round 91 redesign:
+
+- Before: `1 + 1 1 / 1 - 1`, target 11, 8 slots, 9 sticks.
+- After: `1 1 1 - 1 + 1 1`, target 121, 8 slots, 9 sticks.
+- Effect: Round 91 no longer appears in
+  `dominantPatternReview.highPriorityRows`.
+- The 8/9 resource group with Rounds 65/81/91 remains equality-exhausted, so
+  this does not add the shared-equality problem seen in the rejected candidate.
+
+The candidate ranking was then tightened with a `reviewScore` that penalizes
+nearby candidates with very few accepted answers, large target jumps, and
+resource drift. This keeps the report from over-promoting narrow one-off
+answers that merely lower a shortcut ratio on paper.
+
+Accepted Round 65 redesign:
+
+- Before: `1 / 1 1 - 1 / 11`, target 0, 8 slots, 9 sticks.
+- After: `1 - 1 1 / 11 - 1`, target -1, 8 slots, 9 sticks.
+- Effect: Round 65 drops below the high-priority dominant-pattern threshold
+  while preserving a fractional-cancellation idea and the existing slot/stick
+  budget.
+- The 8/9 resource group with Rounds 65/81/91 remains equality-exhausted after
+  both 91 and 65 changes.
+
+Verification:
+
+- `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` passes
+  52/52.
+- `bash scripts/verify-one-plus-one-minus-one-static.sh` passes with the same
+  expected stale-WebGL, production-config, and manual-device-QA warnings.
+
+Next round-quality slice: the high-priority dominant-pattern list now starts
+with Round 61 (`multiply-by-one` ratio about 0.716), followed by 73, 71, 98,
+96, 97 and 63. Round 91 and Round 65 are closed for this specific dominant
+shortcut issue, but the redesign remains static/Node evidence until a fresh
+Unity/WebGL runtime build is available.
+
+Immediate probes for Rounds 61, 73 and 71 did not produce an applied edit:
+
+- Round 61's top candidates either moved into the already-used 8/9 resource
+  group, reduced the stick budget substantially, or jumped to sparse high
+  targets such as 91/99/101 with only a few accepted answers.
+- Round 73's best-scored candidate had only two accepted answers; the broader
+  candidates barely improved the shortcut ratio or reused the 71/65 resource
+  neighborhoods.
+- Round 71 has the same shape: the ratio can be lowered numerically, but the
+  available candidates are either very narrow or effectively shift the round
+  into another reviewed resource neighborhood.
+
+This suggests the next productive step is not another hand edit from the same
+candidate list. Improve the candidate generator to require a healthier minimum
+solution count, penalize already-reviewed resource neighborhoods more strongly,
+and prefer samples whose visible arithmetic introduces a different player
+decision instead of just moving the target.
+
+The candidate report now marks such rows as `analysisOnly` instead of presenting
+them as clean recommendations. A candidate becomes analysis-only when it has
+fewer than the minimum recommended accepted-answer count or shares a slot/stick
+budget with an already-reviewed resource neighborhood. The rows remain visible
+so unusual but mathematically interesting ideas are not hidden, but regular
+sorting now prefers broader, less entangled candidates first.
+
+The same report now also records `visibleDiversityScore` and
+`minRecommendedImprovement`. Candidates whose visible sample arithmetic barely
+changes the round, or whose dominant-pattern improvement is below 0.05, remain
+visible but are marked analysis-only. Re-running Round 73 after this change
+classifies all eight sampled candidates as analysis-only: the two broadest
+candidates improve the dominant pattern by only about 0.004 and 0.020, while the
+stronger ratio changes are too narrow or reuse the 71/65/81/91 neighborhoods.

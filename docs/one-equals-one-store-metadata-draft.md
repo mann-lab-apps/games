@@ -3,20 +3,28 @@
 This draft is for store-submission preparation. Re-check it against the final
 build, privacy policy, Firebase settings, and AdMob settings before upload.
 
-## Candidate Boundary (2026-09-14)
+## Candidate Boundary (2026-09-18)
 
-iOS `1.0.0 (2)` was uploaded, but Apple processing/review status is not verified.
-The current local target-line/font-material fixes are newer than build 2 and
-need a new build number before distribution. Updated screenshot candidates are
-kept in `Builds/AppStoreScreenshots/Candidates-next-build`, separate from the
-existing `Candidates`. They are browser-rendered candidates, not native-device
-captures, and must be compared against the next iOS build before submission.
+iOS `1.0.0 (2)` is the last uploaded App Store candidate confirmed in the repo
+history. A local `1.0.0 (3)` archive and IPA export now exist under
+`Builds/iOS/Archives/OneEqualsOne-1.0.0-3.xcarchive` and
+`Builds/iOS/Export/1.0.0-3/11.ipa`, but App Store Connect upload, processing,
+TestFlight installation, and review selection for build 3 are not verified by
+this document.
+
+The local source is newer than uploaded build 2 and includes the 4.3(a)
+positioning changes, exact-rational solve correctness, round-identity edits,
+and universal shortcut redesign. Updated screenshot candidates are kept in
+`Builds/AppStoreScreenshots/Candidates-next-build`, separate from the existing
+`Candidates`. They are browser-rendered candidates, not native-device captures,
+and must be compared against the exact submitted build before submission.
 Store capture now uses the native reference scale rather than WebGL's enlarged
 phone scale. Safe Area and physical-device differences still need comparison.
 
 The public privacy page loaded on 2026-09-14 but omitted `1 = 1` from its SDK
 lists. The local website source now includes this game and distinguishes local
-saves from gameplay analytics. This correction has not been deployed publicly.
+saves from gameplay analytics. Public deployment of that correction is not
+verified by this audit.
 
 ## App Identity
 
@@ -79,19 +87,23 @@ The app is a local single-player puzzle game. It does not require accounts,
 chat, user-generated content, purchases, online leaderboards, or remote gameplay
 content.
 
-Guideline 4.3(a) clarification: `1 = 1` is not a repackaged one-match repair
-puzzle. Traditional match-based equation games generally present a prebuilt
-incorrect equation and ask the player to move one piece to fix it. This game
-starts from empty boxes and a limited set of animated stick characters. The
-player constructs the expression from scratch by dragging, rotating, and
-combining pieces into tokens such as `1`, `11`, `111`, `+`, `-`, `/`, `×`, `*`,
-and `=`.
+Guideline 4.3(a) clarification: this updated build and metadata position
+`1 = 1` as a character-based equation builder, not a repackaged one-match
+repair puzzle. Traditional match-based equation games generally present a
+prebuilt incorrect equation and ask the player to move one piece to fix it.
+This game starts from empty boxes and a limited set of animated stick
+characters. The player constructs the expression from scratch by dragging,
+rotating, and combining pieces into tokens such as `1`, `11`, `111`, `+`, `-`,
+`/`, `×`, `*`, and `=`.
 
 The solver does not force a single preset answer. It accepts mathematically
 valid alternate expressions, and if the player creates an `=` token directly it
 checks whether the left and right sides are actually equal. The release set
 contains 100 handmade rounds, including rounds focused on packed numbers,
-operator combinations, and direct equality construction.
+operator combinations, and direct equality construction. The round set was also
+reviewed for over-reusable shortcut patterns: late standalone `N / N = 1`
+solutions and copied-expression equality samples were removed without adding
+token bans or sample-answer enforcement.
 
 Interstitial ads may appear only after newly cleared milestone rounds when
 production AdMob IDs are configured. Early tutorial rounds, replayed rounds, and
@@ -123,7 +135,7 @@ Review collection, purpose, linkage and tracking answers against the exact
 submitted SDK configuration and consent behavior. Console receipt, production
 consent behavior and App Store Connect answers are not verified by this audit.
 
-Official references checked on 2026-09-14:
+Official references last checked for this draft on 2026-09-14:
 
 - [Apple App Privacy Details](https://developer.apple.com/app-store/app-privacy-details/): include relevant third-party SDK practices.
 - [Google Mobile Ads disclosure guidance](https://developers.google.com/admob/ios/privacy/data-disclosure): review advertising-related data and the submitted SDK configuration.

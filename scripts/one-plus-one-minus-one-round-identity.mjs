@@ -120,6 +120,568 @@ export function enumerateRoundSolutions(round, {maxNodes=200000, maxSolutions=10
     domain:'Canonical registered token sequences (x alias normalized to ×), at most one equality, adjacent numerals allowed; Node evaluator, not physical layouts or native input verification.'};
 }
 
+export function classifySolutionPatterns(symbols) {
+  if (!Array.isArray(symbols) || symbols.some(symbol => typeof symbol !== 'string')) {
+    throw new Error('Expected an array of token strings');
+  }
+
+  const ids = new Set();
+  const equals = symbols.indexOf('=');
+  const sides = equals >= 0
+    ? [symbols.slice(0, equals), symbols.slice(equals + 1)]
+    : [symbols];
+
+  if (equals >= 0) {
+    const left = normalizePatternSide(sides[0]);
+    const right = normalizePatternSide(sides[1]);
+    if (left.valid && right.valid) {
+      ids.add('constructed-equality');
+      if (left.key === right.key) ids.add('same-expression-equality');
+      if (left.operands.length === 1 && right.operands.length === 1 &&
+          left.operands[0] === right.operands[0]) ids.add('same-number-equality');
+    }
+  }
+
+  for (const side of sides) {
+    const parsed = normalizePatternSide(side);
+    if (!parsed.valid) continue;
+
+    for (let i = 0; i < parsed.operators.length; i += 1) {
+      const op = parsed.operators[i];
+      const left = parsed.operands[i];
+      const right = parsed.operands[i + 1];
+      if (op === '/' && left === right) ids.add('self-division');
+      if (op === '-' && left === right) ids.add('self-subtraction');
+      if (op === '/' && right === '1') ids.add('divide-by-one');
+      if ((op === '*' || op === '×') && (left === '1' || right === '1')) ids.add('multiply-by-one');
+    }
+  }
+
+  if (equals < 0) {
+    const parsed = normalizePatternSide(symbols);
+    if (parsed.valid && parsed.operands.length === 2 && parsed.operators.length === 1) {
+      if (parsed.operators[0] === '/' && parsed.operands[0] === parsed.operands[1]) {
+        ids.add('pure-self-division');
+      }
+
+      if (parsed.operators[0] === '-' && parsed.operands[0] === parsed.operands[1]) {
+        ids.add('pure-self-subtraction');
+      }
+    }
+  }
+
+  return [...ids].sort();
+}
+
+export function analyzeRoundPatterns(rounds, {maxNodes=200000, maxSolutions=1000}={}) {
+  return rounds.map(round => {
+    const samplePatterns = classifySolutionPatterns(round.symbols);
+    const enumeration = enumerateRoundSolutions(round, {maxNodes, maxSolutions});
+    const patternCounts = {};
+    const pureShortcutSolutions = [];
+    for (const solution of enumeration.solutions) {
+      const patterns = classifySolutionPatterns(solution);
+      for (const pattern of patterns) {
+        patternCounts[pattern] = (patternCounts[pattern] ?? 0) + 1;
+      }
+
+      if (patterns.includes('pure-self-division') ||
+          patterns.includes('pure-self-subtraction') ||
+          patterns.includes('same-expression-equality')) {
+        pureShortcutSolutions.push({expression: solution.join(' '), patterns});
+      }
+    }
+
+    return {
+      number: round.number,
+      name: round.name,
+      sample: round.sample,
+      target: round.target,
+      slots: round.symbols.length,
+      sticks: round.stickCount,
+      complete: enumeration.complete,
+      limitReason: enumeration.limitReason,
+      solutionCount: enumeration.solutions.length,
+      samplePatterns,
+      patternCounts,
+      pureShortcutSolutions,
+      dominantPatterns: Object.entries(patternCounts)
+        .filter(([, count]) => count > 0)
+        .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+        .slice(0, 6)
+        .map(([pattern, count]) => ({pattern, count})),
+    };
+  });
+}
+
+export const dominantReviewPatterns = [
+  'self-division',
+  'divide-by-one',
+  'self-subtraction',
+  'multiply-by-one',
+  'same-expression-equality',
+];
+
+export function dominantPatternProfileForRound(round, {
+  maxNodes = 200000,
+  maxSolutions = 1000,
+  patterns = dominantReviewPatterns,
+} = {}) {
+  if (!Array.isArray(patterns) || patterns.some(pattern => typeof pattern !== 'string')) {
+    throw new Error('patterns must be an array of strings');
+  }
+
+  const enumeration = enumerateRoundSolutions(round, {maxNodes, maxSolutions});
+  const patternCounts = Object.fromEntries(patterns.map(pattern => [pattern, 0]));
+  for (const solution of enumeration.solutions) {
+    const solutionPatterns = classifySolutionPatterns(solution);
+    for (const pattern of patterns) {
+      if (solutionPatterns.includes(pattern)) patternCounts[pattern] += 1;
+    }
+  }
+
+  const rankedPatterns = patterns
+    .map(pattern => ({
+      pattern,
+      count: patternCounts[pattern],
+      ratio: enumeration.solutions.length > 0 ? patternCounts[pattern] / enumeration.solutions.length : 0,
+    }))
+    .filter(row => row.count > 0)
+    .sort((left, right) => right.ratio - left.ratio ||
+      right.count - left.count || left.pattern.localeCompare(right.pattern));
+  const dominant = rankedPatterns[0] ?? {pattern:null, count:0, ratio:0};
+  return {
+    complete: enumeration.complete,
+    limitReason: enumeration.limitReason,
+    solutionCount: enumeration.solutions.length,
+    nodes: enumeration.nodes,
+    maxNodes: enumeration.maxNodes,
+    maxSolutions: enumeration.maxSolutions,
+    patterns,
+    rankedPatterns,
+    dominantPattern: dominant.pattern,
+    dominantCount: dominant.count,
+    dominantRatio: dominant.ratio,
+  };
+}
+
+export function findDominantPatternCandidates(rounds, {
+  roundNumbers = [],
+  seed = 15092026,
+  samples = 600000,
+  maxNodes = 200000,
+  maxSolutions = 1000,
+  maxResults = 8,
+  maxEvaluations = 160,
+  candidateBudget = 250,
+  maxExtraSlots = 2,
+  maxExtraSticks = 4,
+  allowFewerSlots = false,
+  allowFewerSticks = false,
+  minRecommendedSolutions = 8,
+  minVisibleDiversity = 2,
+  minRecommendedImprovement = 0.05,
+} = {}) {
+  if (!Array.isArray(roundNumbers)) throw new Error('roundNumbers must be an array');
+  if (roundNumbers.some(number => !Number.isInteger(number) || number < 1 || number > rounds.length) ||
+      new Set(roundNumbers).size !== roundNumbers.length) {
+    throw new Error('roundNumbers must contain unique existing round numbers');
+  }
+
+  for (const [name, value] of Object.entries({
+    maxResults,
+    maxEvaluations,
+    candidateBudget,
+    maxExtraSlots,
+    maxExtraSticks,
+    minRecommendedSolutions,
+    minVisibleDiversity,
+  })) {
+    if (!Number.isInteger(value) || value < 0) throw new Error(`${name} must be a nonnegative integer`);
+  }
+  if (!Number.isFinite(minRecommendedImprovement) || minRecommendedImprovement < 0) {
+    throw new Error('minRecommendedImprovement must be a nonnegative number');
+  }
+
+  const selectedNumbers = roundNumbers.length > 0 ? roundNumbers : highDominantPatternRoundNumbers(rounds, {maxNodes, maxSolutions});
+  const pool = generateCandidatePool(rounds, {seed, samples});
+  const reports = selectedNumbers.map(number => {
+    const round = rounds[number - 1];
+    const current = dominantPatternProfileForRound(round, {maxNodes, maxSolutions});
+    const evaluated = [];
+    let skippedByBudget = 0;
+
+    const nearby = generateNearbyDominantCandidates(round, rounds, {
+      candidateBudget,
+      maxExtraSlots,
+      maxExtraSticks,
+      allowFewerSlots,
+      allowFewerSticks,
+    });
+    const mergedCandidates = new Map();
+    for (const candidate of [...nearby.candidates, ...pool.candidates]) {
+      const key = `${candidate.slots}/${candidate.sticks}/${candidate.target}`;
+      const previous = mergedCandidates.get(key);
+      if (!previous || candidate.score < previous.score) mergedCandidates.set(key, candidate);
+    }
+    const candidatePool = [...mergedCandidates.values()].sort((left, right) =>
+      dominantCandidateDistance(left, round) - dominantCandidateDistance(right, round) ||
+      left.score - right.score || left.sample.localeCompare(right.sample));
+
+    for (const candidate of candidatePool) {
+      if (maxEvaluations > 0 && evaluated.length >= maxEvaluations) break;
+      if (!allowFewerSlots && candidate.slots < round.symbols.length) {
+        skippedByBudget += 1;
+        continue;
+      }
+
+      if (!allowFewerSticks && candidate.sticks < round.stickCount) {
+        skippedByBudget += 1;
+        continue;
+      }
+
+      if (candidate.slots > round.symbols.length + maxExtraSlots ||
+          candidate.sticks > round.stickCount + maxExtraSticks) {
+        skippedByBudget += 1;
+        continue;
+      }
+
+      const candidateRound = {
+        number,
+        name: `${round.name} candidate`,
+        sample: candidate.sample,
+        symbols: candidate.symbols,
+        stickCount: candidate.sticks,
+        target: candidate.target,
+      };
+      const profile = dominantPatternProfileForRound(candidateRound, {maxNodes, maxSolutions});
+      const improvement = current.dominantRatio - profile.dominantRatio;
+      const targetDistance = Math.abs(candidate.target - round.target);
+      const slotDelta = candidate.slots - round.symbols.length;
+      const stickDelta = candidate.sticks - round.stickCount;
+      const reviewedResourceCount = candidate.existingResources
+        .filter(existingNumber => existingNumber !== number).length;
+      const samplePatterns = classifySolutionPatterns(candidate.symbols);
+      const sourceSamplePatterns = classifySolutionPatterns(round.symbols);
+      const visibleDiversityScore = visibleArithmeticDiversityScore(round.symbols, candidate.symbols);
+      const analysisNotes = [];
+      if (profile.solutionCount < minRecommendedSolutions) {
+        analysisNotes.push(`only ${profile.solutionCount} accepted answer(s) found`);
+      }
+      if (reviewedResourceCount > 0) {
+        analysisNotes.push(`shares slot/stick budget with Round(s) ${candidate.existingResources
+          .filter(existingNumber => existingNumber !== number).join(', ')}`);
+      }
+      if (visibleDiversityScore < minVisibleDiversity) {
+        analysisNotes.push(`visible arithmetic diversity score ${visibleDiversityScore} is below ${minVisibleDiversity}`);
+      }
+      if (improvement < minRecommendedImprovement) {
+        analysisNotes.push(`dominant-pattern improvement ${roundRatio(improvement)} is below ${minRecommendedImprovement}`);
+      }
+      if (current.dominantPattern && samplePatterns.includes(current.dominantPattern)) {
+        analysisNotes.push(`sample visibly keeps dominant pattern ${current.dominantPattern}`);
+      }
+      evaluated.push({
+        sample: candidate.sample,
+        target: candidate.target,
+        slots: candidate.slots,
+        sticks: candidate.sticks,
+        score: candidate.score,
+        equality: candidate.equality,
+        existingResources: candidate.existingResources,
+        complete: profile.complete,
+        solutionCount: profile.solutionCount,
+        dominantPattern: profile.dominantPattern,
+        dominantRatio: profile.dominantRatio,
+        improvement,
+        targetDistance,
+        slotDelta,
+        stickDelta,
+        reviewedResourceCount,
+        samplePatterns,
+        sourceSamplePatterns,
+        visibleDiversityScore,
+        analysisOnly: analysisNotes.length > 0,
+        analysisNotes,
+        reviewScore:dominantCandidateReviewScore({
+          dominantRatio:profile.dominantRatio,
+          solutionCount:profile.solutionCount,
+          targetDistance,
+          slotDelta,
+          stickDelta,
+          baseScore:candidate.score,
+          reviewedResourceCount,
+          visibleDiversityScore,
+        }),
+        rankedPatterns: profile.rankedPatterns.slice(0, 5),
+      });
+    }
+
+    const candidates = evaluated
+      .filter(candidate => candidate.complete && candidate.improvement > 0)
+      .sort((left, right) => Number(left.analysisOnly) - Number(right.analysisOnly) ||
+        left.reviewScore - right.reviewScore ||
+        right.improvement - left.improvement || left.dominantRatio - right.dominantRatio ||
+        left.score - right.score ||
+        left.sample.localeCompare(right.sample))
+      .slice(0, maxResults);
+
+    return {
+      number,
+      name: round.name,
+      sample: round.sample,
+      target: round.target,
+      slots: round.symbols.length,
+      sticks: round.stickCount,
+      current,
+      search:{
+        seed,
+        samples,
+        evaluated:evaluated.length,
+        skippedByBudget,
+        maxEvaluations,
+        maxResults,
+        candidateBudget,
+        nearbyCandidateCount:nearby.candidates.length,
+        nearbyLimited:nearby.limited,
+        nearbyNodes:nearby.nodes,
+        maxExtraSlots,
+        maxExtraSticks,
+        allowFewerSlots,
+        allowFewerSticks,
+        minRecommendedSolutions,
+        minVisibleDiversity,
+        minRecommendedImprovement,
+      },
+      candidates,
+    };
+  });
+
+  return {
+    seed,
+    samples,
+    method:'Dominant shortcut candidate search is bounded and heuristic. It evaluates sampled replacement expressions against enumerated accepted answers, then ranks complete candidates that reduce the strongest reusable shortcut-family ratio. Narrow candidates, candidates in already-reviewed resource neighborhoods, and visibly similar samples remain visible as analysis-only rows. It never edits round data automatically and does not prove human difficulty or fun.',
+    rounds:reports,
+  };
+}
+
+function dominantCandidateReviewScore({
+  dominantRatio,
+  solutionCount,
+  targetDistance,
+  slotDelta,
+  stickDelta,
+  baseScore,
+  reviewedResourceCount,
+  visibleDiversityScore,
+}) {
+  const scarcityPenalty = Math.max(0, 8 - solutionCount) * 8;
+  const targetPenalty = Math.min(40, targetDistance) * 1.5;
+  const resourcePenalty = Math.abs(slotDelta) * 5 + Math.abs(stickDelta) * 3;
+  const reviewedResourcePenalty = reviewedResourceCount * 12;
+  const visibleSimilarityPenalty = Math.max(0, 4 - visibleDiversityScore) * 8;
+  return Math.round((dominantRatio * 120 + scarcityPenalty + targetPenalty +
+    resourcePenalty + reviewedResourcePenalty + visibleSimilarityPenalty +
+    baseScore * 0.1) * 1000) / 1000;
+}
+
+function visibleArithmeticDiversityScore(leftSymbols, rightSymbols) {
+  const leftOperators = operatorProfile(leftSymbols);
+  const rightOperators = operatorProfile(rightSymbols);
+  const operators = new Set([...Object.keys(leftOperators.counts), ...Object.keys(rightOperators.counts)]);
+  let operatorDistance = 0;
+  for (const operator of operators) {
+    operatorDistance += Math.abs((leftOperators.counts[operator] ?? 0) - (rightOperators.counts[operator] ?? 0));
+  }
+
+  const leftPatterns = new Set(classifySolutionPatterns(leftSymbols));
+  const rightPatterns = new Set(classifySolutionPatterns(rightSymbols));
+  const patterns = new Set([...leftPatterns, ...rightPatterns]);
+  let patternDistance = 0;
+  for (const pattern of patterns) {
+    if (leftPatterns.has(pattern) !== rightPatterns.has(pattern)) patternDistance += 1;
+  }
+
+  const sequenceDistance = leftOperators.sequence === rightOperators.sequence ? 0 : 1;
+  return operatorDistance + patternDistance * 2 + sequenceDistance;
+}
+
+function operatorProfile(symbols) {
+  const sequence = symbols.filter(symbol => operatorTokens.has(symbol)).join(' ');
+  const counts = {};
+  for (const symbol of symbols) {
+    if (operatorTokens.has(symbol)) counts[symbol] = (counts[symbol] ?? 0) + 1;
+  }
+
+  return {sequence, counts};
+}
+
+function roundRatio(value) {
+  return Math.round(value * 1000) / 1000;
+}
+
+function generateNearbyDominantCandidates(round, rounds, {
+  candidateBudget,
+  maxExtraSlots,
+  maxExtraSticks,
+  allowFewerSlots,
+  allowFewerSticks,
+}) {
+  const minSlots = allowFewerSlots ? Math.max(1, round.symbols.length - maxExtraSlots) : round.symbols.length;
+  const maxSlots = Math.min(11, round.symbols.length + maxExtraSlots);
+  const minSticks = allowFewerSticks ? Math.max(1, round.stickCount - maxExtraSticks) : round.stickCount;
+  const maxSticks = round.stickCount + maxExtraSticks;
+  const occupied = new Set(rounds.map(existing =>
+    `${existing.symbols.length}/${existing.stickCount}/${existing.target}`));
+  const resources = [];
+  for (let slots = minSlots; slots <= maxSlots; slots += 1) {
+    for (let sticks = minSticks; sticks <= maxSticks; sticks += 1) {
+      if (sticks < slots || sticks > slots * 3) continue;
+      resources.push({slots, sticks});
+    }
+  }
+  resources.sort((left, right) =>
+    18 * Math.abs(left.slots - round.symbols.length) + 9 * Math.abs(left.sticks - round.stickCount) -
+    (18 * Math.abs(right.slots - round.symbols.length) + 9 * Math.abs(right.sticks - round.stickCount)));
+
+  const tokens = ['1','11','111','=','-','/','+','×','*'];
+  const candidates = new Map();
+  const equalityCache = new Map();
+  let nodes = 0;
+  let limited = false;
+
+  const addCandidate = symbols => {
+    let target;
+    try {
+      target = sampleTarget(symbols);
+    } catch {
+      return;
+    }
+
+    if (!Number.isInteger(target) || target < -2 || target > 122) return;
+    const slots = symbols.length;
+    const sticks = symbols.reduce((sum, symbol) => sum + tokenCosts.get(symbol), 0);
+    const identity = `${slots}/${sticks}/${target}`;
+    if (occupied.has(identity)) return;
+    const existingResources = rounds
+      .filter(existing => existing.symbols.length === slots && existing.stickCount === sticks)
+      .map(existing => existing.number);
+    const resourceKey = `${slots}/${sticks}`;
+    if (!equalityCache.has(resourceKey)) equalityCache.set(resourceKey, findEqualityWitness(slots, sticks));
+    const equality = equalityCache.get(resourceKey);
+    if (existingResources.length > 0 && equality.status === 'found') return;
+    const sample = symbols.join(' ');
+    const operations = symbols.filter(symbol => operatorTokens.has(symbol) && symbol !== '=');
+    let trivial = 0;
+    for (let index = 0; index < symbols.length; index += 1) {
+      const op = symbols[index];
+      if (!['/', '×', '*'].includes(op)) continue;
+      const left = symbols[index - 1];
+      const right = symbols[index + 1];
+      if (op === '/' && right === '1') trivial += 1;
+      if ((op === '×' || op === '*') && (left === '1' || right === '1')) trivial += 1;
+    }
+    const repeated = operations.reduce((count, op, index) =>
+      count + Number(index > 0 && operations[index - 1] === op), 0);
+    const score = 3 * slots + sticks + 5 * trivial + 3 * repeated +
+      2 * Math.min(30, Math.abs(target - round.target));
+    const candidate = {symbols:[...symbols], sample, slots, sticks, target,
+      equality:equality.status, existingResources,
+      trivial, repeated, score, source:'nearby-resource-enumeration'};
+    const previous = candidates.get(identity);
+    if (!previous || candidate.score < previous.score) candidates.set(identity, candidate);
+  };
+
+  const visit = (slots, sticks, symbols, cost, hasEquality, previousNumber) => {
+    if (limited) return;
+    if (candidateBudget > 0 && candidates.size >= candidateBudget) {
+      limited = true;
+      return;
+    }
+
+    nodes += 1;
+    const left = slots - symbols.length;
+    if (cost + left > sticks || cost + left * 3 < sticks) return;
+    if (left === 0) {
+      if (previousNumber && cost === sticks) addCandidate(symbols);
+      return;
+    }
+
+    for (const token of tokens) {
+      const number = !operatorTokens.has(token);
+      if (!number && (!previousNumber || left === 1)) continue;
+      if (token === '=' && hasEquality) continue;
+      symbols.push(token);
+      visit(slots, sticks, symbols, cost + tokenCosts.get(token), hasEquality || token === '=', number);
+      symbols.pop();
+      if (limited) break;
+    }
+  };
+
+  for (const resource of resources) {
+    visit(resource.slots, resource.sticks, [], 0, false, false);
+    if (limited) break;
+  }
+
+  return {limited, nodes, candidates:[...candidates.values()]};
+}
+
+function dominantCandidateDistance(candidate, round) {
+  return 18 * Math.abs(candidate.slots - round.symbols.length) +
+    9 * Math.abs(candidate.sticks - round.stickCount) +
+    2 * Math.min(30, Math.abs(candidate.target - round.target)) +
+    (candidate.target === round.target ? 0 : 7);
+}
+
+function highDominantPatternRoundNumbers(rounds, {maxNodes, maxSolutions}) {
+  return analyzeRoundPatterns(rounds, {maxNodes, maxSolutions})
+    .flatMap(row => {
+      if (row.number <= 50 || row.solutionCount < 20) return [];
+      return dominantReviewPatterns.map(pattern => {
+        const count = row.patternCounts[pattern] ?? 0;
+        return {
+          number:row.number,
+          pattern,
+          count,
+          solutionCount:row.solutionCount,
+          ratio:row.solutionCount > 0 ? count / row.solutionCount : 0,
+        };
+      });
+    })
+    .filter(row => row.count > 0 && row.ratio >= 0.6)
+    .sort((left, right) => right.ratio - left.ratio ||
+      right.count - left.count || left.number - right.number ||
+      left.pattern.localeCompare(right.pattern))
+    .map(row => row.number)
+    .filter((number, index, numbers) => numbers.indexOf(number) === index);
+}
+
+function normalizePatternSide(symbols) {
+  const operands = [];
+  const operators = [];
+  let buffer = '';
+
+  for (const symbol of symbols) {
+    const token = symbol === 'x' ? '×' : symbol;
+    if (!tokenCosts.has(token) || token === '=') return {valid:false, key:'', operands:[], operators:[]};
+    if (!operatorTokens.has(token)) {
+      buffer += token;
+      continue;
+    }
+
+    if (buffer.length === 0) return {valid:false, key:'', operands:[], operators:[]};
+    operands.push(buffer);
+    buffer = '';
+    operators.push(token);
+  }
+
+  if (buffer.length === 0) return {valid:false, key:'', operands:[], operators:[]};
+  operands.push(buffer);
+  const key = operands.map((operand, index) =>
+    index === 0 ? operand : `${operators[index - 1]}${operand}`).join('');
+  return {valid:true, key, operands, operators};
+}
+
 export function generateCandidatePool(rounds, {seed=15092026, samples=600000}={}) {
   if (!Number.isInteger(samples) || samples < 1 || samples > 2000000)
     throw new Error('samples must be an integer from 1 to 2000000');

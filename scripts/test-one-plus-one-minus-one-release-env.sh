@@ -122,6 +122,7 @@ stale_ios_build_output="$(
     "$script" --strict
 )"
 require_failure_text "stale iOS build number" "$stale_ios_build_output" "iOS build number should be at least 3"
+require_failure_text "stale iOS build number" "$stale_ios_build_output" "next App Store candidate"
 
 stale_android_version_output="$(
   capture_failure "stale Android version code" env -i PATH="$PATH" HOME="$HOME" \
@@ -140,6 +141,12 @@ stale_android_version_output="$(
     "$script" --strict
 )"
 require_failure_text "stale Android version code" "$stale_android_version_output" "Android version code should be at least 3"
+require_failure_text "stale Android version code" "$stale_android_version_output" "next Play Store candidate"
+if grep -Fq "Android version code should be at least 3 for the next App Store candidate" <<< "$stale_android_version_output"; then
+  echo "Android stale version code should not be described as an App Store candidate." >&2
+  echo "$stale_android_version_output" >&2
+  exit 1
+fi
 
 admob_placeholder_output="$(
   capture_failure "admob readiness mixed-case placeholders" env -i PATH="$PATH" HOME="$HOME" \
