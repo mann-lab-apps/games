@@ -845,3 +845,20 @@ search, but it found no candidate with `maxEvaluations=120`,
 `maxSideExpressions=240`, and `maxResourceDelta=1`. Next useful work is a
 hand-designed Round 97 replacement or a deliberately scheduled wider equality
 search, not another unbounded general probe.
+
+Collection and achievement differentiation track:
+
+- Status: implementation pass complete for static checks, runtime verification pending.
+- The capacity-slot tutorial appendix has been discarded before release. The
+  game returns to the original 100-round free-placement structure.
+- Current differentiation work focuses on lightweight collection hooks that do
+  not constrain free solving: discovered shape friends, badges, and per-round
+  solved-expression collection.
+- The solved-expression collection intentionally supports the player's idea of
+  clearing the same round in multiple ways. It records up to three distinct
+  accepted expressions per round and awards a badge for finding three answers.
+- Static Node tests and the static suite pass for the 100-round collection
+  pivot. Next playable-design step: after Unity/WebGL is available, verify that the
+  Shapes overlay and unlock toast feel celebratory rather than tutorial-heavy,
+  and that expression collection encourages alternate solutions without
+  revealing answers too early.

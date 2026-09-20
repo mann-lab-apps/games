@@ -339,7 +339,7 @@ test('equality echo candidate CLI handles explicit targets', () => {
   assert.equal(report.rounds[0].search.evaluated <= 2, true);
   assert.notEqual(spawnSync(process.execPath, [
     'scripts/report-one-plus-one-minus-one-round-quality.mjs',
-    '--equality-candidates', '101',
+    '--equality-candidates', '105',
   ], {cwd:new URL('../', import.meta.url), encoding:'utf8'}).status, 0);
 });
 
@@ -355,7 +355,7 @@ test('solution CLI reports completeness and validates selected rounds', () => {
   const limited = run(['--solutions', '48', '--max-nodes', '1', '--strict']);
   assert.notEqual(limited.status, 0);
   assert.equal(JSON.parse(limited.stdout).rounds[0].limitReason, 'node_budget');
-  for (const value of ['0', '101', '11,', '11,11', 'garbage'])
+  for (const value of ['0', '105', '11,', '11,11', 'garbage'])
     assert.notEqual(run(['--solutions', value]).status, 0, value);
 });
 

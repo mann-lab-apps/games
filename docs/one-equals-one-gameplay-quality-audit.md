@@ -1449,3 +1449,21 @@ with `maxEvaluations=120`, `maxSideExpressions=240`, and `maxResourceDelta=1`,
 but found no replacement candidates in that budget. Treat Round 97 as requiring
 either a wider search with explicit time budgeting or a hand-designed late
 equality puzzle rather than a quick data tweak.
+
+2026-09-20 collection/achievement pivot:
+
+- The capacity-slot tutorial pass was discarded before runtime release. The
+  current round set is back to 100 free-placement rounds.
+- Added a lightweight Shapes entry point in the footer, plus a collection
+  overlay for discovered shape friends, badges, and the current round's solved
+  expressions.
+- Solved expressions are now part of the collection loop: each round can show up
+  to three distinct accepted expressions, encouraging alternate valid solutions
+  without adding symbol bans or sample-answer matching.
+- Added unlock toasts for newly discovered shape friends, badges, and new
+  accepted expressions.
+- Static Node tests and the static verification suite pass for this pivot.
+  Unity PlayMode and fresh WebGL verification are still blocked by
+  `LICENSING_CLIENT_UNAVAILABLE` in this environment; resume with
+  `bash scripts/check-one-plus-one-minus-one-unity-license.sh`, then run
+  PlayMode and a fresh QA WebGL build.

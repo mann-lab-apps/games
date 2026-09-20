@@ -62,6 +62,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private const string HighestUnlockedRoundKey = "OnePlusOneMinusOne.GoalMode.HighestUnlockedRound";
         private const string GoalModeCompletedKey = "OnePlusOneMinusOne.GoalMode.Completed";
         private const string SoundEnabledKey = "OnePlusOneMinusOne.Audio.Enabled";
+        private const string ShapeCollectionKeyPrefix = "OnePlusOneMinusOne.Collection.Shape.";
+        private const string AchievementKeyPrefix = "OnePlusOneMinusOne.Achievement.";
+        private const string SolvedExpressionKeyPrefix = "OnePlusOneMinusOne.Collection.RoundExpression.";
         private const string GameIdentifier = "one-plus-one-minus-one";
         private const string ReleaseAdMobConfigResourceName = "OnePlusOneMinusOneReleaseAdMob";
         private const string ProductionIosInterstitialAdUnitId = "";
@@ -77,6 +80,21 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private const int InterstitialMaxFailuresBeforeSkip = ReleaseInterstitialMaxFailuresBeforeSkip;
         private static readonly string[] TargetSuccessMessages = { "Nice.", "It fits.", "Good shape.", "That works." };
         private static readonly string[] EqualitySuccessMessages = { "Balanced.", "It matches.", "Nice balance.", "Both sides agree." };
+        private static readonly string[] CollectibleShapes = { "1", "-", "/", "+", "×", "=", "11", "111", "*" };
+        private static readonly AchievementDefinition[] Achievements =
+        {
+            new AchievementDefinition("first_shape", "First Friend", "Find your first shape."),
+            new AchievementDefinition("all_shapes", "Full Cast", "Find every shape friend."),
+            new AchievementDefinition("first_clear", "It Works", "Clear one round."),
+            new AchievementDefinition("own_way", "Your Own Way", "Clear with a different expression."),
+            new AchievementDefinition("balanced_builder", "Balanced Builder", "Clear by making =."),
+            new AchievementDefinition("star_friend", "Star Friend", "Clear with *."),
+            new AchievementDefinition("slash_artist", "Slash Artist", "Clear with /."),
+            new AchievementDefinition("three_ways", "Three Ways", "Find 3 answers for one round."),
+            new AchievementDefinition("round_10", "Ten Done", "Clear Round 10."),
+            new AchievementDefinition("round_30", "Thirty Done", "Clear Round 30."),
+            new AchievementDefinition("goal_clear", "All Together", "Clear the last round.")
+        };
 #if DEVELOPMENT_BUILD || UNITY_EDITOR || MANNLAB_STORE_CAPTURE
         private const string CrashlyticsTestArgument = "--mannlab-force-crashlytics-test";
         private const string CrashlyticsTestEnvironmentVariable = "MANNLAB_FORCE_CRASHLYTICS_TEST";
@@ -119,6 +137,20 @@ namespace MannLab.Games.OnePlusOneMinusOne
             Fail,
             Success,
             Finale
+        }
+
+        private readonly struct AchievementDefinition
+        {
+            public string Id { get; }
+            public string Title { get; }
+            public string Description { get; }
+
+            public AchievementDefinition(string id, string title, string description)
+            {
+                Id = id;
+                Title = title;
+                Description = description;
+            }
         }
 
         private readonly struct FaceLayout
@@ -270,6 +302,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private readonly List<int> bankPositionIndices = new List<int>();
         private readonly List<Button> roundSelectButtons = new List<Button>();
         private readonly List<Text> roundSelectLabels = new List<Text>();
+        private readonly Dictionary<string, Text> shapeCollectionLabels = new Dictionary<string, Text>();
+        private readonly Dictionary<string, Text> achievementLabels = new Dictionary<string, Text>();
+        private readonly HashSet<string> discoveredShapes = new HashSet<string>();
+        private readonly HashSet<string> unlockedAchievements = new HashSet<string>();
+        private readonly List<Text> expressionCollectionLabels = new List<Text>();
         private readonly Dictionary<SfxCue, AudioClip> sfxClips = new Dictionary<SfxCue, AudioClip>();
         private readonly Dictionary<SfxCue, float> sfxLastPlayedAt = new Dictionary<SfxCue, float>();
         private const int RoundSelectPageSize = ReleaseRoundSelectPageSize;
@@ -321,6 +358,13 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private Text roundPageText;
         private RectTransform roundSelectOverlay;
         private RectTransform roundSelectPanel;
+        private RectTransform collectionOverlay;
+        private RectTransform collectionPanel;
+        private Text collectionStatsText;
+        private Text expressionCollectionTitleText;
+        private RectTransform toastRoot;
+        private Text toastText;
+        private Coroutine toastRoutine;
         private GridLayoutGroup roundSelectGrid;
         private LayoutElement roundSelectGridLayout;
         private LayoutElement equationAreaLayout;
@@ -349,6 +393,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             var savedHighestUnlockedRoundIndex = PlayerPrefs.GetInt(HighestUnlockedRoundKey, 0);
             soundEnabled = PlayerPrefs.GetInt(SoundEnabledKey, 1) != 0;
             goalModeCompleted = PlayerPrefs.GetInt(GoalModeCompletedKey, 0) == 1;
+            LoadCollectionState();
             if (goalModeCompleted)
             {
                 savedHighestUnlockedRoundIndex = OnePlusOneMinusOneRules.GoalModeRounds.Length - 1;
@@ -487,6 +532,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
             dragLayer = CreateRect("Drag Layer", canvas.transform);
             Stretch(dragLayer);
             BuildRoundSelectOverlay();
+            BuildCollectionOverlay();
+            BuildToast();
             UpdateStageLayout();
         }
 
@@ -517,6 +564,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             stageRoot.sizeDelta = new Vector2(plan.Width, plan.Height);
             stageRoot.anchoredPosition = new Vector2(0f, plan.OffsetY);
             UpdateRoundSelectLayout(safe);
+            UpdateCollectionLayout(safe);
             if (slotSymbols != null && Mathf.Abs(AvailableEquationWidth() - equationLayoutWidth) > 0.5f)
             {
                 CancelStickDrag();
@@ -662,24 +710,28 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             var layout = footer.gameObject.AddComponent<HorizontalLayoutGroup>();
             layout.childAlignment = TextAnchor.MiddleCenter;
-            layout.spacing = 16f;
+            layout.spacing = 12f;
             layout.childControlWidth = true;
             layout.childControlHeight = true;
             layout.childForceExpandWidth = false;
             layout.childForceExpandHeight = false;
 
-            var roundsButton = CreateCommandButton("Rounds Button", footer, "Rounds", new Vector2(154f, 100f));
+            var buttonSize = new Vector2(112f, 96f);
+            var roundsButton = CreateCommandButton("Rounds Button", footer, "Rounds", buttonSize);
             roundsButton.onClick.AddListener(ShowRoundSelect);
 
-            var resetButton = CreateCommandButton("Reset Button", footer, "Reset", new Vector2(154f, 100f));
+            var shapesButton = CreateCommandButton("Shapes Button", footer, "Shapes", buttonSize);
+            shapesButton.onClick.AddListener(ShowCollection);
+
+            var resetButton = CreateCommandButton("Reset Button", footer, "Reset", buttonSize);
             resetButton.onClick.AddListener(ResetRound);
 
-            checkButton = CreateCommandButton("Check Button", footer, "Check", new Vector2(154f, 100f));
+            checkButton = CreateCommandButton("Check Button", footer, "Check", buttonSize);
             checkButton.onClick.AddListener(CheckCurrent);
-            foreach (var button in new[] { roundsButton, resetButton, checkButton })
+            foreach (var button in new[] { roundsButton, shapesButton, resetButton, checkButton })
             {
                 var label = button.GetComponentInChildren<Text>();
-                label.fontSize = label.resizeTextMaxSize = 32;
+                label.fontSize = label.resizeTextMaxSize = 25;
             }
         }
 
@@ -772,6 +824,114 @@ namespace MannLab.Games.OnePlusOneMinusOne
             UpdateRoundSelectLayout(safeRoot.rect);
             RefreshRoundSelectButtons();
             roundSelectOverlay.gameObject.SetActive(false);
+        }
+
+        private void BuildCollectionOverlay()
+        {
+            collectionOverlay = CreateRect("Collection Overlay", canvas.transform);
+            Stretch(collectionOverlay);
+            var blocker = collectionOverlay.gameObject.AddComponent<Image>();
+            blocker.color = WhitePaperColor;
+
+            collectionPanel = CreatePanel("Collection Panel", collectionOverlay, WhitePaperColor, SketchPalette.Ink, 1201);
+            collectionPanel.anchorMin = new Vector2(0.5f, 0.5f);
+            collectionPanel.anchorMax = new Vector2(0.5f, 0.5f);
+            collectionPanel.pivot = new Vector2(0.5f, 0.5f);
+            collectionPanel.sizeDelta = new Vector2(560f, 860f);
+
+            var layout = collectionPanel.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(30, 30, 28, 28);
+            layout.spacing = 12f;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+
+            var title = CreateText("Collection Title", collectionPanel, "Shapes", 38, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
+            title.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 50f;
+
+            collectionStatsText = CreateText("Collection Stats", collectionPanel, string.Empty, 23, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
+            collectionStatsText.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
+
+            var shapeGridRoot = CreateRect("Shape Grid", collectionPanel);
+            shapeGridRoot.gameObject.AddComponent<LayoutElement>().preferredHeight = 248f;
+            var grid = shapeGridRoot.gameObject.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(146f, 70f);
+            grid.spacing = new Vector2(12f, 12f);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 3;
+            grid.childAlignment = TextAnchor.UpperCenter;
+            shapeCollectionLabels.Clear();
+            foreach (var shape in CollectibleShapes)
+            {
+                var cell = CreatePanel($"Shape {shape}", shapeGridRoot, ButtonPaperColor, SketchPalette.Ink, shape.GetHashCode());
+                var label = CreateText("Shape Label", cell, shape, 28, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
+                Stretch(label.rectTransform, 8f, 4f, 8f, 4f);
+                shapeCollectionLabels[shape] = label;
+            }
+
+            expressionCollectionTitleText = CreateText("Expression Title", collectionPanel, string.Empty, 25, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
+            expressionCollectionTitleText.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
+
+            var expressions = CreateRect("Expression Rows", collectionPanel);
+            expressions.gameObject.AddComponent<LayoutElement>().preferredHeight = 104f;
+            var expressionLayout = expressions.gameObject.AddComponent<VerticalLayoutGroup>();
+            expressionLayout.spacing = 3f;
+            expressionLayout.childControlHeight = true;
+            expressionLayout.childControlWidth = true;
+            expressionLayout.childForceExpandHeight = false;
+            expressionCollectionLabels.Clear();
+            for (var i = 0; i < 3; i++)
+            {
+                var row = CreateText($"Expression {i + 1}", expressions, string.Empty, 20, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
+                row.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 30f;
+                expressionCollectionLabels.Add(row);
+            }
+
+            var achievementTitle = CreateText("Achievement Title", collectionPanel, "Achievements", 27, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
+            achievementTitle.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
+
+            var achievementRows = CreateRect("Achievement Rows", collectionPanel);
+            achievementRows.gameObject.AddComponent<LayoutElement>().preferredHeight = 248f;
+            var achievementLayout = achievementRows.gameObject.AddComponent<VerticalLayoutGroup>();
+            achievementLayout.spacing = 2f;
+            achievementLayout.childControlHeight = true;
+            achievementLayout.childControlWidth = true;
+            achievementLayout.childForceExpandHeight = false;
+            achievementLabels.Clear();
+            foreach (var achievement in Achievements)
+            {
+                var row = CreateText($"Achievement {achievement.Id}", achievementRows, string.Empty, 19, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleLeft);
+                row.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 23f;
+                achievementLabels[achievement.Id] = row;
+            }
+
+            var actions = CreateRect("Collection Actions", collectionPanel);
+            actions.gameObject.AddComponent<LayoutElement>().preferredHeight = 76f;
+            var actionsLayout = actions.gameObject.AddComponent<HorizontalLayoutGroup>();
+            actionsLayout.childAlignment = TextAnchor.MiddleCenter;
+            actionsLayout.childControlWidth = actionsLayout.childControlHeight = true;
+            actionsLayout.childForceExpandWidth = false;
+            actionsLayout.childForceExpandHeight = false;
+            var closeButton = CreateCommandButton("Close Collection", actions, "Close", new Vector2(190f, 74f));
+            closeButton.onClick.AddListener(HideCollection);
+
+            RefreshCollectionOverlay();
+            collectionOverlay.gameObject.SetActive(false);
+        }
+
+        private void BuildToast()
+        {
+            toastRoot = CreatePanel("Collection Toast", canvas.transform, new Color32(255, 250, 225, 255), SketchPalette.Ink, 1301);
+            toastRoot.anchorMin = new Vector2(0.5f, 1f);
+            toastRoot.anchorMax = new Vector2(0.5f, 1f);
+            toastRoot.pivot = new Vector2(0.5f, 1f);
+            toastRoot.sizeDelta = new Vector2(460f, 86f);
+            toastRoot.anchoredPosition = new Vector2(0f, -34f);
+            toastText = CreateText("Toast Text", toastRoot, string.Empty, 25, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
+            Stretch(toastText.rectTransform, 18f, 8f, 18f, 8f);
+            toastRoot.gameObject.SetActive(false);
         }
 
         private void CreateSoundToggle(RectTransform parent)
@@ -902,6 +1062,40 @@ namespace MannLab.Games.OnePlusOneMinusOne
             {
                 roundSelectOverlay.gameObject.SetActive(false);
             }
+        }
+
+        private void ShowCollection()
+        {
+            if (isAdvancing) return;
+            CancelStickDrag();
+            RefreshCollectionOverlay();
+            if (collectionOverlay != null)
+            {
+                collectionOverlay.gameObject.SetActive(true);
+            }
+        }
+
+        private void HideCollection()
+        {
+            if (collectionOverlay != null)
+            {
+                collectionOverlay.gameObject.SetActive(false);
+            }
+        }
+
+        private void UpdateCollectionLayout(Rect safe)
+        {
+            if (collectionPanel == null)
+            {
+                return;
+            }
+
+            var uiScale = safe.height >= safe.width
+                ? Mathf.Min(safe.width / 600f, safe.height / 940f)
+                : Mathf.Min(1f, safe.height / 940f);
+            uiScale = Mathf.Max(0.1f, uiScale);
+            collectionPanel.localScale = Vector3.one * uiScale;
+            collectionPanel.anchoredPosition = Vector2.zero;
         }
 
         private void SelectRound(int index)
@@ -1663,6 +1857,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             if (OnePlusOneMinusOneRules.IsRoundSolved(CurrentRound, slotSymbols, out var result, out var reason))
             {
                 var shouldOfferInterstitial = ShouldOfferRoundClearInterstitial(out var interstitialReason);
+                RecordSolvedExpressionAndAchievements();
                 TrackRoundClear(result.Value);
                 feedbackText.color = SuccessColor;
                 feedbackText.text = SuccessFeedback();
@@ -1681,6 +1876,311 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 : FriendlyFailureText(reason);
             PlaySfx(SfxCue.Fail);
             StartCoroutine(ShakeEquation());
+        }
+
+        private void RecordSolvedExpressionAndAchievements()
+        {
+            var expression = NormalizeExpression(slotSymbols);
+            var discoveredNewExpression = AddSolvedExpression(roundIndex, expression);
+
+            UnlockAchievement("first_clear");
+            if (!string.Equals(expression, NormalizeExpression(ExtractExpressionSymbols(CurrentRound.SampleSolution)), StringComparison.Ordinal))
+            {
+                UnlockAchievement("own_way");
+            }
+
+            if (Array.IndexOf(slotSymbols, "=") >= 0)
+            {
+                UnlockAchievement("balanced_builder");
+            }
+
+            if (Array.IndexOf(slotSymbols, "*") >= 0)
+            {
+                UnlockAchievement("star_friend");
+            }
+
+            if (Array.IndexOf(slotSymbols, "/") >= 0)
+            {
+                UnlockAchievement("slash_artist");
+            }
+
+            if (GetSolvedExpressions(roundIndex).Count >= 3)
+            {
+                UnlockAchievement("three_ways");
+            }
+
+            if (roundIndex + 1 >= 10)
+            {
+                UnlockAchievement("round_10");
+            }
+
+            if (roundIndex + 1 >= 30)
+            {
+                UnlockAchievement("round_30");
+            }
+
+            if (roundIndex >= OnePlusOneMinusOneRules.GoalModeRounds.Length - 1)
+            {
+                UnlockAchievement("goal_clear");
+            }
+
+            if (discoveredNewExpression)
+            {
+                ShowToast($"New answer: {expression}");
+            }
+        }
+
+        private void LoadCollectionState()
+        {
+            discoveredShapes.Clear();
+            for (var i = 0; i < CollectibleShapes.Length; i++)
+            {
+                var shape = CollectibleShapes[i];
+                if (PlayerPrefs.GetInt(ShapeCollectionKeyPrefix + shape, 0) > 0)
+                {
+                    discoveredShapes.Add(shape);
+                }
+            }
+
+            unlockedAchievements.Clear();
+            for (var i = 0; i < Achievements.Length; i++)
+            {
+                var achievement = Achievements[i];
+                if (PlayerPrefs.GetInt(AchievementKeyPrefix + achievement.Id, 0) > 0)
+                {
+                    unlockedAchievements.Add(achievement.Id);
+                }
+            }
+        }
+
+        private void RefreshCollectionOverlay()
+        {
+            if (collectionStatsText != null)
+            {
+                collectionStatsText.text = $"{discoveredShapes.Count} / {CollectibleShapes.Length} friends | {unlockedAchievements.Count} / {Achievements.Length} badges";
+            }
+
+            for (var i = 0; i < CollectibleShapes.Length; i++)
+            {
+                var shape = CollectibleShapes[i];
+                if (!shapeCollectionLabels.TryGetValue(shape, out var label) || label == null)
+                {
+                    continue;
+                }
+
+                var unlocked = discoveredShapes.Contains(shape);
+                label.text = unlocked ? shape : "?";
+                label.color = unlocked ? SketchPalette.Ink : new Color32(120, 112, 99, 180);
+                var parent = label.transform.parent as RectTransform;
+                if (parent != null)
+                {
+                    var image = parent.GetComponent<Image>();
+                    if (image != null)
+                    {
+                        image.color = unlocked ? ButtonPaperColor : DisabledButtonPaperColor;
+                    }
+                }
+            }
+
+            if (expressionCollectionTitleText != null)
+            {
+                expressionCollectionTitleText.text = $"Round {roundIndex + 1} Answers";
+            }
+
+            var expressions = GetSolvedExpressions(roundIndex);
+            for (var i = 0; i < expressionCollectionLabels.Count; i++)
+            {
+                var label = expressionCollectionLabels[i];
+                if (label == null)
+                {
+                    continue;
+                }
+
+                label.text = i < expressions.Count ? $"{i + 1}. {expressions[i]}" : $"{i + 1}. -";
+                label.color = i < expressions.Count ? SketchPalette.Ink : new Color32(120, 112, 99, 160);
+            }
+
+            for (var i = 0; i < Achievements.Length; i++)
+            {
+                var achievement = Achievements[i];
+                if (!achievementLabels.TryGetValue(achievement.Id, out var label) || label == null)
+                {
+                    continue;
+                }
+
+                var unlocked = unlockedAchievements.Contains(achievement.Id);
+                label.text = unlocked ? $"Done {achievement.Title}" : $"Locked {achievement.Title} - {achievement.Description}";
+                label.color = unlocked ? SketchPalette.Ink : new Color32(120, 112, 99, 185);
+            }
+        }
+
+        private void TryDiscoverShape(string symbol)
+        {
+            var shape = CanonicalShapeSymbol(symbol);
+            if (string.IsNullOrEmpty(shape) || discoveredShapes.Contains(shape))
+            {
+                return;
+            }
+
+            discoveredShapes.Add(shape);
+            PlayerPrefs.SetInt(ShapeCollectionKeyPrefix + shape, 1);
+            PlayerPrefs.Save();
+            UnlockAchievement("first_shape");
+            if (discoveredShapes.Count >= CollectibleShapes.Length)
+            {
+                UnlockAchievement("all_shapes");
+            }
+
+            RefreshCollectionOverlay();
+            ShowToast($"New friend: {shape}");
+        }
+
+        private void UnlockAchievement(string id)
+        {
+            if (string.IsNullOrEmpty(id) || unlockedAchievements.Contains(id))
+            {
+                return;
+            }
+
+            unlockedAchievements.Add(id);
+            PlayerPrefs.SetInt(AchievementKeyPrefix + id, 1);
+            PlayerPrefs.Save();
+            RefreshCollectionOverlay();
+            var title = AchievementTitle(id);
+            ShowToast(string.IsNullOrEmpty(title) ? "Badge unlocked." : $"Badge: {title}");
+        }
+
+        private static string AchievementTitle(string id)
+        {
+            for (var i = 0; i < Achievements.Length; i++)
+            {
+                if (Achievements[i].Id == id)
+                {
+                    return Achievements[i].Title;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static string CanonicalShapeSymbol(string symbol)
+        {
+            if (symbol == "x")
+            {
+                return "×";
+            }
+
+            for (var i = 0; i < CollectibleShapes.Length; i++)
+            {
+                if (CollectibleShapes[i] == symbol)
+                {
+                    return symbol;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private bool AddSolvedExpression(int index, string expression)
+        {
+            if (string.IsNullOrWhiteSpace(expression))
+            {
+                return false;
+            }
+
+            var expressions = GetSolvedExpressions(index);
+            if (expressions.Contains(expression))
+            {
+                return false;
+            }
+
+            expressions.Insert(0, expression);
+            while (expressions.Count > 3)
+            {
+                expressions.RemoveAt(expressions.Count - 1);
+            }
+
+            PlayerPrefs.SetString(SolvedExpressionKey(index), string.Join("|", expressions.ToArray()));
+            PlayerPrefs.Save();
+            RefreshCollectionOverlay();
+            return true;
+        }
+
+        private static List<string> GetSolvedExpressions(int index)
+        {
+            var stored = PlayerPrefs.GetString(SolvedExpressionKey(index), string.Empty);
+            var expressions = new List<string>();
+            if (string.IsNullOrWhiteSpace(stored))
+            {
+                return expressions;
+            }
+
+            var parts = stored.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
+            for (var i = 0; i < parts.Length; i++)
+            {
+                var expression = parts[i].Trim();
+                if (expression.Length > 0 && !expressions.Contains(expression))
+                {
+                    expressions.Add(expression);
+                }
+            }
+
+            return expressions;
+        }
+
+        private static string SolvedExpressionKey(int index)
+        {
+            return SolvedExpressionKeyPrefix + Mathf.Max(0, index);
+        }
+
+        private static string NormalizeExpression(IReadOnlyList<string> symbols)
+        {
+            if (symbols == null || symbols.Count <= 0)
+            {
+                return string.Empty;
+            }
+
+            var parts = new List<string>();
+            for (var i = 0; i < symbols.Count; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(symbols[i]))
+                {
+                    parts.Add(CanonicalShapeSymbol(symbols[i]) == "×" ? "×" : symbols[i].Trim());
+                }
+            }
+
+            return string.Join(" ", parts.ToArray());
+        }
+
+        private static string[] ExtractExpressionSymbols(string expression)
+        {
+            return string.IsNullOrWhiteSpace(expression)
+                ? new string[0]
+                : expression.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        private void ShowToast(string message)
+        {
+            if (toastRoot == null || toastText == null || string.IsNullOrWhiteSpace(message))
+            {
+                return;
+            }
+
+            if (toastRoutine != null)
+            {
+                StopCoroutine(toastRoutine);
+            }
+
+            toastText.text = message;
+            toastRoutine = StartCoroutine(ToastRoutine());
+        }
+
+        private IEnumerator ToastRoutine()
+        {
+            toastRoot.gameObject.SetActive(true);
+            yield return new WaitForSeconds(1.8f);
+            toastRoot.gameObject.SetActive(false);
+            toastRoutine = null;
         }
 
         private string SuccessFeedback()
@@ -1714,6 +2214,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
             if (reason == "wrong_shape")
             {
                 return "Shape?";
+            }
+
+            if (reason == "Slot shape mismatch" || reason == "Wrong shape for this box.")
+            {
+                return "Wrong box.";
             }
 
             if (reason == "unrecognized_shape")
@@ -2634,6 +3139,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             slotSymbols[slotIndex] = symbol;
+            TryDiscoverShape(symbol);
         }
 
         private SlotView CreateSlotView(Transform parent, PuzzleSlotType slotType, float width, float height, int seed)
@@ -3146,7 +3652,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private void BeginStickDrag(PointerEventData eventData, CanvasGroup sourceGroup, int sourceSlotIndex, int sourceStickIndex)
         {
             if (isAdvancing || draggingPointerId.HasValue || eventData.button != PointerEventData.InputButton.Left ||
-                roundSelectOverlay != null && roundSelectOverlay.gameObject.activeSelf)
+                roundSelectOverlay != null && roundSelectOverlay.gameObject.activeSelf ||
+                collectionOverlay != null && collectionOverlay.gameObject.activeSelf)
             {
                 return;
             }

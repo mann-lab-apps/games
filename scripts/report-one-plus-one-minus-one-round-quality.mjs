@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import assert from 'node:assert/strict';
-import { extractRounds, analyzeIdentity, findEqualityWitness, identityErrors, operatorTokens, generateCandidatePool, enumerateRoundSolutions, analyzeRoundPatterns, findDominantPatternCandidates, findEqualityEchoCandidates } from './one-plus-one-minus-one-round-identity.mjs';
+import { extractRounds, analyzeIdentity, findEqualityWitness, identityErrors, operatorTokens, generateCandidatePool, enumerateRoundSolutions, analyzeRoundPatterns, findDominantPatternCandidates, findEqualityEchoCandidates, parseResourceKey } from './one-plus-one-minus-one-round-identity.mjs';
 
 const repoRoot = process.cwd();
 const rulesPath = path.join(
@@ -41,7 +41,7 @@ if (solutionsIndex >= 0) {
   const selected = (process.argv[solutionsIndex + 1] ?? '').split(',').map(Number);
   if (selected.some(n => !Number.isInteger(n) || n < 1 || n > rounds.length) ||
       new Set(selected).size !== selected.length)
-    throw new Error('--solutions expects unique round numbers from 1 to 100, comma separated');
+    throw new Error(`--solutions expects unique round numbers from 1 to ${rounds.length}, comma separated`);
   const reports = selected.map(number => {
     const round = rounds[number - 1];
     return {number, sample:round.sample, target:round.target, slots:round.symbols.length, sticks:round.stickCount,
@@ -136,7 +136,7 @@ if (process.argv.includes('--patterns')) {
       reviewRows:lateEqualityEchoRows.map(row => patternPolicyRow(row, 'same-expression-equality')),
       sampleEchoRows:lateSampleEqualityEchoRows.map(row => patternPolicyRow(row, 'same-expression-equality')),
       alternateOnlyRows:lateAlternateEqualityEchoRows.map(row => patternPolicyRow(row, 'same-expression-equality')),
-      highPriorityAlternateRows:rankedLateAlternateEqualityEchoRows.filter(row => row.sameExpressionRatio >= 0.5),
+      highPriorityAlternateRows:rankedLateAlternateEqualityEchoRows.filter(row => row.priority === 'high'),
       rankedAlternateRows:rankedLateAlternateEqualityEchoRows,
     },
     dominantPatternReview:{
@@ -187,7 +187,7 @@ if (process.argv.includes('--json')) {
   await writeJson({rounds, ...identity, equalitySearch:identity.resourceRepeats.map(g=>({
     ...g,
     intentionalReason:intentionalSharedEqualityReason(g),
-    ...findEqualityWitness(...g.key.split('/').map(Number))
+    ...equalityWitnessForGroup(g)
   }))});
   process.exit(strict && identityErrors(rounds).length ? 1 : 0);
 }
@@ -240,7 +240,7 @@ function equalityEchoPriorityRow(row) {
     sameExpressionCount,
     constructedEqualityCount,
     sameExpressionRatio:row.solutionCount > 0 ? sameExpressionCount / row.solutionCount : 0,
-    priority: sameExpressionCount / Math.max(1, row.solutionCount) >= 0.5 ? 'high' : 'review',
+    priority: row.solutionCount >= 20 && sameExpressionCount / Math.max(1, row.solutionCount) >= 0.5 ? 'high' : 'review',
   };
 }
 
@@ -362,8 +362,7 @@ function printConstraintRepeats() {
   let unresolvedSharedPairs = 0;
   let intentionalSharedPairs = 0;
   for (const group of identity.resourceRepeats) {
-    const [slots, sticks] = group.key.split("/").map(Number);
-    const witness = findEqualityWitness(slots, sticks);
+    const witness = equalityWitnessForGroup(group);
     const pairCount = group.rounds.length * (group.rounds.length - 1) / 2;
     const intentional = intentionalSharedEqualityReason(group);
     if (witness.status === "found") {
@@ -388,13 +387,19 @@ function printConstraintRepeats() {
   console.log("");
 }
 
+function equalityWitnessForGroup(group) {
+  const resource = parseResourceKey(group.key);
+  return findEqualityWitness(resource.slots, resource.sticks);
+}
+
 function intentionalSharedEqualityReason(group) {
   const roundsKey = group.rounds.join(",");
-  if (group.key === "3/4" && roundsKey === "2,5") {
+  const resource = parseResourceKey(group.key);
+  if (resource.slots === 3 && resource.sticks === 4 && roundsKey === "2,5") {
     return "early tutorial echo";
   }
 
-  if (group.key === "9/11" && roundsKey === "30,100") {
+  if (resource.slots === 9 && resource.sticks === 11 && roundsKey === "30,100") {
     return "title callback";
   }
 
@@ -472,20 +477,21 @@ function printWarnings() {
   const warnings = [];
   warnings.push(...identityErrors(rounds));
   for (const [start, end, label] of bands) {
+    const coverageRequired = label !== "tutorial";
     const bandRounds = rounds.slice(start - 1, end);
     const equalityCount = bandRounds.filter((round) => round.symbols.includes("=")).length;
     const starCount = bandRounds.filter((round) => round.symbols.includes("*")).length;
     const crossCount = bandRounds.filter((round) => round.symbols.includes("×") || round.symbols.includes("x")).length;
 
-    if (label !== "tutorial" && equalityCount === 0) {
+    if (coverageRequired && equalityCount === 0) {
       warnings.push(`${start}-${end} (${label}) has no direct equality rounds.`);
     }
 
-    if (label !== "tutorial" && starCount === 0) {
+    if (coverageRequired && starCount === 0) {
       warnings.push(`${start}-${end} (${label}) has no star-multiply rounds.`);
     }
 
-    if (label !== "tutorial" && crossCount === 0) {
+    if (coverageRequired && crossCount === 0) {
       warnings.push(`${start}-${end} (${label}) has no cross-multiply rounds.`);
     }
   }

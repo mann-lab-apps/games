@@ -733,3 +733,11 @@ Latest observed result:
 - Fails strict Android release readiness because Firebase json, production
   AdMob app/ad unit IDs, signing env vars, and Android version env vars are
   missing.
+
+2026-09-20 local source delta: the capacity-slot tutorial experiment was
+discarded before release and the source returns to a 100-round free-placement
+set. Current local work adds collection/achievement UI, unlock toasts, and
+per-round solved-expression collection. Static Node tests and the static suite
+pass for this source, but it is not equivalent to the uploaded iOS build until
+Unity PlayMode and a fresh Unity build are produced and verified. Current local
+runtime verification is blocked by `LICENSING_CLIENT_UNAVAILABLE`.

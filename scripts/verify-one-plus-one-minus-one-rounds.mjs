@@ -2,7 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { extractRounds, splitSymbols, solveRound, tokenCosts, identityErrors } from './one-plus-one-minus-one-round-identity.mjs';
+import { acceptsRound, extractRounds, splitSymbols, solveRound, tokenCosts, identityErrors } from './one-plus-one-minus-one-round-identity.mjs';
 
 const repoRoot = process.cwd();
 const rulesPath = path.join(
@@ -97,12 +97,14 @@ rounds.forEach((round, index) => {
 
   const solved = solveRound(symbols, round.target);
   assert(solved.valid, `Round ${roundNumber} sample does not solve: ${solved.reason}`);
+  assert(acceptsRound(round, symbols), `Round ${roundNumber} sample violates round constraints.`);
 
-  const previous = seenSamples.get(round.sample);
+  const sampleKey = round.sample;
+  const previous = seenSamples.get(sampleKey);
   if (previous !== undefined && !(previous === 30 && roundNumber === 100)) {
     assert(false, `Round ${roundNumber} repeats Round ${previous}: ${round.sample}`);
   } else if (previous === undefined) {
-    seenSamples.set(round.sample, roundNumber);
+    seenSamples.set(sampleKey, roundNumber);
   }
 
   if (index < 15) {

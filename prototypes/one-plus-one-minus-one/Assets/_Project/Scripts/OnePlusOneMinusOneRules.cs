@@ -276,11 +276,6 @@ namespace MannLab.Games.OnePlusOneMinusOne
             return slots;
         }
 
-        public static PuzzleSlotType[] Slots(params PuzzleSlotType[] slotTypes)
-        {
-            return slotTypes;
-        }
-
         public static PuzzleTokenData GetToken(string symbol)
         {
             for (var i = 0; i < Tokens.Length; i++)

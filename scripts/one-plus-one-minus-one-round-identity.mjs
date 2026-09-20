@@ -29,7 +29,9 @@ export function identityErrors(rounds) {
   const identity=analyzeIdentity(rounds), errors=[];
   const title='1 + 1 - 1 × 1 / 1';
   for(const group of identity.duplicates){
-    const reprise=group.key==='9/11/1' && group.rounds.join(',')==='30,100' &&
+    const duplicate = parseConstraintTargetKey(group.key);
+    const reprise=duplicate.slots===9 && duplicate.sticks===11 &&
+      duplicate.target===1 && group.rounds.join(',')==='30,100' &&
       group.rounds.every(n=>rounds.find(r=>r.number===n)?.sample===title);
     if(!reprise)errors.push(`Identical accepted-answer constraints ${group.key}: Rounds ${group.rounds.join(', ')}.`);
   }
@@ -40,12 +42,31 @@ export function identityErrors(rounds) {
       if(a>15 && b-a<=3)nearby.push(`${a}/${b}`);
     }
     if(nearby.length){
-      const search=findEqualityWitness(...group.key.split('/').map(Number));
+      const {slots, sticks} = parseResourceKey(group.key);
+      const search=findEqualityWitness(slots, sticks);
       if(search.status==='found')errors.push(`Nearby shared equality answer: Rounds ${nearby.join(', ')} (${group.key}).`);
       if(search.status==='limited')errors.push(`Incomplete nearby equality search: Rounds ${nearby.join(', ')} (${group.key}).`);
     }
   }
   return errors;
+}
+
+export function parseResourceKey(key) {
+  const [slots, sticks] = key.split('/');
+  return {
+    slots:Number(slots),
+    sticks:Number(sticks),
+    constrained:false,
+  };
+}
+
+function parseConstraintTargetKey(key) {
+  const [slots, sticks, target = 'NaN'] = key.split('/');
+  return {
+    slots:Number(slots),
+    sticks:Number(sticks),
+    target:Number(target),
+  };
 }
 
 // Bounded, deterministic token search. "found" proves a witness, not a complete
@@ -1156,6 +1177,7 @@ export function extractRounds(text) {
     result.push({
       number: result.length + 1,
       symbols,
+      slotTypes: Array.from({length:symbols.length}, () => 'Any'),
       name,
       tutorial,
       sample,
