@@ -29,7 +29,7 @@ write_metadata() {
 
 ## Promotional Text
 
-Tiny sticks become numbers, signs, and strange little equations across 100 compact puzzles.
+Tiny sticks become numbers, signs, and strange little equations across 30 compact puzzles.
 
 ## Short Description
 
@@ -41,7 +41,7 @@ Drag little stick friends into boxes and make each equation work.
 and operators. Each round starts with empty boxes. Drag, rotate, and combine
 lively stick friends to build expressions that really work. A single stick can
 be 1, a lazy line can be minus, crossed sticks can multiply, and packed sticks
-can become 11 or 111. Complete 100 compact puzzles, discover alternate answers,
+can become 11 or 111. Complete 30 compact puzzles, discover alternate answers,
 and finish with the odd little equation that started it all.
 
 ## Keywords
@@ -51,16 +51,17 @@ $keywords
 ## Screenshot Plan
 
 1. \`01-round-1-first-stick\`: Round 1 first stick.
-2. \`02-round-5-cross-multiply\`: Round 5.
-3. \`03-round-8-triple-one\`: Round 8.
-4. \`04-round-9-star-multiply\`: Round 9.
-5. \`05-round-30-medium-expression\`: Round 30.
-6. \`06-round-75-equality-puzzle\`: Round 75.
-7. \`07-round-100-finale\`: Round 100.
+2. \`02-round-4-star-start\`: Round 4.
+3. \`03-round-10-title-echo\`: Round 10.
+4. \`04-round-15-tall-fold\`: Round 15.
+5. \`05-round-20-narrow-path\`: Round 20.
+6. \`06-round-25-wide-loop\`: Round 25.
+7. \`07-round-30-finale\`: Round 30.
 8. \`08-round-select-progression\`: Round select.
 
 ## Review Notes Draft
 
+The release set contains 30 focused rounds.
 Interstitial ads may appear only after newly cleared milestone rounds. No
 account is required.
 
@@ -100,12 +101,12 @@ write_capture_script() {
   local include_last="${2:-1}"
   cat > "$path" <<'EOF'
 capture_shot "01-round-1-first-stick"
-capture_shot "02-round-5-cross-multiply"
-capture_shot "03-round-8-triple-one"
-capture_shot "04-round-9-star-multiply"
-capture_shot "05-round-30-medium-expression"
-capture_shot "06-round-75-equality-puzzle"
-capture_shot "07-round-100-finale"
+capture_shot "02-round-4-star-start"
+capture_shot "03-round-10-title-echo"
+capture_shot "04-round-15-tall-fold"
+capture_shot "05-round-20-narrow-path"
+capture_shot "06-round-25-wide-loop"
+capture_shot "07-round-30-finale"
 EOF
   if [[ "$include_last" == "1" ]]; then
     cat >> "$path" <<'EOF'
@@ -207,7 +208,7 @@ fi
 
 long_promo_metadata="$tmp_dir/long-promo.md"
 write_metadata "$long_promo_metadata" "puzzle,math,logic,equation,numbers,sticks"
-perl -0pi -e 's/Tiny sticks become numbers, signs, and strange little equations across 100 compact puzzles\./Tiny sticks become numbers, signs, and strange little equations across 100 compact puzzles with a deliberately far too long promotional text field that should fail the App Store submission budget before anyone pastes it into App Store Connect./' "$long_promo_metadata"
+perl -0pi -e 's/Tiny sticks become numbers, signs, and strange little equations across 30 compact puzzles\./Tiny sticks become numbers, signs, and strange little equations across 30 compact puzzles with a deliberately far too long promotional text field that should fail the App Store submission budget before anyone pastes it into App Store Connect./' "$long_promo_metadata"
 
 set +e
 long_promo_output="$(run_with_fixtures "$long_promo_metadata" 2>&1)"

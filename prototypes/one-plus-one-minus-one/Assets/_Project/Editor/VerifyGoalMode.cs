@@ -35,10 +35,11 @@ namespace MannLab.Games.OnePlusOneMinusOne.EditorTools
             AssertRecognizes("=", StickPose.TopHorizontal, StickPose.BottomHorizontal);
             AssertRoundSolved(4, "1", "=", "1");
             AssertRoundCount(100);
+            AssertMakeOneRoundCount(30);
             AssertRoundStickCount(7, 3);
             AssertRoundStickCount(8, 5);
             AssertRoundStickCount(29, 11);
-            AssertRoundStickCount(99, 11);
+            AssertRoundStickCount(99, 13);
             AssertReleaseUiAndAdPolicy();
 
             var sampleOwners = new Dictionary<string, int>();
@@ -59,8 +60,34 @@ namespace MannLab.Games.OnePlusOneMinusOne.EditorTools
                 AssertPostTutorialTitleDoesNotSpoil(roundIndex, round);
             }
 
+            AssertMakeOneSamples();
             AssertRoundQualityBands();
             AssetDatabase.Refresh();
+        }
+
+        private static void AssertMakeOneSamples()
+        {
+            for (var roundIndex = 0; roundIndex < OnePlusOneMinusOneRules.MakeOneModeRounds.Length; roundIndex++)
+            {
+                var round = OnePlusOneMinusOneRules.MakeOneModeRounds[roundIndex];
+                var symbols = ExtractSampleSymbols(round.SampleSolution);
+                AssertSampleShape(round, symbols);
+                AssertLayoutPlan(round, symbols);
+                if (Array.IndexOf(symbols, "=") >= 0)
+                {
+                    throw new InvalidOperationException($"{round.RoundName} should reserve the displayed = 1 target.");
+                }
+
+                if (Math.Abs(round.TargetValue - 1d) > OnePlusOneMinusOneRules.TargetTolerance)
+                {
+                    throw new InvalidOperationException($"{round.RoundName} should target 1.");
+                }
+
+                if (!OnePlusOneMinusOneRules.IsRoundSolved(round, symbols, out _, out var reason))
+                {
+                    throw new InvalidOperationException($"{round.RoundName} failed: {reason}");
+                }
+            }
         }
 
         private static void AssertRoundQualityBands()
@@ -152,11 +179,12 @@ namespace MannLab.Games.OnePlusOneMinusOne.EditorTools
 
         private static void AssertStartupFlowPlans()
         {
+            var lastRoundIndex = OnePlusOneMinusOneRules.GoalModeRounds.Length - 1;
             AssertStartupFlow(-10, 0, 0, false);
             AssertStartupFlow(0, 0, 0, false);
             AssertStartupFlow(1, 1, 1, true);
             AssertStartupFlow(42, 42, 42, true);
-            AssertStartupFlow(1000, 99, 99, true);
+            AssertStartupFlow(1000, lastRoundIndex, lastRoundIndex, true);
         }
 
         private static void AssertStartupFlow(
@@ -179,6 +207,7 @@ namespace MannLab.Games.OnePlusOneMinusOne.EditorTools
 
         private static void AssertInterstitialDecisionPlans()
         {
+            var lastRoundIndex = OnePlusOneMinusOneRules.GoalModeRounds.Length - 1;
             AssertInterstitialDecision(0, 0, 0, false, "early_round");
             AssertInterstitialDecision(4, 4, 0, false, "early_round");
             AssertInterstitialDecision(5, 5, 0, false, "cadence");
@@ -187,7 +216,8 @@ namespace MannLab.Games.OnePlusOneMinusOne.EditorTools
             AssertInterstitialDecision(19, 19, 3, false, "hard_clear");
             AssertInterstitialDecision(19, 19, 0, true, "round_milestone");
             AssertInterstitialDecision(99, 99, 0, true, "round_milestone");
-            AssertInterstitialDecision(0, 99, 5, true, "forced_test_ads", true);
+            AssertInterstitialDecision(lastRoundIndex, lastRoundIndex, 0, true, "round_milestone");
+            AssertInterstitialDecision(0, lastRoundIndex, 5, true, "forced_test_ads", true);
         }
 
         private static void AssertInterstitialDecision(
@@ -446,6 +476,15 @@ namespace MannLab.Games.OnePlusOneMinusOne.EditorTools
             if (actual != expected)
             {
                 throw new InvalidOperationException($"Expected {expected} rounds, got {actual}");
+            }
+        }
+
+        private static void AssertMakeOneRoundCount(int expected)
+        {
+            var actual = OnePlusOneMinusOneRules.MakeOneModeRounds.Length;
+            if (actual != expected)
+            {
+                throw new InvalidOperationException($"Expected {expected} fixed-target rounds, got {actual}");
             }
         }
 

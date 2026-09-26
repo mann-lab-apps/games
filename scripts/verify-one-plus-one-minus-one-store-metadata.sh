@@ -138,9 +138,9 @@ require_text "$metadata" "## Full Description Draft"
 require_text "$metadata" "living stick friends"
 require_text "$metadata" "empty boxes"
 require_text "$metadata" "alternate answers"
-require_text "$metadata" "Complete 100 compact puzzles"
+require_text "$metadata" "Complete 30 compact puzzles"
 require_text "$metadata" "## Screenshot Plan"
-require_text "$metadata" "Round 100"
+require_text "$metadata" "30 focused rounds"
 require_text "$metadata" "Round select"
 require_text "$metadata" "## Review Notes Draft"
 require_text "$metadata" "Interstitial ads may appear only after newly cleared milestone rounds"
@@ -219,12 +219,12 @@ done < <(block_after_heading "$metadata" "## Subtitle Candidates" | grep -E '^- 
 
 for slug in \
   "01-round-1-first-stick" \
-  "02-round-5-cross-multiply" \
-  "03-round-8-triple-one" \
-  "04-round-9-star-multiply" \
-  "05-round-30-medium-expression" \
-  "06-round-75-equality-puzzle" \
-  "07-round-100-finale" \
+  "02-round-4-star-start" \
+  "03-round-10-title-echo" \
+  "04-round-15-tall-fold" \
+  "05-round-20-narrow-path" \
+  "06-round-25-wide-loop" \
+  "07-round-30-finale" \
   "08-round-select-progression"
 do
   require_capture_slug "$slug"

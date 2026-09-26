@@ -222,6 +222,9 @@ export function analyzeRoundPatterns(rounds, {maxNodes=200000, maxSolutions=1000
       sticks: round.stickCount,
       complete: enumeration.complete,
       limitReason: enumeration.limitReason,
+      nodes: enumeration.nodes,
+      maxNodes: enumeration.maxNodes,
+      maxSolutions: enumeration.maxSolutions,
       solutionCount: enumeration.solutions.length,
       samplePatterns,
       patternCounts,
@@ -295,6 +298,7 @@ export function findDominantPatternCandidates(rounds, {
   maxResults = 8,
   maxEvaluations = 160,
   candidateBudget = 250,
+  maxNearbyNodes = 0,
   maxExtraSlots = 2,
   maxExtraSticks = 4,
   allowFewerSlots = false,
@@ -303,6 +307,7 @@ export function findDominantPatternCandidates(rounds, {
   minVisibleDiversity = 2,
   minRecommendedImprovement = 0.05,
   minCombinationScore = 2,
+  preserveTarget = false,
 } = {}) {
   if (!Array.isArray(roundNumbers)) throw new Error('roundNumbers must be an array');
   if (roundNumbers.some(number => !Number.isInteger(number) || number < 1 || number > rounds.length) ||
@@ -314,6 +319,7 @@ export function findDominantPatternCandidates(rounds, {
     maxResults,
     maxEvaluations,
     candidateBudget,
+    maxNearbyNodes,
     maxExtraSlots,
     maxExtraSticks,
     minRecommendedSolutions,
@@ -325,6 +331,7 @@ export function findDominantPatternCandidates(rounds, {
   if (!Number.isFinite(minRecommendedImprovement) || minRecommendedImprovement < 0) {
     throw new Error('minRecommendedImprovement must be a nonnegative number');
   }
+  if (typeof preserveTarget !== 'boolean') throw new Error('preserveTarget must be a boolean');
 
   const selectedNumbers = roundNumbers.length > 0 ? roundNumbers : highDominantPatternRoundNumbers(rounds, {maxNodes, maxSolutions});
   const pool = generateCandidatePool(rounds, {seed, samples});
@@ -336,10 +343,12 @@ export function findDominantPatternCandidates(rounds, {
 
     const nearby = generateNearbyDominantCandidates(round, rounds, {
       candidateBudget,
+      maxNearbyNodes,
       maxExtraSlots,
       maxExtraSticks,
       allowFewerSlots,
       allowFewerSticks,
+      preserveTarget,
     });
     const mergedCandidates = new Map();
     for (const candidate of [...nearby.candidates, ...pool.candidates]) {
@@ -353,6 +362,10 @@ export function findDominantPatternCandidates(rounds, {
 
     for (const candidate of candidatePool) {
       if (maxEvaluations > 0 && evaluated.length >= maxEvaluations) break;
+      if (preserveTarget && candidate.target !== round.target) {
+        skippedByBudget += 1;
+        continue;
+      }
       if (!allowFewerSlots && candidate.slots < round.symbols.length) {
         skippedByBudget += 1;
         continue;
@@ -474,6 +487,7 @@ export function findDominantPatternCandidates(rounds, {
         maxEvaluations,
         maxResults,
         candidateBudget,
+        maxNearbyNodes,
         nearbyCandidateCount:nearby.candidates.length,
         nearbyLimited:nearby.limited,
         nearbyNodes:nearby.nodes,
@@ -485,6 +499,7 @@ export function findDominantPatternCandidates(rounds, {
         minVisibleDiversity,
         minRecommendedImprovement,
         minCombinationScore,
+        preserveTarget,
       },
       candidates,
     };
@@ -656,6 +671,259 @@ export function findEqualityEchoCandidates(rounds, {
     method:'Equality-echo candidate search is bounded and heuristic. It builds equality candidates by pairing exact-equal left/right side expressions and keeps non-echo samples visible first. It is designed for same-expression equality review rows, not full puzzle difficulty proof.',
     rounds:reports,
   };
+}
+
+export function findResourceRepeatCandidates(rounds, {
+  roundNumbers = [],
+  maxNodes = 200000,
+  maxSolutions = 1000,
+  maxResults = 8,
+  maxEvaluations = 80,
+  candidateBudget = 180,
+  maxNearbyNodes = 2000000,
+  maxExtraSlots = 4,
+  maxExtraSticks = 8,
+  allowFewerSlots = true,
+  allowFewerSticks = true,
+  preserveTarget = true,
+  pureSelfDivisionLearningMax = 10,
+  minCombinationScore = 2,
+} = {}) {
+  if (!Array.isArray(roundNumbers)) throw new Error('roundNumbers must be an array');
+  if (roundNumbers.some(number => !Number.isInteger(number) || number < 1 || number > rounds.length) ||
+      new Set(roundNumbers).size !== roundNumbers.length) {
+    throw new Error('roundNumbers must contain unique existing round numbers');
+  }
+
+  for (const [name, value] of Object.entries({
+    maxResults,
+    maxEvaluations,
+    candidateBudget,
+    maxNearbyNodes,
+    maxExtraSlots,
+    maxExtraSticks,
+    pureSelfDivisionLearningMax,
+    minCombinationScore,
+  })) {
+    if (!Number.isInteger(value) || value < 0) throw new Error(`${name} must be a nonnegative integer`);
+  }
+  if (typeof allowFewerSlots !== 'boolean' || typeof allowFewerSticks !== 'boolean' ||
+      typeof preserveTarget !== 'boolean') {
+    throw new Error('allowFewerSlots, allowFewerSticks and preserveTarget must be booleans');
+  }
+
+  const selectedNumbers = roundNumbers.length > 0 ? roundNumbers : resourceRepeatReviewRoundNumbers(rounds);
+  const reports = selectedNumbers.map(number => {
+    const round = rounds[number - 1];
+    const nearby = generateNearbyDominantCandidates(round, rounds, {
+      candidateBudget,
+      maxNearbyNodes,
+      maxExtraSlots,
+      maxExtraSticks,
+      allowFewerSlots,
+      allowFewerSticks,
+      preserveTarget,
+    });
+    const candidatePool = [...nearby.candidates].sort((left, right) =>
+      Number(resourceAllowsPureSelfDivision(left.slots, left.sticks)) -
+        Number(resourceAllowsPureSelfDivision(right.slots, right.sticks)) ||
+      left.existingResources.length - right.existingResources.length ||
+      left.score - right.score ||
+      left.sample.localeCompare(right.sample));
+    const evaluated = [];
+    for (const candidate of candidatePool) {
+      if (maxEvaluations > 0 && evaluated.length >= maxEvaluations) break;
+      const candidateRound = {
+        number,
+        name: `${round.name} resource candidate`,
+        sample: candidate.sample,
+        symbols: candidate.symbols,
+        stickCount: candidate.sticks,
+        target: candidate.target,
+      };
+      const profile = dominantPatternProfileForRound(candidateRound, {maxNodes, maxSolutions});
+      const patternRow = analyzeRoundPatterns([candidateRound], {maxNodes, maxSolutions})[0];
+      const pureDivisionResource = resourceAllowsPureSelfDivision(candidate.slots, candidate.sticks);
+      const latePureSelfDivision = number > pureSelfDivisionLearningMax &&
+        (pureDivisionResource ||
+          patternRow.pureShortcutSolutions.some(solution => solution.patterns.includes('pure-self-division')));
+      const combinationTags = visibleCombinationTags(candidate.symbols);
+      const analysisNotes = [];
+      if (!profile.complete) {
+        analysisNotes.push(`pattern search ${profile.limitReason ?? 'limited'}; candidate evidence is bounded`);
+      }
+      if (latePureSelfDivision) {
+        analysisNotes.push(pureDivisionResource
+          ? `slot/stick budget admits late pure N/N answers after Round ${pureSelfDivisionLearningMax}`
+          : `introduces late pure N/N answers after Round ${pureSelfDivisionLearningMax}`);
+      }
+      if (number > pureSelfDivisionLearningMax &&
+          dominantReviewPatterns.includes(profile.dominantPattern) &&
+          profile.dominantRatio >= 0.6) {
+        analysisNotes.push(`dominant shortcut ${profile.dominantPattern} ratio ${roundRatio(profile.dominantRatio)} is at least 0.6`);
+      }
+      if (combinationTags.length < minCombinationScore) {
+        analysisNotes.push(`combination score ${combinationTags.length} is below ${minCombinationScore}`);
+      }
+      if (candidate.existingResources.length > 0) {
+        analysisNotes.push(`still shares slot/stick budget with Round(s) ${candidate.existingResources.join(', ')}`);
+      }
+      evaluated.push({
+        sample:candidate.sample,
+        target:candidate.target,
+        slots:candidate.slots,
+        sticks:candidate.sticks,
+        existingResources:candidate.existingResources,
+        equality:candidate.equality,
+        complete:profile.complete,
+        limitReason:profile.limitReason,
+        solutionCount:profile.solutionCount,
+        dominantPattern:profile.dominantPattern,
+        dominantRatio:profile.dominantRatio,
+        rankedPatterns:profile.rankedPatterns.slice(0, 5),
+        samplePatterns:classifySolutionPatterns(candidate.symbols),
+        combinationTags,
+        pureDivisionResource,
+        latePureSelfDivision,
+        analysisOnly:analysisNotes.length > 0,
+        analysisNotes,
+        reviewScore:resourceCandidateReviewScore({
+          round,
+          candidate,
+          dominantRatio:profile.dominantRatio,
+          solutionCount:profile.solutionCount,
+          combinationScore:combinationTags.length,
+          latePureSelfDivision,
+          complete:profile.complete,
+          minCombinationScore,
+        }),
+      });
+    }
+
+    const candidateSummary = resourceCandidateSummary(evaluated);
+    const candidates = evaluated
+      .sort((left, right) => Number(left.analysisOnly) - Number(right.analysisOnly) ||
+        left.reviewScore - right.reviewScore ||
+        left.dominantRatio - right.dominantRatio ||
+        right.solutionCount - left.solutionCount ||
+        left.sample.localeCompare(right.sample))
+      .slice(0, maxResults);
+    return {
+      number,
+      name:round.name,
+      sample:round.sample,
+      target:round.target,
+      slots:round.symbols.length,
+      sticks:round.stickCount,
+      search:{
+        evaluated:evaluated.length,
+        maxEvaluations,
+        maxResults,
+        candidateBudget,
+        maxNearbyNodes,
+        nearbyCandidateCount:nearby.candidates.length,
+        nearbyLimited:nearby.limited,
+        nearbyNodes:nearby.nodes,
+        maxExtraSlots,
+        maxExtraSticks,
+        allowFewerSlots,
+        allowFewerSticks,
+        preserveTarget,
+        pureSelfDivisionLearningMax,
+        minCombinationScore,
+      },
+      candidateSummary,
+      candidates,
+    };
+  });
+
+  return {
+    method:'Resource-repeat candidate search is bounded and heuristic. It looks for target-preserving replacements that move a round away from repeated slot/stick resources, including nearby token enumerations and composite target-1 cancellation candidates. It flags candidates that create late pure N/N shortcuts, admit pure N/N through their resource budget, have weak visible combinations, need bounded evidence, or are dominated by another shortcut family. It never edits round data automatically.',
+    rounds:reports,
+  };
+}
+
+function resourceRepeatReviewRoundNumbers(rounds) {
+  return analyzeIdentity(rounds).resourceRepeats
+    .filter(group => findEqualityWitness(...group.key.split('/').map(Number)).status === 'found')
+    .flatMap(group => group.rounds)
+    .filter((number, index, numbers) => numbers.indexOf(number) === index)
+    .sort((left, right) => left - right);
+}
+
+function resourceCandidateSummary(candidates) {
+  const riskCounts = {};
+  for (const candidate of candidates) {
+    for (const note of candidate.analysisNotes) {
+      const key = note.includes('late pure N/N') ? 'latePureSelfDivision' :
+        note.includes('budget admits') ? 'pureDivisionResource' :
+        note.includes('dominant shortcut') ? 'dominantShortcut' :
+        note.includes('combination score') ? 'lowCombinationScore' :
+        note.includes('still shares slot/stick') ? 'sharedResource' :
+        note.includes('bounded') ? 'boundedEvidence' :
+        'other';
+      riskCounts[key] = (riskCounts[key] ?? 0) + 1;
+    }
+  }
+
+  return {
+    evaluated:candidates.length,
+    recommendableCount:candidates.filter(candidate => !candidate.analysisOnly).length,
+    analysisOnlyCount:candidates.filter(candidate => candidate.analysisOnly).length,
+    riskCounts,
+  };
+}
+
+export function resourceAllowsPureSelfDivision(slots, sticks) {
+  if (!Number.isInteger(slots) || !Number.isInteger(sticks) || slots < 3 || sticks < 3) return false;
+  if (sticks % 2 === 0) return false;
+  const literalLength = (sticks - tokenCosts.get('/')) / 2;
+  if (!Number.isInteger(literalLength) || literalLength < 1) return false;
+  const partCounts = possibleOneRunPartCounts(literalLength);
+  const requiredParts = slots - 1;
+  for (const leftParts of partCounts) {
+    if (partCounts.has(requiredParts - leftParts)) return true;
+  }
+
+  return false;
+}
+
+function possibleOneRunPartCounts(length) {
+  const result = new Set();
+  const visit = (remaining, parts) => {
+    if (remaining === 0) {
+      result.add(parts);
+      return;
+    }
+
+    for (const chunk of [1, 2, 3]) {
+      if (chunk <= remaining) visit(remaining - chunk, parts + 1);
+    }
+  };
+
+  visit(length, 0);
+  return result;
+}
+
+function resourceCandidateReviewScore({
+  round,
+  candidate,
+  dominantRatio,
+  solutionCount,
+  combinationScore,
+  latePureSelfDivision,
+  complete,
+  minCombinationScore,
+}) {
+  const slotDelta = Math.abs(candidate.slots - round.symbols.length);
+  const stickDelta = Math.abs(candidate.sticks - round.stickCount);
+  const scarcityPenalty = Math.max(0, 8 - solutionCount) * 8;
+  const incompletePenalty = complete ? 0 : 16;
+  const shortcutPenalty = latePureSelfDivision ? 120 : 0;
+  const combinationPenalty = Math.max(0, minCombinationScore - combinationScore) * 12;
+  return Math.round((dominantRatio * 80 + slotDelta * 5 + stickDelta * 3 +
+    scarcityPenalty + incompletePenalty + shortcutPenalty + combinationPenalty +
+    candidate.score * 0.1) * 1000) / 1000;
 }
 
 function equalityCandidateReport({
@@ -913,10 +1181,12 @@ function roundRatio(value) {
 
 function generateNearbyDominantCandidates(round, rounds, {
   candidateBudget,
+  maxNearbyNodes = 0,
   maxExtraSlots,
   maxExtraSticks,
   allowFewerSlots,
   allowFewerSticks,
+  preserveTarget,
 }) {
   const minSlots = allowFewerSlots ? Math.max(1, round.symbols.length - maxExtraSlots) : round.symbols.length;
   const maxSlots = Math.min(11, round.symbols.length + maxExtraSlots);
@@ -950,6 +1220,7 @@ function generateNearbyDominantCandidates(round, rounds, {
     }
 
     if (!Number.isInteger(target) || target < -2 || target > 122) return;
+    if (preserveTarget && target !== round.target) return;
     const slots = symbols.length;
     const sticks = symbols.reduce((sum, symbol) => sum + tokenCosts.get(symbol), 0);
     const identity = `${slots}/${sticks}/${target}`;
@@ -983,8 +1254,22 @@ function generateNearbyDominantCandidates(round, rounds, {
     if (!previous || candidate.score < previous.score) candidates.set(identity, candidate);
   };
 
+  if (preserveTarget && round.target === 1) {
+    for (const symbols of generateCompositeTargetOneCandidates()) {
+      addCandidate(symbols);
+      if (candidateBudget > 0 && candidates.size >= candidateBudget) {
+        limited = true;
+        break;
+      }
+    }
+  }
+
   const visit = (slots, sticks, symbols, cost, hasEquality, previousNumber) => {
     if (limited) return;
+    if (maxNearbyNodes > 0 && nodes >= maxNearbyNodes) {
+      limited = true;
+      return;
+    }
     if (candidateBudget > 0 && candidates.size >= candidateBudget) {
       limited = true;
       return;
@@ -1014,7 +1299,49 @@ function generateNearbyDominantCandidates(round, rounds, {
     if (limited) break;
   }
 
-  return {limited, nodes, candidates:[...candidates.values()]};
+  return {limited, nodes, maxNearbyNodes, candidates:[...candidates.values()]};
+}
+
+function generateCompositeTargetOneCandidates() {
+  const operandSpellings = [
+    ['1'],
+    ['11'],
+    ['1', '1'],
+    ['111'],
+    ['1', '11'],
+    ['11', '1'],
+    ['1', '1', '1'],
+  ];
+  const candidates = new Map();
+  const add = symbols => {
+    if (symbols.length > 11) return;
+    const sticks = symbolStickCount(symbols);
+    if (sticks > 22) return;
+    const key = symbols.join(' ');
+    if (!candidates.has(key)) candidates.set(key, symbols);
+  };
+  const flatten = parts => parts.flatMap(part => Array.isArray(part) ? part : [part]);
+
+  for (const left of operandSpellings) {
+    add(flatten([left, '-', left, '+', '1']));
+    add(flatten(['1', '+', left, '-', left]));
+    add(flatten([left, '-', left, '+', '1', '+', '1', '-', '1']));
+    for (const right of operandSpellings) {
+      if (left.join('') === right.join('')) continue;
+      add(flatten([left, '/', right, '*', right, '/', left]));
+      add(flatten([left, '/', right, '*', right, '-', left, '+', '1']));
+      add(flatten([left, '*', right, '/', right, '-', left, '+', '1']));
+      add(flatten([left, '-', left, '/', right, '*', right, '+', '1']));
+      add(flatten([left, '-', left, '*', right, '/', right, '+', '1']));
+      add(flatten([left, '-', right, '+', right, '-', left, '+', '1']));
+      add(flatten([left, '*', right, '-', left, '*', right, '+', '1']));
+    }
+  }
+
+  return [...candidates.values()].sort((left, right) =>
+    left.length - right.length ||
+    symbolStickCount(left) - symbolStickCount(right) ||
+    left.join(' ').localeCompare(right.join(' ')));
 }
 
 function dominantCandidateDistance(candidate, round) {
@@ -1183,6 +1510,34 @@ export function extractRounds(text) {
       sample,
       stickCount: symbols.reduce((total, symbol) => total + (tokenCosts.get(symbol) ?? 0), 0),
       target: sampleTarget(symbols),
+    });
+  }
+
+  return result;
+}
+
+export function extractMakeOneRounds(text) {
+  const method = text.match(/private static PuzzleRoundData\[\]\s+BuildMakeOneModeRounds\(\)[\s\S]*?return new\[\]\s*\{([\s\S]*?)\n\s*\};\n\s*\}/);
+  if (!method) {
+    throw new Error("Could not find MakeOneModeRounds initializer.");
+  }
+
+  const result = [];
+  const entryPattern = /MakeOne\("((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"\)/g;
+  let match;
+  while ((match = entryPattern.exec(method[1])) !== null) {
+    const name = unescapeCsharpString(match[1]);
+    const sample = unescapeCsharpString(match[2]);
+    const symbols = splitSymbols(sample);
+    result.push({
+      number: result.length + 1,
+      symbols,
+      slotTypes: Array.from({length:symbols.length}, () => 'Any'),
+      name,
+      tutorial: '',
+      sample,
+      stickCount: symbols.reduce((total, symbol) => total + (tokenCosts.get(symbol) ?? 0), 0),
+      target: 1,
     });
   }
 

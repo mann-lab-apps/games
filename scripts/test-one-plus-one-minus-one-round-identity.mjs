@@ -7,6 +7,12 @@ const { extractRounds, acceptsRound, analyzeIdentity, findEqualityWitness, ident
   generateCandidatePool, evaluate, tokenCosts, classifySolutionPatterns, analyzeRoundPatterns,
   findDominantPatternCandidates, findEqualityEchoCandidates } = identity;
 
+const reportSpawnOptions = {
+  cwd:new URL('../', import.meta.url),
+  encoding:'utf8',
+  maxBuffer:8 * 1024 * 1024,
+};
+
 const round = (number, sample, target) => ({number, sample, symbols: sample.split(' '),
   stickCount: sample.split(' ').reduce((n, t) => n + ({'1':1,'11':2,'111':3,'+':2,'-':1,'/':1,'×':2,'*':3,'=':2}[t]), 0), target});
 
@@ -226,9 +232,7 @@ test('candidate search rejects invalid work budgets and seeds', () => {
 test('candidate CLI reports its budget without editing game data', () => {
   const rules = new URL('../prototypes/one-plus-one-minus-one/Assets/_Project/Scripts/OnePlusOneMinusOneRules.cs', import.meta.url);
   const before = fs.readFileSync(rules, 'utf8');
-  const run = args => spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', ...args], {
-    cwd:new URL('../', import.meta.url), encoding:'utf8'
-  });
+  const run = args => spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', ...args], reportSpawnOptions);
   const valid = run(['--candidates', '--samples', '2000', '--seed', '0']);
   assert.equal(valid.status, 0, valid.stderr);
   const report = JSON.parse(valid.stdout);
@@ -242,6 +246,32 @@ test('candidate CLI reports its budget without editing game data', () => {
   assert.equal(identityReport.status, 0, identityReport.stderr);
   assert.equal(JSON.parse(identityReport.stdout).rounds.length, 100);
   assert.equal(fs.readFileSync(rules, 'utf8'), before);
+});
+
+test('sample evaluation CLI reports accepted fixed-target pattern evidence', () => {
+  const run = args => spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', ...args], reportSpawnOptions);
+  const result = run([
+    '--make-one',
+    '--evaluate-sample',
+    '1 1 - 11 + 1',
+    '--target',
+    '1',
+    '--max-nodes',
+    '200000',
+    '--max-solutions',
+    '1000',
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.accepted, true);
+  assert.equal(report.target, 1);
+  assert.equal(report.sampleTarget, 1);
+  assert.equal(report.slots, 6);
+  assert.equal(report.sticks, 8);
+  assert.deepEqual(report.samplePatterns, ['self-subtraction']);
+  assert.equal(report.profile.complete, true);
+  assert.equal(report.profile.dominantPattern, 'self-division');
+  assert.equal(report.profile.dominantRatio < 0.3, true);
 });
 
 test('dominant shortcut candidate search is deterministic and reports bounded evidence', () => {
@@ -264,6 +294,7 @@ test('dominant shortcut candidate search is deterministic and reports bounded ev
   assert.equal(first.rounds[0].search.minVisibleDiversity, 2);
   assert.equal(first.rounds[0].search.minRecommendedImprovement, 0.05);
   assert.equal(first.rounds[0].search.minCombinationScore, 2);
+  assert.equal(first.rounds[0].search.preserveTarget, false);
   assert.equal(first.rounds[0].current.solutionCount > 0, true);
   assert.ok(first.rounds[0].current.rankedPatterns.every(row =>
     typeof row.pattern === 'string' && Number.isFinite(row.ratio)));
@@ -281,9 +312,7 @@ test('dominant shortcut candidate search is deterministic and reports bounded ev
 });
 
 test('dominant shortcut candidate CLI handles explicit and inferred targets', () => {
-  const run = args => spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', ...args], {
-    cwd:new URL('../', import.meta.url), encoding:'utf8'
-  });
+  const run = args => spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', ...args], reportSpawnOptions);
   const explicit = run(['--dominant-candidates', '91', '--samples', '2000', '--max-evaluations', '2', '--max-results', '1', '--candidate-budget', '4']);
   assert.equal(explicit.status, 0, explicit.stderr);
   const explicitReport = JSON.parse(explicit.stdout);
@@ -332,7 +361,7 @@ test('equality echo candidate CLI handles explicit targets', () => {
     '--max-results', '1',
     '--max-side-expressions', '80',
     '--max-resource-delta', '0',
-  ], {cwd:new URL('../', import.meta.url), encoding:'utf8'});
+  ], reportSpawnOptions);
   assert.equal(run.status, 0, run.stderr);
   const report = JSON.parse(run.stdout);
   assert.equal(report.rounds[0].number, 97);
@@ -340,13 +369,11 @@ test('equality echo candidate CLI handles explicit targets', () => {
   assert.notEqual(spawnSync(process.execPath, [
     'scripts/report-one-plus-one-minus-one-round-quality.mjs',
     '--equality-candidates', '105',
-  ], {cwd:new URL('../', import.meta.url), encoding:'utf8'}).status, 0);
+  ], reportSpawnOptions).status, 0);
 });
 
 test('solution CLI reports completeness and validates selected rounds', () => {
-  const run = args => spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', ...args], {
-    cwd:new URL('../', import.meta.url), encoding:'utf8'
-  });
+  const run = args => spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', ...args], reportSpawnOptions);
   const result = run(['--solutions', '11,33,48,83']);
   assert.equal(result.status, 0, result.stderr);
   const report = JSON.parse(result.stdout);
@@ -355,7 +382,7 @@ test('solution CLI reports completeness and validates selected rounds', () => {
   const limited = run(['--solutions', '48', '--max-nodes', '1', '--strict']);
   assert.notEqual(limited.status, 0);
   assert.equal(JSON.parse(limited.stdout).rounds[0].limitReason, 'node_budget');
-  for (const value of ['0', '105', '11,', '11,11', 'garbage'])
+  for (const value of ['0', '121', '11,', '11,11', 'garbage'])
     assert.notEqual(run(['--solutions', value]).status, 0, value);
 });
 
@@ -403,9 +430,7 @@ test('late N over N redesign removes standalone self-division keys from revised 
 });
 
 test('pattern CLI reports shortcut review rows', () => {
-  const run = spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', '--patterns', '--max-nodes', '200000', '--max-solutions', '1000'], {
-    cwd:new URL('../', import.meta.url), encoding:'utf8'
-  });
+  const run = spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', '--patterns', '--max-nodes', '200000', '--max-solutions', '1000'], reportSpawnOptions);
   assert.equal(run.status, 0, run.stderr);
   const report = JSON.parse(run.stdout);
   assert.match(report.method, /design-review map/);
@@ -431,14 +456,16 @@ test('pattern CLI reports shortcut review rows', () => {
 });
 
 test('pattern CLI summary omits bulky per-round rows while keeping policy targets', () => {
-  const run = spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', '--patterns', '--summary', '--max-nodes', '200000', '--max-solutions', '1000'], {
-    cwd:new URL('../', import.meta.url), encoding:'utf8'
-  });
+  const run = spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', '--patterns', '--summary', '--max-nodes', '200000', '--max-solutions', '1000'], reportSpawnOptions);
   assert.equal(run.status, 0, run.stderr);
   const report = JSON.parse(run.stdout);
   assert.match(report.method, /Summary/);
   assert.equal(report.rows, undefined);
   assert.equal(report.summary.rounds, 100);
+  assert.equal(report.summary.searchBudget.maxNodes, 200000);
+  assert.equal(report.summary.searchBudget.maxSolutions, 1000);
+  assert.equal(Array.isArray(report.incompleteReview.rows), true);
+  assert.match(report.incompleteReview.strictBehavior, /--strict fails/);
   assert.deepEqual(report.shortcutPolicy.violations, []);
   assert.deepEqual(report.shortcutPolicy.equalityEchoReview.highPriorityAlternateRows.map(row => row.number), [97, 64]);
   assert.ok(report.shortcutPolicy.dominantPatternReview.highPriorityRows.some(row =>
@@ -449,6 +476,136 @@ test('pattern CLI summary omits bulky per-round rows while keeping policy target
     row.number === 65), false);
   assert.ok(report.shortcutPolicy.dominantPatternReview.highPriorityRows.every(row =>
     row.ratio >= 0.6 && row.solutionCount >= 20));
+});
+
+test('make-one pattern CLI tracks default mode shortcut regressions separately', () => {
+  const run = spawnSync(process.execPath, [
+    'scripts/report-one-plus-one-minus-one-round-quality.mjs',
+    '--make-one',
+    '--patterns',
+    '--summary',
+    '--strict-patterns',
+    '--max-nodes',
+    '200000',
+    '--max-solutions',
+    '1000',
+  ], reportSpawnOptions);
+  assert.equal(run.status, 0, run.stderr);
+  const report = JSON.parse(run.stdout);
+  assert.equal(report.summary.rounds, 30);
+  assert.deepEqual(report.shortcutPolicy.reviewRounds, []);
+  assert.deepEqual(report.shortcutPolicy.violations, []);
+  assert.match(report.shortcutPolicy.equalityEchoReview.reviewWindow, /after Round 10/);
+  assert.deepEqual(report.shortcutPolicy.equalityEchoReview.highPriorityAlternateRows, []);
+  assert.equal(report.summary.uniqueResources, 21);
+  assert.equal(report.summary.repeatedResourceGroups, 5);
+  assert.deepEqual(report.incompleteReview.rows.map(row => row.number), [20, 22, 23]);
+  assert.ok(report.incompleteReview.rows.every(row =>
+    row.limitReason === 'node_budget' &&
+    row.recheckCommand.includes('--make-one') &&
+    row.recheckCommand.includes('--max-nodes 1000000') &&
+    row.interpretation.includes('prefix evidence')));
+  assert.deepEqual(report.shortcutPolicy.dominantPatternReview.highPriorityRows, []);
+  assert.equal(report.shortcutPolicy.dominantPatternReview.rankedRowsTruncated, true);
+  assert.match(report.resourceReview.method, /Repeated slot\/stick resources/);
+  assert.equal(report.resourceReview.unresolvedFoundSharedEqualityPairs, 14);
+  assert.ok(report.resourceReview.reviewRows.some(row =>
+    row.rounds.join(',') === '18,29' &&
+    row.key === '6/8' &&
+    row.witnessStatus === 'found'));
+});
+
+test('make-one dominant candidate search preserves fixed target one', () => {
+  const run = spawnSync(process.execPath, [
+    'scripts/report-one-plus-one-minus-one-round-quality.mjs',
+    '--make-one',
+    '--dominant-candidates',
+    '18',
+    '--samples',
+    '500',
+    '--max-evaluations',
+    '3',
+    '--max-results',
+    '2',
+    '--candidate-budget',
+    '12',
+    '--allow-fewer-slots',
+    '--allow-fewer-sticks',
+  ], reportSpawnOptions);
+  assert.equal(run.status, 0, run.stderr);
+  const report = JSON.parse(run.stdout);
+  assert.ok(report.rounds.every(row => row.target === 1 && row.search.preserveTarget === true));
+  assert.ok(report.rounds.every(row => row.search.nearbyCandidateCount > 0));
+  assert.ok(report.rounds.every(row => row.candidates.every(candidate => candidate.target === 1)));
+});
+
+test('make-one resource candidate search flags shortcut-risk replacements', () => {
+  const run = spawnSync(process.execPath, [
+    'scripts/report-one-plus-one-minus-one-round-quality.mjs',
+    '--make-one',
+    '--resource-candidates',
+    '17',
+    '--max-evaluations',
+    '8',
+    '--max-results',
+    '4',
+    '--candidate-budget',
+    '40',
+    '--max-nearby-nodes',
+    '500000',
+    '--max-nodes',
+    '200000',
+    '--max-solutions',
+    '1000',
+  ], reportSpawnOptions);
+  assert.equal(run.status, 0, run.stderr);
+  const report = JSON.parse(run.stdout);
+  assert.match(report.method, /Resource-repeat candidate search/);
+  assert.equal(report.rounds.length, 1);
+  assert.equal(report.rounds[0].number, 17);
+  assert.equal(report.rounds[0].search.preserveTarget, true);
+  assert.equal(report.rounds[0].search.maxNearbyNodes, 500000);
+  assert.equal(report.rounds[0].search.nearbyNodes <= 500000, true);
+  assert.equal(report.rounds[0].candidateSummary.evaluated, 8);
+  assert.equal(report.rounds[0].candidateSummary.recommendableCount, 0);
+  assert.equal(report.rounds[0].candidateSummary.analysisOnlyCount, 8);
+  assert.ok(report.rounds[0].candidateSummary.riskCounts.latePureSelfDivision > 0);
+  assert.ok(report.rounds[0].candidateSummary.riskCounts.dominantShortcut > 0);
+  assert.ok(report.rounds[0].candidates.length > 0);
+  assert.ok(report.rounds[0].candidates.every(candidate => candidate.target === 1));
+  assert.ok(report.rounds[0].candidates.some(candidate =>
+    candidate.sample === '1 - 1 / 111 * 111 + 1' &&
+    candidate.combinationTags.includes('nontrivial-division') &&
+    candidate.combinationTags.includes('nontrivial-multiply')));
+  assert.ok(report.rounds[0].candidates.some(candidate =>
+    candidate.analysisOnly &&
+    candidate.pureDivisionResource === false &&
+    candidate.analysisNotes.some(note => note.includes('dominant shortcut'))));
+});
+
+test('make-one resource candidate CLI accepts repeated resource keys', () => {
+  const run = spawnSync(process.execPath, [
+    'scripts/report-one-plus-one-minus-one-round-quality.mjs',
+    '--make-one',
+    '--resource-candidates',
+    '6/8',
+    '--max-evaluations',
+    '1',
+    '--max-results',
+    '1',
+    '--candidate-budget',
+    '4',
+    '--max-nearby-nodes',
+    '50000',
+    '--max-nodes',
+    '200000',
+    '--max-solutions',
+    '1000',
+  ], reportSpawnOptions);
+  assert.equal(run.status, 0, run.stderr);
+  const report = JSON.parse(run.stdout);
+  assert.deepEqual(report.rounds.map(row => row.number), [18, 29]);
+  assert.ok(report.rounds.every(row => row.slots === 6 && row.sticks === 8));
 });
 
 test('late equality echo redesign removes same-expression samples from targeted rounds', () => {
@@ -465,9 +622,7 @@ test('late equality echo redesign removes same-expression samples from targeted 
 });
 
 test('strict pattern policy passes after late pure N/N review candidates are redesigned', () => {
-  const run = spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', '--patterns', '--strict-patterns', '--max-nodes', '200000', '--max-solutions', '1000'], {
-    cwd:new URL('../', import.meta.url), encoding:'utf8'
-  });
+  const run = spawnSync(process.execPath, ['scripts/report-one-plus-one-minus-one-round-quality.mjs', '--patterns', '--strict-patterns', '--max-nodes', '200000', '--max-solutions', '1000'], reportSpawnOptions);
   assert.equal(run.status, 0, run.stderr);
   const report = JSON.parse(run.stdout);
   assert.deepEqual(report.shortcutPolicy.violations, []);

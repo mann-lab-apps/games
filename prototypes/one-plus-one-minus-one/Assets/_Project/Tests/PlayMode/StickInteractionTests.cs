@@ -19,20 +19,57 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         private static readonly string[] ProgressKeys = {
             "OnePlusOneMinusOne.GoalMode.HighestUnlockedRound",
             "OnePlusOneMinusOne.GoalMode.Completed",
+            "OnePlusOneMinusOne.MakeOneMode.HighestUnlockedRound",
+            "OnePlusOneMinusOne.MakeOneMode.Completed",
             "OnePlusOneMinusOne.Audio.Enabled"
         };
+        private static readonly string[] CollectionShapeKeys = {
+            "OnePlusOneMinusOne.Collection.Shape.1",
+            "OnePlusOneMinusOne.Collection.Shape.-",
+            "OnePlusOneMinusOne.Collection.Shape./",
+            "OnePlusOneMinusOne.Collection.Shape.+",
+            "OnePlusOneMinusOne.Collection.Shape.×",
+            "OnePlusOneMinusOne.Collection.Shape.=",
+            "OnePlusOneMinusOne.Collection.Shape.11",
+            "OnePlusOneMinusOne.Collection.Shape.111",
+            "OnePlusOneMinusOne.Collection.Shape.*"
+        };
+        private static readonly string[] AchievementKeys = {
+            "OnePlusOneMinusOne.Achievement.first_shape",
+            "OnePlusOneMinusOne.Achievement.all_shapes",
+            "OnePlusOneMinusOne.Achievement.first_clear",
+            "OnePlusOneMinusOne.Achievement.own_way",
+            "OnePlusOneMinusOne.Achievement.balanced_builder",
+            "OnePlusOneMinusOne.Achievement.star_friend",
+            "OnePlusOneMinusOne.Achievement.slash_artist",
+            "OnePlusOneMinusOne.Achievement.three_ways",
+            "OnePlusOneMinusOne.Achievement.round_10",
+            "OnePlusOneMinusOne.Achievement.round_30",
+            "OnePlusOneMinusOne.Achievement.goal_clear"
+        };
+        private static readonly string[] IntPrefs = ProgressKeys.Concat(CollectionShapeKeys).Concat(AchievementKeys).ToArray();
+        private static readonly string[] ExpressionPrefs = Enumerable.Range(0, 100)
+            .Select(index => "OnePlusOneMinusOne.Collection.RoundExpression.goal." + index)
+            .Concat(Enumerable.Range(0, 30).Select(index => "OnePlusOneMinusOne.Collection.RoundExpression.make_one." + index))
+            .ToArray();
         private bool[] savedKeys;
         private int[] savedProgress;
+        private bool[] savedExpressionKeys;
+        private string[] savedExpressions;
 
         [UnitySetUp]
         public IEnumerator SetUp()
         {
-            savedKeys = ProgressKeys.Select(PlayerPrefs.HasKey).ToArray();
-            savedProgress = ProgressKeys.Select(key => PlayerPrefs.GetInt(key, 0)).ToArray();
-            foreach (var key in ProgressKeys) PlayerPrefs.DeleteKey(key);
+            savedKeys = IntPrefs.Select(PlayerPrefs.HasKey).ToArray();
+            savedProgress = IntPrefs.Select(key => PlayerPrefs.GetInt(key, 0)).ToArray();
+            savedExpressionKeys = ExpressionPrefs.Select(PlayerPrefs.HasKey).ToArray();
+            savedExpressions = ExpressionPrefs.Select(key => PlayerPrefs.GetString(key, string.Empty)).ToArray();
+            foreach (var key in IntPrefs) PlayerPrefs.DeleteKey(key);
+            foreach (var key in ExpressionPrefs) PlayerPrefs.DeleteKey(key);
             scene = SceneManager.CreateScene("Stick interaction test");
             SceneManager.SetActiveScene(scene);
             controller = new GameObject("Test game").AddComponent<OnePlusOneMinusOneController>();
+            Call("TogglePlayMode");
             Call("HideRoundSelect");
             Call("LoadRound", 8);
             yield return null;
@@ -42,10 +79,15 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         [UnityTearDown]
         public IEnumerator TearDown()
         {
-            for (var i = 0; i < ProgressKeys.Length; i++)
+            for (var i = 0; i < IntPrefs.Length; i++)
             {
-                if (savedKeys[i]) PlayerPrefs.SetInt(ProgressKeys[i], savedProgress[i]);
-                else PlayerPrefs.DeleteKey(ProgressKeys[i]);
+                if (savedKeys[i]) PlayerPrefs.SetInt(IntPrefs[i], savedProgress[i]);
+                else PlayerPrefs.DeleteKey(IntPrefs[i]);
+            }
+            for (var i = 0; i < ExpressionPrefs.Length; i++)
+            {
+                if (savedExpressionKeys[i]) PlayerPrefs.SetString(ExpressionPrefs[i], savedExpressions[i]);
+                else PlayerPrefs.DeleteKey(ExpressionPrefs[i]);
             }
             PlayerPrefs.Save();
             yield return SceneManager.UnloadSceneAsync(scene);
@@ -69,6 +111,76 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             Field<Toggle>("soundToggle").isOn = true;
             Assert.That(Field<AudioSource>("sfxSource").mute, Is.False);
             Assert.That(PlayerPrefs.GetInt("OnePlusOneMinusOne.Audio.Enabled"), Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator DefaultMakeOneClearRecordsCollectionAndBadges()
+        {
+            Call("TogglePlayMode");
+            Call("HideRoundSelect");
+            Call("LoadRound", 0);
+            Call("FillCurrentRoundWithSample");
+            yield return null;
+
+            Call("CheckCurrent");
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            Assert.That(PlayerPrefs.GetInt("OnePlusOneMinusOne.MakeOneMode.HighestUnlockedRound", 0), Is.EqualTo(1));
+            Assert.That(PlayerPrefs.GetInt("OnePlusOneMinusOne.Collection.Shape.1", 0), Is.EqualTo(1));
+            Assert.That(PlayerPrefs.GetInt("OnePlusOneMinusOne.Achievement.first_shape", 0), Is.EqualTo(1));
+            Assert.That(PlayerPrefs.GetInt("OnePlusOneMinusOne.Achievement.first_clear", 0), Is.EqualTo(1));
+            Assert.That(PlayerPrefs.GetString("OnePlusOneMinusOne.Collection.RoundExpression.make_one.0", string.Empty), Is.EqualTo("1"));
+
+            yield return new WaitForSeconds(1.3f);
+            Call("LoadRound", 0);
+            Call("ShowCollection");
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            Assert.That(Field<RectTransform>("collectionOverlay").gameObject.activeSelf, Is.True);
+            Assert.That(Field<Text>("collectionStatsText").text, Is.EqualTo("1 / 9 friends | 2 / 11 badges"));
+            Assert.That(Field<Dictionary<string, Text>>("shapeCollectionLabels")["1"].text, Is.EqualTo("1"));
+            Assert.That(Field<List<Text>>("expressionCollectionLabels")[0].text, Is.EqualTo("1. 1"));
+            Assert.That(Field<Dictionary<string, Text>>("achievementLabels")["first_clear"].text, Does.StartWith("Done: It Works"));
+        }
+
+        [UnityTest]
+        public IEnumerator CollectionDedupesPackedAndNeighborNumberAnswersAtRuntime()
+        {
+            Call("TogglePlayMode");
+            Call("HideRoundSelect");
+            Call("LoadRound", 4);
+
+            Assert.That(Call("AddSolvedExpression", 4, "1 1 / 1 1"), Is.True);
+            Assert.That(Call("AddSolvedExpression", 4, "11 / 11"), Is.False);
+            Assert.That(PlayerPrefs.GetString("OnePlusOneMinusOne.Collection.RoundExpression.make_one.4", string.Empty),
+                Is.EqualTo("1 1 / 1 1"));
+
+            Call("ShowCollection");
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            var labels = Field<List<Text>>("expressionCollectionLabels");
+            Assert.That(labels[0].text, Is.EqualTo("1. 11 / 11"));
+            Assert.That(labels[1].text, Is.EqualTo("2. -"));
+        }
+
+        [UnityTest]
+        public IEnumerator CollectionShowsRecentAnswersWhenCurrentRoundIsEmpty()
+        {
+            Call("TogglePlayMode");
+            Call("HideRoundSelect");
+            Assert.That(Call("AddSolvedExpression", 9, "1 + 1 - 1 × 1 / 1"), Is.True);
+            Call("LoadRound", 10);
+
+            Call("ShowCollection");
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            Assert.That(Field<Text>("expressionCollectionTitleText").text, Is.EqualTo("Recent Round 10 Answers"));
+            var labels = Field<List<Text>>("expressionCollectionLabels");
+            Assert.That(labels[0].text, Is.EqualTo("1. 1 + 1 - 1 × 1 / 1"));
         }
 
         [UnityTest]
@@ -424,6 +536,8 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             SceneManager.SetActiveScene(scene);
             controller = new GameObject("Restarted game").AddComponent<OnePlusOneMinusOneController>();
             yield return null;
+            Call("TogglePlayMode");
+            yield return null;
             Assert.That(Field<int>("roundIndex"), Is.EqualTo(99));
             Assert.That(Field<RectTransform>("roundSelectOverlay").gameObject.activeSelf, Is.True);
             Assert.That(Field<List<Text>>("roundSelectLabels").Any(t => t.text.StartsWith("100 Done")), Is.True);
@@ -605,7 +719,7 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         [UnityTest]
         public IEnumerator UnequalSidesShowBothValuesWithoutAdvancing()
         {
-            Call("LoadRound", 58);
+            Call("LoadRound", 60);
             var poses = new[] {
                 new[] { StickPose.LeftVertical, StickPose.RightVertical },
                 new[] { StickPose.CenterSlash },
@@ -624,7 +738,7 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             Call("RefreshUi");
             Call("CheckCurrent");
             Assert.That(Field<Text>("feedbackText").text, Is.EqualTo("11 is not 1."));
-            Assert.That(Field<int>("roundIndex"), Is.EqualTo(58));
+            Assert.That(Field<int>("roundIndex"), Is.EqualTo(60));
             Assert.That(Field<bool>("isAdvancing"), Is.False);
             Assert.That(Field<int>("currentRoundFailureCount"), Is.EqualTo(1));
             Assert.That(PlayerPrefs.GetInt(ProgressKeys[0], 0), Is.EqualTo(0));

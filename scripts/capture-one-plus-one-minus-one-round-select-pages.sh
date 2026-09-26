@@ -7,7 +7,7 @@ output_root="${ONE_EQUALS_ONE_ROUND_SELECT_CAPTURE_DIR:-/tmp/one-equals-one-roun
 if [[ "$#" -gt 0 ]]; then
   pages=("$@")
 else
-  pages=(1 5 9)
+  pages=(1 2 3)
 fi
 
 if [[ ! -f "$qa_build/index.html" ]]; then
@@ -29,7 +29,7 @@ for page in "${pages[@]}"; do
 
   echo "Capturing round-select page $page into $page_dir"
   ONE_EQUALS_ONE_WEBGL_BUILD_DIR="$qa_build" \
-  ONE_EQUALS_ONE_WEBGL_QUERY="?qaRounds=1&qaUnlocked=100&qaRoundPage=$page" \
+  ONE_EQUALS_ONE_WEBGL_QUERY="?qaRounds=1&qaUnlocked=30&qaRoundPage=$page" \
   ONE_EQUALS_ONE_VIEWPORT_SMOKE_DIR="$page_dir" \
     "$repo_root/scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs"
 done

@@ -97,10 +97,13 @@ test("failed evidence capture does not hide the original input test failure", as
   const output = mkdtempSync(join(tmpdir(), "one-equals-one-cdp-test-"));
   const client = {
     events: [{ method: "Runtime.exceptionThrown", params: { exceptionDetails: { text: "original failure" } } }],
-    async send() { throw new Error("Capture unavailable"); },
+    async send(method) {
+      if (method === "Runtime.evaluate") return { result: { value: 1 } };
+      throw new Error("Capture unavailable");
+    },
   };
   try {
-    await assert.rejects(playtestFirstTenRounds(client, "http://example.invalid/index.html", output, {
+    await assert.rejects(playtestFirstTenRounds(client, "http://example.invalid/index.html?qaInputProbe=1", output, {
       waitUntilReady: async () => {}, validateScreenshot: () => {},
     }), /original failure/);
     const report = JSON.parse(readFileSync(join(output, "results.json"), "utf8"));

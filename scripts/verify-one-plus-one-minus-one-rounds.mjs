@@ -2,7 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { acceptsRound, extractRounds, splitSymbols, solveRound, tokenCosts, identityErrors } from './one-plus-one-minus-one-round-identity.mjs';
+import { acceptsRound, extractMakeOneRounds, extractRounds, splitSymbols, solveRound, tokenCosts, identityErrors } from './one-plus-one-minus-one-round-identity.mjs';
 
 const repoRoot = process.cwd();
 const rulesPath = path.join(
@@ -37,6 +37,7 @@ const postTutorialForbiddenWords = [
 ];
 
 const releaseRoundCount = 100;
+const makeOneRoundCount = 30;
 const releasePageSize = 12;
 const releasePageCount = 9;
 const releaseMaxSlots = 11;
@@ -58,12 +59,14 @@ const releaseRoundSelectTopMargin = 24;
 const narrowPortraitWidth = 488;
 
 const rounds = extractRounds(source);
+const makeOneRounds = extractMakeOneRounds(source);
 
 let failures = 0;
 const seenSamples = new Map();
 for (const error of identityErrors(rounds)) assert(false, error);
 
 assert(rounds.length === releaseRoundCount, `Expected ${releaseRoundCount} rounds, got ${rounds.length}.`);
+assert(makeOneRounds.length === makeOneRoundCount, `Expected ${makeOneRoundCount} Make 1 rounds, got ${makeOneRounds.length}.`);
 assert(
   Math.ceil(rounds.length / releasePageSize) === releasePageCount,
   `Expected ${releasePageCount} round-select pages for ${rounds.length} rounds.`,
@@ -123,12 +126,29 @@ rounds.forEach((round, index) => {
   assertEquationLayouts(roundNumber, symbols.length, fixedTarget);
 });
 
+makeOneRounds.forEach((round, index) => {
+  const roundNumber = index + 1;
+  const symbols = splitSymbols(round.sample);
+  assert(!symbols.includes("="), `Make 1 Round ${roundNumber} should reserve the displayed = 1 target.`);
+  assert(round.target === 1, `Make 1 Round ${roundNumber} should target 1.`);
+  assert(symbols.length <= releaseMaxSlots, `Make 1 Round ${roundNumber} has ${symbols.length} slots.`);
+  assertEquationLayouts(`Make 1 Round ${roundNumber}`, symbols.length, true);
+
+  const usedSticks = symbols.reduce((total, symbol) => {
+    assert(tokenCosts.has(symbol), `Make 1 Round ${roundNumber} uses unknown token '${symbol}'.`);
+    return total + tokenCosts.get(symbol);
+  }, 0);
+  assert(usedSticks === round.stickCount, `Make 1 Round ${roundNumber} stick count mismatch.`);
+  assert(solveRound(symbols, round.target).valid, `Make 1 Round ${roundNumber} sample does not solve.`);
+  assert(acceptsRound(round, symbols), `Make 1 Round ${roundNumber} sample violates round constraints.`);
+});
+
 if (failures > 0) {
   console.error(`1 = 1 static round verification failed with ${failures} issue(s).`);
   process.exit(1);
 }
 
-console.log(`1 = 1 static round verification passed: ${rounds.length} rounds.`);
+console.log(`1 = 1 static round verification passed: ${rounds.length} goal rounds and ${makeOneRounds.length} Make 1 rounds.`);
 
 
 function calculateLayoutPlan(slotCount, usesFixedTarget, availableWidth) {
@@ -326,7 +346,7 @@ function assertStartupFlowPlans() {
     [0, 0, 0, false],
     [1, 1, 1, true],
     [42, 42, 42, true],
-    [1000, 99, 99, true],
+    [1000, releaseRoundCount - 1, releaseRoundCount - 1, true],
   ];
 
   for (const [saved, expectedHighest, expectedStart, expectedRounds] of cases) {
@@ -357,6 +377,7 @@ function assertInterstitialDecisionPlans() {
     [19, 19, 3, false, false, "hard_clear"],
     [19, 19, 0, false, true, "round_milestone"],
     [99, 99, 0, false, true, "round_milestone"],
+    [releaseRoundCount - 1, releaseRoundCount - 1, 0, false, true, "round_milestone"],
     [0, 99, 5, true, true, "forced_test_ads"],
   ];
 

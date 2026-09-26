@@ -5,6 +5,85 @@ toward a commercial casual puzzle release.
 
 ## Current Gate
 
+### Default `= 1` Mode Pattern Gate (2026-09-26)
+
+Current first-run/default content is the 30-round fixed-target `= 1` mode; the
+100-round goal set is hidden legacy content. The round-quality report now
+supports `--make-one`, giving the default mode its own shortcut-pattern gate.
+The first run found late standalone `N / N = 1` review rows after Round 10 at
+11, 13, 14, 15, 19, 20, 22, 23, 25 and 26. These were redesigned without token
+bans or forced answers, and duplicate sample strings in the default ladder were
+removed.
+
+Current default-mode evidence:
+
+- `node scripts/report-one-plus-one-minus-one-round-quality.mjs --make-one --patterns --summary --strict-patterns --max-nodes 200000 --max-solutions 1000`
+  exits 0 with no late pure self-division violations.
+  The summary now includes an `incompleteReview` block: Rounds 20, 22 and 23
+  are still bounded `node_budget` rows at the current search budget, so their
+  pattern ratios are prefix evidence rather than exhaustive coverage.
+  The same summary now uses a default-mode review window after Round 10 for
+  dominant shortcut families. Round 24 was redesigned from
+  `1 1 - 1 1 + 1 / 1` to `1 1 11 - 1 111 + 1`, reducing the high-ratio
+  divide-by-one pressure. Round 18 was then redesigned from
+  `1 - 1 + 1 / 1` to `1 1 - 11 + 1`, removing the remaining high-priority
+  default-mode dominant-pattern row under the current bounded report.
+  The same summary now exposes a `resourceReview` block so repeated slot/stick
+  groups are visible in JSON automation instead of only in the text duplicate
+  report.
+- `--make-one --dominant-candidates` preserves target `1` automatically, so
+  helper output cannot recommend target-changing replacements for the fixed
+  `= 1` mode.
+- `--make-one --resource-candidates` now searches target-preserving replacements
+  for repeated slot/stick groups. It accepts either explicit round numbers or a
+  repeated resource key such as `5/8`, includes a small composite target-1
+  candidate generator, and marks candidates that would reintroduce late pure
+  `N/N`, admit pure `N/N` through their resource budget, depend on bounded
+  pattern evidence, or swap one universal key for another dominant shortcut.
+  The latest capped probes over the repeated-resource groups produced no
+  post-tutorial recommendable replacement, so no round data was changed.
+- `node scripts/verify-one-plus-one-minus-one-rounds.mjs` passes.
+- `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` passes
+  58/58, including the MakeOne pattern-regression, target-preserving
+  candidate-search tests, resource-repeat candidate report and single-sample
+  pattern evaluation CLI.
+- Unity EditMode passes 63/63 after removing stale 100-round identity
+  expectations that no longer match the shared Node redesign list.
+- Unity PlayMode passes 41/41 after isolating MakeOne progress keys, explicitly
+  selecting the legacy Goal ladder for legacy 100-round regressions and
+  increasing footer command button size/readability for small-phone touch
+  targets.
+- Fresh QA WebGL and ordinary WebGL builds passed before the later Round 18
+  data change and resource-review tooling change. The current source is newer
+  than that WebGL build, so the static suite is expected to warn about WebGL
+  freshness until Unity is responsive enough to rebuild.
+- Round 48 browser input regression passes on the fresh QA build using
+  `qaMode=goal`, so the hidden 100-round ladder can still be targeted even
+  though the default app mode is now the 30-round `= 1` ladder.
+- Legacy 100-round strict quality currently reports no identical
+  resource/target groups; the only proven shared-equality witness in the current
+  report is the intentional early tutorial echo 2/5.
+
+Open review items: the default ladder now has 21 distinct slot/stick resources
+across 30 rounds after Round 23 moved out of the old `11/20` repeated-resource
+pair. Rounds 20/22/23 are still bounded pattern-review rows rather than
+exhaustively classified rows, and `resourceReview` currently finds 14
+unresolved shared-equality pairs across repeated resource groups. The new
+`--evaluate-sample` CLI can inspect hand-authored replacements before data
+edits. Round 18's replacement reduces the dominant self-division ratio from
+`0.615` to `0.286`; Round 23 now uses `1 / 11 * 11 - 1 + 1`, which completed
+under a higher `5000000` node check with a `0.442` dominant shortcut ratio and
+`0.103` same-expression ratio. Under the normal bounded MakeOne summary, the
+default ladder now has no high-priority same-expression or dominant-pattern
+rows. Future tuning should favor similarly distinct visible judgments over
+merely extending the same cancellation patterns. The next useful tooling step is
+not to auto-apply the current composite candidates, but to generate richer
+target-1 candidates whose complete accepted-answer map is not dominated by
+`/1`, same-expression equality or pure `N/N`. The latest capped probes for the
+remaining repeated-resource groups show useful bounded candidates such as
+`1 - 1 / 111 * 111 + 1`, but no additional post-tutorial
+`recommendableCount > 0` data edit yet.
+
 ### Universal Shortcut Pattern Tightening (2026-09-18)
 
 The round-quality tooling now has a separate `--patterns --strict-patterns`
@@ -91,7 +170,9 @@ pass above: Round 100 no longer shares the Round 30 resource/target callback.
 Do not treat this as full ship-ready completion until Unity/runtime/WebGL
 verification is healthy.
 
-Verification: Node identity tests pass 49/49; static 100-round verification
+Historical 2026-09-15 verification, superseded by the 2026-09-26 current gate
+above for PlayMode/WebGL freshness: Node identity tests pass 49/49; static
+100-round verification
 passes; selected solution enumeration for 11/33/48/83 passes with Round 48 at
 4 complete canonical arrays. Full static verification passes with a stale-WebGL
 warning because the player build predates these source edits. After clearing a
@@ -848,17 +929,47 @@ search, not another unbounded general probe.
 
 Collection and achievement differentiation track:
 
-- Status: implementation pass complete for static checks, runtime verification pending.
+- Status: implementation and focused runtime verification pass complete for the
+  current local source; broader human/device feel remains a separate QA item.
 - The capacity-slot tutorial appendix has been discarded before release. The
-  game returns to the original 100-round free-placement structure.
+  current default player path is the 30-round `= 1` fixed-target ladder, while
+  the old 100-round Goal ladder remains hidden legacy content for QA/backward
+  coverage.
 - Current differentiation work focuses on lightweight collection hooks that do
   not constrain free solving: discovered shape friends, badges, and per-round
   solved-expression collection.
 - The solved-expression collection intentionally supports the player's idea of
   clearing the same round in multiple ways. It records up to three distinct
   accepted expressions per round and awards a badge for finding three answers.
-- Static Node tests and the static suite pass for the 100-round collection
-  pivot. Next playable-design step: after Unity/WebGL is available, verify that the
-  Shapes overlay and unlock toast feel celebratory rather than tutorial-heavy,
-  and that expression collection encourages alternate solutions without
-  revealing answers too early.
+- Static Node tests and the static suite pass for the collection pivot. On
+  2026-09-26, PlayMode passed 40/40 after adding runtime checks that the default
+  `= 1` Round 1 clear records friend/badge/expression progress and that
+  neighbor-number answers such as `1 1 / 1 1` de-dupe with packed-number answers
+  such as `11 / 11` in the collection UI.
+- PlayMode now backs up and restores collection/achievement/expression
+  PlayerPrefs so test runs do not leak collection state across cases.
+- Next playable-design step: verify in browser/native that the collection
+  overlay and unlock toast feel celebratory rather than tutorial-heavy, and
+  that expression collection encourages alternate solutions without revealing
+  answers too early.
+
+Browser input automation follow-up:
+
+- Completed for the current local source on 2026-09-26: the first-ten WebGL
+  input script now uses a development-only `qaInputProbe` layout dump instead of
+  hard-coded old coordinates. It cleared the default `= 1` Rounds 1-10 with
+  emulated touch input and saved progress to Round 11. Evidence:
+  `/tmp/one-equals-one-input-smoke/input/results.json`.
+- The same browser run now opens the Badges/collection overlay after Round 10
+  and verifies the runtime collection state (`friends=8`, `badges=5`,
+  `active=true`). Screenshot:
+  `/tmp/one-equals-one-input-smoke/input/collection-after-first-ten.png`.
+- Collection now shows the most recent solved round's answers when the current
+  round has not been solved yet, so opening Badges after Round 10 displays
+  `Recent Round 10 Answers` instead of an empty Round 11 list. The WebGL input
+  result verifies `answerRound=10`, `answers=1`.
+- The top-right entry is now labeled `Album`, and achievement rows use
+  `Done:` / `Locked:` prefixes. This better matches the combined
+  friends/answers/badges surface without adding solve constraints.
+- Remaining limitation: this is browser automation evidence, not native-device
+  finger feel, audio, or production SDK signoff.

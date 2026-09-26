@@ -109,8 +109,31 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
 - Run `./scripts/verify-one-plus-one-minus-one-png-visuals.mjs --all` to inspect
   QA and App Store capture PNGs for dimensions, alpha policy, blank/dark
   content, and mobile content-start position.
-- Run `./scripts/verify-one-plus-one-minus-one-rounds.mjs` when Unity is unavailable; it statically checks the 100-round data, tutorial scope, title hint policy, and narrow portrait layout plan.
-- Run `./scripts/report-one-plus-one-minus-one-round-quality.mjs --strict` after round edits to review token-band coverage, target spread, and repeated pattern warnings.
+- Run `./scripts/verify-one-plus-one-minus-one-rounds.mjs` when Unity is unavailable; it statically checks the 100 legacy goal rounds, 30 default fixed-target rounds, tutorial scope, title hint policy, and narrow portrait layout plan.
+- Run `./scripts/report-one-plus-one-minus-one-round-quality.mjs --strict` after
+  legacy goal round edits to review token-band coverage, target spread, and
+  repeated pattern warnings.
+- Run `./scripts/report-one-plus-one-minus-one-round-quality.mjs --make-one --patterns --summary --strict-patterns --max-nodes 200000 --max-solutions 1000`
+  after default `= 1` round edits to catch late standalone shortcut patterns
+  and to keep bounded, incomplete pattern rows visible. The summary also
+  includes `resourceReview`, which lists repeated slot/stick budgets with
+  found shared-equality witnesses so same-resource fatigue stays visible
+  without banning valid alternate answers.
+- Run `./scripts/report-one-plus-one-minus-one-round-quality.mjs --make-one --evaluate-sample '1 - 1 + 1 / 1' --target 1`
+  before editing a hand-designed default-mode round to inspect the candidate's
+  slot count, stick cost, sample patterns and dominant shortcut profile.
+- Run `./scripts/report-one-plus-one-minus-one-round-quality.mjs --make-one --resource-candidates 17 --max-evaluations 8 --max-results 4 --candidate-budget 40 --max-nearby-nodes 500000`
+  when a default-mode round shares a slot/stick budget with several other
+  rounds. The argument accepts either round numbers such as `17` or repeated
+  resource keys such as `5/8` for all rounds with that slot/stick budget. The
+  bounded report proposes target-preserving resource moves,
+  including a small set of composite target-1 cancellation candidates such as
+  `A - A + 1`, `A / B * B - A + 1` and paired multiplication cancellation, and
+  flags candidates that would reintroduce late pure `N/N`, shift into another
+  dominant shortcut family, or require more exhaustive evidence. Check
+  `candidateSummary` first: `recommendableCount: 0` means the current bounded
+  pass found only analysis-only candidates. Prefer one round at a time, or set
+  `--max-nearby-nodes` explicitly when probing a whole repeated-resource group.
 - Run `./scripts/smoke-one-plus-one-minus-one-webgl-build.sh` to verify an existing WebGL artifact without rebuilding it.
 - Run `./scripts/verify-one-plus-one-minus-one-webgl-shells.sh` to verify existing release, QA, and store-capture WebGL shells share the correct app title, icon, mobile metadata, cache-busted build URLs, and development-marker policy.
 - Run `./scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs` after a fresh WebGL build to capture iPhone SE, standard iPhone, large iPhone, Android 20:9, and desktop viewport smoke screenshots.
@@ -123,10 +146,10 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
     node scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs
   ```
 
-  This uses a fresh browser profile at 390x844 and DPR 3, rotates/drags every
-  stick for Rounds 1-10, checks clear/ad events, reloads saved progress, and
-  writes screenshots plus `input/results.json`. It requires a fresh QA build
-  for telemetry assertions and does not replace physical-device touch QA.
+  This run uses the development-only `qaInputProbe` layout dump to derive
+  rendered slot, bank, and Check coordinates, then clears the current default
+  `= 1` Rounds 1-10 with emulated touch input. It requires a fresh QA build for
+  telemetry assertions and does not replace physical-device touch QA.
 - Run `./scripts/verify-one-plus-one-minus-one-webgl-qa.sh`, then `./scripts/capture-one-plus-one-minus-one-webgl-qa-rounds.sh`, to capture development-only QA round screenshots for Rounds 1, 5, 8, 9, 16, 30, 50, 75, 90, and 100.
 - Run `./scripts/capture-one-plus-one-minus-one-round-select-pages.sh` to capture round-select pages 1, 5, and 9, or pass page numbers explicitly.
 - Run `./scripts/verify-one-plus-one-minus-one-qa-captures.sh` after QA captures to verify required key-round/page screenshots, viewport dimensions, and QA-build freshness.

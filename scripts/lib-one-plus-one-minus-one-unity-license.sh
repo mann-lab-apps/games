@@ -32,6 +32,13 @@ codes = {error.get("code") for error in errors if isinstance(error, dict)}
 data = payload.get("data")
 
 if "LICENSING_CLIENT_UNAVAILABLE" in codes:
+    if os.path.getsize(entitlement) if os.path.exists(entitlement) else 0:
+        print(
+            "Unity CLI could not reach the licensing client; using local Unity "
+            "entitlement license file."
+        )
+        raise SystemExit(0)
+
     print(
         "Unity licensing client is unavailable. Open Unity Hub or repair its "
         f"licensing service before running {context}.",

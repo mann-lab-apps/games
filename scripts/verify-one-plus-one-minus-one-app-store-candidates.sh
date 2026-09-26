@@ -72,12 +72,12 @@ require_png() {
 
 shots=(
   "01-round-1-first-stick"
-  "02-round-5-cross-multiply"
-  "03-round-8-triple-one"
-  "04-round-9-star-multiply"
-  "05-round-30-medium-expression"
-  "06-round-75-equality-puzzle"
-  "07-round-100-finale"
+  "02-round-4-star-start"
+  "03-round-10-title-echo"
+  "04-round-15-tall-fold"
+  "05-round-20-narrow-path"
+  "06-round-25-wide-loop"
+  "07-round-30-finale"
   "08-round-select-progression"
 )
 

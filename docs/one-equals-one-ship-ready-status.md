@@ -1,10 +1,51 @@
 # 1 = 1 Ship-Ready Status
 
-Status date: 2026-09-18
+Status date: 2026-09-26
 
 Current completion judgment: `not yet`
 
-Current execution: local source now includes the numerical correctness fix,
+Current execution: iOS `1.0.0 (4)` was archived and uploaded to App Store
+Connect on 2026-09-25. The archive metadata records `uploadedBuildNumber` `4`
+for app `6811571680`, with no upload errors or warnings. TestFlight processing,
+installation, review selection and App Review outcome are still external
+follow-up items.
+
+Local source after that upload includes additional default-mode quality edits:
+the default 30-round fixed-target `= 1` ladder now has its own `--make-one`
+pattern report, no duplicate sample strings, and no late standalone `N / N = 1`
+violations after Round 10. The report now explicitly marks Rounds 20, 22 and
+23 as bounded `node_budget` rows under the current MakeOne pattern budget, so
+they are not overclaimed as fully exhausted. The same local source now applies
+a mode-aware dominant-pattern review window: the default ladder reviews after
+Round 10, Round 24 was redesigned away from the high-ratio `/1` sample
+`1 1 - 1 1 + 1 / 1`, and Round 18 was redesigned from `1 - 1 + 1 / 1`
+to `1 1 - 11 + 1`. The default ladder now has no high-priority
+dominant-pattern rows under the current bounded report. A new
+`--make-one --evaluate-sample` report path lets future tuning inspect a
+hand-authored candidate's resource cost and dominant shortcut profile before
+changing round data. The MakeOne pattern summary now also includes
+`resourceReview`, which surfaces repeated slot/stick groups and currently
+records 14 unresolved found shared-equality pairs as design-review signals.
+The follow-up `--make-one --resource-candidates` report path can now probe
+target-preserving replacements for those groups and flag candidates that would
+reintroduce late pure `N/N` shortcuts.
+After the first resource-candidate tooling pass, Round 23 was changed from
+`111 - 11 * 11 + 11 + 1 - 1` to `1 / 11 * 11 - 1 + 1`, reducing the default
+ladder from six repeated slot/stick groups to five, from 15 to 14 unresolved
+found shared-equality pairs, and removing the bounded high-priority
+same-expression review row from the normal MakeOne summary. This is a local
+source improvement only until a fresh WebGL/native build is produced.
+These 2026-09-26 edits are newer than uploaded iOS `1.0.0 (4)` until another
+native build is produced.
+The latest WebGL QA rebuild attempt after the final Round 23/Thin Return data
+change did not produce fresh runtime evidence: Unity launched from
+`scripts/verify-one-plus-one-minus-one-webgl-qa.sh`, then failed licensing
+initialization after `74.83s`
+(`/tmp/one-plus-one-minus-one-unity-webgl-qa-build.log`). The existing QA WebGL
+artifact is still older than `OnePlusOneMinusOneRules.cs`, so it must not be
+used as proof for the latest MakeOne round/tooling source.
+
+Earlier execution: local source includes the numerical correctness fix,
 round-identity data edits, and the 2026-09-18 universal-shortcut redesign.
 `IsRoundSolved` and direct equality checks use exact rational arithmetic in
 Unity source and the shared Node mirror, so the known Round 48 bad answer
@@ -32,29 +73,50 @@ sample-level equality echoes left, and 16 alternate-only equality-echo review
 rows remain for future play/design review. Full static verification passes
 after this redesign with expected stale-WebGL/external-release warnings.
 
-Local iOS `1.0.0 (3)` archive/export artifacts exist
-(`Builds/iOS/Archives/OneEqualsOne-1.0.0-3.xcarchive` and
-`Builds/iOS/Export/1.0.0-3/11.ipa`), but this status file does not verify App
-Store Connect upload, processing, TestFlight installation or review selection
-for build 3. Uploaded iOS `1.0.0 (2)` remains the last App Store candidate
-confirmed by repo evidence.
+Local iOS `1.0.0 (4)` archive/upload artifacts exist
+(`Builds/iOS/Archives/OneEqualsOne-1.0.0-4.xcarchive`, with upload evidence in
+`/tmp/one-equals-one-ios-upload-4.log`). Build 4 is the latest App Store Connect
+upload confirmed by local evidence. It does not include the 2026-09-26
+default-mode pattern edits described above.
 
-Latest Unity evidence is partial: after clearing a stale Unity licensing child
-process, EditMode passed 61/61 for the current source. PlayMode still did not
-reach game tests because Unity batchmode licensing timed out waiting for the
-6000.3.23 licensing channel. The WebGL build scripts, PlayMode wrapper, and
-native readiness scripts now distinguish empty license data from an unavailable
-licensing service through the shared
+Latest Unity runtime evidence is healthy for the source state before the later
+Round 18 data change and resource-review tooling pass: after aligning the
+native round-identity regression list with the shared Node identity suite and
+making the PlayMode fixture explicitly select the legacy Goal ladder when
+testing legacy 100-round behavior, EditMode passed 63/63 on 2026-09-26
+(`/tmp/one-equals-one-editmode.xml`). PlayMode now passes 41/41
+(`/tmp/one-equals-one-playmode.xml`) after adding focused runtime coverage for
+the default `= 1` collection flow: Round 1 records the discovered `1` friend,
+first-shape/first-clear badges and the solved expression, and packed/neighbor
+number answers de-dupe in the collection UI. The Node identity suite now passes
+58/58, including the MakeOne `incompleteReview` summary contract,
+target-preserving MakeOne dominant-candidate search, single-sample evaluation
+CLI coverage, MakeOne `resourceReview` summary coverage, resource-repeat
+candidate report coverage, and static round verification. The footer command
+buttons were widened and made taller/readable enough to pass the small-phone
+touch/text regression.
+Fresh QA and ordinary WebGL builds were rebuilt and verified after the
+2026-09-26 default-mode pattern edits and QA input-probe work
+(`/tmp/one-plus-one-minus-one-unity-webgl-qa-build.log`,
+`/tmp/one-plus-one-minus-one-unity-webgl-build.log`). The default `= 1`
+first-ten browser input regression now uses development-only rendered-coordinate
+probe logs and clears Rounds 1-10, saving progress to Round 11
+(`/tmp/one-equals-one-input-smoke/input/results.json`). The same run opens the
+Badges/collection overlay and verifies `friends=8`, `badges=5`, `active=true`
+and `answerRound=10` so the player sees the recent solved expression rather
+than an empty current-round answer list, with screenshot evidence at
+`/tmp/one-equals-one-input-smoke/input/collection-after-first-ten.png`. The
+static suite now passes its non-Unity checks but is expected to warn that the
+WebGL build is older than the latest `OnePlusOneMinusOneRules.cs` source until
+Unity is responsive enough for a fresh rebuild; remaining warnings are external
+release inputs and manual device QA signoff. The Round 48 browser input
+regression also passes on the fresh QA build using `qaMode=goal`
+(`/tmp/one-equals-one-round48-webgl/results.json`). The WebGL build scripts,
+PlayMode wrapper, and native readiness scripts now distinguish empty license data from an
+unavailable licensing service through the shared
 `scripts/lib-one-plus-one-minus-one-unity-license.sh` helper: they may use the
 local Unity entitlement file for the former, but fast-fail on
-`LICENSING_CLIENT_UNAVAILABLE`. Current PlayMode, QA WebGL, ordinary WebGL,
-store-capture WebGL, and iOS/Android readiness ad-test verification exit with
-`Unity licensing client is unavailable. Open Unity Hub or repair its licensing
-service before running this script.` This is an environment blocker, not a game
-assertion failure, but it leaves runtime verification open. Full static
-verification passes with a
-stale-WebGL warning; fresh WebGL build/input QA has not yet been rerun
-successfully for this source state. The ship-ready gate now runs a single Unity
+`LICENSING_CLIENT_UNAVAILABLE`. The ship-ready gate now runs a single Unity
 licensing preflight before Unity-gated PlayMode/WebGL/native readiness checks,
 then marks full export/build checks skipped when the licensing client is
 unavailable instead of repeating the same Unity failure. It still runs strict
@@ -69,6 +131,17 @@ the local source. The standalone WebGL viewport smoke passes when rerun outside
 the filesystem/network sandbox and generated fresh captures for iPhone SE,
 standard/large iPhone, Android 20:9 and desktop. This remains older-build smoke
 evidence, not runtime verification for the latest numerical fix.
+
+A later PlayMode recheck attempt during this local pass did not produce a
+result: Unity fell back to the local entitlement file, emitted `attempt to write
+a readonly database`, then remained silent until the command was interrupted.
+This is recorded as an incomplete Unity-environment run, not as a gameplay
+regression or a replacement for the earlier 41/41 PlayMode evidence above.
+After the Round 18 MakeOne data change, a fresh QA WebGL rebuild was also
+attempted. It reached the same Unity environment state (`attempt to write a
+readonly database`) and stayed silent until interrupted, so the current source
+still has a WebGL freshness warning. Rebuild QA and ordinary WebGL once the
+Unity environment is responsive again.
 
 Latest source-only hardening also changes tiny nonzero result display to avoid
 rounding exact rational failures to `0` in player feedback. The controller's
@@ -734,10 +807,26 @@ Latest observed result:
   AdMob app/ad unit IDs, signing env vars, and Android version env vars are
   missing.
 
-2026-09-20 local source delta: the capacity-slot tutorial experiment was
-discarded before release and the source returns to a 100-round free-placement
-set. Current local work adds collection/achievement UI, unlock toasts, and
-per-round solved-expression collection. Static Node tests and the static suite
-pass for this source, but it is not equivalent to the uploaded iOS build until
-Unity PlayMode and a fresh Unity build are produced and verified. Current local
-runtime verification is blocked by `LICENSING_CLIENT_UNAVAILABLE`.
+2026-09-20 to 2026-09-26 local source delta: the capacity-slot tutorial
+experiment was discarded before release. The current default player path is the
+30-round `= 1` ladder, with the 100-round Goal ladder retained as hidden legacy
+content for QA/backward coverage. Current local work adds
+collection/achievement UI, unlock toasts, per-round solved-expression
+collection, and QA input-probe automation for the current default ladder.
+PlayMode, static verification, fresh QA WebGL, fresh ordinary WebGL and default
+first-ten browser input regression all pass for this local source. It is still
+not equivalent to the uploaded iOS build 4 until a new native archive is built
+and uploaded.
+
+2026-09-26 MakeOne pattern quality follow-up: the default 30-round `= 1`
+ladder now has stronger pattern-review tooling for repeated slot/stick
+resources and universal-key answers. Round 23 was changed to `Thin Return`
+with sample `1 / 11 * 11 - 1 + 1`, breaking the previous repeated `11/20`
+resource pairing with Round 22 while keeping target `1` and free alternate
+answers. The resource candidate CLI now accepts either explicit round numbers
+or repeated resource keys such as `5/8`, so repeated-resource groups can be
+probed directly. `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs`
+passes 59/59 and `bash scripts/verify-one-plus-one-minus-one-static.sh` passes.
+The current WebGL artifacts are still older than the latest source because a
+fresh WebGL QA build is blocked by Unity licensing initialization timing out;
+do not use the stale WebGL as runtime evidence for these MakeOne changes.

@@ -57,6 +57,7 @@ grep -Fq "Shared Equality Witnesses (Reuse Review)" "$repo_root/scripts/report-o
 grep -Fq "intentionalReason" "$repo_root/scripts/report-one-plus-one-minus-one-round-quality.mjs"
 grep -Fq "early tutorial echo" "$repo_root/scripts/report-one-plus-one-minus-one-round-quality.mjs"
 grep -Fq "title callback" "$repo_root/scripts/report-one-plus-one-minus-one-round-quality.mjs"
+grep -Fq "incompleteReview" "$repo_root/scripts/report-one-plus-one-minus-one-round-quality.mjs"
 node --check "$repo_root/scripts/strip-png-alpha.mjs"
 node --check "$repo_root/scripts/verify-one-plus-one-minus-one-release-safety.mjs"
 node --check "$repo_root/scripts/verify-one-plus-one-minus-one-png-visuals.mjs"
@@ -64,6 +65,7 @@ node --check "$repo_root/scripts/verify-one-plus-one-minus-one-icon-visuals.mjs"
 
 "$repo_root/scripts/verify-one-plus-one-minus-one-rounds.mjs"
 "$repo_root/scripts/report-one-plus-one-minus-one-round-quality.mjs" --strict
+"$repo_root/scripts/report-one-plus-one-minus-one-round-quality.mjs" --make-one --patterns --summary --strict-patterns --max-nodes 200000 --max-solutions 1000
 "$repo_root/scripts/verify-one-plus-one-minus-one-icon.sh"
 "$repo_root/scripts/verify-one-plus-one-minus-one-character-policy.sh"
 "$repo_root/scripts/verify-one-plus-one-minus-one-release-safety.mjs"

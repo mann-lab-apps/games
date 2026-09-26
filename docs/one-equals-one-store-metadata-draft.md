@@ -43,7 +43,7 @@ verified by this audit.
 
 ## Promotional Text
 
-Build odd little equations from living stick friends. Empty boxes, flexible answers, and 100 handmade rounds.
+Build odd little equations from living stick friends. Empty boxes, flexible answers, and 30 focused rounds.
 
 ## Short Description
 
@@ -60,10 +60,10 @@ rotate, and combine them into tokens such as `1`, `11`, `111`, `+`, `-`, `/`,
 
 You compose each expression yourself, and the game checks whether the result is
 truly correct.
-Some rounds ask for a target value, while others let you build a direct equality
-with your own `=` token.
+Rounds ask you to build an expression that reaches the displayed `= 1` target,
+while alternate valid expressions are still accepted.
 
-Complete 100 compact puzzles, discover alternate answers, and finish with the
+Complete 30 compact puzzles, discover alternate answers, and finish with the
 odd little equation that started it all.
 
 ## Keywords
@@ -73,13 +73,13 @@ puzzle,logic,equation,characters,numbers,brain,casual,math
 ## Screenshot Plan
 
 1. `01-round-1-first-stick`: Round 1 shows the core `1` character and empty-slot construction.
-2. `02-round-5-cross-multiply`: Round 5 shows crossed pieces forming a multiply token, not a repaired preset equation.
-3. `03-round-8-triple-one`: Round 8 shows three pieces combining into `111`.
-4. `04-round-9-star-multiply`: Round 9 shows the three-piece `*` token as a distinct construction.
-5. `05-round-30-medium-expression`: Round 30 shows a player-built multi-token expression.
-6. `06-round-75-equality-puzzle`: Round 75 shows direct equality building with `=`.
-7. `07-round-100-finale`: Round 100 shows the finale expression and late-game density.
-8. `08-round-select-progression`: Round select progression with 100 handmade rounds and locked/open states.
+2. `02-round-4-star-start`: Round 4 shows three pieces forming `*`.
+3. `03-round-10-title-echo`: Round 10 shows a compact multi-token expression.
+4. `04-round-15-tall-fold`: Round 15 shows three pieces combining into `111`.
+5. `05-round-20-narrow-path`: Round 20 shows packed neighboring numbers.
+6. `06-round-25-wide-loop`: Round 25 shows a longer resource arrangement.
+7. `07-round-30-finale`: Round 30 shows the current finale expression.
+8. `08-round-select-progression`: Round select progression with 30 focused rounds and locked/open states.
 
 ## Review Notes Draft
 
@@ -97,10 +97,10 @@ rotating, and combining pieces into tokens such as `1`, `11`, `111`, `+`, `-`,
 `/`, `×`, `*`, and `=`.
 
 The solver does not force a single preset answer. It accepts mathematically
-valid alternate expressions, and if the player creates an `=` token directly it
-checks whether the left and right sides are actually equal. The release set
-contains 100 handmade rounds, including rounds focused on packed numbers,
-operator combinations, and direct equality construction. The round set was also
+valid alternate expressions, and each round is built around the displayed
+`= 1` target instead of repairing a preset broken equation. The release set
+contains 30 focused rounds, including rounds focused on packed numbers,
+operator combinations, and compact fixed-target expression construction. The round set was also
 reviewed for over-reusable shortcut patterns: late standalone `N / N = 1`
 solutions and copied-expression equality samples were removed without adding
 token bans or sample-answer enforcement.

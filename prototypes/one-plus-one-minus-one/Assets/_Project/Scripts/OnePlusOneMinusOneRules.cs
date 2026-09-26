@@ -117,6 +117,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private static readonly string[] AllPlayableTokens = { "1", "11", "111", "+", "-", "/", "×", "x", "*", "=" };
 
         public static readonly PuzzleRoundData[] GoalModeRounds = BuildGoalModeRounds();
+        public static readonly PuzzleRoundData[] MakeOneModeRounds = BuildMakeOneModeRounds();
 
         private static PuzzleRoundData[] BuildGoalModeRounds()
         {
@@ -225,9 +226,59 @@ namespace MannLab.Games.OnePlusOneMinusOne
             };
         }
 
+        private static PuzzleRoundData[] BuildMakeOneModeRounds()
+        {
+            return new[]
+            {
+                MakeOne("Plain One", "1"),
+                MakeOne("Small Loop", "1 / 1"),
+                MakeOne("Step Back", "1 + 1 - 1"),
+                MakeOne("Star Start", "1 * 1"),
+                MakeOne("Packed Loop", "11 / 11"),
+                MakeOne("Borrowed One", "11 × 1 - 11 + 1"),
+                MakeOne("Tall Return", "111 - 111 + 1"),
+                MakeOne("Loop And Carry", "11 / 11 × 1"),
+                MakeOne("Neighbor Return", "1 1 - 1 1 + 1"),
+                MakeOne("Title Echo", "1 + 1 - 1 × 1 / 1"),
+                MakeOne("Quiet Pair", "1 + 11 - 11"),
+                MakeOne("Small Borrow", "11 - 11 + 1"),
+                MakeOne("Soft Stack", "1 * 1 - 1 + 1"),
+                MakeOne("Tiny Cross", "11 / 11 + 1 - 1"),
+                MakeOne("Tall Fold", "1 - 1 1 / 11 + 1"),
+                MakeOne("Long Return", "111 - 111 + 1 / 1"),
+                MakeOne("Packed Step", "11 + 1 - 11"),
+                MakeOne("Side Return", "1 1 - 11 + 1"),
+                MakeOne("Bright Loop", "1 * 1 + 1 - 1"),
+                MakeOne("Narrow Path", "11 × 1 - 11 + 1 + 1 - 1"),
+                MakeOne("Hidden One", "1 11 - 111 + 1"),
+                MakeOne("Soft Balance", "11 * 11 - 111 - 11 + 1 + 1"),
+                MakeOne("Thin Return", "1 / 11 * 11 - 1 + 1"),
+                MakeOne("Small Gate", "1 1 11 - 1 111 + 1"),
+                MakeOne("Wide Loop", "1 + 11 / 11 - 1"),
+                MakeOne("Folded Path", "11 / 111 × 111 / 11"),
+                MakeOne("High Return", "111 - 11 1 + 1"),
+                MakeOne("Quiet Trail", "1 × 1"),
+                MakeOne("Short Spark", "11 + 1 - 1 1"),
+                MakeOne("Last Little One", "111 / 111 + 111 - 111")
+            };
+        }
+
         private static PuzzleRoundData Puzzle(string roundName, string sampleSolution)
         {
             return Round(roundName, string.Empty, sampleSolution);
+        }
+
+        private static PuzzleRoundData MakeOne(string roundName, string sampleSolution)
+        {
+            var symbols = SplitSampleSymbols(sampleSolution);
+            return new PuzzleRoundData(
+                roundName,
+                1d,
+                UsedSticks(symbols),
+                AnySlots(symbols.Length),
+                AllPlayableTokens,
+                string.Empty,
+                sampleSolution);
         }
 
         private static PuzzleRoundData Round(string roundName, string tutorialMessage, string sampleSolution)

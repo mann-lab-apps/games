@@ -159,7 +159,7 @@ async function main() {
 
   const httpPort = await findFreePort();
   const debugPort = await findFreePort();
-  const appUrl = `http://127.0.0.1:${httpPort}/index.html?qaRound=48&qaUnlocked=100`;
+  const appUrl = `http://127.0.0.1:${httpPort}/index.html?qaMode=goal&qaRound=48&qaUnlocked=100`;
   const userDataDir = resolve(repoRoot, `tmp/chrome-one-equals-one-round48-${debugPort}`);
   mkdirSync(userDataDir, { recursive: true });
 
@@ -206,14 +206,14 @@ async function main() {
       await screenshot(client, "round48-empty");
 
       const banks = [
-        [70, 700], [121, 700], [171, 700], [222, 700],
-        [272, 700], [322, 700], [196, 760],
+        [70, 620], [123, 620], [171, 620], [218, 620],
+        [267, 620], [318, 620], [195, 685],
       ];
       const slots = {
-        topLeft: [144, 220],
-        topRight: [242, 220],
-        bottomLeft: [110, 318],
-        bottomRight: [207, 318],
+        topLeft: [149, 306],
+        topRight: [245, 306],
+        bottomLeft: [112, 400],
+        bottomRight: [207, 400],
       };
 
       client.events.length = 0;

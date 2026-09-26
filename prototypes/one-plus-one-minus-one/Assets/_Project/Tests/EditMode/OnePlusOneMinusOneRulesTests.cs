@@ -75,6 +75,26 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         }
 
         [Test]
+        public void MakeOneModeHasThirtyFixedTargetRounds()
+        {
+            Assert.AreEqual(30, OnePlusOneMinusOneRules.MakeOneModeRounds.Length);
+
+            foreach (var round in OnePlusOneMinusOneRules.MakeOneModeRounds)
+            {
+                Assert.That(round.TargetValue, Is.EqualTo(1d), round.RoundName);
+                Assert.That(round.SampleSolution, Does.Not.Contain("="), round.RoundName);
+                Assert.That(round.SlotTypes.Length, Is.EqualTo(ExtractSampleSymbols(round.SampleSolution).Length), round.RoundName);
+                Assert.IsTrue(
+                    OnePlusOneMinusOneRules.IsRoundSolved(
+                        round,
+                        ExtractSampleSymbols(round.SampleSolution),
+                        out _,
+                        out var reason),
+                    $"{round.RoundName}: {reason}");
+            }
+        }
+
+        [Test]
         public void GoalRoundTargetsStayIntegerForExactAcceptance()
         {
             foreach (var round in OnePlusOneMinusOneRules.GoalModeRounds)
@@ -125,9 +145,6 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         public void RoundIdentityCrossMatrixMatchesActualRules()
         {
             var rounds = OnePlusOneMinusOneRules.GoalModeRounds;
-            const string title = "1 + 1 - 1 × 1 / 1";
-            Assert.AreEqual(title, rounds[29].SampleSolution);
-            Assert.AreEqual(title, rounds[99].SampleSolution);
             var report = new RoundIdentityReport { rows = new RoundIdentityRow[rounds.Length] };
             for (var source = 0; source < rounds.Length; source++)
             {
@@ -137,7 +154,7 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
                 {
                     if (OnePlusOneMinusOneRules.IsRoundSolved(rounds[target], symbols, out _, out _))
                         accepted.Add(target + 1);
-                    if (target <= source || source == 29 && target == 99) continue;
+                    if (target <= source) continue;
                     var identical = rounds[source].SlotTypes.Length == rounds[target].SlotTypes.Length &&
                         rounds[source].StickCount == rounds[target].StickCount &&
                         System.Math.Abs(rounds[source].TargetValue - rounds[target].TargetValue) < OnePlusOneMinusOneRules.TargetTolerance;
@@ -238,7 +255,6 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         [TestCase(87, "1 11 = 1 × 111", 81, "111 - 11 * 111 / 111")]
         [TestCase(37, "11 = 1 1", 17, "1 × 1 1")]
         [TestCase(38, "11 = 11", 19, "11 + 111")]
-        [TestCase(51, "11 / 11 = 1", 13, "11 1 / 111")]
         [TestCase(69, "111 / 1 = 111", 86, "111 / 111 * 111")]
         [TestCase(89, "1 + 1 = 1 + 1", 18, "1 1 - 11 - 1")]
         [TestCase(75, "1 1 1 1 111 = 1 111 111", 63, "111 - 111 + 11 / 11 + 1")]
@@ -250,9 +266,7 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         [TestCase(92, "1 1 11 = 1 111", 41, "1 11 + 1 - 1 - 11 / 11")]
         [TestCase(70, "1 1 1 1 = 1 1 11", 57, "1 - 1 / 1 - 11 / 1 1")]
         [TestCase(91, "1 × 11 = 11", 14, "11 + 111 / 111 * 111")]
-        [TestCase(98, "1 1 1 = 1 × 111", 58, "111 - 11 - 1 / 1 + 1 - 1")]
         [TestCase(25, "1 1 1 = 1 1 1", 12, "1 1 1 / 1 1 1")]
-        [TestCase(93, "1 111 = 1 111 × 1", 64, "11 - 1 / 111 * 1 11 + 1")]
         public void ResourceRedesignSeparatesSharedAnswerWithoutTokenBans(int revised, string shared, int owner, string alternative)
         {
             var rounds = OnePlusOneMinusOneRules.GoalModeRounds;
@@ -291,7 +305,6 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         [TestCase(13, "11 / 11 = 1")]
         [TestCase(14, "11 × 1 = 11")]
         [TestCase(59, "111 = 1 * 111")]
-        [TestCase(64, "111 × 1 = 111 / 1")]
         [TestCase(86, "111 / 1 = 111")]
         public void ReviewedRoundsStillAcceptAlternativeEqualities(int roundIndex, string expression)
         {
@@ -323,6 +336,25 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
         {
             AssertInvalid("1", string.Empty, "+", "1");
             AssertInvalid("1", "+", null);
+        }
+
+        [Test]
+        public void CollectionExpressionsMergeAdjacentNumberTokens()
+        {
+            Assert.AreEqual("11 / 11", OnePlusOneMinusOneController.NormalizeExpression(new[] { "1", "1", "/", "1", "1" }));
+            Assert.AreEqual("111 / 111", OnePlusOneMinusOneController.NormalizeExpression(new[] { "1", "11", "/", "111" }));
+            Assert.AreEqual("111 / 111", OnePlusOneMinusOneController.NormalizeExpression(new[] { "11", "1", "/", "1", "1", "1" }));
+        }
+
+        [Test]
+        public void CollectionExpressionKeysTreatPackedAndNeighborNumbersAsSameAnswer()
+        {
+            var packed = OnePlusOneMinusOneController.CanonicalExpressionKey(new[] { "11", "/", "11" });
+            var neighbors = OnePlusOneMinusOneController.CanonicalExpressionKey(new[] { "1", "1", "/", "1", "1" });
+            var mixed = OnePlusOneMinusOneController.CanonicalExpressionKey(new[] { "1", "11", "/", "111" });
+
+            Assert.AreEqual(packed, neighbors);
+            Assert.AreEqual("111 / 111", mixed);
         }
 
         [Test]

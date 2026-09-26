@@ -35,6 +35,8 @@ const releaseForbiddenPatterns = [
   /"qaUnlocked"/,
   /"qaRounds"/,
   /"qaRoundPage"/,
+  /"qaMode"/,
+  /"qaInputProbe"/,
   /"qaFillSample"/,
   /CrashlyticsTestArgument/,
   /CrashlyticsTestEnvironmentVariable/,

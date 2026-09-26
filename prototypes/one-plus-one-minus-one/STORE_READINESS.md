@@ -42,7 +42,8 @@ Unity-gated checks when it fails instead of repeating the same Unity timeout.
     boxes and animated stick pieces that can become `1`, `11`, `111`, `+`,
     `-`, `/`, `×`, `*`, or `=`. Players compose expressions from scratch, and
     the solver accepts mathematically valid alternate answers and direct
-    equalities across 100 compact rounds.
+    equalities across 30 focused default rounds, with the earlier 100-round
+    free-building set kept as hidden legacy content.
 - Keyword candidates:
   - puzzle, logic, equation, characters, numbers, brain, casual, math
 - 4.3(a) differentiation:
@@ -95,7 +96,7 @@ Unity-gated checks when it fails instead of repeating the same Unity timeout.
   - Round 9 star multiply discovery
   - Round 30 medium expression
   - Round 75 equation puzzle
-  - Round 100 finale expression
+  - Round 30 finale expression
   - Round select page with locked/open/current states
 - Candidate WebGL screenshot command:
   - `./scripts/verify-one-plus-one-minus-one-webgl-store-capture.sh`
@@ -124,7 +125,7 @@ rendering engine.
 - iPhone SE portrait:
   - Rounds 1-10
   - Round 16 collapsed tutorial area
-  - Round select pages 1-9
+  - Round select pages 1-3
   - Footer buttons and safe area
 - Standard iPhone portrait:
   - Rounds 30, 50, 75, 90, 100
@@ -183,7 +184,7 @@ Priority manual checks:
 - Round 50: mid-game expression spacing
 - Round 75: equality row wrapping
 - Round 90: late-game dense expression
-- Round 100: final fixed-target expression
+- Round 30: final fixed-target expression
 
 ## Commercial-Quality Gate
 
@@ -210,7 +211,7 @@ Current code-side polish pass covers:
   store build is treated as upload-ready.
 - iOS export includes `Assets/_Project/Store/PrivacyInfo.xcprivacy` as an app
   bundle resource for app-local PlayerPrefs/UserDefaults progress storage.
-- Static 100-round verification can run without Unity through
+- Static 100 legacy / 30 default round verification can run without Unity through
   `scripts/verify-one-plus-one-minus-one-rounds.mjs`.
 - Existing WebGL artifact smoke can run without rebuilding through
   `scripts/smoke-one-plus-one-minus-one-webgl-build.sh`.

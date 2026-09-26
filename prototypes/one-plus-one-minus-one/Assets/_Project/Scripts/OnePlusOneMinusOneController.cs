@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 using MannLab.Ads;
 using MannLab.HyperCasual;
 using UnityEngine;
@@ -12,6 +13,12 @@ namespace MannLab.Games.OnePlusOneMinusOne
 {
     public sealed class OnePlusOneMinusOneController : MonoBehaviour
     {
+        private enum PlayModeKind
+        {
+            Goal,
+            MakeOne
+        }
+
         private static readonly Color FailureColor = new Color32(217, 93, 85, 255);
         private static readonly Color SuccessColor = new Color32(97, 166, 106, 255);
         private static readonly Color WhitePaperColor = new Color32(255, 255, 252, 255);
@@ -61,6 +68,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private int webGlInterruptionVersion;
         private const string HighestUnlockedRoundKey = "OnePlusOneMinusOne.GoalMode.HighestUnlockedRound";
         private const string GoalModeCompletedKey = "OnePlusOneMinusOne.GoalMode.Completed";
+        private const string MakeOneHighestUnlockedRoundKey = "OnePlusOneMinusOne.MakeOneMode.HighestUnlockedRound";
+        private const string MakeOneCompletedKey = "OnePlusOneMinusOne.MakeOneMode.Completed";
         private const string SoundEnabledKey = "OnePlusOneMinusOne.Audio.Enabled";
         private const string ShapeCollectionKeyPrefix = "OnePlusOneMinusOne.Collection.Shape.";
         private const string AchievementKeyPrefix = "OnePlusOneMinusOne.Achievement.";
@@ -101,6 +110,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private const string QaRoundArgumentPrefix = "--mannlab-qa-round=";
         private const string QaUnlockedArgumentPrefix = "--mannlab-qa-unlocked=";
         private const string QaRoundPageArgumentPrefix = "--mannlab-qa-round-page=";
+        private const string QaModeArgumentPrefix = "--mannlab-qa-mode=";
+        private const string QaInputProbeArgument = "--mannlab-qa-input-probe";
         private const string QaRoundsArgument = "--mannlab-qa-rounds";
         private const string QaFillSampleArgument = "--mannlab-qa-fill-sample";
         private const int CrashlyticsTestTapCount = 7;
@@ -312,6 +323,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private const int RoundSelectPageSize = ReleaseRoundSelectPageSize;
         private string[] slotSymbols;
         private List<StickPose>[] slotStickPoses;
+        private PlayModeKind currentMode;
         private int roundIndex;
         private int highestUnlockedRoundIndex;
         private bool goalModeCompleted;
@@ -323,6 +335,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private float crashlyticsTestTapDeadline;
         private int qaRoundSelectPageOverride = -1;
         private bool qaFillSampleOnLoad;
+        private bool qaInputProbeEnabled;
+        private string qaLastInputLayoutLog;
+        private string qaLastCollectionStateLog;
 #endif
         private bool isAdvancing;
         private bool isShaking;
@@ -353,9 +368,12 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private Text targetText;
         private Text bankHintText;
         private Button checkButton;
+        private Button collectionButton;
         private Button roundPrevButton;
         private Button roundNextButton;
+        private Button modeSwitchButton;
         private Text roundPageText;
+        private Text roundSelectTitleText;
         private RectTransform roundSelectOverlay;
         private RectTransform roundSelectPanel;
         private RectTransform collectionOverlay;
@@ -379,7 +397,17 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private bool pendingFontMeshRefresh;
         private Coroutine successRoutine;
 
-        private PuzzleRoundData CurrentRound => OnePlusOneMinusOneRules.GoalModeRounds[roundIndex];
+        private PuzzleRoundData[] CurrentRounds => currentMode == PlayModeKind.MakeOne
+            ? OnePlusOneMinusOneRules.MakeOneModeRounds
+            : OnePlusOneMinusOneRules.GoalModeRounds;
+        private string CurrentModeId => currentMode == PlayModeKind.MakeOne ? "make_one" : "goal";
+        private string CurrentHighestUnlockedRoundKey => currentMode == PlayModeKind.MakeOne
+            ? MakeOneHighestUnlockedRoundKey
+            : HighestUnlockedRoundKey;
+        private string CurrentCompletedKey => currentMode == PlayModeKind.MakeOne
+            ? MakeOneCompletedKey
+            : GoalModeCompletedKey;
+        private PuzzleRoundData CurrentRound => CurrentRounds[roundIndex];
         private bool RoundReservesFixedTarget => !CurrentRound.SampleSolution.Contains("=");
         private bool CurrentRoundUsesFixedTarget => RoundReservesFixedTarget &&
             (slotSymbols == null || Array.IndexOf(slotSymbols, "=") < 0);
@@ -390,15 +418,16 @@ namespace MannLab.Games.OnePlusOneMinusOne
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ??
                    Resources.GetBuiltinResource<Font>("Arial.ttf");
             Font.textureRebuilt += OnFontTextureRebuilt;
-            var savedHighestUnlockedRoundIndex = PlayerPrefs.GetInt(HighestUnlockedRoundKey, 0);
+            currentMode = PlayModeKind.MakeOne;
+            var savedHighestUnlockedRoundIndex = PlayerPrefs.GetInt(CurrentHighestUnlockedRoundKey, 0);
             soundEnabled = PlayerPrefs.GetInt(SoundEnabledKey, 1) != 0;
-            goalModeCompleted = PlayerPrefs.GetInt(GoalModeCompletedKey, 0) == 1;
+            goalModeCompleted = PlayerPrefs.GetInt(CurrentCompletedKey, 0) == 1;
             LoadCollectionState();
             if (goalModeCompleted)
             {
-                savedHighestUnlockedRoundIndex = OnePlusOneMinusOneRules.GoalModeRounds.Length - 1;
+                savedHighestUnlockedRoundIndex = CurrentRounds.Length - 1;
             }
-            var startup = CalculateStartupFlowPlan(savedHighestUnlockedRoundIndex);
+            var startup = CalculateStartupFlowPlan(savedHighestUnlockedRoundIndex, CurrentRounds.Length);
             highestUnlockedRoundIndex = startup.HighestUnlockedRoundIndex;
             BuildUi();
             InitializeSfx();
@@ -549,6 +578,22 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             headerTitleText = CreateText("Title", header, string.Empty, 42, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
             headerTitleText.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 76f;
+
+            collectionButton = CreateCommandButton("Collection Header Button", header, "Album", new Vector2(112f, 64f));
+            collectionButton.onClick.AddListener(ShowCollection);
+            var collectionButtonRect = collectionButton.transform as RectTransform;
+            if (collectionButtonRect != null)
+            {
+                var collectionButtonLayout = collectionButtonRect.GetComponent<LayoutElement>();
+                if (collectionButtonLayout != null)
+                {
+                    collectionButtonLayout.ignoreLayout = true;
+                }
+
+                collectionButtonRect.anchorMin = collectionButtonRect.anchorMax = new Vector2(1f, 1f);
+                collectionButtonRect.pivot = new Vector2(1f, 1f);
+                collectionButtonRect.anchoredPosition = new Vector2(-12f, -10f);
+            }
         }
 
         private void UpdateStageLayout()
@@ -572,6 +617,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 RefreshUi();
             }
             if (slotSymbols != null) LayoutBankSticks(RemainingSticks());
+#if DEVELOPMENT_BUILD || UNITY_EDITOR || MANNLAB_STORE_CAPTURE
+            EmitQaInputLayout();
+#endif
         }
 
         private void UpdateWebGlReferenceResolution()
@@ -716,22 +764,19 @@ namespace MannLab.Games.OnePlusOneMinusOne
             layout.childForceExpandWidth = false;
             layout.childForceExpandHeight = false;
 
-            var buttonSize = new Vector2(112f, 96f);
+            var buttonSize = new Vector2(124f, 104f);
             var roundsButton = CreateCommandButton("Rounds Button", footer, "Rounds", buttonSize);
             roundsButton.onClick.AddListener(ShowRoundSelect);
-
-            var shapesButton = CreateCommandButton("Shapes Button", footer, "Shapes", buttonSize);
-            shapesButton.onClick.AddListener(ShowCollection);
 
             var resetButton = CreateCommandButton("Reset Button", footer, "Reset", buttonSize);
             resetButton.onClick.AddListener(ResetRound);
 
             checkButton = CreateCommandButton("Check Button", footer, "Check", buttonSize);
             checkButton.onClick.AddListener(CheckCurrent);
-            foreach (var button in new[] { roundsButton, shapesButton, resetButton, checkButton })
+            foreach (var button in new[] { roundsButton, resetButton, checkButton })
             {
                 var label = button.GetComponentInChildren<Text>();
-                label.fontSize = label.resizeTextMaxSize = 25;
+                label.fontSize = label.resizeTextMaxSize = 32;
             }
         }
 
@@ -762,8 +807,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             var header = CreateRect("Round Select Header", roundSelectPanel);
             header.gameObject.AddComponent<LayoutElement>().preferredHeight = 80f;
-            var title = CreateText("Round Select Title", header, "Rounds", 36, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleLeft);
-            Stretch(title.rectTransform, 0f, 0f, 148f, 0f);
+            roundSelectTitleText = CreateText("Round Select Title", header, "Rounds", 36, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleLeft);
+            Stretch(roundSelectTitleText.rectTransform, 0f, 0f, 148f, 0f);
             CreateSoundToggle(header);
 
             var gridRoot = CreateRect("Round Grid", roundSelectPanel);
@@ -812,9 +857,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
             actionsLayout.childForceExpandWidth = true;
             actionsLayout.childForceExpandHeight = false;
             actionsLayout.spacing = 12f;
-            var closeButton = CreateCommandButton("Close Round Select", actions, "Close", new Vector2(172f, 80f));
+            var closeButton = CreateCommandButton("Close Round Select", actions, "Close", new Vector2(150f, 80f));
             closeButton.onClick.AddListener(HideRoundSelect);
-            privacyOptionsButton = CreateCommandButton("Privacy Options", actions, "Privacy", new Vector2(172f, 80f));
+            privacyOptionsButton = CreateCommandButton("Privacy Options", actions, "Privacy", new Vector2(150f, 80f));
             privacyOptionsButton.onClick.AddListener(() =>
             {
                 if (ArePrivacyOptionsRequired()) MannLabAdMob.ShowPrivacyOptionsForm();
@@ -848,7 +893,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
 
-            var title = CreateText("Collection Title", collectionPanel, "Shapes", 38, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
+            var title = CreateText("Collection Title", collectionPanel, "Collection", 38, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
             title.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 50f;
 
             collectionStatsText = CreateText("Collection Stats", collectionPanel, string.Empty, 23, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
@@ -1017,7 +1062,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             var firstRoundOnPage = roundSelectPage * RoundSelectPageSize;
-            var visibleCount = Mathf.Clamp(OnePlusOneMinusOneRules.GoalModeRounds.Length - firstRoundOnPage, 1, RoundSelectPageSize);
+            var visibleCount = Mathf.Clamp(CurrentRounds.Length - firstRoundOnPage, 1, RoundSelectPageSize);
             roundSelectGridLayout.preferredHeight = CalculateRoundSelectVisibleGridHeight(
                 roundSelectGrid.cellSize.y,
                 roundSelectGrid.spacing.y,
@@ -1064,6 +1109,39 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
         }
 
+        private void TogglePlayMode()
+        {
+            SwitchPlayMode(currentMode == PlayModeKind.MakeOne ? PlayModeKind.Goal : PlayModeKind.MakeOne);
+        }
+
+        private void SwitchPlayMode(PlayModeKind mode)
+        {
+            if (currentMode == mode)
+            {
+                RefreshRoundSelectButtons();
+                return;
+            }
+
+            CancelStickDrag();
+            currentMode = mode;
+            var savedHighestUnlockedRoundIndex = PlayerPrefs.GetInt(CurrentHighestUnlockedRoundKey, 0);
+            goalModeCompleted = PlayerPrefs.GetInt(CurrentCompletedKey, 0) == 1;
+            if (goalModeCompleted)
+            {
+                savedHighestUnlockedRoundIndex = CurrentRounds.Length - 1;
+            }
+
+            var startup = CalculateStartupFlowPlan(savedHighestUnlockedRoundIndex, CurrentRounds.Length);
+            highestUnlockedRoundIndex = startup.HighestUnlockedRoundIndex;
+            roundSelectPage = Mathf.Clamp(startup.StartRoundIndex / RoundSelectPageSize, 0, RoundSelectPageCount() - 1);
+            LoadRound(startup.StartRoundIndex);
+            RefreshRoundSelectButtons();
+            if (roundSelectOverlay != null)
+            {
+                roundSelectOverlay.gameObject.SetActive(true);
+            }
+        }
+
         private void ShowCollection()
         {
             if (isAdvancing) return;
@@ -1073,6 +1151,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
             {
                 collectionOverlay.gameObject.SetActive(true);
             }
+#if DEVELOPMENT_BUILD || UNITY_EDITOR || MANNLAB_STORE_CAPTURE
+            EmitQaCollectionState();
+#endif
         }
 
         private void HideCollection()
@@ -1081,6 +1162,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
             {
                 collectionOverlay.gameObject.SetActive(false);
             }
+#if DEVELOPMENT_BUILD || UNITY_EDITOR || MANNLAB_STORE_CAPTURE
+            EmitQaCollectionState();
+#endif
         }
 
         private void UpdateCollectionLayout(Rect safe)
@@ -1100,7 +1184,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void SelectRound(int index)
         {
-            if (index < 0 || index >= OnePlusOneMinusOneRules.GoalModeRounds.Length)
+            if (index < 0 || index >= CurrentRounds.Length)
             {
                 return;
             }
@@ -1122,9 +1206,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
             RefreshRoundSelectButtons();
         }
 
-        private static int RoundSelectPageCount()
+        private int RoundSelectPageCount()
         {
-            return Mathf.CeilToInt(OnePlusOneMinusOneRules.GoalModeRounds.Length / (float)RoundSelectPageSize);
+            return Mathf.CeilToInt(CurrentRounds.Length / (float)RoundSelectPageSize);
         }
 
         private void RefreshRoundSelectButtons()
@@ -1135,7 +1219,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 var roundNumber = roundSelectPage * RoundSelectPageSize + i;
                 var button = roundSelectButtons[i];
                 var label = roundSelectLabels[i];
-                var exists = roundNumber < OnePlusOneMinusOneRules.GoalModeRounds.Length;
+                var exists = roundNumber < CurrentRounds.Length;
                 button.gameObject.SetActive(exists);
                 label.gameObject.SetActive(exists);
                 if (!exists)
@@ -1149,7 +1233,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 button.interactable = unlocked;
                 var statusPrefix = cleared ? "Done" : current ? "Now" : "Next";
                 label.text = unlocked
-                    ? $"{roundNumber + 1} {statusPrefix}\n{OnePlusOneMinusOneRules.GoalModeRounds[roundNumber].RoundName}"
+                    ? $"{roundNumber + 1} {statusPrefix}\n{CurrentRounds[roundNumber].RoundName}"
                     : $"{roundNumber + 1}\nLocked";
                 label.color = unlocked ? SketchPalette.Ink : new Color32(120, 112, 99, 190);
 
@@ -1171,6 +1255,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 roundPageText.text = $"Page {roundSelectPage + 1} / {RoundSelectPageCount()}";
             }
 
+            if (roundSelectTitleText != null)
+            {
+                roundSelectTitleText.text = "Rounds";
+            }
+
             if (roundPrevButton != null)
             {
                 ApplyCommandButtonState(roundPrevButton, roundSelectPage > 0);
@@ -1186,8 +1275,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         private void UnlockNextRound()
         {
-            var nextUnlocked = Mathf.Min(roundIndex + 1, OnePlusOneMinusOneRules.GoalModeRounds.Length - 1);
-            var completingGoalMode = roundIndex == OnePlusOneMinusOneRules.GoalModeRounds.Length - 1 && !goalModeCompleted;
+            var nextUnlocked = Mathf.Min(roundIndex + 1, CurrentRounds.Length - 1);
+            var completingGoalMode = roundIndex == CurrentRounds.Length - 1 && !goalModeCompleted;
             if (nextUnlocked <= highestUnlockedRoundIndex && !completingGoalMode)
             {
                 return;
@@ -1197,9 +1286,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
             if (completingGoalMode)
             {
                 goalModeCompleted = true;
-                PlayerPrefs.SetInt(GoalModeCompletedKey, 1);
+                PlayerPrefs.SetInt(CurrentCompletedKey, 1);
             }
-            PlayerPrefs.SetInt(HighestUnlockedRoundKey, highestUnlockedRoundIndex);
+            PlayerPrefs.SetInt(CurrentHighestUnlockedRoundKey, highestUnlockedRoundIndex);
             PlayerPrefs.Save();
             RefreshRoundSelectButtons();
         }
@@ -1207,7 +1296,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private bool IsRoundCleared(int index)
         {
             return index < highestUnlockedRoundIndex ||
-                   goalModeCompleted && index == OnePlusOneMinusOneRules.GoalModeRounds.Length - 1;
+                   goalModeCompleted && index == CurrentRounds.Length - 1;
         }
 
         private void LoadRound(int index)
@@ -1220,7 +1309,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             isAdvancing = false;
-            roundIndex = Mathf.Clamp(index, 0, OnePlusOneMinusOneRules.GoalModeRounds.Length - 1);
+            roundIndex = Mathf.Clamp(index, 0, CurrentRounds.Length - 1);
             currentRoundIsReplay = IsRoundCleared(roundIndex);
             currentRoundFailureCount = 0;
             slotSymbols = new string[CurrentRound.SlotTypes.Length];
@@ -1230,7 +1319,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 slotStickPoses[i] = new List<StickPose>(MaxSticksPerSlot);
             }
             headerTitleText.text = CurrentRound.RoundName;
-            roundText.text = $"{roundIndex + 1} / {OnePlusOneMinusOneRules.GoalModeRounds.Length}";
+            roundText.text = $"{roundIndex + 1} / {CurrentRounds.Length}";
             var hasTutorial = !string.IsNullOrWhiteSpace(CurrentRound.TutorialMessage);
             tutorialText.gameObject.SetActive(hasTutorial);
             tutorialText.text = hasTutorial ? CurrentRound.TutorialMessage : string.Empty;
@@ -1473,10 +1562,15 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
         public static StartupFlowPlan CalculateStartupFlowPlan(int savedHighestUnlockedRoundIndex)
         {
+            return CalculateStartupFlowPlan(savedHighestUnlockedRoundIndex, OnePlusOneMinusOneRules.GoalModeRounds.Length);
+        }
+
+        private static StartupFlowPlan CalculateStartupFlowPlan(int savedHighestUnlockedRoundIndex, int roundCount)
+        {
             var highestUnlocked = Mathf.Clamp(
                 savedHighestUnlockedRoundIndex,
                 0,
-                OnePlusOneMinusOneRules.GoalModeRounds.Length - 1);
+                roundCount - 1);
             var showRoundSelect = highestUnlocked > 0;
             var startRoundIndex = showRoundSelect ? highestUnlocked : 0;
             return new StartupFlowPlan(highestUnlocked, startRoundIndex, showRoundSelect);
@@ -1861,7 +1955,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 TrackRoundClear(result.Value);
                 feedbackText.color = SuccessColor;
                 feedbackText.text = SuccessFeedback();
-                PlaySfx(roundIndex >= OnePlusOneMinusOneRules.GoalModeRounds.Length - 1 ? SfxCue.Finale : SfxCue.Success);
+                PlaySfx(roundIndex >= CurrentRounds.Length - 1 ? SfxCue.Finale : SfxCue.Success);
                 UnlockNextRound();
                 TryShowRoundClearInterstitial(shouldOfferInterstitial, interstitialReason);
                 currentRoundIsReplay = true;
@@ -1881,10 +1975,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private void RecordSolvedExpressionAndAchievements()
         {
             var expression = NormalizeExpression(slotSymbols);
+            var expressionKey = CanonicalExpressionKey(slotSymbols);
             var discoveredNewExpression = AddSolvedExpression(roundIndex, expression);
 
             UnlockAchievement("first_clear");
-            if (!string.Equals(expression, NormalizeExpression(ExtractExpressionSymbols(CurrentRound.SampleSolution)), StringComparison.Ordinal))
+            if (!string.Equals(expressionKey, CanonicalExpressionKey(ExtractExpressionSymbols(CurrentRound.SampleSolution)), StringComparison.Ordinal))
             {
                 UnlockAchievement("own_way");
             }
@@ -1919,7 +2014,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 UnlockAchievement("round_30");
             }
 
-            if (roundIndex >= OnePlusOneMinusOneRules.GoalModeRounds.Length - 1)
+            if (currentMode == PlayModeKind.Goal && roundIndex >= CurrentRounds.Length - 1)
             {
                 UnlockAchievement("goal_clear");
             }
@@ -1982,12 +2077,15 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 }
             }
 
+            var expressionRoundIndex = CollectionExpressionDisplayRoundIndex();
+            var expressions = GetSolvedExpressions(expressionRoundIndex);
             if (expressionCollectionTitleText != null)
             {
-                expressionCollectionTitleText.text = $"Round {roundIndex + 1} Answers";
+                expressionCollectionTitleText.text = expressionRoundIndex == roundIndex
+                    ? $"Round {roundIndex + 1} Answers"
+                    : $"Recent Round {expressionRoundIndex + 1} Answers";
             }
 
-            var expressions = GetSolvedExpressions(roundIndex);
             for (var i = 0; i < expressionCollectionLabels.Count; i++)
             {
                 var label = expressionCollectionLabels[i];
@@ -2009,9 +2107,30 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 }
 
                 var unlocked = unlockedAchievements.Contains(achievement.Id);
-                label.text = unlocked ? $"Done {achievement.Title}" : $"Locked {achievement.Title} - {achievement.Description}";
+                label.text = unlocked ? $"Done: {achievement.Title}" : $"Locked: {achievement.Title} - {achievement.Description}";
                 label.color = unlocked ? SketchPalette.Ink : new Color32(120, 112, 99, 185);
             }
+#if DEVELOPMENT_BUILD || UNITY_EDITOR || MANNLAB_STORE_CAPTURE
+            EmitQaCollectionState(expressionRoundIndex, expressions);
+#endif
+        }
+
+        private int CollectionExpressionDisplayRoundIndex()
+        {
+            if (GetSolvedExpressions(roundIndex).Count > 0)
+            {
+                return roundIndex;
+            }
+
+            for (var i = roundIndex - 1; i >= 0; i--)
+            {
+                if (GetSolvedExpressions(i).Count > 0)
+                {
+                    return i;
+                }
+            }
+
+            return roundIndex;
         }
 
         private void TryDiscoverShape(string symbol)
@@ -2089,7 +2208,16 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             var expressions = GetSolvedExpressions(index);
-            if (expressions.Contains(expression))
+            var expressionKey = CanonicalExpressionKey(ExtractExpressionSymbols(expression));
+            for (var i = 0; i < expressions.Count; i++)
+            {
+                if (string.Equals(CanonicalExpressionKey(ExtractExpressionSymbols(expressions[i])), expressionKey, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+
+            if (expressionKey.Length <= 0)
             {
                 return false;
             }
@@ -2106,10 +2234,11 @@ namespace MannLab.Games.OnePlusOneMinusOne
             return true;
         }
 
-        private static List<string> GetSolvedExpressions(int index)
+        private List<string> GetSolvedExpressions(int index)
         {
             var stored = PlayerPrefs.GetString(SolvedExpressionKey(index), string.Empty);
             var expressions = new List<string>();
+            var expressionKeys = new HashSet<string>();
             if (string.IsNullOrWhiteSpace(stored))
             {
                 return expressions;
@@ -2118,8 +2247,9 @@ namespace MannLab.Games.OnePlusOneMinusOne
             var parts = stored.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
             for (var i = 0; i < parts.Length; i++)
             {
-                var expression = parts[i].Trim();
-                if (expression.Length > 0 && !expressions.Contains(expression))
+                var expression = NormalizeExpression(ExtractExpressionSymbols(parts[i]));
+                var key = CanonicalExpressionKey(ExtractExpressionSymbols(expression));
+                if (expression.Length > 0 && key.Length > 0 && expressionKeys.Add(key))
                 {
                     expressions.Add(expression);
                 }
@@ -2128,12 +2258,12 @@ namespace MannLab.Games.OnePlusOneMinusOne
             return expressions;
         }
 
-        private static string SolvedExpressionKey(int index)
+        private string SolvedExpressionKey(int index)
         {
-            return SolvedExpressionKeyPrefix + Mathf.Max(0, index);
+            return SolvedExpressionKeyPrefix + CurrentModeId + "." + Mathf.Max(0, index);
         }
 
-        private static string NormalizeExpression(IReadOnlyList<string> symbols)
+        public static string NormalizeExpression(IReadOnlyList<string> symbols)
         {
             if (symbols == null || symbols.Count <= 0)
             {
@@ -2141,15 +2271,56 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             var parts = new List<string>();
+            var numberBuffer = new StringBuilder();
             for (var i = 0; i < symbols.Count; i++)
             {
-                if (!string.IsNullOrWhiteSpace(symbols[i]))
+                var symbol = symbols[i];
+                if (string.IsNullOrWhiteSpace(symbol))
                 {
-                    parts.Add(CanonicalShapeSymbol(symbols[i]) == "×" ? "×" : symbols[i].Trim());
+                    continue;
+                }
+
+                symbol = symbol.Trim();
+                if (IsCollectionNumberSymbol(symbol))
+                {
+                    numberBuffer.Append(symbol);
+                    continue;
+                }
+
+                FlushCollectionNumber(parts, numberBuffer);
+                if (CanonicalShapeSymbol(symbol) == "×" || symbol == "x")
+                {
+                    parts.Add("×");
+                }
+                else
+                {
+                    parts.Add(symbol);
                 }
             }
 
+            FlushCollectionNumber(parts, numberBuffer);
             return string.Join(" ", parts.ToArray());
+        }
+
+        public static string CanonicalExpressionKey(IReadOnlyList<string> symbols)
+        {
+            return NormalizeExpression(symbols);
+        }
+
+        private static bool IsCollectionNumberSymbol(string symbol)
+        {
+            return symbol == "1" || symbol == "11" || symbol == "111";
+        }
+
+        private static void FlushCollectionNumber(List<string> parts, StringBuilder numberBuffer)
+        {
+            if (numberBuffer.Length <= 0)
+            {
+                return;
+            }
+
+            parts.Add(numberBuffer.ToString());
+            numberBuffer.Length = 0;
         }
 
         private static string[] ExtractExpressionSymbols(string expression)
@@ -2275,7 +2446,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
             {
                 FirebaseTelemetry.Initialize();
                 FirebaseTelemetry.SetContext("game", GameIdentifier);
-                FirebaseTelemetry.SetContext("round_count", OnePlusOneMinusOneRules.GoalModeRounds.Length.ToString());
+                FirebaseTelemetry.SetContext("mode", CurrentModeId);
+                FirebaseTelemetry.SetContext("round_count", CurrentRounds.Length.ToString());
                 FirebaseTelemetry.SetContext("highest_unlocked_round", (highestUnlockedRoundIndex + 1).ToString());
                 FirebaseTelemetry.LogEvent("app_open", AppOpenParameters());
             }
@@ -2398,6 +2570,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private void TrackRoundStart()
         {
             FirebaseTelemetry.SetContext("round", (roundIndex + 1).ToString());
+            FirebaseTelemetry.SetContext("mode", CurrentModeId);
             FirebaseTelemetry.SetContext("round_name", CurrentRound.RoundName);
             FirebaseTelemetry.SetContext("stick_count", CurrentRound.StickCount.ToString());
             FirebaseTelemetry.LogEvent("round_start", RoundParameters());
@@ -2460,6 +2633,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             return new Dictionary<string, string>
             {
                 { "game", GameIdentifier },
+                { "mode", CurrentModeId },
                 { "round", (roundIndex + 1).ToString() },
                 { "round_name", CurrentRound.RoundName },
                 { "stick_count", CurrentRound.StickCount.ToString() },
@@ -2474,7 +2648,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
             return new Dictionary<string, string>
             {
                 { "game", GameIdentifier },
-                { "round_count", OnePlusOneMinusOneRules.GoalModeRounds.Length.ToString() },
+                { "mode", CurrentModeId },
+                { "round_count", CurrentRounds.Length.ToString() },
                 { "highest_unlocked_round", (highestUnlockedRoundIndex + 1).ToString() },
                 { "app_version", Application.version },
                 { "platform", Application.platform.ToString() }
@@ -2573,17 +2748,34 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private void ApplyQaStartupOverrides(ref int startRoundIndex, ref bool showRoundSelect)
         {
             qaFillSampleOnLoad = HasQaFlag(QaFillSampleArgument, "qaFillSample");
+            qaInputProbeEnabled = HasQaFlag(QaInputProbeArgument, "qaInputProbe");
+
+            if (TryReadQaMode(out var qaMode))
+            {
+                currentMode = qaMode;
+                var savedHighestUnlockedRoundIndex = PlayerPrefs.GetInt(CurrentHighestUnlockedRoundKey, 0);
+                goalModeCompleted = PlayerPrefs.GetInt(CurrentCompletedKey, 0) == 1;
+                if (goalModeCompleted)
+                {
+                    savedHighestUnlockedRoundIndex = CurrentRounds.Length - 1;
+                }
+
+                var startup = CalculateStartupFlowPlan(savedHighestUnlockedRoundIndex, CurrentRounds.Length);
+                highestUnlockedRoundIndex = startup.HighestUnlockedRoundIndex;
+                startRoundIndex = startup.StartRoundIndex;
+                showRoundSelect = startup.ShowRoundSelect;
+            }
 
             if (TryReadQaRound(QaUnlockedArgumentPrefix, "qaUnlocked", out var unlockedRound))
             {
                 highestUnlockedRoundIndex = Mathf.Max(
                     highestUnlockedRoundIndex,
-                    Mathf.Clamp(unlockedRound - 1, 0, OnePlusOneMinusOneRules.GoalModeRounds.Length - 1));
+                    Mathf.Clamp(unlockedRound - 1, 0, CurrentRounds.Length - 1));
             }
 
             if (TryReadQaRound(QaRoundArgumentPrefix, "qaRound", out var roundNumber))
             {
-                startRoundIndex = Mathf.Clamp(roundNumber - 1, 0, OnePlusOneMinusOneRules.GoalModeRounds.Length - 1);
+                startRoundIndex = Mathf.Clamp(roundNumber - 1, 0, CurrentRounds.Length - 1);
                 highestUnlockedRoundIndex = Mathf.Max(highestUnlockedRoundIndex, startRoundIndex);
                 showRoundSelect = false;
             }
@@ -2598,6 +2790,166 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 qaRoundSelectPageOverride = Mathf.Clamp(roundPageNumber - 1, 0, RoundSelectPageCount() - 1);
                 showRoundSelect = true;
             }
+        }
+
+        private void EmitQaInputLayout()
+        {
+            if (!qaInputProbeEnabled || canvas == null || slotViews.Count <= 0)
+            {
+                return;
+            }
+
+            var builder = new StringBuilder(512);
+            builder.Append("[QA_INPUT_LAYOUT] {");
+            builder.Append("\"mode\":\"").Append(CurrentModeId).Append("\",");
+            builder.Append("\"round\":").Append(roundIndex + 1).Append(",");
+            builder.Append("\"remaining\":").Append(RemainingSticks()).Append(",");
+            builder.Append("\"stickCount\":").Append(CurrentRound.StickCount).Append(",");
+            builder.Append("\"slots\":[");
+            for (var i = 0; i < slotViews.Count; i++)
+            {
+                if (i > 0) builder.Append(",");
+                AppendQaPoint(builder, i, slotViews[i].Root);
+            }
+
+            builder.Append("],\"banks\":[");
+            var bankCount = Mathf.Min(RemainingSticks(), bankStickViews.Count);
+            for (var i = 0; i < bankCount; i++)
+            {
+                if (i > 0) builder.Append(",");
+                AppendQaPoint(builder, i, bankStickViews[i]);
+            }
+
+            builder.Append("],\"check\":");
+            AppendQaPoint(builder, 0, checkButton != null ? checkButton.transform as RectTransform : null);
+            builder.Append(",\"collection\":");
+            AppendQaPoint(builder, 0, collectionButton != null ? collectionButton.transform as RectTransform : null);
+            builder.Append("}");
+            var payload = builder.ToString();
+            if (string.Equals(payload, qaLastInputLayoutLog, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            qaLastInputLayoutLog = payload;
+            Debug.Log(payload);
+        }
+
+        private void EmitQaCollectionState(int expressionRoundIndex = -1, List<string> expressions = null)
+        {
+            if (!qaInputProbeEnabled)
+            {
+                return;
+            }
+
+            if (expressionRoundIndex < 0)
+            {
+                expressionRoundIndex = CollectionExpressionDisplayRoundIndex();
+            }
+
+            if (expressions == null)
+            {
+                expressions = GetSolvedExpressions(expressionRoundIndex);
+            }
+            var builder = new StringBuilder(256);
+            builder.Append("[QA_COLLECTION_STATE] {");
+            builder.Append("\"mode\":\"").Append(CurrentModeId).Append("\",");
+            builder.Append("\"round\":").Append(roundIndex + 1).Append(",");
+            builder.Append("\"answerRound\":").Append(expressionRoundIndex + 1).Append(",");
+            builder.Append("\"active\":").Append(collectionOverlay != null && collectionOverlay.gameObject.activeSelf ? "true" : "false").Append(",");
+            builder.Append("\"friends\":").Append(discoveredShapes.Count).Append(",");
+            builder.Append("\"badges\":").Append(unlockedAchievements.Count).Append(",");
+            builder.Append("\"answers\":").Append(expressions.Count).Append(",");
+            builder.Append("\"firstAnswer\":");
+            AppendQaJsonString(builder, expressions.Count > 0 ? expressions[0] : string.Empty);
+            builder.Append("}");
+            var payload = builder.ToString();
+            if (string.Equals(payload, qaLastCollectionStateLog, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            qaLastCollectionStateLog = payload;
+            Debug.Log(payload);
+        }
+
+        private static void AppendQaPoint(StringBuilder builder, int index, RectTransform rect)
+        {
+            var point = Vector2.zero;
+            if (rect != null)
+            {
+                var corners = new Vector3[4];
+                rect.GetWorldCorners(corners);
+                var center = (corners[0] + corners[2]) * 0.5f;
+                point = RectTransformUtility.WorldToScreenPoint(null, center);
+            }
+
+            builder.Append("{\"i\":").Append(index)
+                .Append(",\"x\":").Append(Mathf.RoundToInt(point.x))
+                .Append(",\"y\":").Append(Mathf.RoundToInt(Screen.height - point.y))
+                .Append("}");
+        }
+
+        private static void AppendQaJsonString(StringBuilder builder, string value)
+        {
+            builder.Append("\"");
+            if (!string.IsNullOrEmpty(value))
+            {
+                for (var i = 0; i < value.Length; i++)
+                {
+                    var ch = value[i];
+                    if (ch == '\\' || ch == '"')
+                    {
+                        builder.Append('\\');
+                    }
+
+                    builder.Append(ch);
+                }
+            }
+
+            builder.Append("\"");
+        }
+
+
+        private static bool TryReadQaMode(out PlayModeKind mode)
+        {
+            foreach (var argument in Environment.GetCommandLineArgs())
+            {
+                if (argument.StartsWith(QaModeArgumentPrefix, StringComparison.OrdinalIgnoreCase) &&
+                    TryParseQaMode(argument.Substring(QaModeArgumentPrefix.Length), out mode))
+                {
+                    return true;
+                }
+            }
+
+            if (TryReadQaQueryValue("qaMode", out var queryValue) &&
+                TryParseQaMode(queryValue, out mode))
+            {
+                return true;
+            }
+
+            mode = PlayModeKind.MakeOne;
+            return false;
+        }
+
+        private static bool TryParseQaMode(string value, out PlayModeKind mode)
+        {
+            if (string.Equals(value, "goal", StringComparison.OrdinalIgnoreCase))
+            {
+                mode = PlayModeKind.Goal;
+                return true;
+            }
+
+            if (string.Equals(value, "make_one", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(value, "make-one", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(value, "makeone", StringComparison.OrdinalIgnoreCase))
+            {
+                mode = PlayModeKind.MakeOne;
+                return true;
+            }
+
+            mode = PlayModeKind.MakeOne;
+            return false;
         }
 
         private void FillCurrentRoundWithSample()
@@ -2738,13 +3090,13 @@ namespace MannLab.Games.OnePlusOneMinusOne
             UpdateCheckButtonState();
             StartCoroutine(Bump(equationRow, 1.04f));
             StartCoroutine(CelebrateSolvedSlots());
-            yield return new WaitForSeconds(roundIndex >= OnePlusOneMinusOneRules.GoalModeRounds.Length - 1 ? 1.45f : 1.12f);
+            yield return new WaitForSeconds(roundIndex >= CurrentRounds.Length - 1 ? 1.45f : 1.12f);
 
-            if (roundIndex >= OnePlusOneMinusOneRules.GoalModeRounds.Length - 1)
+            if (roundIndex >= CurrentRounds.Length - 1)
             {
                 isAdvancing = false;
                 feedbackText.color = SuccessColor;
-                feedbackText.text = "Goal Mode clear!";
+                feedbackText.text = "All clear!";
                 UpdateCheckButtonState();
                 yield break;
             }

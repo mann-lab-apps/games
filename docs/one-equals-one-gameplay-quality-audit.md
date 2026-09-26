@@ -1,5 +1,150 @@
 # 1 = 1 Gameplay Quality Audit
 
+## Default `= 1` Mode Pattern Pass (2026-09-26)
+
+The shipped first-run/default content is now the 30-round fixed-target `= 1`
+mode, while the old 100-round goal set remains hidden legacy content. The
+round-quality report now supports `--make-one` so the default mode can be
+audited independently from the legacy 100-round ladder:
+
+```sh
+node scripts/report-one-plus-one-minus-one-round-quality.mjs --make-one \
+  --patterns --summary --strict-patterns --max-nodes 200000 --max-solutions 1000
+```
+
+This pass focuses on the player's observed universal-key problem: after the
+first ten learning rounds, standalone `N / N = 1` should not remain the easiest
+answer family unless it is deliberately combined with another idea. The first
+default-mode report found late pure self-division review rows at 11, 13, 14,
+15, 19, 20, 22, 23, 25 and 26. These rounds were redesigned without token bans
+or sample-answer enforcement. The latest report has:
+
+- `reviewRounds: []`
+- `violations: []`
+- no duplicate sample strings in the 30-round default set
+- 21 distinct slot/stick resources across 30 rounds
+- `resourceReview` in the MakeOne summary lists five repeated slot/stick
+  groups, with 14 unresolved found shared-equality pairs as design-review
+  signals rather than strict failures.
+
+Changed default-mode samples:
+
+| Round | Current sample | Design reason |
+| --- | --- | --- |
+| 11 | `1 + 11 - 11` | Moves from direct `1 / 1 * 1` to add/subtract cancellation. |
+| 13 | `1 * 1 - 1 + 1` | Keeps `*` visible but avoids standalone self-division. |
+| 14 | `11 / 11 + 1 - 1` | Turns division into a mixed expression instead of the whole answer. |
+| 15 | `1 - 1 1 / 11 + 1` | Uses adjacent-number division inside a larger expression. |
+| 18 | `1 1 - 11 + 1` | Moves out of the `7`-slot/`8`-stick group and drops the dominant self-division ratio from `0.615` to `0.286`. |
+| 19 | `1 * 1 + 1 - 1` | Keeps star multiplication while varying the cancellation order. |
+| 20 | `11 × 1 - 11 + 1 + 1 - 1` | Adds a longer mixed cross/cancellation pattern. |
+| 22 | `11 * 11 - 111 - 11 + 1 + 1` | Uses the `11 * 11 - 111` trick in the default ladder. |
+| 23 | `1 / 11 * 11 - 1 + 1` | Breaks the old `11/20` repeated-resource pair with Round 22 while keeping a bounded fractional-return pattern under the high-priority echo threshold. |
+| 24 | `1 1 11 - 1 111 + 1` | Replaces a `/1`-heavy sample after the default-mode dominant-pattern map flagged the old `1 1 - 1 1 + 1 / 1` as a high-ratio divide-by-one round. |
+| 25 | `1 + 11 / 11 - 1` | Keeps division as a component rather than a standalone key. |
+| 26 | `11 / 111 × 111 / 11` | Replaces repeated title-formula math with cross-cancellation. |
+| 28 | `1 × 1` | Removes a duplicate sample and gives cross multiplication a compact echo. |
+| 29 | `11 + 1 - 1 1` | Removes a duplicate sample with adjacent-number subtraction. |
+| 30 | `111 / 111 + 111 - 111` | Removes a duplicate sample and closes with mixed division/subtraction. |
+
+Verification:
+
+- `node scripts/verify-one-plus-one-minus-one-rounds.mjs`
+- `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` (58/58)
+- the new `--make-one --patterns --summary --strict-patterns` regression is
+  covered by the Node identity test suite.
+- The MakeOne summary now includes an explicit `incompleteReview` section so
+  bounded rows cannot be mistaken for full pattern coverage. Under the current
+  `200000` node / `1000` solution budget, Rounds 20, 22 and 23 remain
+  incomplete `node_budget` rows; their observed pattern counts are prefix
+  evidence only, not a proof that the rows are fully exhausted.
+- The same summary now includes `resourceReview`, which keeps repeated
+  slot/stick groups visible in JSON automation. Current default-mode review
+  groups include `5/8` (Rounds 8, 11, 12, 17), `7/10` (13, 14, 19, 25),
+  `6/8` (18, 29) and `6/10` (21, 27). These are legal
+  because the mode still accepts alternate expressions, but they are the next
+  design map for reducing "same resource, same trick" fatigue.
+- Unity EditMode `MannLab.Games.OnePlusOneMinusOne.Tests` passes 63/63 after
+  aligning stale C# identity cases with the shared Node redesign list
+  (`/tmp/one-equals-one-editmode.xml`, 2026-09-26).
+- Unity PlayMode `StickInteractionTests` passes 41/41 after the fixture was
+  updated to back up MakeOne progress keys and explicitly switch to the legacy
+  Goal ladder for legacy 100-round input/layout regressions
+  (`/tmp/one-equals-one-playmode.xml`, 2026-09-26).
+- Footer command buttons are now 124x104 with larger labels, restoring the
+  small-phone minimum touch size and readable footer text regression.
+- Fresh QA and ordinary WebGL builds were rebuilt and verified after the
+  PlayMode fixes; the final static suite passes without stale-WebGL warnings.
+  This evidence predates the later Round 18 MakeOne data change; a fresh QA
+  WebGL rebuild attempt after that change and the later resource-review report
+  change hit the current Unity environment hang, so WebGL freshness remains
+  open for the latest source.
+- The static suite now directly runs the default-mode MakeOne pattern summary,
+  so late-shortcut regressions and bounded incomplete rows are visible in the
+  normal no-Unity gate instead of only inside the Node test output.
+- The dominant-pattern review window is now mode-aware: the legacy goal ladder
+  still reviews after Round 50, while the 30-round default ladder reviews after
+  Round 10. This exposed Round 24 as a high-ratio divide-by-one round; the
+  replacement above exposed Round 18 as the next high-priority row. Round 18
+  now uses `1 1 - 11 + 1`, leaving no default-mode high-priority
+  dominant-pattern rows under the current bounded report.
+- MakeOne dominant-candidate search now preserves target `1` automatically, so
+  the redesign helper cannot recommend target `0`, `11` or other non-default
+  rounds for the fixed-target mode.
+- The report tool now also supports `--make-one --evaluate-sample '<tokens>'
+  --target 1` for checking a hand-authored candidate's slot count, stick cost,
+  sample patterns and dominant shortcut profile before editing round data.
+  Focused Round 18 candidate searches first found no close-resource replacement
+  that clearly improved the dominant shortcut pressure. A later resource-grid
+  check showed `6` slots / `8` sticks as a healthier nearby budget, so the
+  round now uses `1 1 - 11 + 1`.
+- The report tool also supports `--make-one --resource-candidates <rounds>` for
+  repeated slot/stick groups. The selector accepts round numbers or a repeated
+  resource key such as `5/8`, which expands to every matching slot/stick round.
+  It searches target-preserving resource moves and
+  flags candidates that would reintroduce late pure `N/N` shortcuts, candidates
+  whose slot/stick budget admits pure `N/N`, candidates with bounded evidence,
+  and candidates whose accepted-answer set is dominated by another shortcut
+  family such as `/1`. A Round 17 trial candidate reduced the `5/8` resource
+  group on paper, but the checker showed it introduced late pure
+  self-division answers, so that data edit was rejected rather than weakening
+  the shortcut policy. The candidate generator now also emits composite
+  target-1 forms such as subtraction/multiplication cancellation and
+  `A / B * B - A + 1` returns. Capped probes for `5/8`, `7/10`, `6/8` and
+  `6/10` still found no post-tutorial recommendable replacement under the
+  current budget. The old `11/20` group was reduced by changing Round 23 first
+  to a larger multiplication-cancellation form, then to
+  `1 / 11 * 11 - 1 + 1`. A higher-budget `--evaluate-sample` check for this
+  final sample completed at `5000000` nodes with a `0.442` dominant shortcut
+  ratio and `0.103` same-expression ratio. The normal `200000`-node summary is
+  still bounded for Round 23, but no longer lists any high-priority
+  same-expression row. A follow-up capped probe found a recommendable
+  replacement only for Round 8 in the `5/8` group, but Round 8 is still inside
+  the learning window and was left unchanged. A second follow-up after adding
+  `A / B * B - A + 1` candidates surfaced stronger bounded candidates such as
+  `1 - 1 / 111 * 111 + 1`, but the remaining post-tutorial repeated-resource
+  groups still had `recommendableCount: 0` under the current capped probes
+  because their visible candidates were bounded or dominated by another shortcut
+  family. Probe one round at a time, or set `--max-nearby-nodes` explicitly when
+  probing a whole group. The report
+  includes `candidateSummary`, so `recommendableCount: 0` plus risk counts such
+  as `latePureSelfDivision`, `dominantShortcut` or `boundedEvidence` explain
+  why a bounded probe should not become a data edit.
+- The Round 48 WebGL input regression now launches the hidden legacy ladder via
+  `qaMode=goal`, matching the current default MakeOne-first app flow. It
+  confirms the old bad answer `1 / 11 111` is rejected and the canonical
+  `111 - 1 11` answer still clears
+  (`/tmp/one-equals-one-round48-webgl/results.json`).
+
+Legacy 100-round status after the same check: the strict quality report has no
+identical resource/target groups. The only proven shared-equality witness in the
+current report is the intentional early tutorial echo 2/5; the old 30/100 title
+callback is no longer current because Round 100 now uses
+`11 × 11 - 111 + 1`.
+
+This is source/WebGL runtime evidence. No new native upload or App Review
+submission was performed in this pass.
+
 ## Universal Shortcut Pattern Map (2026-09-18)
 
 Added a reusable solution-pattern classifier to the Node round-identity mirror.
@@ -1463,7 +1608,58 @@ equality puzzle rather than a quick data tweak.
 - Added unlock toasts for newly discovered shape friends, badges, and new
   accepted expressions.
 - Static Node tests and the static verification suite pass for this pivot.
-  Unity PlayMode and fresh WebGL verification are still blocked by
-  `LICENSING_CLIENT_UNAVAILABLE` in this environment; resume with
-  `bash scripts/check-one-plus-one-minus-one-unity-license.sh`, then run
-  PlayMode and a fresh QA WebGL build.
+  The original runtime verification gap has since been closed for the current
+  local source.
+
+2026-09-26 collection/achievement runtime follow-up:
+
+- Added PlayMode coverage for the default `= 1` flow so a Round 1 clear records
+  the discovered `1` friend, `first_shape`, `first_clear`, and the first solved
+  expression under the `make_one` collection namespace.
+- Added PlayMode coverage for runtime solved-expression de-duplication:
+  `1 1 / 1 1` and `11 / 11` display as the same collected answer.
+- PlayMode now backs up and restores collection shape keys, achievement keys,
+  and all per-mode solved-expression keys. This prevents test runs from leaking
+  collection progress into each other or into a developer's local save.
+- Verification: `bash scripts/verify-one-plus-one-minus-one-playmode.sh`
+  passed 40/40 and wrote `/tmp/one-equals-one-playmode.xml`.
+- Added a development-only QA input layout probe so browser automation can use
+  rendered slot, bank and Check coordinates instead of stale hard-coded
+  coordinates. Release-safety checks reject the probe in non-QA builds.
+- Refreshed the default `= 1` first-ten browser input regression around the
+  current 30-round ladder. It cleared Rounds 1-10 with emulated touch input,
+  saved progress to Round 11, and wrote evidence under
+  `/tmp/one-equals-one-input-smoke/input/results.json`. This is browser
+  automation evidence, not physical-device touch signoff.
+- Extended that browser run to open the Badges/collection overlay after Round
+  10. The QA state log verifies `friends=8`, `badges=5`, `active=true` and the
+  screenshot is `/tmp/one-equals-one-input-smoke/input/collection-after-first-ten.png`.
+  The coordinate probe now emits RectTransform centers so top-right anchored
+  buttons are tapped at their visual center.
+- Improved collection answer display so an unplayed current round shows the
+  most recent solved round's answers instead of an empty list. The same browser
+  evidence now verifies `answerRound=10`, `answers=1`, and
+  `firstAnswer="1 + 1 - 1 × 1 / 1"` after the first-ten run.
+- Renamed the top-right entry from `Badges` to `Album` and changed achievement
+  rows to `Done:` / `Locked:` prefixes so the collection surface reads as a
+  broader progress album rather than a narrow badge list.
+
+2026-09-26 MakeOne pattern-quality continuation:
+
+- Round 23 now uses `Thin Return` / `1 / 11 * 11 - 1 + 1`, which moves it out
+  of the old `11/20` repeated-resource pairing with Round 22 while preserving
+  the fixed target-1 MakeOne structure and alternate-answer acceptance.
+- A high-budget sample evaluation for that Round 23 expression completed with
+  bounded but useful evidence: `solutionCount=2966`, dominant
+  `multiply-by-one` ratio `0.442`, and same-expression equality ratio `0.103`.
+  This is not proof of full human difficulty, but it removes the previous
+  high-priority equality echo concern.
+- `--make-one --resource-candidates` now accepts repeated resource keys such as
+  `5/8` in addition to explicit round numbers. This makes it easier to inspect
+  the remaining repeated-resource groups without manually copying every round
+  number from `resourceReview`.
+- Latest bounded summary still reports five repeated resource groups and
+  fourteen found shared-equality pairs as review material. No high-priority
+  same-expression or dominant-pattern rows remain under the current policy, and
+  the latest capped probes found no further clean post-tutorial replacement
+  that should be applied without wider search or hand design.

@@ -346,7 +346,8 @@ async function main() {
 
   const httpPort = await findFreePort();
   const debugPort = await findFreePort();
-  const appUrl = `http://127.0.0.1:${httpPort}/index.html${process.env.ONE_EQUALS_ONE_WEBGL_QUERY ?? ""}`;
+  const webglQuery = process.env.ONE_EQUALS_ONE_WEBGL_QUERY ?? (inputPlaytest ? "?qaInputProbe=1" : "");
+  const appUrl = `http://127.0.0.1:${httpPort}/index.html${webglQuery}`;
   const userDataDir = resolve(repoRoot, `tmp/chrome-one-equals-one-viewport-smoke-${debugPort}`);
   mkdirSync(userDataDir, { recursive: true });
 

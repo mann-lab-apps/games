@@ -29,13 +29,13 @@ capture_shot() {
 }
 
 prepare_output_root
-capture_shot "01-round-1-first-stick" "?qaRound=1&qaUnlocked=100&qaFillSample=1"
-capture_shot "02-round-5-cross-multiply" "?qaRound=5&qaUnlocked=100&qaFillSample=1"
-capture_shot "03-round-8-triple-one" "?qaRound=8&qaUnlocked=100&qaFillSample=1"
-capture_shot "04-round-9-star-multiply" "?qaRound=9&qaUnlocked=100&qaFillSample=1"
-capture_shot "05-round-30-medium-expression" "?qaRound=30&qaUnlocked=100&qaFillSample=1"
-capture_shot "06-round-75-equality-puzzle" "?qaRound=75&qaUnlocked=100&qaFillSample=1"
-capture_shot "07-round-100-finale" "?qaRound=100&qaUnlocked=100&qaFillSample=1"
-capture_shot "08-round-select-progression" "?qaRounds=1&qaUnlocked=100&qaRoundPage=9"
+capture_shot "01-round-1-first-stick" "?qaRound=1&qaUnlocked=30&qaFillSample=1"
+capture_shot "02-round-4-star-start" "?qaRound=4&qaUnlocked=30&qaFillSample=1"
+capture_shot "03-round-10-title-echo" "?qaRound=10&qaUnlocked=30&qaFillSample=1"
+capture_shot "04-round-15-tall-fold" "?qaRound=15&qaUnlocked=30&qaFillSample=1"
+capture_shot "05-round-20-narrow-path" "?qaRound=20&qaUnlocked=30&qaFillSample=1"
+capture_shot "06-round-25-wide-loop" "?qaRound=25&qaUnlocked=30&qaFillSample=1"
+capture_shot "07-round-30-finale" "?qaRound=30&qaUnlocked=30&qaFillSample=1"
+capture_shot "08-round-select-progression" "?qaRounds=1&qaUnlocked=30&qaRoundPage=3"
 
 echo "1 = 1 App Store candidate screenshots: $output_root"

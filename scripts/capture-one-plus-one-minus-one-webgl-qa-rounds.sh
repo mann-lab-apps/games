@@ -7,7 +7,7 @@ output_root="${ONE_EQUALS_ONE_QA_ROUND_CAPTURE_DIR:-/tmp/one-equals-one-webgl-qa
 if [[ "$#" -gt 0 ]]; then
   rounds=("$@")
 else
-  rounds=(1 5 8 9 16 30 50 75 90 100)
+  rounds=(1 4 10 15 20 25 30)
 fi
 
 if [[ ! -f "$qa_build/index.html" ]]; then
@@ -29,7 +29,7 @@ for round in "${rounds[@]}"; do
 
   echo "Capturing QA Round $round into $round_dir"
   ONE_EQUALS_ONE_WEBGL_BUILD_DIR="$qa_build" \
-  ONE_EQUALS_ONE_WEBGL_QUERY="?qaRound=$round&qaUnlocked=100" \
+    ONE_EQUALS_ONE_WEBGL_QUERY="?qaRound=$round&qaUnlocked=30" \
   ONE_EQUALS_ONE_VIEWPORT_SMOKE_DIR="$round_dir" \
     "$repo_root/scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs"
 done

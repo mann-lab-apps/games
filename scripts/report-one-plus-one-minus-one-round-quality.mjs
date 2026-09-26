@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import assert from 'node:assert/strict';
-import { extractRounds, analyzeIdentity, findEqualityWitness, identityErrors, operatorTokens, generateCandidatePool, enumerateRoundSolutions, analyzeRoundPatterns, findDominantPatternCandidates, findEqualityEchoCandidates, parseResourceKey } from './one-plus-one-minus-one-round-identity.mjs';
+import { acceptsRound, extractMakeOneRounds, extractRounds, analyzeIdentity, findEqualityWitness, identityErrors, operatorTokens, tokenCosts, generateCandidatePool, enumerateRoundSolutions, analyzeRoundPatterns, classifySolutionPatterns, dominantPatternProfileForRound, findDominantPatternCandidates, findEqualityEchoCandidates, findResourceRepeatCandidates, parseResourceKey, sampleTarget, splitSymbols } from './one-plus-one-minus-one-round-identity.mjs';
 
 const repoRoot = process.cwd();
 const rulesPath = path.join(
@@ -13,17 +13,28 @@ const rulesPath = path.join(
 const strict = process.argv.includes("--strict");
 const strictPatterns = process.argv.includes("--strict-patterns");
 const summaryOnly = process.argv.includes("--summary");
+const makeOneMode = process.argv.includes("--make-one");
 
 const trackedTokens = ["1", "11", "111", "+", "-", "/", "×", "*", "="];
-const bands = [
+const goalBands = [
   [1, 15, "tutorial"],
   [16, 30, "early puzzles"],
   [31, 50, "mid puzzles"],
   [51, 80, "equation focus"],
   [81, 100, "finale"],
 ];
+const makeOneBands = [
+  [1, 10, "first discoveries"],
+  [11, 20, "pattern mixing"],
+  [21, 30, "compact finale"],
+];
+const bands = makeOneMode ? makeOneBands : goalBands;
+const pureSelfDivisionLearningMax = makeOneMode ? 10 : 30;
+const shortcutReviewMinRound = makeOneMode ? pureSelfDivisionLearningMax : 50;
+const modeLabel = makeOneMode ? "default = 1 rounds" : "legacy goal rounds";
 
-const rounds = extractRounds(fs.readFileSync(rulesPath, "utf8")).map(r => ({...r,
+const parsedSource = fs.readFileSync(rulesPath, "utf8");
+const rounds = (makeOneMode ? extractMakeOneRounds(parsedSource) : extractRounds(parsedSource)).map(r => ({...r,
   signature:r.symbols.map(s=>operatorTokens.has(s)?s:'N').join(' ')}));
 const unityIndex = process.argv.indexOf('--unity-report');
 if (unityIndex >= 0) {
@@ -36,9 +47,37 @@ const numberOption = name => {
   const index = process.argv.indexOf(name);
   return index < 0 ? undefined : Number(process.argv[index + 1]);
 };
+const parseRoundOrResourceSelection = (selected, {allowResourceKeys = false} = {}) => {
+  if (!selected) return [];
+  const numbers = [];
+  const parts = selected.split(',').map(value => value.trim());
+  if (parts.some(part => part.length === 0)) {
+    throw new Error('selection must not contain empty entries');
+  }
+  for (const part of parts) {
+    if (allowResourceKeys && part.includes('/')) {
+      const {slots, sticks} = parseResourceKey(part);
+      if (!Number.isInteger(slots) || !Number.isInteger(sticks) || slots < 1 || sticks < 1) {
+        throw new Error(`resource key must be slots/sticks, got ${part}`);
+      }
+      const matching = rounds
+        .map((round, index) => ({round, number:index + 1}))
+        .filter(({round}) => round.symbols.length === slots && round.stickCount === sticks)
+        .map(({number}) => number);
+      if (matching.length === 0) {
+        throw new Error(`resource key ${part} did not match any rounds`);
+      }
+      numbers.push(...matching);
+      continue;
+    }
+
+    numbers.push(Number(part));
+  }
+  return numbers;
+};
 const solutionsIndex = process.argv.indexOf('--solutions');
 if (solutionsIndex >= 0) {
-  const selected = (process.argv[solutionsIndex + 1] ?? '').split(',').map(Number);
+  const selected = parseRoundOrResourceSelection(process.argv[solutionsIndex + 1] ?? '');
   if (selected.some(n => !Number.isInteger(n) || n < 1 || n > rounds.length) ||
       new Set(selected).size !== selected.length)
     throw new Error(`--solutions expects unique round numbers from 1 to ${rounds.length}, comma separated`);
@@ -49,6 +88,39 @@ if (solutionsIndex >= 0) {
   });
   await writeJson({rounds:reports});
   process.exit(strict && (reports.some(r => !r.complete) || identityErrors(rounds).length) ? 1 : 0);
+}
+const evaluateSampleIndex = process.argv.indexOf('--evaluate-sample');
+if (evaluateSampleIndex >= 0) {
+  const sample = process.argv[evaluateSampleIndex + 1];
+  if (!sample || sample.startsWith('--')) {
+    throw new Error('--evaluate-sample expects a quoted token expression');
+  }
+
+  const symbols = splitSymbols(sample);
+  const target = numberOption('--target') ?? sampleTarget(symbols);
+  const round = {
+    number: 0,
+    name: 'Evaluated sample',
+    sample,
+    symbols,
+    stickCount: symbols.reduce((total, symbol) => total + (tokenCosts.get(symbol) ?? 0), 0),
+    target,
+  };
+  await writeJson({
+    sample,
+    symbols,
+    target,
+    sampleTarget: sampleTarget(symbols),
+    slots: symbols.length,
+    sticks: round.stickCount,
+    samplePatterns: classifySolutionPatterns(symbols),
+    accepted: acceptsRound(round, symbols),
+    profile: dominantPatternProfileForRound(round, {
+      maxNodes: numberOption('--max-nodes'),
+      maxSolutions: numberOption('--max-solutions'),
+    }),
+  });
+  process.exit(0);
 }
 if (process.argv.includes('--candidates')) {
   await writeJson(generateCandidatePool(rounds, {
@@ -73,6 +145,7 @@ if (dominantCandidatesIndex >= 0) {
     maxResults:numberOption('--max-results'),
     maxEvaluations:numberOption('--max-evaluations'),
     candidateBudget:numberOption('--candidate-budget'),
+    maxNearbyNodes:numberOption('--max-nearby-nodes'),
     maxExtraSlots:numberOption('--max-extra-slots'),
     maxExtraSticks:numberOption('--max-extra-sticks'),
     allowFewerSlots:process.argv.includes('--allow-fewer-slots'),
@@ -81,6 +154,7 @@ if (dominantCandidatesIndex >= 0) {
     minVisibleDiversity:numberOption('--min-visible-diversity'),
     minRecommendedImprovement:numberOption('--min-recommended-improvement'),
     minCombinationScore:numberOption('--min-combination-score'),
+    preserveTarget:makeOneMode || process.argv.includes('--preserve-target'),
   }));
   process.exit(strict && identityErrors(rounds).length ? 1 : 0);
 }
@@ -106,7 +180,31 @@ if (equalityCandidatesIndex >= 0) {
   }));
   process.exit(strict && identityErrors(rounds).length ? 1 : 0);
 }
+const resourceCandidatesIndex = process.argv.indexOf('--resource-candidates');
+if (resourceCandidatesIndex >= 0) {
+  const selected = process.argv[resourceCandidatesIndex + 1]?.startsWith('--') === false
+    ? process.argv[resourceCandidatesIndex + 1]
+    : '';
+  const parsedRoundNumbers = parseRoundOrResourceSelection(selected, {allowResourceKeys:true});
+  const roundNumbers = parsedRoundNumbers.filter((number, index) => parsedRoundNumbers.indexOf(number) === index);
+  await writeJson(findResourceRepeatCandidates(rounds, {
+    roundNumbers,
+    maxNodes:numberOption('--max-nodes'),
+    maxSolutions:numberOption('--max-solutions'),
+    maxResults:numberOption('--max-results'),
+    maxEvaluations:numberOption('--max-evaluations'),
+    candidateBudget:numberOption('--candidate-budget'),
+    maxNearbyNodes:numberOption('--max-nearby-nodes'),
+    maxExtraSlots:numberOption('--max-extra-slots'),
+    maxExtraSticks:numberOption('--max-extra-sticks'),
+    preserveTarget:true,
+    pureSelfDivisionLearningMax,
+    minCombinationScore:numberOption('--min-combination-score'),
+  }));
+  process.exit(strict && identityErrors(rounds).length ? 1 : 0);
+}
 if (process.argv.includes('--patterns')) {
+  const identity = analyzeIdentity(rounds);
   const patternRows = analyzeRoundPatterns(rounds, {
     maxNodes:numberOption('--max-nodes'),
     maxSolutions:numberOption('--max-solutions'),
@@ -115,7 +213,7 @@ if (process.argv.includes('--patterns')) {
     row.pureShortcutSolutions.some(solution => solution.patterns.includes('pure-self-division')));
   const equalityEchoRows = patternRows.filter(row =>
     row.pureShortcutSolutions.some(solution => solution.patterns.includes('same-expression-equality')));
-  const lateEqualityEchoRows = equalityEchoRows.filter(row => row.number > 50);
+  const lateEqualityEchoRows = equalityEchoRows.filter(row => row.number > shortcutReviewMinRound);
   const lateSampleEqualityEchoRows = lateEqualityEchoRows
     .filter(row => row.samplePatterns.includes('same-expression-equality'));
   const lateAlternateEqualityEchoRows = lateEqualityEchoRows
@@ -127,12 +225,12 @@ if (process.argv.includes('--patterns')) {
   const dominantPatternRows = dominantShortcutRows(patternRows);
   const policyViolations = patternPolicyViolations(patternRows);
   const shortcutPolicy = {
-    pureSelfDivisionLearningWindow:'Rounds 1-30 may intentionally teach or echo N/N = 1. Later pure N/N acceptance should be reviewed unless it is deliberately combined with another required idea.',
-    learningRounds:pureSelfDivisionRows.filter(row => row.number <= 30).map(patternPolicyRow),
-    reviewRounds:pureSelfDivisionRows.filter(row => row.number > 30).map(patternPolicyRow),
+    pureSelfDivisionLearningWindow:`In ${modeLabel}, Rounds 1-${pureSelfDivisionLearningMax} may intentionally teach or echo N/N = 1. Later pure N/N acceptance should be reviewed unless it is deliberately combined with another required idea.`,
+    learningRounds:pureSelfDivisionRows.filter(row => row.number <= pureSelfDivisionLearningMax).map(patternPolicyRow),
+    reviewRounds:pureSelfDivisionRows.filter(row => row.number > pureSelfDivisionLearningMax).map(patternPolicyRow),
     violations:policyViolations,
     equalityEchoReview:{
-      reviewWindow:'Same-expression and same-number equality answers are legal, but after Round 50 they should be treated as review candidates when they dominate a round or bypass the intended resource judgment.',
+      reviewWindow:`Same-expression and same-number equality answers are legal, but after Round ${shortcutReviewMinRound} in ${modeLabel} they should be treated as review candidates when they dominate a round or bypass the intended resource judgment.`,
       reviewRows:lateEqualityEchoRows.map(row => patternPolicyRow(row, 'same-expression-equality')),
       sampleEchoRows:lateSampleEqualityEchoRows.map(row => patternPolicyRow(row, 'same-expression-equality')),
       alternateOnlyRows:lateAlternateEqualityEchoRows.map(row => patternPolicyRow(row, 'same-expression-equality')),
@@ -140,7 +238,7 @@ if (process.argv.includes('--patterns')) {
       rankedAlternateRows:rankedLateAlternateEqualityEchoRows,
     },
     dominantPatternReview:{
-      reviewWindow:'After Round 50, any single shortcut family dominating the enumerated accepted answers should be reviewed as a possible universal-key pattern. This is a design map, not a token ban.',
+      reviewWindow:`After Round ${shortcutReviewMinRound}, any single shortcut family dominating the enumerated accepted answers should be reviewed as a possible universal-key pattern in ${modeLabel}. This is a design map, not a token ban.`,
       highPriorityRows:highPriorityDominantShortcutRows(dominantPatternRows),
       rankedRows:dominantPatternRows,
     },
@@ -157,26 +255,33 @@ if (process.argv.includes('--patterns')) {
       solutionCount:row.solutionCount,
       pureShortcutSolutions:row.pureShortcutSolutions,
     }));
+  const incompleteReview = incompletePatternReview(patternRows, {
+    maxNodes:numberOption('--max-nodes') ?? 200000,
+    maxSolutions:numberOption('--max-solutions') ?? 1000,
+  });
+  const resourceReview = resourceRepeatReview(identity);
   const payload = summaryOnly ? {
     method:'Summary of accepted canonical token sequence shortcut patterns. Use --patterns without --summary for full per-round rows.',
     complete:patternRows.every(row => row.complete),
     summary:{
       rounds:patternRows.length,
-      incompleteRows:patternRows.filter(row => !row.complete).map(row => ({
-        number:row.number,
-        name:row.name,
-        limitReason:row.limitReason,
-        solutionCount:row.solutionCount,
-      })),
+      uniqueResources:identity.uniqueResources,
+      repeatedResourceGroups:identity.resourceRepeats.length,
+      searchBudget:incompleteReview.searchBudget,
+      incompleteRows:incompleteReview.rows,
       shortcutReviewRows:shortcutReview.map(row => row.number),
     },
     shortcutPolicy:compactShortcutPolicy(shortcutPolicy),
+    resourceReview:compactResourceReview(resourceReview),
+    incompleteReview,
   } : {
     method:'Classifies accepted canonical token sequences by reusable arithmetic patterns. This is a design-review map, not proof of human difficulty or fun. Incomplete rows only classify the enumerated prefix.',
     complete:patternRows.every(row => row.complete),
     rows:patternRows,
     shortcutPolicy,
     shortcutReview,
+    resourceReview,
+    incompleteReview,
   };
   await writeJson(payload);
   process.exit((strict && (patternRows.some(row => !row.complete) || identityErrors(rounds).length)) ||
@@ -194,6 +299,7 @@ if (process.argv.includes('--json')) {
 
 console.log(`# 1 = 1 Round Quality Report`);
 console.log("");
+console.log(`Mode: ${modeLabel}`);
 console.log(`Rounds: ${rounds.length}`);
 console.log("");
 printBandSummary();
@@ -254,7 +360,7 @@ function dominantShortcutRows(patternRows) {
   ];
   const rows = [];
   for (const row of patternRows) {
-    if (row.number <= 50 || row.solutionCount <= 0) continue;
+    if (row.number <= shortcutReviewMinRound || row.solutionCount <= 0) continue;
     for (const pattern of reviewPatterns) {
       const count = row.patternCounts[pattern] ?? 0;
       if (count <= 0) continue;
@@ -271,7 +377,7 @@ function dominantShortcutRows(patternRows) {
         solutionCount:row.solutionCount,
         ratio:count / row.solutionCount,
         sampleHasPattern:row.samplePatterns.includes(pattern),
-        priority:count / row.solutionCount >= 0.5 ? 'high' : 'review',
+        priority:count / row.solutionCount >= 0.6 && row.solutionCount >= 20 ? 'high' : 'review',
       });
     }
   }
@@ -307,6 +413,7 @@ function compactPolicyRow(row) {
 
 function compactShortcutPolicy(policy) {
   const equalityEchoReview = policy.equalityEchoReview;
+  const compactRankLimit = 12;
   return {
     pureSelfDivisionLearningWindow:policy.pureSelfDivisionLearningWindow,
     learningRounds:policy.learningRounds.map(row => row.number),
@@ -318,14 +425,127 @@ function compactShortcutPolicy(policy) {
       sampleEchoRows:equalityEchoReview.sampleEchoRows.map(row => row.number),
       alternateOnlyRows:equalityEchoReview.alternateOnlyRows.map(row => row.number),
       highPriorityAlternateRows:equalityEchoReview.highPriorityAlternateRows.map(compactPolicyRow),
-      rankedAlternateRows:equalityEchoReview.rankedAlternateRows.map(compactPolicyRow),
+      rankedAlternateRows:equalityEchoReview.rankedAlternateRows.slice(0, compactRankLimit).map(compactPolicyRow),
+      rankedAlternateRowsTruncated:equalityEchoReview.rankedAlternateRows.length > compactRankLimit,
     },
     dominantPatternReview:{
       reviewWindow:policy.dominantPatternReview.reviewWindow,
       highPriorityRows:policy.dominantPatternReview.highPriorityRows.map(compactPolicyRow),
-      rankedRows:policy.dominantPatternReview.rankedRows.map(compactPolicyRow),
+      rankedRows:policy.dominantPatternReview.rankedRows.slice(0, compactRankLimit).map(compactPolicyRow),
+      rankedRowsTruncated:policy.dominantPatternReview.rankedRows.length > compactRankLimit,
     },
     strictPatternMode:policy.strictPatternMode,
+  };
+}
+
+function resourceRepeatReview(identity) {
+  const rows = identity.resourceRepeats.map(group => {
+    const resource = parseResourceKey(group.key);
+    const witness = equalityWitnessForGroup(group);
+    const intentionalReason = intentionalSharedEqualityReason(group);
+    const pairCount = group.rounds.length * (group.rounds.length - 1) / 2;
+    return {
+      key:group.key,
+      rounds:group.rounds,
+      slots:resource.slots,
+      sticks:resource.sticks,
+      pairCount,
+      witnessStatus:witness.status,
+      witnessSymbols:witness.symbols,
+      nodes:witness.nodes,
+      maxNodes:witness.maxNodes,
+      intentionalReason,
+      priority:witness.status === 'found' && !intentionalReason ? 'review' : 'info',
+    };
+  });
+  const unresolvedFoundRows = rows.filter(row => row.witnessStatus === 'found' && !row.intentionalReason);
+  const intentionalFoundRows = rows.filter(row => row.witnessStatus === 'found' && row.intentionalReason);
+  return {
+    method:'Repeated slot/stick resources can allow the same constructed equality across rounds. This is a design-review map, not a ban on repeated resources.',
+    uniqueResources:identity.uniqueResources,
+    repeatedResourceGroups:identity.resourceRepeats.length,
+    unresolvedFoundSharedEqualityPairs:unresolvedFoundRows.reduce((total, row) => total + row.pairCount, 0),
+    intentionalFoundSharedEqualityPairs:intentionalFoundRows.reduce((total, row) => total + row.pairCount, 0),
+    rows,
+  };
+}
+
+function compactResourceReview(review) {
+  const compactRankLimit = 12;
+  const reviewRows = review.rows
+    .filter(row => row.priority === 'review')
+    .sort((left, right) => right.pairCount - left.pairCount || left.slots - right.slots ||
+      left.sticks - right.sticks || left.rounds[0] - right.rounds[0]);
+  return {
+    method:review.method,
+    uniqueResources:review.uniqueResources,
+    repeatedResourceGroups:review.repeatedResourceGroups,
+    unresolvedFoundSharedEqualityPairs:review.unresolvedFoundSharedEqualityPairs,
+    intentionalFoundSharedEqualityPairs:review.intentionalFoundSharedEqualityPairs,
+    reviewRows:reviewRows.slice(0, compactRankLimit).map(compactResourceRow),
+    reviewRowsTruncated:reviewRows.length > compactRankLimit,
+  };
+}
+
+function compactResourceRow(row) {
+  return {
+    key:row.key,
+    rounds:row.rounds,
+    slots:row.slots,
+    sticks:row.sticks,
+    pairCount:row.pairCount,
+    witnessStatus:row.witnessStatus,
+    witnessSymbols:row.witnessSymbols,
+    intentionalReason:row.intentionalReason,
+    priority:row.priority,
+  };
+}
+
+function incompletePatternReview(patternRows, {maxNodes, maxSolutions}) {
+  const rows = patternRows.filter(row => !row.complete).map(row => {
+    const rowMaxNodes = row.maxNodes ?? maxNodes;
+    const rowMaxSolutions = row.maxSolutions ?? maxSolutions;
+    const compact = {
+      number:row.number,
+      name:row.name,
+      target:row.target,
+      slots:row.slots,
+      sticks:row.sticks,
+      sample:row.sample,
+      limitReason:row.limitReason,
+      nodes:row.nodes,
+      maxNodes:rowMaxNodes,
+      solutionCount:row.solutionCount,
+      maxSolutions:rowMaxSolutions,
+      observedPatterns:Object.fromEntries(Object.entries(row.patternCounts)
+        .filter(([, count]) => count > 0)
+        .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))),
+    };
+    compact.recheckCommand = [
+      'node scripts/report-one-plus-one-minus-one-round-quality.mjs',
+      '--make-one',
+      '--patterns',
+      '--summary',
+      '--strict-patterns',
+      '--max-nodes',
+      String(Math.max(rowMaxNodes * 5, 1000000)),
+      '--max-solutions',
+      String(Math.max(rowMaxSolutions * 5, 5000)),
+    ].join(' ');
+    compact.interpretation = row.limitReason === 'solution_limit'
+      ? 'The row has at least this many accepted answers; pattern ratios are prefix evidence and should not be treated as exhaustive.'
+      : 'The search reached its node budget before exhausting the row; pattern ratios are prefix evidence and should not be treated as exhaustive.';
+    return compact;
+  });
+
+  return {
+    searchBudget:{maxNodes, maxSolutions},
+    rowCount:rows.length,
+    strictBehavior:'--strict fails incomplete pattern enumeration; --strict-patterns only fails design-policy violations.',
+    reviewGuidance:rows.length === 0
+      ? 'All rows were exhausted under the selected budget.'
+      : 'Review incomplete rows before claiming full pattern coverage. Increase budgets for targeted rows or document them as bounded evidence.',
+    rows,
   };
 }
 
@@ -334,9 +554,9 @@ function patternPolicyViolations(patternRows) {
   for (const row of patternRows) {
     const pureSelfDivision = row.pureShortcutSolutions
       .filter(solution => solution.patterns.includes('pure-self-division'));
-    if (row.number > 30 && pureSelfDivision.length > 0) {
+    if (row.number > pureSelfDivisionLearningMax && pureSelfDivision.length > 0) {
       violations.push({
-        severity:row.number >= 50 ? 'blocker' : 'review',
+        severity:!makeOneMode && row.number >= 50 ? 'blocker' : 'review',
         rule:'late-pure-self-division',
         number:row.number,
         name:row.name,
@@ -345,7 +565,7 @@ function patternPolicyViolations(patternRows) {
         slots:row.slots,
         sticks:row.sticks,
         examples:pureSelfDivision.slice(0, 5).map(solution => solution.expression),
-        expectation:'After Round 30, N/N should not be a standalone universal key unless this round is explicitly redesigned as an intentional callback or requires another nontrivial pattern.',
+        expectation:`After Round ${pureSelfDivisionLearningMax}, N/N should not be a standalone universal key unless this round is explicitly redesigned as an intentional callback or requires another nontrivial pattern.`,
       });
     }
   }
@@ -475,8 +695,14 @@ function printPatternRuns() {
 function printWarnings() {
   console.log("## Blocking Duplicate / Coverage Errors");
   const warnings = [];
-  warnings.push(...identityErrors(rounds));
+  if (!makeOneMode) {
+    warnings.push(...identityErrors(rounds));
+  }
   for (const [start, end, label] of bands) {
+    if (makeOneMode) {
+      continue;
+    }
+
     const coverageRequired = label !== "tutorial";
     const bandRounds = rounds.slice(start - 1, end);
     const equalityCount = bandRounds.filter((round) => round.symbols.includes("=")).length;

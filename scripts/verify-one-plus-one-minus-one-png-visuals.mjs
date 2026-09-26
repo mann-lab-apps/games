@@ -28,16 +28,16 @@ const appStoreDevices = [
   { name: "ipad-13", width: 2064, height: 2752, mobile: true },
 ];
 
-const qaRounds = [1, 5, 8, 9, 16, 30, 50, 75, 90, 100];
-const qaPages = [1, 5, 9];
+const qaRounds = [1, 4, 10, 15, 20, 25, 30];
+const qaPages = [1, 2, 3];
 const appStoreShots = [
   "01-round-1-first-stick",
-  "02-round-5-cross-multiply",
-  "03-round-8-triple-one",
-  "04-round-9-star-multiply",
-  "05-round-30-medium-expression",
-  "06-round-75-equality-puzzle",
-  "07-round-100-finale",
+  "02-round-4-star-start",
+  "03-round-10-title-echo",
+  "04-round-15-tall-fold",
+  "05-round-20-narrow-path",
+  "06-round-25-wide-loop",
+  "07-round-30-finale",
   "08-round-select-progression",
 ];
 
