@@ -39,7 +39,8 @@ Current default-mode evidence:
   repeated resource key such as `5/8`, includes a small composite target-1
   candidate generator, and marks candidates that would reintroduce late pure
   `N/N`, admit pure `N/N` through their resource budget, depend on bounded
-  pattern evidence, or swap one universal key for another dominant shortcut.
+  pattern evidence, visibly present an authored shortcut sample after the
+  learning window, or swap one universal key for another dominant shortcut.
   Composite candidates no longer consume the nearby-enumeration candidate
   budget; the report now exposes `compositeCandidateCount` and
   `enumeratedCandidateCount` so capped probes show both search sources. The
@@ -50,6 +51,10 @@ Current default-mode evidence:
   `maxResults` is small. Occupied resource budgets now appear as
   `occupied-resource-swap` analysis-only candidates, so future redesign can plan
   swaps across existing rounds without confusing them with direct replacements.
+  Candidate summaries also include an `authoredSampleShortcut` risk count, so
+  samples like `A - A + 1`, `A + B - A` or `A / B × B` do not remain
+  recommendable merely because their full answer set is not dominated by a
+  single shortcut family.
   The
   latest capped probes over the repeated-resource groups produced one later
   manual-quality replacement for Round 29, reducing a repeated resource group.
@@ -59,17 +64,21 @@ the 7-slot/14-stick resource budget and accepted-answer set, so it is not a
 full structural duplicate fix, but it moves the intended solution toward the
 `11 × 11 - 111` multiplication-offset gimmick without adding bans or forced
 answers.
-- Two more authored-path edits reduce visible late shortcuts without changing
-  resource budgets: Round 25 now uses `1 / 1 1 1 × 111` instead of
-  `1 + 11 / 11 - 1`, and Round 30 now closes with
-  `1 / 111 111 × 111 111` instead of `111 / 111 + 111 - 111`.
+- Two more authored-path edits reduce the old visible self-division/subtraction
+  samples without changing resource budgets: Round 25 now uses
+  `1 / 1 1 1 × 111` instead of `1 + 11 / 11 - 1`, and Round 30 now closes with
+  `1 / 111 111 × 111 111` instead of `111 / 111 + 111 - 111`. The stricter
+  pattern classifier now keeps both rows visible as reciprocal-cancellation
+  review material, so they are not considered structurally solved.
 - Round 29 now uses `1 1 + 111 - 11 × 11` instead of `11 + 1 - 1 1`, moving it
   out of the `6/8` repeated resource group. The current MakeOne summary has 22
   distinct slot/stick resources, four repeated resource groups and 13 unresolved
   found shared-equality pairs.
 - Pattern reports now expose `shortcutPolicy.authoredSampleReview`, separating
   visible late-round authored shortcut samples from accepted-answer-set review.
-  This is intended to find future Round 26-style edits without constraining
+  It covers additive and reciprocal cancellation as well as the older
+  self-division, divide-by-one, multiply-by-one, self-subtraction and equality
+  shortcuts, so future Round 26-style edits can be found without constraining
   alternate valid solutions.
 - Resource candidate reports also flag `highEqualityEcho` when a candidate's
   accepted-answer evidence is dominated by same-expression equality. This kept
@@ -78,7 +87,7 @@ answers.
   one universal-key pattern for another under the bounded review map.
 - `node scripts/verify-one-plus-one-minus-one-rounds.mjs` passes.
 - `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` passes
-  60/60, including the MakeOne pattern-regression, target-preserving
+  61/61, including the MakeOne pattern-regression, target-preserving
   candidate-search tests, resource-repeat candidate report and single-sample
   pattern evaluation CLI.
 - Unity EditMode passes 63/63 after removing stale 100-round identity

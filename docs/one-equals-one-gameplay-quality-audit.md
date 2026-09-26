@@ -41,16 +41,16 @@ Changed default-mode samples:
 | 22 | `11 * 11 - 111 - 11 + 1 + 1` | Uses the `11 * 11 - 111` trick in the default ladder. |
 | 23 | `1 / 11 * 11 - 1 + 1` | Breaks the old `11/20` repeated-resource pair with Round 22 while keeping a bounded fractional-return pattern under the high-priority echo threshold. |
 | 24 | `1 1 11 - 1 111 + 1` | Replaces a `/1`-heavy sample after the default-mode dominant-pattern map flagged the old `1 1 - 1 1 + 1 / 1` as a high-ratio divide-by-one round. |
-| 25 | `1 / 1 1 1 × 111` | Keeps division/multiplication as fractional cancellation without visibly teaching `N/N` as the intended route. |
+| 25 | `1 / 1 1 1 × 111` | Keeps the existing resource budget but remains visible reciprocal-cancellation review material rather than a solved structural fix. |
 | 26 | `111 - 11 × 11 + 11` | Replaces visible `N/N * N/N` with the `11 × 11 - 111` multiplication-offset idea. |
 | 28 | `1 × 1` | Removes a duplicate sample and gives cross multiplication a compact echo. |
 | 29 | `1 1 + 111 - 11 × 11` | Moves out of the `6`-slot/`8`-stick repeat group and reuses the `11 × 11 - 111` offset idea in reverse. |
-| 30 | `1 / 111 111 × 111 111` | Closes with fractional cancellation instead of visible `N/N` plus subtraction cancellation, while still reserving the displayed `= 1` target. |
+| 30 | `1 / 111 111 × 111 111` | Closes with a compact fractional-cancellation sample, but the stricter pattern map still treats it as reciprocal-cancellation review material. |
 
 Verification:
 
 - `node scripts/verify-one-plus-one-minus-one-rounds.mjs`
-- `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` (60/60)
+- `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` (61/61 after the authored-sample shortcut review test was added)
 - the new `--make-one --patterns --summary --strict-patterns` regression is
   covered by the Node identity test suite.
 - The MakeOne summary now includes an explicit `incompleteReview` section so
@@ -104,8 +104,10 @@ Verification:
   It searches target-preserving resource moves and
   flags candidates that would reintroduce late pure `N/N` shortcuts, candidates
   whose slot/stick budget admits pure `N/N`, candidates with bounded evidence,
-  and candidates whose accepted-answer set is dominated by another shortcut
-  family such as `/1`. A Round 17 trial candidate reduced the `5/8` resource
+  candidates whose accepted-answer set is dominated by another shortcut family
+  such as `/1`, and candidates whose visible authored sample itself uses a
+  post-learning shortcut such as `A - A + 1`, additive cancellation such as
+  `A + B - A`, or reciprocal cancellation such as `A / B × B`. A Round 17 trial candidate reduced the `5/8` resource
   group on paper, but the checker showed it introduced late pure
   self-division answers, so that data edit was rejected rather than weakening
   the shortcut policy. The candidate generator now also emits composite
@@ -143,7 +145,11 @@ Verification:
   final `candidates` list is capped by `--max-results`. Occupied resources are
   now surfaced as `occupied-resource-swap` analysis-only rows, which makes
   multi-round swap planning visible without recommending already-used budgets as
-  direct replacements. The report
+  direct replacements. The report now also exposes `authoredSampleShortcut`
+  risk counts so visible self-subtraction, self-division, divide-by-one,
+  multiply-by-one, additive/reciprocal cancellation and same-expression-equality samples cannot stay
+  recommendable after the learning window just because the broader answer set is
+  diverse. The report
   includes `candidateSummary`, so `recommendableCount: 0` plus risk counts such
   as `latePureSelfDivision`, `dominantShortcut`, `highEqualityEcho` or
   `boundedEvidence` explain why a bounded probe should not become a data edit.
@@ -154,10 +160,13 @@ Verification:
   multiplication-offset idea into the default MakeOne ladder.
 - Round 25's authored sample changed from `1 + 11 / 11 - 1` to
   `1 / 1 1 1 × 111`, preserving the 7-slot/10-stick budget while replacing
-  visible self-division with fractional cancellation. Round 30's authored sample
+  visible self-division with fractional cancellation. The stricter pattern
+  classifier now marks that sample as reciprocal-cancellation review material,
+  so this remains a design follow-up rather than a closed structural fix. Round 30's authored sample
   changed from `111 / 111 + 111 - 111` to `1 / 111 111 × 111 111`, preserving
   the 7-slot/16-stick budget while ending on fractional cancellation instead of
-  visible `N/N` plus subtraction cancellation.
+  visible `N/N` plus subtraction cancellation; it is likewise kept visible as
+  reciprocal-cancellation review evidence.
 - Round 29 changed from `11 + 1 - 1 1` to `1 1 + 111 - 11 × 11`. This reduces
   the default ladder from five repeated slot/stick groups to four, reduces
   unresolved found shared-equality pairs from 14 to 13, and replaces a small
@@ -166,8 +175,9 @@ Verification:
   than fully exhausted pattern coverage.
 - Pattern reports now include `shortcutPolicy.authoredSampleReview`, which
   separates visible late-round sample shortcuts from the full accepted-answer
-  map. This catches authored paths like visible self-division or multiply-by-one
-  without banning legitimate alternate answers.
+  map. This catches authored paths like visible self-division, multiply-by-one,
+  additive cancellation or reciprocal cancellation without banning legitimate
+  alternate answers.
 - A Round 30 replacement probe found that `11 * 111 - 11 * 111 + 1` removes the
   visible `N/N` sample, but under the standard 200k-node review budget it is
   dominated by same-expression equality evidence. Resource candidate reports now

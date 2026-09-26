@@ -268,9 +268,9 @@ test('sample evaluation CLI reports accepted fixed-target pattern evidence', () 
   assert.equal(report.sampleTarget, 1);
   assert.equal(report.slots, 6);
   assert.equal(report.sticks, 8);
-  assert.deepEqual(report.samplePatterns, ['self-subtraction']);
+  assert.deepEqual(report.samplePatterns, ['additive-cancellation', 'self-subtraction']);
   assert.equal(report.profile.complete, true);
-  assert.equal(report.profile.dominantPattern, 'self-division');
+  assert.equal(report.profile.dominantPattern, 'additive-cancellation');
   assert.equal(report.profile.dominantRatio < 0.3, true);
 });
 
@@ -388,7 +388,8 @@ test('solution CLI reports completeness and validates selected rounds', () => {
 
 test('solution pattern classifier identifies universal shortcut families', () => {
   assert.deepEqual(classifySolutionPatterns(['11', '/', '11']), ['pure-self-division', 'self-division']);
-  assert.deepEqual(classifySolutionPatterns(['111', '-', '111']), ['pure-self-subtraction', 'self-subtraction']);
+  assert.deepEqual(classifySolutionPatterns(['111', '-', '111']),
+    ['additive-cancellation', 'pure-self-subtraction', 'self-subtraction']);
   assert.deepEqual(classifySolutionPatterns(['111', '-', '11', '=', '111', '-', '11']),
     ['constructed-equality', 'same-expression-equality']);
   assert.deepEqual(classifySolutionPatterns(['11', '=', '11']),
@@ -397,6 +398,14 @@ test('solution pattern classifier identifies universal shortcut families', () =>
     ['divide-by-one', 'self-division']);
   assert.deepEqual(classifySolutionPatterns(['11', '*', '1']),
     ['multiply-by-one']);
+  assert.deepEqual(classifySolutionPatterns(['1', '+', '11', '-', '11']),
+    ['additive-cancellation', 'self-subtraction']);
+  assert.deepEqual(classifySolutionPatterns(['111', '+', '1', '-', '111']),
+    ['additive-cancellation']);
+  assert.deepEqual(classifySolutionPatterns(['1', '/', '111', '×', '111']),
+    ['reciprocal-cancellation']);
+  assert.deepEqual(classifySolutionPatterns(['111', '×', '11', '/', '11']),
+    ['reciprocal-cancellation', 'self-division']);
 });
 
 test('round pattern map exposes shortcut solutions without changing acceptance', () => {
@@ -523,20 +532,20 @@ test('make-one pattern CLI tracks default mode shortcut regressions separately',
     row.key === '6/8'), false);
 });
 
-test('make-one authored samples avoid visible shortcut paths in late review edits', () => {
+test('make-one authored sample review keeps late shortcut evidence visible', () => {
   const rounds = identity.extractMakeOneRounds(fs.readFileSync(new URL('../prototypes/one-plus-one-minus-one/Assets/_Project/Scripts/OnePlusOneMinusOneRules.cs', import.meta.url), 'utf8'));
   const round25 = rounds[24];
   const round30 = rounds[29];
   assert.equal(round25.sample, '1 / 1 1 1 × 111');
   assert.equal(round25.symbols.length, 7);
   assert.equal(round25.stickCount, 10);
-  assert.equal(classifySolutionPatterns(round25.symbols).length, 0);
+  assert.deepEqual(classifySolutionPatterns(round25.symbols), ['reciprocal-cancellation']);
   assert.equal(identity.acceptsRound(round25, round25.symbols), true);
 
   assert.equal(round30.sample, '1 / 111 111 × 111 111');
   assert.equal(round30.symbols.length, 7);
   assert.equal(round30.stickCount, 16);
-  assert.equal(classifySolutionPatterns(round30.symbols).length, 0);
+  assert.deepEqual(classifySolutionPatterns(round30.symbols), ['reciprocal-cancellation']);
   assert.equal(identity.acceptsRound(round30, round30.symbols), true);
 
   const round29 = rounds[28];
@@ -609,6 +618,7 @@ test('make-one resource candidate search flags shortcut-risk replacements', () =
   assert.match(report.rounds[0].candidateSummary.bestBySource['nearby-resource-enumeration'].sample, /\S/);
   assert.ok(report.rounds[0].candidateSummary.riskCounts.latePureSelfDivision > 0);
   assert.ok(report.rounds[0].candidateSummary.riskCounts.dominantShortcut > 0);
+  assert.ok(report.rounds[0].candidateSummary.riskCounts.authoredSampleShortcut > 0);
   assert.ok(report.rounds[0].candidates.length > 0);
   assert.ok(report.rounds[0].candidates.every(candidate => candidate.target === 1));
   assert.ok(report.rounds[0].candidates.some(candidate =>
@@ -677,6 +687,39 @@ test('make-one resource candidate search flags shortcut-risk replacements', () =
   const equalityEchoReport = JSON.parse(equalityEchoRun.stdout);
   assert.equal(equalityEchoReport.rounds[0].candidateSummary.recommendableCount, 0);
   assert.ok(equalityEchoReport.rounds[0].candidateSummary.riskCounts.highEqualityEcho > 0);
+});
+
+test('make-one resource candidates reject visible shortcut samples after the learning window', () => {
+  const run = spawnSync(process.execPath, [
+    'scripts/report-one-plus-one-minus-one-round-quality.mjs',
+    '--make-one',
+    '--resource-candidates',
+    '13',
+    '--max-evaluations',
+    '12',
+    '--max-results',
+    '6',
+    '--candidate-budget',
+    '120',
+    '--max-nearby-nodes',
+    '1500000',
+    '--max-nodes',
+    '300000',
+    '--max-solutions',
+    '1500',
+  ], reportSpawnOptions);
+  assert.equal(run.status, 0, run.stderr);
+  const report = JSON.parse(run.stdout);
+  assert.equal(report.rounds.length, 1);
+  const row = report.rounds[0];
+  assert.equal(row.number, 13);
+  assert.equal(row.candidateSummary.recommendableCount, 0);
+  assert.ok(row.candidateSummary.riskCounts.authoredSampleShortcut > 0);
+  assert.ok(row.candidates.some(candidate =>
+    candidate.sample === '1 1 - 11 + 1' &&
+    candidate.samplePatterns.includes('self-subtraction') &&
+    candidate.analysisOnly &&
+    candidate.analysisNotes.some(note => note.includes('authored sample uses shortcut pattern'))));
 });
 
 test('make-one resource candidate CLI accepts repeated resource keys', () => {

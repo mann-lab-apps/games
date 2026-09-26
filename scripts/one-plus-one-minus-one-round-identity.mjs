@@ -176,6 +176,35 @@ export function classifySolutionPatterns(symbols) {
       if (op === '/' && right === '1') ids.add('divide-by-one');
       if ((op === '*' || op === '×') && (left === '1' || right === '1')) ids.add('multiply-by-one');
     }
+
+    for (let i = 0; i < parsed.operators.length - 1; i += 1) {
+      const first = parsed.operators[i];
+      const second = parsed.operators[i + 1];
+      const middle = parsed.operands[i + 1];
+      const right = parsed.operands[i + 2];
+
+      if (first === '/' && (second === '*' || second === '×') && middle === right) {
+        ids.add('reciprocal-cancellation');
+      }
+
+      if ((first === '*' || first === '×') && second === '/' && middle === right) {
+        ids.add('reciprocal-cancellation');
+      }
+    }
+
+    if (parsed.operators.every(operator => operator === '+' || operator === '-')) {
+      const signsByOperand = new Map();
+      for (let i = 0; i < parsed.operands.length; i += 1) {
+        const sign = i === 0 || parsed.operators[i - 1] === '+' ? 1 : -1;
+        const signs = signsByOperand.get(parsed.operands[i]) ?? new Set();
+        signs.add(sign);
+        signsByOperand.set(parsed.operands[i], signs);
+      }
+
+      if ([...signsByOperand.values()].some(signs => signs.has(1) && signs.has(-1))) {
+        ids.add('additive-cancellation');
+      }
+    }
   }
 
   if (equals < 0) {
@@ -239,11 +268,19 @@ export function analyzeRoundPatterns(rounds, {maxNodes=200000, maxSolutions=1000
 }
 
 export const dominantReviewPatterns = [
+  'additive-cancellation',
   'self-division',
   'divide-by-one',
   'self-subtraction',
   'multiply-by-one',
+  'reciprocal-cancellation',
   'same-expression-equality',
+];
+
+const authoredCandidateReviewPatterns = [
+  ...dominantReviewPatterns,
+  'pure-self-division',
+  'pure-self-subtraction',
 ];
 
 export function dominantPatternProfileForRound(round, {
@@ -770,6 +807,12 @@ export function findResourceRepeatCandidates(rounds, {
           profile.dominantRatio >= 0.6) {
         analysisNotes.push(`dominant shortcut ${profile.dominantPattern} ratio ${roundRatio(profile.dominantRatio)} is at least 0.6`);
       }
+      const samplePatterns = classifySolutionPatterns(candidate.symbols);
+      const visibleShortcutPatterns = samplePatterns.filter(pattern =>
+        authoredCandidateReviewPatterns.includes(pattern));
+      if (number > pureSelfDivisionLearningMax && visibleShortcutPatterns.length > 0) {
+        analysisNotes.push(`authored sample uses shortcut pattern(s) ${visibleShortcutPatterns.join(', ')} after Round ${pureSelfDivisionLearningMax}`);
+      }
       if (highEqualityEcho) {
         analysisNotes.push(`same-expression equality ratio ${roundRatio(sameExpressionCount / Math.max(1, profile.solutionCount))} is at least 0.5`);
       }
@@ -793,7 +836,7 @@ export function findResourceRepeatCandidates(rounds, {
         dominantPattern:profile.dominantPattern,
         dominantRatio:profile.dominantRatio,
         rankedPatterns:profile.rankedPatterns.slice(0, 5),
-        samplePatterns:classifySolutionPatterns(candidate.symbols),
+        samplePatterns,
         combinationTags,
         pureDivisionResource,
         latePureSelfDivision,
@@ -851,7 +894,7 @@ export function findResourceRepeatCandidates(rounds, {
   });
 
   return {
-    method:'Resource-repeat candidate search is bounded and heuristic. It looks for target-preserving replacements that move a round away from repeated slot/stick resources, including nearby token enumerations, composite target-1 cancellation candidates, and occupied-resource swap candidates for manual planning. It flags candidates that create late pure N/N shortcuts, admit pure N/N through their resource budget, have high same-expression equality echo risk, have weak visible combinations, need bounded evidence, or are dominated by another shortcut family. It never edits round data automatically.',
+    method:'Resource-repeat candidate search is bounded and heuristic. It looks for target-preserving replacements that move a round away from repeated slot/stick resources, including nearby token enumerations, composite target-1 cancellation candidates, and occupied-resource swap candidates for manual planning. It flags candidates that create late pure N/N shortcuts, admit pure N/N through their resource budget, have high same-expression equality echo risk, visibly present authored shortcut samples after the learning window, have weak visible combinations, need bounded evidence, or are dominated by another shortcut family. It never edits round data automatically.',
     rounds:reports,
   };
 }
@@ -905,6 +948,7 @@ function resourceCandidateSummary(candidates) {
       const key = note.includes('late pure N/N') ? 'latePureSelfDivision' :
         note.includes('budget admits') ? 'pureDivisionResource' :
         note.includes('dominant shortcut') ? 'dominantShortcut' :
+        note.includes('authored sample uses shortcut') ? 'authoredSampleShortcut' :
         note.includes('same-expression equality') ? 'highEqualityEcho' :
         note.includes('combination score') ? 'lowCombinationScore' :
         note.includes('still shares slot/stick') ? 'sharedResource' :

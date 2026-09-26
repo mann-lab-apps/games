@@ -130,7 +130,8 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
   including a small set of composite target-1 cancellation candidates such as
   `A - A + 1`, `A / B * B - A + 1` and paired multiplication cancellation, and
   flags candidates that would reintroduce late pure `N/N`, shift into another
-  dominant shortcut family, or require more exhaustive evidence. Check
+  dominant shortcut family, visibly teach an authored shortcut sample after the
+  learning window, or require more exhaustive evidence. Check
   `candidateSummary` first: `recommendableCount: 0` means the current bounded
   pass found only analysis-only candidates. The `search` block separately
   reports `compositeCandidateCount` and `enumeratedCandidateCount`, so a capped
@@ -148,15 +149,16 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
 - Round 26 currently uses `111 - 11 × 11 + 11` to surface the multiplication-offset
   idea instead of presenting a visible `N/N * N/N` route, while preserving the
   same resource budget and free alternate-answer validation.
-- Round 25 and Round 30 use same-budget authored paths that avoid visibly
-  presenting self-division as the intended route: `1 / 1 1 1 × 111` and
-  `1 / 111 111 × 111 111`.
+- Round 25 and Round 30 use same-budget authored paths,
+  `1 / 1 1 1 × 111` and `1 / 111 111 × 111 111`. The stricter pattern map
+  still treats both as reciprocal-cancellation review rows, so they remain
+  visible follow-up design material rather than closed structural fixes.
 - Round 29 uses `1 1 + 111 - 11 × 11` to move out of the old `6/8` repeated
   resource group while reusing the `11 × 11 - 111` offset idea in reverse.
 - Pattern reports expose `shortcutPolicy.authoredSampleReview` so late-round
   samples that visibly teach self-division, divide-by-one, multiply-by-one,
-  self-subtraction, or same-expression equality can be reviewed separately from
-  the full accepted-answer set.
+  self-subtraction, additive/reciprocal cancellation, or same-expression equality
+  can be reviewed separately from the full accepted-answer set.
 - Resource candidate reports flag `highEqualityEcho` when a target-preserving
   replacement is dominated by same-expression equality evidence. This keeps
   replacements that merely swap a visible `N/N` shortcut for another universal
