@@ -41,16 +41,16 @@ Changed default-mode samples:
 | 22 | `11 * 11 - 111 - 11 + 1 + 1` | Uses the `11 * 11 - 111` trick in the default ladder. |
 | 23 | `1 / 11 * 11 - 1 + 1` | Breaks the old `11/20` repeated-resource pair with Round 22 while keeping a bounded fractional-return pattern under the high-priority echo threshold. |
 | 24 | `1 1 11 - 1 111 + 1` | Replaces a `/1`-heavy sample after the default-mode dominant-pattern map flagged the old `1 1 - 1 1 + 1 / 1` as a high-ratio divide-by-one round. |
-| 25 | `1 + 11 / 11 - 1` | Keeps division as a component rather than a standalone key. |
-| 26 | `11 / 111 × 111 / 11` | Replaces repeated title-formula math with cross-cancellation. |
+| 25 | `1 / 1 1 1 × 111` | Keeps division/multiplication as fractional cancellation without visibly teaching `N/N` as the intended route. |
+| 26 | `111 - 11 × 11 + 11` | Replaces visible `N/N * N/N` with the `11 × 11 - 111` multiplication-offset idea. |
 | 28 | `1 × 1` | Removes a duplicate sample and gives cross multiplication a compact echo. |
 | 29 | `11 + 1 - 1 1` | Removes a duplicate sample with adjacent-number subtraction. |
-| 30 | `111 / 111 + 111 - 111` | Removes a duplicate sample and closes with mixed division/subtraction. |
+| 30 | `1 / 111 111 × 111 111` | Closes with fractional cancellation instead of visible `N/N` plus subtraction cancellation, while still reserving the displayed `= 1` target. |
 
 Verification:
 
 - `node scripts/verify-one-plus-one-minus-one-rounds.mjs`
-- `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` (58/58)
+- `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` (60/60)
 - the new `--make-one --patterns --summary --strict-patterns` regression is
   covered by the Node identity test suite.
 - The MakeOne summary now includes an explicit `incompleteReview` section so
@@ -138,17 +138,28 @@ Verification:
   keeps the strongest evaluated candidate from each source visible even when the
   final `candidates` list is capped by `--max-results`. The report
   includes `candidateSummary`, so `recommendableCount: 0` plus risk counts such
-  as `latePureSelfDivision`, `dominantShortcut` or `boundedEvidence` explain
-  why a bounded probe should not become a data edit.
+  as `latePureSelfDivision`, `dominantShortcut`, `highEqualityEcho` or
+  `boundedEvidence` explain why a bounded probe should not become a data edit.
 - Round 26's authored sample changed from `11 / 111 × 111 / 11` to
   `111 - 11 × 11 + 11`. This does not change the 7-slot/14-stick accepted-answer
   set, so it is not a structural resource-duplicate fix. It does remove a
   visible late `N/N * N/N` authored path and brings the `11 × 11 - 111`
   multiplication-offset idea into the default MakeOne ladder.
+- Round 25's authored sample changed from `1 + 11 / 11 - 1` to
+  `1 / 1 1 1 × 111`, preserving the 7-slot/10-stick budget while replacing
+  visible self-division with fractional cancellation. Round 30's authored sample
+  changed from `111 / 111 + 111 - 111` to `1 / 111 111 × 111 111`, preserving
+  the 7-slot/16-stick budget while ending on fractional cancellation instead of
+  visible `N/N` plus subtraction cancellation.
 - Pattern reports now include `shortcutPolicy.authoredSampleReview`, which
   separates visible late-round sample shortcuts from the full accepted-answer
   map. This catches authored paths like visible self-division or multiply-by-one
   without banning legitimate alternate answers.
+- A Round 30 replacement probe found that `11 * 111 - 11 * 111 + 1` removes the
+  visible `N/N` sample, but under the standard 200k-node review budget it is
+  dominated by same-expression equality evidence. Resource candidate reports now
+  flag this as `highEqualityEcho`, so that tempting finale replacement stays
+  analysis-only until a better structural candidate is found.
 - The Round 48 WebGL input regression now launches the hidden legacy ladder via
   `qaMode=goal`, matching the current default MakeOne-first app flow. It
   confirms the old bad answer `1 / 11 111` is rejected and the canonical

@@ -146,10 +146,17 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
 - Round 26 currently uses `111 - 11 × 11 + 11` to surface the multiplication-offset
   idea instead of presenting a visible `N/N * N/N` route, while preserving the
   same resource budget and free alternate-answer validation.
+- Round 25 and Round 30 use same-budget authored paths that avoid visibly
+  presenting self-division as the intended route: `1 / 1 1 1 × 111` and
+  `1 / 111 111 × 111 111`.
 - Pattern reports expose `shortcutPolicy.authoredSampleReview` so late-round
   samples that visibly teach self-division, divide-by-one, multiply-by-one,
   self-subtraction, or same-expression equality can be reviewed separately from
   the full accepted-answer set.
+- Resource candidate reports flag `highEqualityEcho` when a target-preserving
+  replacement is dominated by same-expression equality evidence. This keeps
+  replacements that merely swap a visible `N/N` shortcut for another universal
+  equality shortcut out of the recommendable set.
 - Run `./scripts/smoke-one-plus-one-minus-one-webgl-build.sh` to verify an existing WebGL artifact without rebuilding it.
 - Run `./scripts/verify-one-plus-one-minus-one-webgl-shells.sh` to verify existing release, QA, and store-capture WebGL shells share the correct app title, icon, mobile metadata, cache-busted build URLs, and development-marker policy.
 - Run `./scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs` after a fresh WebGL build to capture iPhone SE, standard iPhone, large iPhone, Android 20:9, and desktop viewport smoke screenshots.

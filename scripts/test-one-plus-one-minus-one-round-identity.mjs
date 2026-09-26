@@ -509,9 +509,12 @@ test('make-one pattern CLI tracks default mode shortcut regressions separately',
   assert.equal(report.shortcutPolicy.dominantPatternReview.rankedRowsTruncated, true);
   assert.match(report.shortcutPolicy.authoredSampleReview.reviewWindow, /authored samples/);
   assert.ok(report.shortcutPolicy.authoredSampleReview.rows.includes(14));
+  assert.equal(report.shortcutPolicy.authoredSampleReview.rows.includes(25), false);
   assert.equal(report.shortcutPolicy.authoredSampleReview.rows.includes(26), false);
+  assert.equal(report.shortcutPolicy.authoredSampleReview.rows.includes(30), false);
+  assert.equal(report.shortcutPolicy.authoredSampleReview.divisionRows.includes(25), false);
   assert.equal(report.shortcutPolicy.authoredSampleReview.divisionRows.includes(26), false);
-  assert.ok(report.shortcutPolicy.authoredSampleReview.divisionRows.includes(25));
+  assert.equal(report.shortcutPolicy.authoredSampleReview.divisionRows.includes(30), false);
   assert.ok(report.shortcutPolicy.authoredSampleReview.multiplicationRows.includes(28));
   assert.match(report.resourceReview.method, /Repeated slot\/stick resources/);
   assert.equal(report.resourceReview.unresolvedFoundSharedEqualityPairs, 14);
@@ -519,6 +522,23 @@ test('make-one pattern CLI tracks default mode shortcut regressions separately',
     row.rounds.join(',') === '18,29' &&
     row.key === '6/8' &&
     row.witnessStatus === 'found'));
+});
+
+test('make-one authored samples avoid visible shortcut paths in late review edits', () => {
+  const rounds = identity.extractMakeOneRounds(fs.readFileSync(new URL('../prototypes/one-plus-one-minus-one/Assets/_Project/Scripts/OnePlusOneMinusOneRules.cs', import.meta.url), 'utf8'));
+  const round25 = rounds[24];
+  const round30 = rounds[29];
+  assert.equal(round25.sample, '1 / 1 1 1 × 111');
+  assert.equal(round25.symbols.length, 7);
+  assert.equal(round25.stickCount, 10);
+  assert.equal(classifySolutionPatterns(round25.symbols).length, 0);
+  assert.equal(identity.acceptsRound(round25, round25.symbols), true);
+
+  assert.equal(round30.sample, '1 / 111 111 × 111 111');
+  assert.equal(round30.symbols.length, 7);
+  assert.equal(round30.stickCount, 16);
+  assert.equal(classifySolutionPatterns(round30.symbols).length, 0);
+  assert.equal(identity.acceptsRound(round30, round30.symbols), true);
 });
 
 test('make-one dominant candidate search preserves fixed target one', () => {
@@ -623,6 +643,33 @@ test('make-one resource candidate search flags shortcut-risk replacements', () =
     assert.match(row.candidateSummary.bestBySource['composite-target-one'].sample, /\S/);
     assert.match(row.candidateSummary.bestBySource['nearby-resource-enumeration'].sample, /\S/);
   }
+
+  const equalityEchoRun = spawnSync(process.execPath, [
+    'scripts/report-one-plus-one-minus-one-round-quality.mjs',
+    '--make-one',
+    '--resource-candidates',
+    '30',
+    '--max-evaluations',
+    '12',
+    '--max-results',
+    '6',
+    '--candidate-budget',
+    '50',
+    '--max-nearby-nodes',
+    '500000',
+    '--max-nodes',
+    '200000',
+    '--max-solutions',
+    '1000',
+  ], reportSpawnOptions);
+  assert.equal(equalityEchoRun.status, 0, equalityEchoRun.stderr);
+  const equalityEchoReport = JSON.parse(equalityEchoRun.stdout);
+  assert.equal(equalityEchoReport.rounds[0].candidateSummary.recommendableCount, 0);
+  assert.ok(equalityEchoReport.rounds[0].candidateSummary.riskCounts.highEqualityEcho > 0);
+  assert.ok(equalityEchoReport.rounds[0].candidates.some(candidate =>
+    candidate.sample === '11 * 111 - 11 * 111 + 1' &&
+    candidate.highEqualityEcho &&
+    candidate.analysisNotes.some(note => note.includes('same-expression equality'))));
 });
 
 test('make-one resource candidate CLI accepts repeated resource keys', () => {

@@ -56,13 +56,22 @@ the 7-slot/14-stick resource budget and accepted-answer set, so it is not a
 full structural duplicate fix, but it moves the intended solution toward the
 `11 × 11 - 111` multiplication-offset gimmick without adding bans or forced
 answers.
+- Two more authored-path edits reduce visible late shortcuts without changing
+  resource budgets: Round 25 now uses `1 / 1 1 1 × 111` instead of
+  `1 + 11 / 11 - 1`, and Round 30 now closes with
+  `1 / 111 111 × 111 111` instead of `111 / 111 + 111 - 111`.
 - Pattern reports now expose `shortcutPolicy.authoredSampleReview`, separating
   visible late-round authored shortcut samples from accepted-answer-set review.
   This is intended to find future Round 26-style edits without constraining
   alternate valid solutions.
+- Resource candidate reports also flag `highEqualityEcho` when a candidate's
+  accepted-answer evidence is dominated by same-expression equality. This kept
+  the tempting Round 30 candidate `11 * 111 - 11 * 111 + 1` out of the
+  recommendable list even though it removes visible `N/N`, because it would trade
+  one universal-key pattern for another under the bounded review map.
 - `node scripts/verify-one-plus-one-minus-one-rounds.mjs` passes.
 - `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` passes
-  58/58, including the MakeOne pattern-regression, target-preserving
+  60/60, including the MakeOne pattern-regression, target-preserving
   candidate-search tests, resource-repeat candidate report and single-sample
   pattern evaluation CLI.
 - Unity EditMode passes 63/63 after removing stale 100-round identity

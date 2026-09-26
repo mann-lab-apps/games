@@ -749,6 +749,10 @@ export function findResourceRepeatCandidates(rounds, {
       const latePureSelfDivision = number > pureSelfDivisionLearningMax &&
         (pureDivisionResource ||
           patternRow.pureShortcutSolutions.some(solution => solution.patterns.includes('pure-self-division')));
+      const sameExpressionCount = patternRow.patternCounts['same-expression-equality'] ?? 0;
+      const highEqualityEcho = number > pureSelfDivisionLearningMax &&
+        profile.solutionCount >= 20 &&
+        sameExpressionCount / Math.max(1, profile.solutionCount) >= 0.5;
       const combinationTags = visibleCombinationTags(candidate.symbols);
       const analysisNotes = [];
       if (!profile.complete) {
@@ -763,6 +767,9 @@ export function findResourceRepeatCandidates(rounds, {
           dominantReviewPatterns.includes(profile.dominantPattern) &&
           profile.dominantRatio >= 0.6) {
         analysisNotes.push(`dominant shortcut ${profile.dominantPattern} ratio ${roundRatio(profile.dominantRatio)} is at least 0.6`);
+      }
+      if (highEqualityEcho) {
+        analysisNotes.push(`same-expression equality ratio ${roundRatio(sameExpressionCount / Math.max(1, profile.solutionCount))} is at least 0.5`);
       }
       if (combinationTags.length < minCombinationScore) {
         analysisNotes.push(`combination score ${combinationTags.length} is below ${minCombinationScore}`);
@@ -788,6 +795,7 @@ export function findResourceRepeatCandidates(rounds, {
         combinationTags,
         pureDivisionResource,
         latePureSelfDivision,
+        highEqualityEcho,
         analysisOnly:analysisNotes.length > 0,
         analysisNotes,
         reviewScore:resourceCandidateReviewScore({
@@ -841,7 +849,7 @@ export function findResourceRepeatCandidates(rounds, {
   });
 
   return {
-    method:'Resource-repeat candidate search is bounded and heuristic. It looks for target-preserving replacements that move a round away from repeated slot/stick resources, including nearby token enumerations and composite target-1 cancellation candidates. It flags candidates that create late pure N/N shortcuts, admit pure N/N through their resource budget, have weak visible combinations, need bounded evidence, or are dominated by another shortcut family. It never edits round data automatically.',
+    method:'Resource-repeat candidate search is bounded and heuristic. It looks for target-preserving replacements that move a round away from repeated slot/stick resources, including nearby token enumerations and composite target-1 cancellation candidates. It flags candidates that create late pure N/N shortcuts, admit pure N/N through their resource budget, have high same-expression equality echo risk, have weak visible combinations, need bounded evidence, or are dominated by another shortcut family. It never edits round data automatically.',
     rounds:reports,
   };
 }
@@ -895,6 +903,7 @@ function resourceCandidateSummary(candidates) {
       const key = note.includes('late pure N/N') ? 'latePureSelfDivision' :
         note.includes('budget admits') ? 'pureDivisionResource' :
         note.includes('dominant shortcut') ? 'dominantShortcut' :
+        note.includes('same-expression equality') ? 'highEqualityEcho' :
         note.includes('combination score') ? 'lowCombinationScore' :
         note.includes('still shares slot/stick') ? 'sharedResource' :
         note.includes('bounded') ? 'boundedEvidence' :

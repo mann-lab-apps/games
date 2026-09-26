@@ -89,7 +89,7 @@ testing legacy 100-round behavior, EditMode passed 63/63 on 2026-09-26
 the default `= 1` collection flow: Round 1 records the discovered `1` friend,
 first-shape/first-clear badges and the solved expression, and packed/neighbor
 number answers de-dupe in the collection UI. The Node identity suite now passes
-58/58, including the MakeOne `incompleteReview` summary contract,
+60/60, including the MakeOne `incompleteReview` summary contract,
 target-preserving MakeOne dominant-candidate search, single-sample evaluation
 CLI coverage, MakeOne `resourceReview` summary coverage, resource-repeat
 candidate report coverage, and static round verification. The footer command
@@ -836,11 +836,16 @@ example visible even when the final result list is short.
 Round 26's authored MakeOne sample is now `111 - 11 × 11 + 11`, replacing the
 previous visible `N/N * N/N` chain while keeping the same 7-slot/14-stick
 resource budget and alternate-answer behavior.
+Round 25 and Round 30 also now use cleaner authored paths within their existing
+resource budgets: `1 / 1 1 1 × 111` and `1 / 111 111 × 111 111`, respectively.
 Pattern reports also include `shortcutPolicy.authoredSampleReview`, so visible
 late-round shortcut samples can be reviewed separately from valid alternate
 answers.
+Resource candidate reports now also classify `highEqualityEcho` candidates,
+which prevents Round 30-style replacements that merely swap visible `N/N` for a
+same-expression equality dominated answer map from looking recommendable.
 `node --test
-scripts/test-one-plus-one-minus-one-round-identity.mjs` passes 59/59 and
+scripts/test-one-plus-one-minus-one-round-identity.mjs` passes 60/60 and
 `bash scripts/verify-one-plus-one-minus-one-static.sh` passes. The current
 WebGL artifacts are still older than the latest source because a fresh WebGL QA
 build is blocked by Unity licensing initialization timing out; do not use the
