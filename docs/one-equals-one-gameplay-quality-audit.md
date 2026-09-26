@@ -131,9 +131,24 @@ Verification:
   the `search` block reports `compositeCandidateCount` and
   `enumeratedCandidateCount` so future probes can tell whether both candidate
   sources were considered. The report
+  also sets `search.sourceDiverseEvaluation` when it deliberately reserves
+  evaluation space for more than one candidate source under a small
+  `--max-evaluations` cap, preventing composite target-1 forms from hiding
+  nearby resource enumerations in capped probes. `candidateSummary.bestBySource`
+  keeps the strongest evaluated candidate from each source visible even when the
+  final `candidates` list is capped by `--max-results`. The report
   includes `candidateSummary`, so `recommendableCount: 0` plus risk counts such
   as `latePureSelfDivision`, `dominantShortcut` or `boundedEvidence` explain
   why a bounded probe should not become a data edit.
+- Round 26's authored sample changed from `11 / 111 × 111 / 11` to
+  `111 - 11 × 11 + 11`. This does not change the 7-slot/14-stick accepted-answer
+  set, so it is not a structural resource-duplicate fix. It does remove a
+  visible late `N/N * N/N` authored path and brings the `11 × 11 - 111`
+  multiplication-offset idea into the default MakeOne ladder.
+- Pattern reports now include `shortcutPolicy.authoredSampleReview`, which
+  separates visible late-round sample shortcuts from the full accepted-answer
+  map. This catches authored paths like visible self-division or multiply-by-one
+  without banning legitimate alternate answers.
 - The Round 48 WebGL input regression now launches the hidden legacy ladder via
   `qaMode=goal`, matching the current default MakeOne-first app flow. It
   confirms the old bad answer `1 / 11 111` is rejected and the canonical
@@ -1665,6 +1680,15 @@ equality puzzle rather than a quick data tweak.
 - Resource candidate probes now report both `compositeCandidateCount` and
   `enumeratedCandidateCount`, and composite target-1 forms no longer exhaust the
   nearby-enumeration budget before ordinary slot/stick candidates are sampled.
+  Capped evaluation now also keeps source diversity visible through
+  `search.sourceDiverseEvaluation`, `candidateSummary.sourceCounts`, and
+  `candidateSummary.bestBySource`.
+- Round 26 now uses `111 - 11 × 11 + 11` as its authored sample. The resource
+  group remains 7/14, but the visible solution no longer presents pure
+  self-division as the intended route.
+- `shortcutPolicy.authoredSampleReview` now lists late-round authored samples
+  that visibly use reusable shortcut families, so future manual-quality edits
+  can target intended paths without changing the open validation rules.
 - Latest bounded summary still reports five repeated resource groups and
   fourteen found shared-equality pairs as review material. No high-priority
   same-expression or dominant-pattern rows remain under the current policy, and

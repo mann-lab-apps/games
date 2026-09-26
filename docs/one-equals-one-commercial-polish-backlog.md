@@ -43,8 +43,23 @@ Current default-mode evidence:
   Composite candidates no longer consume the nearby-enumeration candidate
   budget; the report now exposes `compositeCandidateCount` and
   `enumeratedCandidateCount` so capped probes show both search sources. The
+  evaluation pass also keeps at least one candidate from each generated source
+  when a small `--max-evaluations` budget would otherwise hide nearby resource
+  enumeration behind composite target-1 forms, and `candidateSummary.bestBySource`
+  keeps the strongest evaluated example from each source visible even when
+  `maxResults` is small. The
   latest capped probes over the repeated-resource groups produced no
-  post-tutorial recommendable replacement, so no round data was changed.
+  post-tutorial structural replacement that removes a repeated resource group.
+A small authored-path edit was still applied to Round 26: it now uses
+`111 - 11 × 11 + 11` instead of the visible `N/N * N/N` chain. This preserves
+the 7-slot/14-stick resource budget and accepted-answer set, so it is not a
+full structural duplicate fix, but it moves the intended solution toward the
+`11 × 11 - 111` multiplication-offset gimmick without adding bans or forced
+answers.
+- Pattern reports now expose `shortcutPolicy.authoredSampleReview`, separating
+  visible late-round authored shortcut samples from accepted-answer-set review.
+  This is intended to find future Round 26-style edits without constraining
+  alternate valid solutions.
 - `node scripts/verify-one-plus-one-minus-one-rounds.mjs` passes.
 - `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` passes
   58/58, including the MakeOne pattern-regression, target-preserving
@@ -85,8 +100,11 @@ target-1 candidates whose complete accepted-answer map is not dominated by
 `/1`, same-expression equality or pure `N/N`. The latest capped probes for the
 remaining repeated-resource groups show useful bounded candidates such as
 `1 - 1 / 111 * 111 + 1`, and now confirm nearby enumeration is being sampled
-alongside composite target-1 forms, but no additional post-tutorial
-`recommendableCount > 0` data edit yet.
+and evaluated alongside composite target-1 forms, but no additional post-tutorial
+`recommendableCount > 0` structural data edit yet. Round 26's manual-quality
+edit remains useful because the replacement sample is target-correct, complete
+under the evaluator, and no longer teaches pure self-division as the authored
+path.
 
 ### Universal Shortcut Pattern Tightening (2026-09-18)
 

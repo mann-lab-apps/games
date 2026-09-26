@@ -136,9 +136,20 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
   reports `compositeCandidateCount` and `enumeratedCandidateCount`, so a capped
   probe shows whether it considered both hand-shaped target-1 patterns and
   nearby resource enumeration. Evaluated candidates also include `source`, and
-  `candidateSummary.sourceCounts` groups those evaluated candidates by source.
-  Prefer one round at a time, or set
+  `candidateSummary.sourceCounts` groups those evaluated candidates by source,
+  while `candidateSummary.bestBySource` keeps the strongest evaluated example
+  from each source visible even when `maxResults` is small.
+  When a capped evaluation would otherwise be filled by one source, the report
+  uses `search.sourceDiverseEvaluation` to show that it kept at least one
+  candidate from each generated source in view. Prefer one round at a time, or set
   `--max-nearby-nodes` explicitly when probing a whole repeated-resource group.
+- Round 26 currently uses `111 - 11 × 11 + 11` to surface the multiplication-offset
+  idea instead of presenting a visible `N/N * N/N` route, while preserving the
+  same resource budget and free alternate-answer validation.
+- Pattern reports expose `shortcutPolicy.authoredSampleReview` so late-round
+  samples that visibly teach self-division, divide-by-one, multiply-by-one,
+  self-subtraction, or same-expression equality can be reviewed separately from
+  the full accepted-answer set.
 - Run `./scripts/smoke-one-plus-one-minus-one-webgl-build.sh` to verify an existing WebGL artifact without rebuilding it.
 - Run `./scripts/verify-one-plus-one-minus-one-webgl-shells.sh` to verify existing release, QA, and store-capture WebGL shells share the correct app title, icon, mobile metadata, cache-busted build URLs, and development-marker policy.
 - Run `./scripts/smoke-one-plus-one-minus-one-webgl-viewports.mjs` after a fresh WebGL build to capture iPhone SE, standard iPhone, large iPhone, Android 20:9, and desktop viewport smoke screenshots.

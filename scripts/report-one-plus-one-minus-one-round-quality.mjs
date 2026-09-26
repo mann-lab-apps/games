@@ -223,6 +223,7 @@ if (process.argv.includes('--patterns')) {
     .sort((left, right) => right.sameExpressionRatio - left.sameExpressionRatio ||
       right.sameExpressionCount - left.sameExpressionCount || left.number - right.number);
   const dominantPatternRows = dominantShortcutRows(patternRows);
+  const authoredSampleRows = authoredSampleShortcutRows(patternRows);
   const policyViolations = patternPolicyViolations(patternRows);
   const shortcutPolicy = {
     pureSelfDivisionLearningWindow:`In ${modeLabel}, Rounds 1-${pureSelfDivisionLearningMax} may intentionally teach or echo N/N = 1. Later pure N/N acceptance should be reviewed unless it is deliberately combined with another required idea.`,
@@ -241,6 +242,14 @@ if (process.argv.includes('--patterns')) {
       reviewWindow:`After Round ${shortcutReviewMinRound}, any single shortcut family dominating the enumerated accepted answers should be reviewed as a possible universal-key pattern in ${modeLabel}. This is a design map, not a token ban.`,
       highPriorityRows:highPriorityDominantShortcutRows(dominantPatternRows),
       rankedRows:dominantPatternRows,
+    },
+    authoredSampleReview:{
+      reviewWindow:`After Round ${shortcutReviewMinRound}, authored samples should avoid presenting reusable shortcut families as the intended path unless the round is deliberately teaching or recalling that idea.`,
+      rows:authoredSampleRows,
+      divisionRows:authoredSampleRows.filter(row =>
+        row.samplePatterns.includes('self-division') || row.samplePatterns.includes('divide-by-one')),
+      multiplicationRows:authoredSampleRows.filter(row => row.samplePatterns.includes('multiply-by-one')),
+      subtractionRows:authoredSampleRows.filter(row => row.samplePatterns.includes('self-subtraction')),
     },
     strictPatternMode:'Use --strict-patterns to fail on these design-policy violations during round redesign. This is intentionally separate from --strict so existing static checks can report the map before the affected rounds are redesigned.',
   };
@@ -386,6 +395,30 @@ function dominantShortcutRows(patternRows) {
     left.pattern.localeCompare(right.pattern));
 }
 
+function authoredSampleShortcutRows(patternRows) {
+  const visibleShortcutPatterns = new Set([
+    'self-division',
+    'divide-by-one',
+    'self-subtraction',
+    'multiply-by-one',
+    'same-expression-equality',
+  ]);
+  return patternRows
+    .filter(row => row.number > shortcutReviewMinRound &&
+      row.samplePatterns.some(pattern => visibleShortcutPatterns.has(pattern)))
+    .map(row => ({
+      number:row.number,
+      name:row.name,
+      target:row.target,
+      slots:row.slots,
+      sticks:row.sticks,
+      sample:row.sample,
+      samplePatterns:row.samplePatterns.filter(pattern => visibleShortcutPatterns.has(pattern)),
+      complete:row.complete,
+    }))
+    .sort((left, right) => left.number - right.number);
+}
+
 function highPriorityDominantShortcutRows(rows) {
   return rows.filter(row => row.ratio >= 0.6 && row.solutionCount >= 20);
 }
@@ -433,6 +466,13 @@ function compactShortcutPolicy(policy) {
       highPriorityRows:policy.dominantPatternReview.highPriorityRows.map(compactPolicyRow),
       rankedRows:policy.dominantPatternReview.rankedRows.slice(0, compactRankLimit).map(compactPolicyRow),
       rankedRowsTruncated:policy.dominantPatternReview.rankedRows.length > compactRankLimit,
+    },
+    authoredSampleReview:{
+      reviewWindow:policy.authoredSampleReview.reviewWindow,
+      rows:policy.authoredSampleReview.rows.map(row => row.number),
+      divisionRows:policy.authoredSampleReview.divisionRows.map(row => row.number),
+      multiplicationRows:policy.authoredSampleReview.multiplicationRows.map(row => row.number),
+      subtractionRows:policy.authoredSampleReview.subtractionRows.map(row => row.number),
     },
     strictPatternMode:policy.strictPatternMode,
   };

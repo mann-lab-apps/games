@@ -507,6 +507,12 @@ test('make-one pattern CLI tracks default mode shortcut regressions separately',
     row.interpretation.includes('prefix evidence')));
   assert.deepEqual(report.shortcutPolicy.dominantPatternReview.highPriorityRows, []);
   assert.equal(report.shortcutPolicy.dominantPatternReview.rankedRowsTruncated, true);
+  assert.match(report.shortcutPolicy.authoredSampleReview.reviewWindow, /authored samples/);
+  assert.ok(report.shortcutPolicy.authoredSampleReview.rows.includes(14));
+  assert.equal(report.shortcutPolicy.authoredSampleReview.rows.includes(26), false);
+  assert.equal(report.shortcutPolicy.authoredSampleReview.divisionRows.includes(26), false);
+  assert.ok(report.shortcutPolicy.authoredSampleReview.divisionRows.includes(25));
+  assert.ok(report.shortcutPolicy.authoredSampleReview.multiplicationRows.includes(28));
   assert.match(report.resourceReview.method, /Repeated slot\/stick resources/);
   assert.equal(report.resourceReview.unresolvedFoundSharedEqualityPairs, 14);
   assert.ok(report.resourceReview.reviewRows.some(row =>
@@ -573,6 +579,8 @@ test('make-one resource candidate search flags shortcut-risk replacements', () =
   assert.equal(report.rounds[0].candidateSummary.analysisOnlyCount, 8);
   assert.ok(report.rounds[0].candidateSummary.sourceCounts['composite-target-one'] > 0);
   assert.ok(report.rounds[0].candidateSummary.sourceCounts['nearby-resource-enumeration'] > 0);
+  assert.match(report.rounds[0].candidateSummary.bestBySource['composite-target-one'].sample, /\S/);
+  assert.match(report.rounds[0].candidateSummary.bestBySource['nearby-resource-enumeration'].sample, /\S/);
   assert.ok(report.rounds[0].candidateSummary.riskCounts.latePureSelfDivision > 0);
   assert.ok(report.rounds[0].candidateSummary.riskCounts.dominantShortcut > 0);
   assert.ok(report.rounds[0].candidates.length > 0);
@@ -586,6 +594,35 @@ test('make-one resource candidate search flags shortcut-risk replacements', () =
     candidate.analysisOnly &&
     candidate.pureDivisionResource === false &&
     candidate.analysisNotes.some(note => note.includes('dominant shortcut'))));
+
+  const groupedRun = spawnSync(process.execPath, [
+    'scripts/report-one-plus-one-minus-one-round-quality.mjs',
+    '--make-one',
+    '--resource-candidates',
+    '6/8',
+    '--max-evaluations',
+    '4',
+    '--max-results',
+    '2',
+    '--candidate-budget',
+    '24',
+    '--max-nearby-nodes',
+    '300000',
+    '--max-nodes',
+    '200000',
+    '--max-solutions',
+    '1000',
+  ], reportSpawnOptions);
+  assert.equal(groupedRun.status, 0, groupedRun.stderr);
+  const groupedReport = JSON.parse(groupedRun.stdout);
+  assert.equal(groupedReport.rounds.length, 2);
+  for (const row of groupedReport.rounds) {
+    assert.equal(row.search.sourceDiverseEvaluation, true);
+    assert.ok(row.candidateSummary.sourceCounts['composite-target-one'] > 0);
+    assert.ok(row.candidateSummary.sourceCounts['nearby-resource-enumeration'] > 0);
+    assert.match(row.candidateSummary.bestBySource['composite-target-one'].sample, /\S/);
+    assert.match(row.candidateSummary.bestBySource['nearby-resource-enumeration'].sample, /\S/);
+  }
 });
 
 test('make-one resource candidate CLI accepts repeated resource keys', () => {

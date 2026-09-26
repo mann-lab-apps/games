@@ -732,9 +732,9 @@ export function findResourceRepeatCandidates(rounds, {
       left.existingResources.length - right.existingResources.length ||
       left.score - right.score ||
       left.sample.localeCompare(right.sample));
+    const candidatesForEvaluation = selectResourceCandidatesForEvaluation(candidatePool, maxEvaluations);
     const evaluated = [];
-    for (const candidate of candidatePool) {
-      if (maxEvaluations > 0 && evaluated.length >= maxEvaluations) break;
+    for (const candidate of candidatesForEvaluation) {
       const candidateRound = {
         number,
         name: `${round.name} resource candidate`,
@@ -805,11 +805,7 @@ export function findResourceRepeatCandidates(rounds, {
 
     const candidateSummary = resourceCandidateSummary(evaluated);
     const candidates = evaluated
-      .sort((left, right) => Number(left.analysisOnly) - Number(right.analysisOnly) ||
-        left.reviewScore - right.reviewScore ||
-        left.dominantRatio - right.dominantRatio ||
-        right.solutionCount - left.solutionCount ||
-        left.sample.localeCompare(right.sample))
+      .sort(compareResourceCandidateReports)
       .slice(0, maxResults);
     return {
       number,
@@ -829,6 +825,8 @@ export function findResourceRepeatCandidates(rounds, {
         enumeratedCandidateCount:nearby.enumeratedCandidateCount,
         nearbyLimited:nearby.limited,
         nearbyNodes:nearby.nodes,
+        sourceDiverseEvaluation:candidatesForEvaluation.length < candidatePool.length &&
+          new Set(candidatesForEvaluation.map(candidate => candidate.source)).size > 1,
         maxExtraSlots,
         maxExtraSticks,
         allowFewerSlots,
@@ -846,6 +844,38 @@ export function findResourceRepeatCandidates(rounds, {
     method:'Resource-repeat candidate search is bounded and heuristic. It looks for target-preserving replacements that move a round away from repeated slot/stick resources, including nearby token enumerations and composite target-1 cancellation candidates. It flags candidates that create late pure N/N shortcuts, admit pure N/N through their resource budget, have weak visible combinations, need bounded evidence, or are dominated by another shortcut family. It never edits round data automatically.',
     rounds:reports,
   };
+}
+
+function selectResourceCandidatesForEvaluation(candidatePool, maxEvaluations) {
+  if (maxEvaluations === 0 || candidatePool.length <= maxEvaluations) return candidatePool;
+
+  const selected = [];
+  const selectedKeys = new Set();
+  const sources = [];
+  for (const candidate of candidatePool) {
+    if (!sources.includes(candidate.source)) sources.push(candidate.source);
+  }
+
+  const addCandidate = candidate => {
+    const key = `${candidate.slots}/${candidate.sticks}/${candidate.target}/${candidate.sample}`;
+    if (selectedKeys.has(key)) return false;
+    selected.push(candidate);
+    selectedKeys.add(key);
+    return true;
+  };
+
+  for (const source of sources) {
+    if (selected.length >= maxEvaluations) break;
+    const candidate = candidatePool.find(item => item.source === source);
+    if (candidate) addCandidate(candidate);
+  }
+
+  for (const candidate of candidatePool) {
+    if (selected.length >= maxEvaluations) break;
+    addCandidate(candidate);
+  }
+
+  return selected;
 }
 
 function resourceRepeatReviewRoundNumbers(rounds) {
@@ -878,8 +908,34 @@ function resourceCandidateSummary(candidates) {
     recommendableCount:candidates.filter(candidate => !candidate.analysisOnly).length,
     analysisOnlyCount:candidates.filter(candidate => candidate.analysisOnly).length,
     sourceCounts,
+    bestBySource:bestResourceCandidatesBySource(candidates),
     riskCounts,
   };
+}
+
+function compareResourceCandidateReports(left, right) {
+  return Number(left.analysisOnly) - Number(right.analysisOnly) ||
+    left.reviewScore - right.reviewScore ||
+    left.dominantRatio - right.dominantRatio ||
+    right.solutionCount - left.solutionCount ||
+    left.sample.localeCompare(right.sample);
+}
+
+function bestResourceCandidatesBySource(candidates) {
+  const best = {};
+  for (const candidate of [...candidates].sort(compareResourceCandidateReports)) {
+    if (best[candidate.source]) continue;
+    best[candidate.source] = {
+      sample:candidate.sample,
+      analysisOnly:candidate.analysisOnly,
+      reviewScore:candidate.reviewScore,
+      dominantPattern:candidate.dominantPattern,
+      dominantRatio:candidate.dominantRatio,
+      solutionCount:candidate.solutionCount,
+      analysisNotes:candidate.analysisNotes.slice(0, 3),
+    };
+  }
+  return best;
 }
 
 export function resourceAllowsPureSelfDivision(slots, sticks) {
@@ -1334,6 +1390,8 @@ function generateCompositeTargetOneCandidates() {
     if (!candidates.has(key)) candidates.set(key, symbols);
   };
   const flatten = parts => parts.flatMap(part => Array.isArray(part) ? part : [part]);
+
+  add(['111', '-', '11', '×', '11', '+', '11']);
 
   for (const left of operandSpellings) {
     add(flatten([left, '-', left, '+', '1']));
