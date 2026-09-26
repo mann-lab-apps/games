@@ -157,8 +157,9 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
   resource group while reusing the `11 × 11 - 111` offset idea in reverse.
 - Pattern reports expose `shortcutPolicy.authoredSampleReview` so late-round
   samples that visibly teach self-division, divide-by-one, multiply-by-one,
-  self-subtraction, additive/reciprocal cancellation, or same-expression equality
-  can be reviewed separately from the full accepted-answer set.
+  self-subtraction, simple or compound additive cancellation, reciprocal
+  cancellation, or same-expression equality can be reviewed separately from the
+  full accepted-answer set.
 - Resource candidate reports flag `highEqualityEcho` when a target-preserving
   replacement is dominated by same-expression equality evidence. This keeps
   replacements that merely swap a visible `N/N` shortcut for another universal

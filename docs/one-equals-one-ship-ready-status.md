@@ -840,8 +840,8 @@ candidates, and `candidateSummary.bestBySource` keeps each source's strongest
 evaluated example visible even when the final result list is short.
 The same report now marks visible authored shortcut samples after the learning
 window as `authoredSampleShortcut` risk, preventing candidates like `A - A + 1`,
-`A + B - A` or `A / B × B` from being treated as recommendable just because
-their full answer set has mixed patterns.
+`A + B - A`, `A × B - A × B + 1` or `A / B × B` from being treated as
+recommendable just because their full answer set has mixed patterns.
 Round 26's authored MakeOne sample is now `111 - 11 × 11 + 11`, replacing the
 previous visible `N/N * N/N` chain while keeping the same 7-slot/14-stick
 resource budget and alternate-answer behavior.

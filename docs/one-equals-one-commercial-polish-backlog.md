@@ -52,9 +52,9 @@ Current default-mode evidence:
   `occupied-resource-swap` analysis-only candidates, so future redesign can plan
   swaps across existing rounds without confusing them with direct replacements.
   Candidate summaries also include an `authoredSampleShortcut` risk count, so
-  samples like `A - A + 1`, `A + B - A` or `A / B × B` do not remain
-  recommendable merely because their full answer set is not dominated by a
-  single shortcut family.
+  samples like `A - A + 1`, `A + B - A`, `A × B - A × B + 1` or `A / B × B` do
+  not remain recommendable merely because their full answer set is not dominated
+  by a single shortcut family.
   The
   latest capped probes over the repeated-resource groups produced one later
   manual-quality replacement for Round 29, reducing a repeated resource group.
@@ -76,10 +76,10 @@ answers.
   found shared-equality pairs.
 - Pattern reports now expose `shortcutPolicy.authoredSampleReview`, separating
   visible late-round authored shortcut samples from accepted-answer-set review.
-  It covers additive and reciprocal cancellation as well as the older
-  self-division, divide-by-one, multiply-by-one, self-subtraction and equality
-  shortcuts, so future Round 26-style edits can be found without constraining
-  alternate valid solutions.
+  It covers simple and compound additive cancellation plus reciprocal
+  cancellation, as well as the older self-division, divide-by-one,
+  multiply-by-one, self-subtraction and equality shortcuts, so future Round
+  26-style edits can be found without constraining alternate valid solutions.
 - Resource candidate reports also flag `highEqualityEcho` when a candidate's
   accepted-answer evidence is dominated by same-expression equality. This kept
   the tempting Round 30 candidate `11 * 111 - 11 * 111 + 1` out of the

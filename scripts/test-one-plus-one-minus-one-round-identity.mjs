@@ -402,8 +402,12 @@ test('solution pattern classifier identifies universal shortcut families', () =>
     ['additive-cancellation', 'self-subtraction']);
   assert.deepEqual(classifySolutionPatterns(['111', '+', '1', '-', '111']),
     ['additive-cancellation']);
+  assert.deepEqual(classifySolutionPatterns(['11', '*', '111', '-', '11', '*', '111', '+', '1']),
+    ['additive-cancellation']);
   assert.deepEqual(classifySolutionPatterns(['1', '/', '111', '×', '111']),
     ['reciprocal-cancellation']);
+  assert.deepEqual(classifySolutionPatterns(['111', '-', '11', '×', '11', '+', '11']),
+    []);
   assert.deepEqual(classifySolutionPatterns(['111', '×', '11', '/', '11']),
     ['reciprocal-cancellation', 'self-division']);
 });

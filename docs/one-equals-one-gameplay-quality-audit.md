@@ -107,7 +107,8 @@ Verification:
   candidates whose accepted-answer set is dominated by another shortcut family
   such as `/1`, and candidates whose visible authored sample itself uses a
   post-learning shortcut such as `A - A + 1`, additive cancellation such as
-  `A + B - A`, or reciprocal cancellation such as `A / B × B`. A Round 17 trial candidate reduced the `5/8` resource
+  `A + B - A` or `A × B - A × B + 1`, or reciprocal cancellation such as
+  `A / B × B`. A Round 17 trial candidate reduced the `5/8` resource
   group on paper, but the checker showed it introduced late pure
   self-division answers, so that data edit was rejected rather than weakening
   the shortcut policy. The candidate generator now also emits composite
@@ -176,8 +177,8 @@ Verification:
 - Pattern reports now include `shortcutPolicy.authoredSampleReview`, which
   separates visible late-round sample shortcuts from the full accepted-answer
   map. This catches authored paths like visible self-division, multiply-by-one,
-  additive cancellation or reciprocal cancellation without banning legitimate
-  alternate answers.
+  additive cancellation, compound-term cancellation (`A × B - A × B + 1`) or
+  reciprocal cancellation without banning legitimate alternate answers.
 - A Round 30 replacement probe found that `11 * 111 - 11 * 111 + 1` removes the
   visible `N/N` sample, but under the standard 200k-node review budget it is
   dominated by same-expression equality evidence. Resource candidate reports now

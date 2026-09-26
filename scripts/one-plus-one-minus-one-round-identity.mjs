@@ -192,16 +192,16 @@ export function classifySolutionPatterns(symbols) {
       }
     }
 
-    if (parsed.operators.every(operator => operator === '+' || operator === '-')) {
-      const signsByOperand = new Map();
-      for (let i = 0; i < parsed.operands.length; i += 1) {
-        const sign = i === 0 || parsed.operators[i - 1] === '+' ? 1 : -1;
-        const signs = signsByOperand.get(parsed.operands[i]) ?? new Set();
-        signs.add(sign);
-        signsByOperand.set(parsed.operands[i], signs);
+    const additiveTerms = additiveTermSigns(parsed);
+    if (additiveTerms.valid) {
+      const signsByTerm = new Map();
+      for (const term of additiveTerms.terms) {
+        const signs = signsByTerm.get(term.key) ?? new Set();
+        signs.add(term.sign);
+        signsByTerm.set(term.key, signs);
       }
 
-      if ([...signsByOperand.values()].some(signs => signs.has(1) && signs.has(-1))) {
+      if ([...signsByTerm.values()].some(signs => signs.has(1) && signs.has(-1))) {
         ids.add('additive-cancellation');
       }
     }
@@ -221,6 +221,32 @@ export function classifySolutionPatterns(symbols) {
   }
 
   return [...ids].sort();
+}
+
+function additiveTermSigns(parsed) {
+  if (!parsed.valid || parsed.operands.length === 0) {
+    return {valid:false, terms:[]};
+  }
+
+  const terms = [{sign:1, key:parsed.operands[0]}];
+  for (let i = 0; i < parsed.operators.length; i += 1) {
+    const operator = parsed.operators[i];
+    const operand = parsed.operands[i + 1];
+    if (operator === '+' || operator === '-') {
+      terms.push({sign:operator === '+' ? 1 : -1, key:operand});
+      continue;
+    }
+
+    if (operator === '*' || operator === '×' || operator === '/') {
+      const previous = terms[terms.length - 1];
+      previous.key = `${previous.key}${operator === '*' ? '×' : operator}${operand}`;
+      continue;
+    }
+
+    return {valid:false, terms:[]};
+  }
+
+  return {valid:true, terms};
 }
 
 export function analyzeRoundPatterns(rounds, {maxNodes=200000, maxSolutions=1000}={}) {
