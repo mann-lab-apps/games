@@ -258,7 +258,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 MakeOne("Folded Path", "111 - 11 × 11 + 11"),
                 MakeOne("High Return", "111 - 11 1 + 1"),
                 MakeOne("Quiet Trail", "1 × 1"),
-                MakeOne("Short Spark", "11 + 1 - 1 1"),
+                MakeOne("Short Spark", "1 1 + 111 - 11 × 11"),
                 MakeOne("Last Little One", "1 / 111 111 × 111 111")
             };
         }

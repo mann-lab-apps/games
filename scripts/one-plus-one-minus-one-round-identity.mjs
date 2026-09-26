@@ -349,6 +349,7 @@ export function findDominantPatternCandidates(rounds, {
       allowFewerSlots,
       allowFewerSticks,
       preserveTarget,
+      allowOccupied:true,
     });
     const mergedCandidates = new Map();
     for (const candidate of [...nearby.candidates, ...pool.candidates]) {
@@ -725,6 +726,7 @@ export function findResourceRepeatCandidates(rounds, {
       allowFewerSlots,
       allowFewerSticks,
       preserveTarget,
+      allowOccupied:true,
     });
     const candidatePool = [...nearby.candidates].sort((left, right) =>
       Number(resourceAllowsPureSelfDivision(left.slots, left.sticks)) -
@@ -849,7 +851,7 @@ export function findResourceRepeatCandidates(rounds, {
   });
 
   return {
-    method:'Resource-repeat candidate search is bounded and heuristic. It looks for target-preserving replacements that move a round away from repeated slot/stick resources, including nearby token enumerations and composite target-1 cancellation candidates. It flags candidates that create late pure N/N shortcuts, admit pure N/N through their resource budget, have high same-expression equality echo risk, have weak visible combinations, need bounded evidence, or are dominated by another shortcut family. It never edits round data automatically.',
+    method:'Resource-repeat candidate search is bounded and heuristic. It looks for target-preserving replacements that move a round away from repeated slot/stick resources, including nearby token enumerations, composite target-1 cancellation candidates, and occupied-resource swap candidates for manual planning. It flags candidates that create late pure N/N shortcuts, admit pure N/N through their resource budget, have high same-expression equality echo risk, have weak visible combinations, need bounded evidence, or are dominated by another shortcut family. It never edits round data automatically.',
     rounds:reports,
   };
 }
@@ -1260,6 +1262,7 @@ function generateNearbyDominantCandidates(round, rounds, {
   allowFewerSlots,
   allowFewerSticks,
   preserveTarget,
+  allowOccupied = false,
 }) {
   const minSlots = allowFewerSlots ? Math.max(1, round.symbols.length - maxExtraSlots) : round.symbols.length;
   const maxSlots = Math.min(11, round.symbols.length + maxExtraSlots);
@@ -1299,14 +1302,14 @@ function generateNearbyDominantCandidates(round, rounds, {
     const slots = symbols.length;
     const sticks = symbols.reduce((sum, symbol) => sum + tokenCosts.get(symbol), 0);
     const identity = `${slots}/${sticks}/${target}`;
-    if (occupied.has(identity)) return false;
     const existingResources = rounds
       .filter(existing => existing.symbols.length === slots && existing.stickCount === sticks)
       .map(existing => existing.number);
+    if (!allowOccupied && occupied.has(identity)) return false;
     const resourceKey = `${slots}/${sticks}`;
     if (!equalityCache.has(resourceKey)) equalityCache.set(resourceKey, findEqualityWitness(slots, sticks));
     const equality = equalityCache.get(resourceKey);
-    if (existingResources.length > 0 && equality.status === 'found') return false;
+    if (!allowOccupied && existingResources.length > 0 && equality.status === 'found') return false;
     const sample = symbols.join(' ');
     const operations = symbols.filter(symbol => operatorTokens.has(symbol) && symbol !== '=');
     let trivial = 0;
@@ -1322,9 +1325,12 @@ function generateNearbyDominantCandidates(round, rounds, {
       count + Number(index > 0 && operations[index - 1] === op), 0);
     const score = 3 * slots + sticks + 5 * trivial + 3 * repeated +
       2 * Math.min(30, Math.abs(target - round.target));
+    const candidateSource = allowOccupied && occupied.has(identity)
+      ? 'occupied-resource-swap'
+      : source;
     const candidate = {symbols:[...symbols], sample, slots, sticks, target,
       equality:equality.status, existingResources,
-      trivial, repeated, score, source};
+      trivial, repeated, score, source:candidateSource};
     const previous = candidates.get(identity);
     if (!previous || candidate.score < previous.score) {
       candidates.set(identity, candidate);
@@ -1401,6 +1407,8 @@ function generateCompositeTargetOneCandidates() {
   const flatten = parts => parts.flatMap(part => Array.isArray(part) ? part : [part]);
 
   add(['111', '-', '11', '×', '11', '+', '11']);
+  add(['11', '+', '111', '-', '11', '×', '11']);
+  add(['1', '1', '+', '111', '-', '11', '×', '11']);
 
   for (const left of operandSpellings) {
     add(flatten([left, '-', left, '+', '1']));

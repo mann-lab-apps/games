@@ -22,9 +22,9 @@ or sample-answer enforcement. The latest report has:
 - `reviewRounds: []`
 - `violations: []`
 - no duplicate sample strings in the 30-round default set
-- 21 distinct slot/stick resources across 30 rounds
-- `resourceReview` in the MakeOne summary lists five repeated slot/stick
-  groups, with 14 unresolved found shared-equality pairs as design-review
+- 22 distinct slot/stick resources across 30 rounds
+- `resourceReview` in the MakeOne summary lists four repeated slot/stick
+  groups, with 13 unresolved found shared-equality pairs as design-review
   signals rather than strict failures.
 
 Changed default-mode samples:
@@ -44,7 +44,7 @@ Changed default-mode samples:
 | 25 | `1 / 1 1 1 × 111` | Keeps division/multiplication as fractional cancellation without visibly teaching `N/N` as the intended route. |
 | 26 | `111 - 11 × 11 + 11` | Replaces visible `N/N * N/N` with the `11 × 11 - 111` multiplication-offset idea. |
 | 28 | `1 × 1` | Removes a duplicate sample and gives cross multiplication a compact echo. |
-| 29 | `11 + 1 - 1 1` | Removes a duplicate sample with adjacent-number subtraction. |
+| 29 | `1 1 + 111 - 11 × 11` | Moves out of the `6`-slot/`8`-stick repeat group and reuses the `11 × 11 - 111` offset idea in reverse. |
 | 30 | `1 / 111 111 × 111 111` | Closes with fractional cancellation instead of visible `N/N` plus subtraction cancellation, while still reserving the displayed `= 1` target. |
 
 Verification:
@@ -55,13 +55,13 @@ Verification:
   covered by the Node identity test suite.
 - The MakeOne summary now includes an explicit `incompleteReview` section so
   bounded rows cannot be mistaken for full pattern coverage. Under the current
-  `200000` node / `1000` solution budget, Rounds 20, 22 and 23 remain
+  `200000` node / `1000` solution budget, Rounds 20, 22, 23 and 29 remain
   incomplete `node_budget` rows; their observed pattern counts are prefix
   evidence only, not a proof that the rows are fully exhausted.
 - The same summary now includes `resourceReview`, which keeps repeated
   slot/stick groups visible in JSON automation. Current default-mode review
-  groups include `5/8` (Rounds 8, 11, 12, 17), `7/10` (13, 14, 19, 25),
-  `6/8` (18, 29) and `6/10` (21, 27). These are legal
+  groups include `5/8` (Rounds 8, 11, 12, 17), `7/10` (13, 14, 19, 25)
+  and `6/10` (21, 27). These are legal
   because the mode still accepts alternate expressions, but they are the next
   design map for reducing "same resource, same trick" fatigue.
 - Unity EditMode `MannLab.Games.OnePlusOneMinusOne.Tests` passes 63/63 after
@@ -125,8 +125,12 @@ Verification:
   `1 - 1 / 111 * 111 + 1`, but the remaining post-tutorial repeated-resource
   groups still had `recommendableCount: 0` under the current capped probes
   because their visible candidates were bounded or dominated by another shortcut
-  family. Probe one round at a time, or set `--max-nearby-nodes` explicitly when
-  probing a whole group. The resource-candidate path now keeps composite
+  family. A later manual-quality probe found `1 1 + 111 - 11 × 11` for Round 29:
+  it evaluates to target `1`, uses a new `8`-slot/`14`-stick budget, completed
+  a focused `1000000`-node `--evaluate-sample` check with 1038 accepted
+  solutions, and drops the repeated-resource map from five groups to four. Probe
+  one round at a time, or set `--max-nearby-nodes` explicitly when probing a
+  whole group. The resource-candidate path now keeps composite
   target-1 forms from consuming the nearby-enumeration candidate budget, and
   the `search` block reports `compositeCandidateCount` and
   `enumeratedCandidateCount` so future probes can tell whether both candidate
@@ -136,7 +140,10 @@ Verification:
   `--max-evaluations` cap, preventing composite target-1 forms from hiding
   nearby resource enumerations in capped probes. `candidateSummary.bestBySource`
   keeps the strongest evaluated candidate from each source visible even when the
-  final `candidates` list is capped by `--max-results`. The report
+  final `candidates` list is capped by `--max-results`. Occupied resources are
+  now surfaced as `occupied-resource-swap` analysis-only rows, which makes
+  multi-round swap planning visible without recommending already-used budgets as
+  direct replacements. The report
   includes `candidateSummary`, so `recommendableCount: 0` plus risk counts such
   as `latePureSelfDivision`, `dominantShortcut`, `highEqualityEcho` or
   `boundedEvidence` explain why a bounded probe should not become a data edit.
@@ -151,6 +158,12 @@ Verification:
   changed from `111 / 111 + 111 - 111` to `1 / 111 111 × 111 111`, preserving
   the 7-slot/16-stick budget while ending on fractional cancellation instead of
   visible `N/N` plus subtraction cancellation.
+- Round 29 changed from `11 + 1 - 1 1` to `1 1 + 111 - 11 × 11`. This reduces
+  the default ladder from five repeated slot/stick groups to four, reduces
+  unresolved found shared-equality pairs from 14 to 13, and replaces a small
+  adjacent-number subtraction with a reversed multiplication-offset puzzle.
+  Under the normal 200k-node summary, Round 29 remains bounded evidence rather
+  than fully exhausted pattern coverage.
 - Pattern reports now include `shortcutPolicy.authoredSampleReview`, which
   separates visible late-round sample shortcuts from the full accepted-answer
   map. This catches authored paths like visible self-division or multiply-by-one

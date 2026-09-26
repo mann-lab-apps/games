@@ -19,8 +19,8 @@ Current default-mode evidence:
 
 - `node scripts/report-one-plus-one-minus-one-round-quality.mjs --make-one --patterns --summary --strict-patterns --max-nodes 200000 --max-solutions 1000`
   exits 0 with no late pure self-division violations.
-  The summary now includes an `incompleteReview` block: Rounds 20, 22 and 23
-  are still bounded `node_budget` rows at the current search budget, so their
+  The summary now includes an `incompleteReview` block: Rounds 20, 22, 23 and
+  29 are still bounded `node_budget` rows at the current search budget, so their
   pattern ratios are prefix evidence rather than exhaustive coverage.
   The same summary now uses a default-mode review window after Round 10 for
   dominant shortcut families. Round 24 was redesigned from
@@ -47,9 +47,12 @@ Current default-mode evidence:
   when a small `--max-evaluations` budget would otherwise hide nearby resource
   enumeration behind composite target-1 forms, and `candidateSummary.bestBySource`
   keeps the strongest evaluated example from each source visible even when
-  `maxResults` is small. The
-  latest capped probes over the repeated-resource groups produced no
-  post-tutorial structural replacement that removes a repeated resource group.
+  `maxResults` is small. Occupied resource budgets now appear as
+  `occupied-resource-swap` analysis-only candidates, so future redesign can plan
+  swaps across existing rounds without confusing them with direct replacements.
+  The
+  latest capped probes over the repeated-resource groups produced one later
+  manual-quality replacement for Round 29, reducing a repeated resource group.
 A small authored-path edit was still applied to Round 26: it now uses
 `111 - 11 × 11 + 11` instead of the visible `N/N * N/N` chain. This preserves
 the 7-slot/14-stick resource budget and accepted-answer set, so it is not a
@@ -60,6 +63,10 @@ answers.
   resource budgets: Round 25 now uses `1 / 1 1 1 × 111` instead of
   `1 + 11 / 11 - 1`, and Round 30 now closes with
   `1 / 111 111 × 111 111` instead of `111 / 111 + 111 - 111`.
+- Round 29 now uses `1 1 + 111 - 11 × 11` instead of `11 + 1 - 1 1`, moving it
+  out of the `6/8` repeated resource group. The current MakeOne summary has 22
+  distinct slot/stick resources, four repeated resource groups and 13 unresolved
+  found shared-equality pairs.
 - Pattern reports now expose `shortcutPolicy.authoredSampleReview`, separating
   visible late-round authored shortcut samples from accepted-answer-set review.
   This is intended to find future Round 26-style edits without constraining
@@ -91,10 +98,11 @@ answers.
   resource/target groups; the only proven shared-equality witness in the current
   report is the intentional early tutorial echo 2/5.
 
-Open review items: the default ladder now has 21 distinct slot/stick resources
+Open review items: the default ladder now has 22 distinct slot/stick resources
 across 30 rounds after Round 23 moved out of the old `11/20` repeated-resource
-pair. Rounds 20/22/23 are still bounded pattern-review rows rather than
-exhaustively classified rows, and `resourceReview` currently finds 14
+pair and Round 29 moved out of the `6/8` group. Rounds 20/22/23/29 are still
+bounded pattern-review rows rather than
+exhaustively classified rows, and `resourceReview` currently finds 13
 unresolved shared-equality pairs across repeated resource groups. The new
 `--evaluate-sample` CLI can inspect hand-authored replacements before data
 edits. Round 18's replacement reduces the dominant self-division ratio from

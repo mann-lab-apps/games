@@ -138,7 +138,9 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
   nearby resource enumeration. Evaluated candidates also include `source`, and
   `candidateSummary.sourceCounts` groups those evaluated candidates by source,
   while `candidateSummary.bestBySource` keeps the strongest evaluated example
-  from each source visible even when `maxResults` is small.
+  from each source visible even when `maxResults` is small. Occupied resources
+  are surfaced as `occupied-resource-swap` analysis-only candidates so manual
+  redesign can see promising swaps without treating them as direct replacements.
   When a capped evaluation would otherwise be filled by one source, the report
   uses `search.sourceDiverseEvaluation` to show that it kept at least one
   candidate from each generated source in view. Prefer one round at a time, or set
@@ -149,6 +151,8 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
 - Round 25 and Round 30 use same-budget authored paths that avoid visibly
   presenting self-division as the intended route: `1 / 1 1 1 × 111` and
   `1 / 111 111 × 111 111`.
+- Round 29 uses `1 1 + 111 - 11 × 11` to move out of the old `6/8` repeated
+  resource group while reusing the `11 × 11 - 111` offset idea in reverse.
 - Pattern reports expose `shortcutPolicy.authoredSampleReview` so late-round
   samples that visibly teach self-division, divide-by-one, multiply-by-one,
   self-subtraction, or same-expression equality can be reviewed separately from

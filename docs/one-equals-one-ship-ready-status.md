@@ -25,7 +25,7 @@ dominant-pattern rows under the current bounded report. A new
 hand-authored candidate's resource cost and dominant shortcut profile before
 changing round data. The MakeOne pattern summary now also includes
 `resourceReview`, which surfaces repeated slot/stick groups and currently
-records 14 unresolved found shared-equality pairs as design-review signals.
+records 13 unresolved found shared-equality pairs as design-review signals.
 The follow-up `--make-one --resource-candidates` report path can now probe
 target-preserving replacements for those groups and flag candidates that would
 reintroduce late pure `N/N` shortcuts.
@@ -35,6 +35,10 @@ ladder from six repeated slot/stick groups to five, from 15 to 14 unresolved
 found shared-equality pairs, and removing the bounded high-priority
 same-expression review row from the normal MakeOne summary. This is a local
 source improvement only until a fresh WebGL/native build is produced.
+After the next local source pass, Round 29 changed from `11 + 1 - 1 1` to
+`1 1 + 111 - 11 × 11`, reducing the default ladder again to four repeated
+slot/stick groups and 13 unresolved found shared-equality pairs. This is also a
+local source improvement only until a fresh WebGL/native build is produced.
 These 2026-09-26 edits are newer than uploaded iOS `1.0.0 (4)` until another
 native build is produced.
 The latest WebGL QA rebuild attempt after the final Round 23/Thin Return data
@@ -830,9 +834,10 @@ consuming the nearby-enumeration budget and reports both
 `compositeCandidateCount` and `enumeratedCandidateCount`, making repeated-group
 probes less likely to falsely look exhausted. It also preserves source-diverse
 evaluation under small caps, so `candidateSummary.sourceCounts` reflects both
-composite target-1 and nearby-enumeration candidates when both sources exist,
-and `candidateSummary.bestBySource` keeps each source's strongest evaluated
-example visible even when the final result list is short.
+composite target-1 and nearby-enumeration candidates when both sources exist.
+Occupied resources are reported as `occupied-resource-swap` analysis-only
+candidates, and `candidateSummary.bestBySource` keeps each source's strongest
+evaluated example visible even when the final result list is short.
 Round 26's authored MakeOne sample is now `111 - 11 × 11 + 11`, replacing the
 previous visible `N/N * N/N` chain while keeping the same 7-slot/14-stick
 resource budget and alternate-answer behavior.

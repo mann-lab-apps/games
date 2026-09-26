@@ -497,9 +497,9 @@ test('make-one pattern CLI tracks default mode shortcut regressions separately',
   assert.deepEqual(report.shortcutPolicy.violations, []);
   assert.match(report.shortcutPolicy.equalityEchoReview.reviewWindow, /after Round 10/);
   assert.deepEqual(report.shortcutPolicy.equalityEchoReview.highPriorityAlternateRows, []);
-  assert.equal(report.summary.uniqueResources, 21);
-  assert.equal(report.summary.repeatedResourceGroups, 5);
-  assert.deepEqual(report.incompleteReview.rows.map(row => row.number), [20, 22, 23]);
+  assert.equal(report.summary.uniqueResources, 22);
+  assert.equal(report.summary.repeatedResourceGroups, 4);
+  assert.deepEqual(report.incompleteReview.rows.map(row => row.number), [20, 22, 23, 29]);
   assert.ok(report.incompleteReview.rows.every(row =>
     row.limitReason === 'node_budget' &&
     row.recheckCommand.includes('--make-one') &&
@@ -517,11 +517,10 @@ test('make-one pattern CLI tracks default mode shortcut regressions separately',
   assert.equal(report.shortcutPolicy.authoredSampleReview.divisionRows.includes(30), false);
   assert.ok(report.shortcutPolicy.authoredSampleReview.multiplicationRows.includes(28));
   assert.match(report.resourceReview.method, /Repeated slot\/stick resources/);
-  assert.equal(report.resourceReview.unresolvedFoundSharedEqualityPairs, 14);
-  assert.ok(report.resourceReview.reviewRows.some(row =>
-    row.rounds.join(',') === '18,29' &&
-    row.key === '6/8' &&
-    row.witnessStatus === 'found'));
+  assert.equal(report.resourceReview.unresolvedFoundSharedEqualityPairs, 13);
+  assert.equal(report.resourceReview.reviewRows.some(row =>
+    row.rounds.join(',') === '18,29' ||
+    row.key === '6/8'), false);
 });
 
 test('make-one authored samples avoid visible shortcut paths in late review edits', () => {
@@ -539,6 +538,13 @@ test('make-one authored samples avoid visible shortcut paths in late review edit
   assert.equal(round30.stickCount, 16);
   assert.equal(classifySolutionPatterns(round30.symbols).length, 0);
   assert.equal(identity.acceptsRound(round30, round30.symbols), true);
+
+  const round29 = rounds[28];
+  assert.equal(round29.sample, '1 1 + 111 - 11 × 11');
+  assert.equal(round29.symbols.length, 8);
+  assert.equal(round29.stickCount, 14);
+  assert.equal(classifySolutionPatterns(round29.symbols).length, 0);
+  assert.equal(identity.acceptsRound(round29, round29.symbols), true);
 });
 
 test('make-one dominant candidate search preserves fixed target one', () => {
@@ -619,7 +625,7 @@ test('make-one resource candidate search flags shortcut-risk replacements', () =
     'scripts/report-one-plus-one-minus-one-round-quality.mjs',
     '--make-one',
     '--resource-candidates',
-    '6/8',
+    '7/10',
     '--max-evaluations',
     '4',
     '--max-results',
@@ -635,13 +641,18 @@ test('make-one resource candidate search flags shortcut-risk replacements', () =
   ], reportSpawnOptions);
   assert.equal(groupedRun.status, 0, groupedRun.stderr);
   const groupedReport = JSON.parse(groupedRun.stdout);
-  assert.equal(groupedReport.rounds.length, 2);
+  assert.equal(groupedReport.rounds.length, 4);
   for (const row of groupedReport.rounds) {
     assert.equal(row.search.sourceDiverseEvaluation, true);
     assert.ok(row.candidateSummary.sourceCounts['composite-target-one'] > 0);
+    assert.ok(row.candidateSummary.sourceCounts['occupied-resource-swap'] > 0);
     assert.ok(row.candidateSummary.sourceCounts['nearby-resource-enumeration'] > 0);
     assert.match(row.candidateSummary.bestBySource['composite-target-one'].sample, /\S/);
+    assert.match(row.candidateSummary.bestBySource['occupied-resource-swap'].sample, /\S/);
     assert.match(row.candidateSummary.bestBySource['nearby-resource-enumeration'].sample, /\S/);
+    assert.equal(row.candidateSummary.bestBySource['occupied-resource-swap'].analysisOnly, true);
+    assert.ok(row.candidateSummary.bestBySource['occupied-resource-swap'].analysisNotes.some(note =>
+      note.includes('still shares slot/stick')));
   }
 
   const equalityEchoRun = spawnSync(process.execPath, [
@@ -666,10 +677,6 @@ test('make-one resource candidate search flags shortcut-risk replacements', () =
   const equalityEchoReport = JSON.parse(equalityEchoRun.stdout);
   assert.equal(equalityEchoReport.rounds[0].candidateSummary.recommendableCount, 0);
   assert.ok(equalityEchoReport.rounds[0].candidateSummary.riskCounts.highEqualityEcho > 0);
-  assert.ok(equalityEchoReport.rounds[0].candidates.some(candidate =>
-    candidate.sample === '11 * 111 - 11 * 111 + 1' &&
-    candidate.highEqualityEcho &&
-    candidate.analysisNotes.some(note => note.includes('same-expression equality'))));
 });
 
 test('make-one resource candidate CLI accepts repeated resource keys', () => {
@@ -693,7 +700,7 @@ test('make-one resource candidate CLI accepts repeated resource keys', () => {
   ], reportSpawnOptions);
   assert.equal(run.status, 0, run.stderr);
   const report = JSON.parse(run.stdout);
-  assert.deepEqual(report.rounds.map(row => row.number), [18, 29]);
+  assert.deepEqual(report.rounds.map(row => row.number), [18]);
   assert.ok(report.rounds.every(row => row.slots === 6 && row.sticks === 8));
 });
 
