@@ -40,7 +40,10 @@ Current default-mode evidence:
   candidate generator, and marks candidates that would reintroduce late pure
   `N/N`, admit pure `N/N` through their resource budget, depend on bounded
   pattern evidence, or swap one universal key for another dominant shortcut.
-  The latest capped probes over the repeated-resource groups produced no
+  Composite candidates no longer consume the nearby-enumeration candidate
+  budget; the report now exposes `compositeCandidateCount` and
+  `enumeratedCandidateCount` so capped probes show both search sources. The
+  latest capped probes over the repeated-resource groups produced no
   post-tutorial recommendable replacement, so no round data was changed.
 - `node scripts/verify-one-plus-one-minus-one-rounds.mjs` passes.
 - `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` passes
@@ -81,7 +84,8 @@ not to auto-apply the current composite candidates, but to generate richer
 target-1 candidates whose complete accepted-answer map is not dominated by
 `/1`, same-expression equality or pure `N/N`. The latest capped probes for the
 remaining repeated-resource groups show useful bounded candidates such as
-`1 - 1 / 111 * 111 + 1`, but no additional post-tutorial
+`1 - 1 / 111 * 111 + 1`, and now confirm nearby enumeration is being sampled
+alongside composite target-1 forms, but no additional post-tutorial
 `recommendableCount > 0` data edit yet.
 
 ### Universal Shortcut Pattern Tightening (2026-09-18)

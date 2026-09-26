@@ -489,6 +489,8 @@ export function findDominantPatternCandidates(rounds, {
         candidateBudget,
         maxNearbyNodes,
         nearbyCandidateCount:nearby.candidates.length,
+        compositeCandidateCount:nearby.compositeCandidateCount,
+        enumeratedCandidateCount:nearby.enumeratedCandidateCount,
         nearbyLimited:nearby.limited,
         nearbyNodes:nearby.nodes,
         maxExtraSlots,
@@ -770,6 +772,7 @@ export function findResourceRepeatCandidates(rounds, {
       }
       evaluated.push({
         sample:candidate.sample,
+        source:candidate.source,
         target:candidate.target,
         slots:candidate.slots,
         sticks:candidate.sticks,
@@ -822,6 +825,8 @@ export function findResourceRepeatCandidates(rounds, {
         candidateBudget,
         maxNearbyNodes,
         nearbyCandidateCount:nearby.candidates.length,
+        compositeCandidateCount:nearby.compositeCandidateCount,
+        enumeratedCandidateCount:nearby.enumeratedCandidateCount,
         nearbyLimited:nearby.limited,
         nearbyNodes:nearby.nodes,
         maxExtraSlots,
@@ -853,7 +858,9 @@ function resourceRepeatReviewRoundNumbers(rounds) {
 
 function resourceCandidateSummary(candidates) {
   const riskCounts = {};
+  const sourceCounts = {};
   for (const candidate of candidates) {
+    sourceCounts[candidate.source] = (sourceCounts[candidate.source] ?? 0) + 1;
     for (const note of candidate.analysisNotes) {
       const key = note.includes('late pure N/N') ? 'latePureSelfDivision' :
         note.includes('budget admits') ? 'pureDivisionResource' :
@@ -870,6 +877,7 @@ function resourceCandidateSummary(candidates) {
     evaluated:candidates.length,
     recommendableCount:candidates.filter(candidate => !candidate.analysisOnly).length,
     analysisOnlyCount:candidates.filter(candidate => candidate.analysisOnly).length,
+    sourceCounts,
     riskCounts,
   };
 }
@@ -1210,28 +1218,30 @@ function generateNearbyDominantCandidates(round, rounds, {
   const equalityCache = new Map();
   let nodes = 0;
   let limited = false;
+  let enumeratedCandidateCount = 0;
+  let compositeCandidateCount = 0;
 
-  const addCandidate = symbols => {
+  const addCandidate = (symbols, source = 'nearby-resource-enumeration') => {
     let target;
     try {
       target = sampleTarget(symbols);
     } catch {
-      return;
+      return false;
     }
 
-    if (!Number.isInteger(target) || target < -2 || target > 122) return;
-    if (preserveTarget && target !== round.target) return;
+    if (!Number.isInteger(target) || target < -2 || target > 122) return false;
+    if (preserveTarget && target !== round.target) return false;
     const slots = symbols.length;
     const sticks = symbols.reduce((sum, symbol) => sum + tokenCosts.get(symbol), 0);
     const identity = `${slots}/${sticks}/${target}`;
-    if (occupied.has(identity)) return;
+    if (occupied.has(identity)) return false;
     const existingResources = rounds
       .filter(existing => existing.symbols.length === slots && existing.stickCount === sticks)
       .map(existing => existing.number);
     const resourceKey = `${slots}/${sticks}`;
     if (!equalityCache.has(resourceKey)) equalityCache.set(resourceKey, findEqualityWitness(slots, sticks));
     const equality = equalityCache.get(resourceKey);
-    if (existingResources.length > 0 && equality.status === 'found') return;
+    if (existingResources.length > 0 && equality.status === 'found') return false;
     const sample = symbols.join(' ');
     const operations = symbols.filter(symbol => operatorTokens.has(symbol) && symbol !== '=');
     let trivial = 0;
@@ -1249,18 +1259,18 @@ function generateNearbyDominantCandidates(round, rounds, {
       2 * Math.min(30, Math.abs(target - round.target));
     const candidate = {symbols:[...symbols], sample, slots, sticks, target,
       equality:equality.status, existingResources,
-      trivial, repeated, score, source:'nearby-resource-enumeration'};
+      trivial, repeated, score, source};
     const previous = candidates.get(identity);
-    if (!previous || candidate.score < previous.score) candidates.set(identity, candidate);
+    if (!previous || candidate.score < previous.score) {
+      candidates.set(identity, candidate);
+      return true;
+    }
+    return false;
   };
 
   if (preserveTarget && round.target === 1) {
     for (const symbols of generateCompositeTargetOneCandidates()) {
-      addCandidate(symbols);
-      if (candidateBudget > 0 && candidates.size >= candidateBudget) {
-        limited = true;
-        break;
-      }
+      if (addCandidate(symbols, 'composite-target-one')) compositeCandidateCount += 1;
     }
   }
 
@@ -1270,7 +1280,7 @@ function generateNearbyDominantCandidates(round, rounds, {
       limited = true;
       return;
     }
-    if (candidateBudget > 0 && candidates.size >= candidateBudget) {
+    if (candidateBudget > 0 && enumeratedCandidateCount >= candidateBudget) {
       limited = true;
       return;
     }
@@ -1279,7 +1289,9 @@ function generateNearbyDominantCandidates(round, rounds, {
     const left = slots - symbols.length;
     if (cost + left > sticks || cost + left * 3 < sticks) return;
     if (left === 0) {
-      if (previousNumber && cost === sticks) addCandidate(symbols);
+      if (previousNumber && cost === sticks && addCandidate(symbols)) {
+        enumeratedCandidateCount += 1;
+      }
       return;
     }
 
@@ -1299,7 +1311,8 @@ function generateNearbyDominantCandidates(round, rounds, {
     if (limited) break;
   }
 
-  return {limited, nodes, maxNearbyNodes, candidates:[...candidates.values()]};
+  return {limited, nodes, maxNearbyNodes, compositeCandidateCount,
+    enumeratedCandidateCount, candidates:[...candidates.values()]};
 }
 
 function generateCompositeTargetOneCandidates() {

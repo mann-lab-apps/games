@@ -566,15 +566,20 @@ test('make-one resource candidate search flags shortcut-risk replacements', () =
   assert.equal(report.rounds[0].search.preserveTarget, true);
   assert.equal(report.rounds[0].search.maxNearbyNodes, 500000);
   assert.equal(report.rounds[0].search.nearbyNodes <= 500000, true);
+  assert.ok(report.rounds[0].search.compositeCandidateCount > 0);
+  assert.ok(report.rounds[0].search.enumeratedCandidateCount > 0);
   assert.equal(report.rounds[0].candidateSummary.evaluated, 8);
   assert.equal(report.rounds[0].candidateSummary.recommendableCount, 0);
   assert.equal(report.rounds[0].candidateSummary.analysisOnlyCount, 8);
+  assert.ok(report.rounds[0].candidateSummary.sourceCounts['composite-target-one'] > 0);
+  assert.ok(report.rounds[0].candidateSummary.sourceCounts['nearby-resource-enumeration'] > 0);
   assert.ok(report.rounds[0].candidateSummary.riskCounts.latePureSelfDivision > 0);
   assert.ok(report.rounds[0].candidateSummary.riskCounts.dominantShortcut > 0);
   assert.ok(report.rounds[0].candidates.length > 0);
   assert.ok(report.rounds[0].candidates.every(candidate => candidate.target === 1));
   assert.ok(report.rounds[0].candidates.some(candidate =>
     candidate.sample === '1 - 1 / 111 * 111 + 1' &&
+    candidate.source === 'composite-target-one' &&
     candidate.combinationTags.includes('nontrivial-division') &&
     candidate.combinationTags.includes('nontrivial-multiply')));
   assert.ok(report.rounds[0].candidates.some(candidate =>

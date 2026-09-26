@@ -825,8 +825,12 @@ with sample `1 / 11 * 11 - 1 + 1`, breaking the previous repeated `11/20`
 resource pairing with Round 22 while keeping target `1` and free alternate
 answers. The resource candidate CLI now accepts either explicit round numbers
 or repeated resource keys such as `5/8`, so repeated-resource groups can be
-probed directly. `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs`
-passes 59/59 and `bash scripts/verify-one-plus-one-minus-one-static.sh` passes.
-The current WebGL artifacts are still older than the latest source because a
-fresh WebGL QA build is blocked by Unity licensing initialization timing out;
-do not use the stale WebGL as runtime evidence for these MakeOne changes.
+probed directly. Follow-up tooling keeps composite target-1 candidates from
+consuming the nearby-enumeration budget and reports both
+`compositeCandidateCount` and `enumeratedCandidateCount`, making repeated-group
+probes less likely to falsely look exhausted. `node --test
+scripts/test-one-plus-one-minus-one-round-identity.mjs` passes 59/59 and
+`bash scripts/verify-one-plus-one-minus-one-static.sh` passes. The current
+WebGL artifacts are still older than the latest source because a fresh WebGL QA
+build is blocked by Unity licensing initialization timing out; do not use the
+stale WebGL as runtime evidence for these MakeOne changes.

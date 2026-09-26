@@ -126,7 +126,11 @@ Verification:
   groups still had `recommendableCount: 0` under the current capped probes
   because their visible candidates were bounded or dominated by another shortcut
   family. Probe one round at a time, or set `--max-nearby-nodes` explicitly when
-  probing a whole group. The report
+  probing a whole group. The resource-candidate path now keeps composite
+  target-1 forms from consuming the nearby-enumeration candidate budget, and
+  the `search` block reports `compositeCandidateCount` and
+  `enumeratedCandidateCount` so future probes can tell whether both candidate
+  sources were considered. The report
   includes `candidateSummary`, so `recommendableCount: 0` plus risk counts such
   as `latePureSelfDivision`, `dominantShortcut` or `boundedEvidence` explain
   why a bounded probe should not become a data edit.
@@ -1658,6 +1662,9 @@ equality puzzle rather than a quick data tweak.
   `5/8` in addition to explicit round numbers. This makes it easier to inspect
   the remaining repeated-resource groups without manually copying every round
   number from `resourceReview`.
+- Resource candidate probes now report both `compositeCandidateCount` and
+  `enumeratedCandidateCount`, and composite target-1 forms no longer exhaust the
+  nearby-enumeration budget before ordinary slot/stick candidates are sampled.
 - Latest bounded summary still reports five repeated resource groups and
   fourteen found shared-equality pairs as review material. No high-priority
   same-expression or dominant-pattern rows remain under the current policy, and
