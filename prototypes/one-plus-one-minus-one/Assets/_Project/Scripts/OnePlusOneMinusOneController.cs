@@ -579,7 +579,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             headerTitleText = CreateText("Title", header, string.Empty, 42, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
             headerTitleText.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 76f;
 
-            collectionButton = CreateCommandButton("Collection Header Button", header, "Album", new Vector2(112f, 64f));
+            collectionButton = CreateCommandButton("Collection Header Button", header, "Found", new Vector2(112f, 64f));
             collectionButton.onClick.AddListener(ShowCollection);
             var collectionButtonRect = collectionButton.transform as RectTransform;
             if (collectionButtonRect != null)
@@ -893,7 +893,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
 
-            var title = CreateText("Collection Title", collectionPanel, "Collection", 38, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
+            var title = CreateText("Collection Title", collectionPanel, "Discoveries", 38, FontStyle.Bold, SketchPalette.Ink, TextAnchor.MiddleCenter);
             title.rectTransform.gameObject.AddComponent<LayoutElement>().preferredHeight = 50f;
 
             collectionStatsText = CreateText("Collection Stats", collectionPanel, string.Empty, 23, FontStyle.Bold, SketchPalette.MutedInk, TextAnchor.MiddleCenter);
@@ -2052,7 +2052,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
         {
             if (collectionStatsText != null)
             {
-                collectionStatsText.text = $"{discoveredShapes.Count} / {CollectibleShapes.Length} friends | {unlockedAchievements.Count} / {Achievements.Length} badges";
+                var answerCount = TotalSolvedExpressionCount();
+                collectionStatsText.text = $"{discoveredShapes.Count} / {CollectibleShapes.Length} friends | {answerCount} {AnswerWord(answerCount)} | {unlockedAchievements.Count} / {Achievements.Length} badges";
             }
 
             for (var i = 0; i < CollectibleShapes.Length; i++)
@@ -2082,8 +2083,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
             if (expressionCollectionTitleText != null)
             {
                 expressionCollectionTitleText.text = expressionRoundIndex == roundIndex
-                    ? $"Round {roundIndex + 1} Answers"
-                    : $"Recent Round {expressionRoundIndex + 1} Answers";
+                    ? $"Round {roundIndex + 1} Expressions"
+                    : $"Recent Round {expressionRoundIndex + 1} Expressions";
             }
 
             for (var i = 0; i < expressionCollectionLabels.Count; i++)
@@ -2113,6 +2114,22 @@ namespace MannLab.Games.OnePlusOneMinusOne
 #if DEVELOPMENT_BUILD || UNITY_EDITOR || MANNLAB_STORE_CAPTURE
             EmitQaCollectionState(expressionRoundIndex, expressions);
 #endif
+        }
+
+        private int TotalSolvedExpressionCount()
+        {
+            var total = 0;
+            for (var i = 0; i < CurrentRounds.Length; i++)
+            {
+                total += GetSolvedExpressions(i).Count;
+            }
+
+            return total;
+        }
+
+        private static string AnswerWord(int count)
+        {
+            return count == 1 ? "answer" : "answers";
         }
 
         private int CollectionExpressionDisplayRoundIndex()

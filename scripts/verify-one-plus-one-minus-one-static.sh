@@ -121,7 +121,7 @@ grep -Fq "Numerical Fix Runtime Pending" "$repo_root/docs/one-equals-one-device-
 grep -Fq "include this local candidate" "$repo_root/docs/one-equals-one-device-qa-tracker.md"
 grep -Fq "actual input confirmation that Round 48 rejects \`1 / 11 111\`" "$repo_root/docs/one-equals-one-device-qa-tracker.md"
 grep -Fq "Current Runtime Caveat" "$project/STORE_READINESS.md"
-grep -Fq "The local source is newer than uploaded iOS \`1.0.0 (2)\`" "$project/STORE_READINESS.md"
+grep -Fq "The local source is newer than uploaded iOS \`1.0.0 (4)\`" "$project/STORE_READINESS.md"
 grep -Fq "\`Assets/GoogleService-Info.plist\` is present locally" "$project/STORE_READINESS.md"
 grep -Fq "Android Firebase json is still missing" "$repo_root/docs/one-equals-one-commercial-polish-backlog.md"
 grep -Fq "iOS plist present locally" "$repo_root/docs/one-equals-one-ship-ready-status.md"

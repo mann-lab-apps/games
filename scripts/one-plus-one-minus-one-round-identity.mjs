@@ -192,6 +192,10 @@ export function classifySolutionPatterns(symbols) {
       }
     }
 
+    if (hasReciprocalCancellationChain(parsed)) {
+      ids.add('reciprocal-cancellation');
+    }
+
     const additiveTerms = additiveTermSigns(parsed);
     if (additiveTerms.valid) {
       const signsByTerm = new Map();
@@ -221,6 +225,31 @@ export function classifySolutionPatterns(symbols) {
   }
 
   return [...ids].sort();
+}
+
+function hasReciprocalCancellationChain(parsed) {
+  for (let start = 0; start < parsed.operands.length; start += 1) {
+    const signsByOperand = new Map([[parsed.operands[start], new Set([1])]]);
+    let length = 1;
+
+    for (let opIndex = start; opIndex < parsed.operators.length; opIndex += 1) {
+      const operator = parsed.operators[opIndex];
+      if (operator !== '*' && operator !== '×' && operator !== '/') break;
+
+      const operand = parsed.operands[opIndex + 1];
+      const signs = signsByOperand.get(operand) ?? new Set();
+      signs.add(operator === '/' ? -1 : 1);
+      signsByOperand.set(operand, signs);
+      length += 1;
+
+      if (length >= 3 && [...signsByOperand.values()].some(entry =>
+          entry.has(1) && entry.has(-1))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 function additiveTermSigns(parsed) {
@@ -794,6 +823,8 @@ export function findResourceRepeatCandidates(rounds, {
     const candidatePool = [...nearby.candidates].sort((left, right) =>
       Number(resourceAllowsPureSelfDivision(left.slots, left.sticks)) -
         Number(resourceAllowsPureSelfDivision(right.slots, right.sticks)) ||
+      left.authoredShortcutCount - right.authoredShortcutCount ||
+      right.combinationScore - left.combinationScore ||
       left.existingResources.length - right.existingResources.length ||
       left.score - right.score ||
       left.sample.localeCompare(right.sample));
@@ -833,7 +864,7 @@ export function findResourceRepeatCandidates(rounds, {
           profile.dominantRatio >= 0.6) {
         analysisNotes.push(`dominant shortcut ${profile.dominantPattern} ratio ${roundRatio(profile.dominantRatio)} is at least 0.6`);
       }
-      const samplePatterns = classifySolutionPatterns(candidate.symbols);
+      const samplePatterns = candidate.samplePatterns ?? classifySolutionPatterns(candidate.symbols);
       const visibleShortcutPatterns = samplePatterns.filter(pattern =>
         authoredCandidateReviewPatterns.includes(pattern));
       if (number > pureSelfDivisionLearningMax && visibleShortcutPatterns.length > 0) {
@@ -855,6 +886,16 @@ export function findResourceRepeatCandidates(rounds, {
         slots:candidate.slots,
         sticks:candidate.sticks,
         existingResources:candidate.existingResources,
+        existingResourceDetails:candidate.existingResources.map(existingNumber => {
+          const existing = rounds[existingNumber - 1];
+          return {
+            number:existing.number,
+            name:existing.name,
+            sample:existing.sample,
+            slots:existing.symbols.length,
+            sticks:existing.stickCount,
+          };
+        }),
         equality:candidate.equality,
         complete:profile.complete,
         limitReason:profile.limitReason,
@@ -922,6 +963,7 @@ export function findResourceRepeatCandidates(rounds, {
   return {
     method:'Resource-repeat candidate search is bounded and heuristic. It looks for target-preserving replacements that move a round away from repeated slot/stick resources, including nearby token enumerations, composite target-1 cancellation candidates, and occupied-resource swap candidates for manual planning. It flags candidates that create late pure N/N shortcuts, admit pure N/N through their resource budget, have high same-expression equality echo risk, visibly present authored shortcut samples after the learning window, have weak visible combinations, need bounded evidence, or are dominated by another shortcut family. It never edits round data automatically.',
     rounds:reports,
+    swapPlanSummary:resourceSwapPlanSummary(reports),
   };
 }
 
@@ -990,16 +1032,142 @@ function resourceCandidateSummary(candidates) {
     analysisOnlyCount:candidates.filter(candidate => candidate.analysisOnly).length,
     sourceCounts,
     bestBySource:bestResourceCandidatesBySource(candidates),
+    swapPlanningCount:candidates.filter(isSwapPlanningCandidate).length,
+    swapPlanningCandidates:bestSwapPlanningCandidates(candidates),
     riskCounts,
   };
 }
 
+function resourceSwapPlanSummary(reports) {
+  const byMove = new Map();
+  for (const report of reports) {
+    for (const candidate of report.candidateSummary.swapPlanningCandidates) {
+      const key = [
+        candidate.sample,
+        candidate.target,
+        candidate.slots,
+        candidate.sticks,
+        candidate.existingResources.join(','),
+      ].join('|');
+      if (!byMove.has(key)) {
+        byMove.set(key, {
+          sample:candidate.sample,
+          target:candidate.target,
+          resourceKey:`${candidate.slots}/${candidate.sticks}`,
+          slots:candidate.slots,
+          sticks:candidate.sticks,
+          existingResources:candidate.existingResources,
+          existingResourceDetails:candidate.existingResourceDetails,
+          sourceRounds:[],
+          sourceResourceKeys:[],
+          complete:candidate.complete,
+          limitReason:candidate.limitReason,
+          dominantPattern:candidate.dominantPattern,
+          dominantRatio:candidate.dominantRatio,
+          solutionCount:candidate.solutionCount,
+          combinationTags:candidate.combinationTags,
+          analysisNotes:candidate.analysisNotes,
+          planningNote:'Analysis-only occupied-resource candidate. Move or redesign the existing resource owner before using this as a direct replacement.',
+        });
+      }
+      const plan = byMove.get(key);
+      if (!plan.sourceRounds.some(round => round.number === report.number)) {
+        plan.sourceRounds.push({
+          number:report.number,
+          name:report.name,
+          sample:report.sample,
+          resourceKey:`${report.slots}/${report.sticks}`,
+          slots:report.slots,
+          sticks:report.sticks,
+        });
+      }
+      const sourceResourceKey = `${report.slots}/${report.sticks}`;
+      if (!plan.sourceResourceKeys.includes(sourceResourceKey)) {
+        plan.sourceResourceKeys.push(sourceResourceKey);
+      }
+    }
+  }
+
+  const plans = [...byMove.values()]
+    .map(plan => enrichResourceSwapPlan(plan))
+    .sort((left, right) =>
+      right.sourceRounds.length - left.sourceRounds.length ||
+      left.existingResources.length - right.existingResources.length ||
+      left.resourceKey.localeCompare(right.resourceKey) ||
+      left.sample.localeCompare(right.sample));
+
+  return {
+    method:'Groups occupied-resource swap candidates by sample/resource so multi-round redesign can start from the moves that help the most selected repeated-resource rounds.',
+    planCount:plans.length,
+    plans,
+  };
+}
+
+function enrichResourceSwapPlan(plan) {
+  const sourceRounds = plan.sourceRounds.sort((left, right) => left.number - right.number);
+  const sourceResourceKeys = plan.sourceResourceKeys.sort();
+  const blockingRounds = plan.existingResourceDetails.map(existing => ({
+    number:existing.number,
+    name:existing.name,
+    sample:existing.sample,
+    resourceKey:`${existing.slots}/${existing.sticks}`,
+    slots:existing.slots,
+    sticks:existing.sticks,
+  }));
+  const sourceGroupSizes = Object.fromEntries(sourceResourceKeys.map(resourceKey => [
+    resourceKey,
+    sourceRounds.filter(round => round.resourceKey === resourceKey).length,
+  ]));
+  const affectedRepeatedResourceKeys = sourceResourceKeys.filter(resourceKey =>
+    (sourceGroupSizes[resourceKey] ?? 0) > 1);
+
+  return {
+    ...plan,
+    sourceRounds,
+    sourceResourceKeys,
+    blockingRounds,
+    directlyApplicable:blockingRounds.length === 0,
+    expectedEffect:{
+      sourceRoundCount:sourceRounds.length,
+      blockingRoundCount:blockingRounds.length,
+      affectedRepeatedResourceKeys,
+      sourceGroupSizes,
+      requiresExistingResourceMove:blockingRounds.length > 0,
+      directReplacementWouldCreateSharedResource:blockingRounds.length > 0,
+      estimatedRepeatedGroupReduction:affectedRepeatedResourceKeys.length > 0 ? 1 : 0,
+    },
+    followUpCommands:blockingRounds.map(round =>
+      `node scripts/report-one-plus-one-minus-one-round-quality.mjs --make-one --resource-candidates ${round.number} --max-evaluations 20 --max-results 10 --candidate-budget 80 --max-nearby-nodes 700000 --max-nodes 200000 --max-solutions 1000`),
+  };
+}
+
+function isSwapPlanningCandidate(candidate) {
+  if (candidate.source !== 'occupied-resource-swap') return false;
+  if (reportAuthoredShortcutCount(candidate) > 0) return false;
+  if ((candidate.combinationTags?.length ?? 0) < 2) return false;
+  if (candidate.latePureSelfDivision || candidate.highEqualityEcho) return false;
+  return !candidate.analysisNotes.some(note =>
+    note.includes('dominant shortcut') ||
+    note.includes('authored sample uses shortcut') ||
+    note.includes('late pure N/N') ||
+    note.includes('budget admits') ||
+    note.includes('same-expression equality') ||
+    note.includes('combination score'));
+}
+
 function compareResourceCandidateReports(left, right) {
   return Number(left.analysisOnly) - Number(right.analysisOnly) ||
+    reportAuthoredShortcutCount(left) - reportAuthoredShortcutCount(right) ||
+    (right.combinationTags?.length ?? 0) - (left.combinationTags?.length ?? 0) ||
     left.reviewScore - right.reviewScore ||
     left.dominantRatio - right.dominantRatio ||
     right.solutionCount - left.solutionCount ||
     left.sample.localeCompare(right.sample);
+}
+
+function reportAuthoredShortcutCount(candidate) {
+  return (candidate.samplePatterns ?? []).filter(pattern =>
+    authoredCandidateReviewPatterns.includes(pattern)).length;
 }
 
 function bestResourceCandidatesBySource(candidates) {
@@ -1017,6 +1185,28 @@ function bestResourceCandidatesBySource(candidates) {
     };
   }
   return best;
+}
+
+function bestSwapPlanningCandidates(candidates) {
+  return candidates
+    .filter(isSwapPlanningCandidate)
+    .sort(compareResourceCandidateReports)
+    .slice(0, 3)
+    .map(candidate => ({
+      sample:candidate.sample,
+      target:candidate.target,
+      slots:candidate.slots,
+      sticks:candidate.sticks,
+      existingResources:candidate.existingResources,
+      existingResourceDetails:candidate.existingResourceDetails,
+      complete:candidate.complete,
+      limitReason:candidate.limitReason,
+      dominantPattern:candidate.dominantPattern,
+      dominantRatio:candidate.dominantRatio,
+      solutionCount:candidate.solutionCount,
+      combinationTags:candidate.combinationTags,
+      analysisNotes:candidate.analysisNotes,
+    }));
 }
 
 export function resourceAllowsPureSelfDivision(slots, sticks) {
@@ -1398,11 +1588,16 @@ function generateNearbyDominantCandidates(round, rounds, {
     const candidateSource = allowOccupied && occupied.has(identity)
       ? 'occupied-resource-swap'
       : source;
+    const samplePatterns = classifySolutionPatterns(symbols);
+    const authoredShortcutCount = samplePatterns.filter(pattern =>
+      authoredCandidateReviewPatterns.includes(pattern)).length;
+    const combinationScore = visibleCombinationTags(symbols).length;
     const candidate = {symbols:[...symbols], sample, slots, sticks, target,
       equality:equality.status, existingResources,
-      trivial, repeated, score, source:candidateSource};
+      trivial, repeated, score, source:candidateSource,
+      samplePatterns, authoredShortcutCount, combinationScore};
     const previous = candidates.get(identity);
-    if (!previous || candidate.score < previous.score) {
+    if (!previous || compareGeneratedResourceCandidates(candidate, previous) < 0) {
       candidates.set(identity, candidate);
       return true;
     }
@@ -1454,6 +1649,15 @@ function generateNearbyDominantCandidates(round, rounds, {
 
   return {limited, nodes, maxNearbyNodes, compositeCandidateCount,
     enumeratedCandidateCount, candidates:[...candidates.values()]};
+}
+
+function compareGeneratedResourceCandidates(left, right) {
+  return left.authoredShortcutCount - right.authoredShortcutCount ||
+    right.combinationScore - left.combinationScore ||
+    left.trivial - right.trivial ||
+    left.repeated - right.repeated ||
+    left.score - right.score ||
+    left.sample.localeCompare(right.sample);
 }
 
 function generateCompositeTargetOneCandidates() {

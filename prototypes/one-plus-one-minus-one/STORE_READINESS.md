@@ -8,12 +8,11 @@ Current completion judgment is tracked in
 
 ## Current Runtime Caveat
 
-The local source is newer than uploaded iOS `1.0.0 (2)` and the existing WebGL
-artifacts. A local iOS `1.0.0 (3)` archive and IPA export exist, but App Store
-Connect upload, processing, TestFlight installation and review selection for
-build 3 are not verified here. In particular, the exact-rational Round 48
-correctness fix and the latest round-identity edits require a fresh Unity
-runtime pass before they can be treated as player-build evidence.
+The local source is newer than uploaded iOS `1.0.0 (4)` and the existing WebGL
+artifacts. The local source now includes MakeOne quality changes and the
+`Found` / `Discoveries` first-minute differentiation UI pass, so another fresh
+Unity runtime pass is required before those changes can be treated as
+player-build evidence.
 
 Before running PlayMode, WebGL rebuilds, iOS readiness or Android readiness,
 run:
@@ -43,13 +42,16 @@ Unity-gated checks when it fails instead of repeating the same Unity timeout.
     `-`, `/`, `×`, `*`, or `=`. Players compose expressions from scratch, and
     the solver accepts mathematically valid alternate answers and direct
     equalities across 30 focused default rounds, with the earlier 100-round
-    free-building set kept as hidden legacy content.
+    free-building set kept as hidden legacy content. The top-right `Found`
+    button opens `Discoveries`, showing shape friends, saved expressions and
+    badges.
 - Keyword candidates:
   - puzzle, logic, equation, characters, numbers, brain, casual, math
 - 4.3(a) differentiation:
   - Avoid positioning this as a generic matchstick repair puzzle.
   - Emphasize empty-slot expression construction, living stick characters,
-    alternate valid answers, and direct equality validation.
+    alternate valid answers, direct equality validation, and the
+    `Found`/`Discoveries` collection loop.
   - Review notes should explicitly explain that the player composes equations
     rather than moving one match to fix a prebuilt equation.
   - Recent round-design evidence also removes late standalone `N / N = 1`
@@ -80,8 +82,8 @@ Unity-gated checks when it fails instead of repeating the same Unity timeout.
 - iOS marketing icon after export:
   - `Builds/iOS/Xcode/Unity-iPhone/Images.xcassets/AppIcon.appiconset/Icon-AppStore-1024.png`
 - Next iOS build number:
-  - App Store Connect already has iOS `1.0.0 (2)`, so the next release candidate
-    must use build number `3` or higher unless the submitted version changes.
+  - App Store Connect already has iOS `1.0.0 (4)`, so the next release candidate
+    must use build number `5` or higher unless the submitted version changes.
   - `ONE_EQUALS_ONE_MIN_IOS_BUILD_NUMBER` can override this verifier minimum for
     future releases.
 - Next Android version code:
@@ -91,11 +93,11 @@ Unity-gated checks when it fails instead of repeating the same Unity timeout.
     for future releases.
 - Screenshot checklist:
   - Round 1 first-play screen
-  - Round 5 multiply discovery
-  - Round 8 `111` discovery
-  - Round 9 star multiply discovery
-  - Round 30 medium expression
-  - Round 75 equation puzzle
+  - Round 5 packed-number division
+  - Round 8 combined expression
+  - Round 10 title echo expression
+  - `Found` / `Discoveries` overlay
+  - Round 22 larger expression
   - Round 30 finale expression
   - Round select page with locked/open/current states
 - Candidate WebGL screenshot command:
@@ -235,18 +237,18 @@ Current external blockers before calling this commercially ready:
 
 - `Assets/GoogleService-Info.plist` is present locally with bundle ID
   `com.mannlab.games.oneplusoneminusone`; it passed local iOS release preflight
-  for build `3`, but Crashlytics delivery still needs to be verified from a
-  fresh installed build.
+  for the uploaded build `4`, but Crashlytics delivery still needs to be
+  verified from a fresh installed build.
 - `Assets/google-services.json` must be added for real Android Firebase and
   Crashlytics verification.
 - Production iOS AdMob app/ad unit IDs were provided locally and passed strict
-  iOS release preflight for build `3`; keep using those env vars for the next
+  iOS release preflight for build `4`; keep using those env vars for the next
   iOS export. Android production AdMob IDs still need release-env verification
   before Play Store builds.
 - Android release signing env vars are required before Play Store AAB builds.
-- A fresh iOS Xcode export for build `3` is still blocked by Unity licensing
-  channel/protocol errors in this environment. Android fresh release export is
-  also still pending.
+- A fresh iOS Xcode export for the next candidate, build `5` or higher, is
+  still blocked by Unity licensing channel/protocol errors in this environment.
+  Android fresh release export is also still pending.
 - `RELEASE_ENV.example` lists the local/CI env vars required by strict release
   readiness.
 - Real device/simulator QA is still required for touch feel, SFX loudness, safe

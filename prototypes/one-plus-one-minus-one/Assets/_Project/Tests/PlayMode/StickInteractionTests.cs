@@ -139,7 +139,8 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             Canvas.ForceUpdateCanvases();
 
             Assert.That(Field<RectTransform>("collectionOverlay").gameObject.activeSelf, Is.True);
-            Assert.That(Field<Text>("collectionStatsText").text, Is.EqualTo("1 / 9 friends | 2 / 11 badges"));
+            Assert.That(Field<Button>("collectionButton").GetComponentInChildren<Text>().text, Is.EqualTo("Found"));
+            Assert.That(Field<Text>("collectionStatsText").text, Is.EqualTo("1 / 9 friends | 1 answer | 2 / 11 badges"));
             Assert.That(Field<Dictionary<string, Text>>("shapeCollectionLabels")["1"].text, Is.EqualTo("1"));
             Assert.That(Field<List<Text>>("expressionCollectionLabels")[0].text, Is.EqualTo("1. 1"));
             Assert.That(Field<Dictionary<string, Text>>("achievementLabels")["first_clear"].text, Does.StartWith("Done: It Works"));
@@ -178,7 +179,7 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             yield return null;
             Canvas.ForceUpdateCanvases();
 
-            Assert.That(Field<Text>("expressionCollectionTitleText").text, Is.EqualTo("Recent Round 10 Answers"));
+            Assert.That(Field<Text>("expressionCollectionTitleText").text, Is.EqualTo("Recent Round 10 Expressions"));
             var labels = Field<List<Text>>("expressionCollectionLabels");
             Assert.That(labels[0].text, Is.EqualTo("1. 1 + 1 - 1 × 1 / 1"));
         }

@@ -5,6 +5,36 @@ toward a commercial casual puzzle release.
 
 ## Current Gate
 
+### First-Minute Differentiation Gate (2026-09-27)
+
+Current 4.3(a) risk is partly that a reviewer may compress the app into the
+broader matchstick-equation category before seeing the actual interaction. A
+small local UI pass now makes the discovery loop visible without changing the
+rules:
+
+- the header button changed from `Album` to `Found`;
+- the collection overlay changed from `Collection` to `Discoveries`;
+- collection stats now show saved answer count in addition to friends and
+  badges;
+- expression rows are titled as `Round N Expressions` / `Recent Round N
+  Expressions`.
+
+This is not a gameplay-rule change and not a substitute for App Review
+approval. It is a review-safe differentiation pass: the game still starts from
+empty boxes, accepts alternate valid expressions, and does not force authored
+solutions. The next check is whether this makes the first 60 seconds feel like
+constructing and collecting expressions, not repairing a prebuilt equation.
+
+Current validation:
+
+- Node round-identity tests pass 62/62.
+- Static verification passes with expected stale-WebGL, release-env and manual
+  device-QA warnings.
+- A fresh PlayMode rerun was attempted on 2026-09-27 but Unity licensing
+  initialization timed out after `74.83s`
+  (`/tmp/one-equals-one-playmode.log`), so the UI pass still needs fresh Unity
+  runtime evidence once licensing is responsive.
+
 ### Default `= 1` Mode Pattern Gate (2026-09-26)
 
 Current first-run/default content is the 30-round fixed-target `= 1` mode; the
@@ -21,7 +51,12 @@ Current default-mode evidence:
   exits 0 with no late pure self-division violations.
   The summary now includes an `incompleteReview` block: Rounds 20, 22, 23 and
   29 are still bounded `node_budget` rows at the current search budget, so their
-  pattern ratios are prefix evidence rather than exhaustive coverage.
+  pattern ratios are prefix evidence rather than exhaustive coverage. A
+  high-budget follow-up with `--max-nodes 1000000 --max-solutions 5000`
+  exhausts Rounds 23 and 29, leaving Rounds 20 and 22 as the remaining bounded
+  rows for future targeted review. The pattern report now accepts
+  `--pattern-rounds`, and incomplete-row `recheckCommand` values include the
+  selected round so expensive follow-ups can run one bounded row at a time.
   The same summary now uses a default-mode review window after Round 10 for
   dominant shortcut families. Round 24 was redesigned from
   `1 1 - 1 1 + 1 / 1` to `1 1 11 - 1 111 + 1`, reducing the high-ratio
@@ -52,9 +87,34 @@ Current default-mode evidence:
   `occupied-resource-swap` analysis-only candidates, so future redesign can plan
   swaps across existing rounds without confusing them with direct replacements.
   Candidate summaries also include an `authoredSampleShortcut` risk count, so
-  samples like `A - A + 1`, `A + B - A`, `A × B - A × B + 1` or `A / B × B` do
-  not remain recommendable merely because their full answer set is not dominated
-  by a single shortcut family.
+  samples like `A - A + 1`, `A + B - A`, `A × B - A × B + 1`, `A / B × B`, or
+  chained reciprocal returns such as `A / B / A × B` do not remain
+  recommendable merely because their full answer set is not dominated by a
+  single shortcut family.
+  When multiple samples share the same slot/stick/target identity, the candidate
+  pool, final candidate order and `bestBySource` summary now prefer fewer
+  authored-shortcut patterns and more visible combination tags before the
+  generic score, keeping stronger structural samples visible instead of letting
+  simple cancellation witnesses monopolize the identity.
+  `candidateSummary.swapPlanningCandidates` now lists occupied-resource
+  candidates that are still analysis-only but have no visible authored shortcut
+  and enough visible combination structure to guide future multi-round swaps.
+  Swap-planning rows include `existingResourceDetails`, making the occupying
+  round name and current sample visible next to the candidate.
+  The resource-candidate report now also includes a top-level
+  `swapPlanSummary`, grouping those occupied-resource rows across the selected
+  source rounds. For the current `7/10` group, the summary makes it explicit
+  that `11 + 111 - 11 × 11` is useful only as a multi-round plan: one of
+  Rounds 13, 14, 19 or 25 could move there after Round 26's existing `7/14`
+  budget is moved or redesigned. The grouped plan rows now include
+  `directlyApplicable`, `blockingRounds`, `expectedEffect` and
+  `followUpCommands`, so the report distinguishes an immediately usable
+  replacement from a blocked swap and prints the next resource probe to run.
+  An in-memory two-round simulation showed that moving one `5/8` or `7/10`
+  source into `11 + 111 - 11 × 11` while moving Round 26 to
+  `11 × 11 - 111 - 11 + 1 + 1` can improve the resource metrics, but that edit
+  was not applied because the Round 26 replacement is visibly too close to
+  Round 22's current multiplication-offset path.
   The
   latest capped probes over the repeated-resource groups produced one later
   manual-quality replacement for Round 29, reducing a repeated resource group.
@@ -87,7 +147,8 @@ answers.
   one universal-key pattern for another under the bounded review map.
 - `node scripts/verify-one-plus-one-minus-one-rounds.mjs` passes.
 - `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` passes
-  61/61, including the MakeOne pattern-regression, target-preserving
+  62/62, including the MakeOne pattern-regression, targeted pattern-round,
+  target-preserving
   candidate-search tests, resource-repeat candidate report and single-sample
   pattern evaluation CLI.
 - Unity EditMode passes 63/63 after removing stale 100-round identity
@@ -131,6 +192,15 @@ and evaluated alongside composite target-1 forms, but no additional post-tutoria
 edit remains useful because the replacement sample is target-correct, complete
 under the evaluator, and no longer teaches pure self-division as the authored
 path.
+
+Latest follow-up: targeted `--pattern-rounds 20,22` support is in place, and a
+`1000000` node / `5000` solution pass still leaves both rows bounded. Round 20
+is now the clearer near-term authored-sample target because the report flags
+its visible multiply-by-one/self-subtraction sample and a broad candidate probe
+returned no direct candidate before the Round 22 portion became too expensive
+and was interrupted. Do not treat that interrupted broad probe as proof that
+Round 22 has no good redesign; the next pass should use narrower caps or a
+purpose-built candidate path instead of one large dominant-candidate run.
 
 ### Universal Shortcut Pattern Tightening (2026-09-18)
 
@@ -1008,16 +1078,16 @@ Browser input automation follow-up:
   hard-coded old coordinates. It cleared the default `= 1` Rounds 1-10 with
   emulated touch input and saved progress to Round 11. Evidence:
   `/tmp/one-equals-one-input-smoke/input/results.json`.
-- The same browser run now opens the Badges/collection overlay after Round 10
-  and verifies the runtime collection state (`friends=8`, `badges=5`,
+- The same browser run opened the then-current Badges/collection overlay after
+  Round 10 and verified the runtime collection state (`friends=8`, `badges=5`,
   `active=true`). Screenshot:
   `/tmp/one-equals-one-input-smoke/input/collection-after-first-ten.png`.
 - Collection now shows the most recent solved round's answers when the current
-  round has not been solved yet, so opening Badges after Round 10 displays
-  `Recent Round 10 Answers` instead of an empty Round 11 list. The WebGL input
+  round has not been solved yet, so opening the collection after Round 10
+  displays recent answers instead of an empty Round 11 list. The WebGL input
   result verifies `answerRound=10`, `answers=1`.
-- The top-right entry is now labeled `Album`, and achievement rows use
-  `Done:` / `Locked:` prefixes. This better matches the combined
-  friends/answers/badges surface without adding solve constraints.
+- At that point the top-right entry was labeled `Album`, with `Done:` /
+  `Locked:` achievement rows. The 2026-09-27 first-minute pass supersedes that
+  label with `Found` and the `Discoveries` overlay title.
 - Remaining limitation: this is browser automation evidence, not native-device
   finger feel, audio, or production SDK signoff.

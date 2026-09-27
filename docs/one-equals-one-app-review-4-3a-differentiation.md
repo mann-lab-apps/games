@@ -45,10 +45,15 @@ Distinct mechanics:
   construction puzzle.
 - The solver accepts mathematically valid alternate answers.
 - Player-built `=` tokens trigger direct left/right equality validation.
-- The 100-round set was hand-authored and later analyzed for unwanted shared
-  answer structures.
+- The current default set is a 30-round fixed-target `= 1` ladder, while the
+  earlier 100-round goal set is hidden legacy content.
+- The default set was hand-authored and later analyzed for unwanted shared
+  answer structures and over-reusable shortcut patterns.
 - The current source uses exact rational correctness checks, not only a loose
   floating-point target comparison.
+- The top-right `Found` button opens a `Discoveries` screen for shape friends,
+  saved expressions and badges, making expression construction visible as a
+  collection loop.
 
 ## Metadata Changes Made
 
@@ -60,7 +65,8 @@ Distinct mechanics:
 - constructing expressions from scratch
 - alternate valid answers
 - direct equality validation
-- 100 handmade rounds
+- 30 focused default rounds
+- discovered shape friends and saved expressions
 
 Updated store-facing candidates:
 
@@ -70,7 +76,7 @@ Updated store-facing candidates:
   - Tiny equation builders
 - Promotional text:
   - Build odd little equations from living stick friends. Empty boxes, flexible
-    answers, and 100 handmade rounds.
+    answers, and saved discoveries.
 - Short description:
   - Build strange equations with living stick friends.
 
@@ -85,7 +91,8 @@ The review notes now explicitly explain:
 - Players build tokens and expressions from scratch.
 - Alternate valid expressions are accepted.
 - Direct equalities are validated when the player builds `=`.
-- Recommended review path: Rounds 1, 5, 8, 9, 18/19, 30 or 100.
+- Recommended review path: Rounds 1, 5, 8, 10, the `Found` / `Discoveries`
+  screen, and later MakeOne rounds such as 22 or 30.
 
 ## Screenshot And Video Direction
 
@@ -98,10 +105,9 @@ Recommended 60-90 second review video:
 2. Round 5: show pieces being arranged into `×`.
 3. Round 8: show three pieces becoming `111`.
 4. Round 9: show the three-piece `*`.
-5. Round 18 or 19: show the player creating `=`.
-6. Round 30 or 75: show a larger expression built from empty slots.
-7. Round 100: briefly show late-game density or the title callback.
-8. Round select: show the 100-round progression.
+5. Open `Found`: show discovered shape friends and saved expressions.
+6. Round 22 or 30: show a larger expression built from empty slots.
+7. Round select: show the 30-round default progression.
 
 Screenshot plan should similarly prioritize expression construction and
 character tokens over a simple "fix the formula" appearance.
@@ -124,7 +130,7 @@ Avoid:
 
 - adding token bans
 - forcing sample answers
-- changing the core 100-round structure
+- changing the core MakeOne structure
 - adding arms, hands, legs, blush, or off-character decorations
 - making aggressive claims about competing apps
 

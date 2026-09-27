@@ -10,12 +10,24 @@ for app `6811571680`, with no upload errors or warnings. TestFlight processing,
 installation, review selection and App Review outcome are still external
 follow-up items.
 
-Local source after that upload includes additional default-mode quality edits:
+Local source after that upload includes additional default-mode quality edits
+and a first-minute differentiation UI pass:
+the top-right collection entry now reads `Found`, the overlay title reads
+`Discoveries`, the stats include saved answer count, and answer rows are titled
+as expressions. This is intended to make the empty-box expression-construction
+and discovery loop more visible during review without changing puzzle rules.
+Node round-identity tests and the static verification suite pass for this local
+pass, but the fresh Unity PlayMode rerun did not reach tests because Unity
+licensing initialization timed out after `74.83s`
+(`/tmp/one-equals-one-playmode.log`). The existing WebGL build remains older
+than this UI pass.
+
+Local source after that upload also includes additional default-mode quality edits:
 the default 30-round fixed-target `= 1` ladder now has its own `--make-one`
 pattern report, no duplicate sample strings, and no late standalone `N / N = 1`
-violations after Round 10. The report now explicitly marks Rounds 20, 22 and
-23 as bounded `node_budget` rows under the current MakeOne pattern budget, so
-they are not overclaimed as fully exhausted. The same local source now applies
+violations after Round 10. The report now explicitly marks Rounds 20, 22, 23
+and 29 as bounded `node_budget` rows under the current MakeOne pattern budget,
+so they are not overclaimed as fully exhausted. The same local source now applies
 a mode-aware dominant-pattern review window: the default ladder reviews after
 Round 10, Round 24 was redesigned away from the high-ratio `/1` sample
 `1 1 - 1 1 + 1 / 1`, and Round 18 was redesigned from `1 - 1 + 1 / 1`
@@ -29,6 +41,12 @@ records 13 unresolved found shared-equality pairs as design-review signals.
 The follow-up `--make-one --resource-candidates` report path can now probe
 target-preserving replacements for those groups and flag candidates that would
 reintroduce late pure `N/N` shortcuts.
+After the chained reciprocal classifier update, a higher-budget MakeOne pattern
+recheck (`--max-nodes 1000000 --max-solutions 5000`) exhausts Rounds 23 and 29;
+Rounds 20 and 22 remain bounded `node_budget` rows and should be the next
+targeted pattern-review focus. The report now supports `--pattern-rounds`, so
+those high-budget follow-ups can be run and recorded without rechecking every
+MakeOne round.
 After the first resource-candidate tooling pass, Round 23 was changed from
 `111 - 11 * 11 + 11 + 1 - 1` to `1 / 11 * 11 - 1 + 1`, reducing the default
 ladder from six repeated slot/stick groups to five, from 15 to 14 unresolved
@@ -93,10 +111,11 @@ testing legacy 100-round behavior, EditMode passed 63/63 on 2026-09-26
 the default `= 1` collection flow: Round 1 records the discovered `1` friend,
 first-shape/first-clear badges and the solved expression, and packed/neighbor
 number answers de-dupe in the collection UI. The Node identity suite now passes
-61/61, including the MakeOne `incompleteReview` summary contract,
-target-preserving MakeOne dominant-candidate search, single-sample evaluation
-CLI coverage, MakeOne `resourceReview` summary coverage, resource-repeat
-candidate report coverage, and static round verification. The footer command
+62/62, including the MakeOne `incompleteReview` summary contract,
+targeted `--pattern-rounds` follow-up coverage, target-preserving MakeOne
+dominant-candidate search, single-sample evaluation CLI coverage, MakeOne
+`resourceReview` summary coverage, resource-repeat candidate report coverage,
+and static round verification. The footer command
 buttons were widened and made taller/readable enough to pass the small-phone
 touch/text regression.
 Fresh QA and ordinary WebGL builds were rebuilt and verified after the
@@ -183,8 +202,8 @@ tests while this command still reports `LICENSING_CLIENT_UNAVAILABLE`; the
 scripts will fast-fail by design.
 
 Latest browser URL: http://127.0.0.1:8093/ is still the older batch 4 ordinary
-build unless rebuilt. Uploaded iOS `1.0.0 (2)` does not include these local
-source changes.
+build unless rebuilt. Uploaded iOS `1.0.0 (4)` does not include the later
+MakeOne quality edits or the `Found` / `Discoveries` first-minute UI pass.
 
 Latest evidence: the 2026-09-16 sections atop the gameplay audit and commercial
 polish backlog. Older sections below retain historical pending/blocked results.
@@ -842,6 +861,27 @@ The same report now marks visible authored shortcut samples after the learning
 window as `authoredSampleShortcut` risk, preventing candidates like `A - A + 1`,
 `A + B - A`, `A × B - A × B + 1` or `A / B × B` from being treated as
 recommendable just because their full answer set has mixed patterns.
+The generator, final candidate order and `bestBySource` summary now also keep
+stronger samples for a repeated slot/stick/target identity by preferring fewer
+visible authored-shortcut patterns and more visible combination tags before the
+generic score.
+`candidateSummary.swapPlanningCandidates` now keeps analysis-only occupied
+resource candidates visible when they have no authored shortcut sample and
+enough visible combination structure to support future multi-round swaps.
+Those candidates include `existingResourceDetails`, so reports identify the
+occupying round name and sample that a future swap would need to move.
+The same local tooling now emits a top-level `swapPlanSummary`, grouping
+occupied-resource candidates by sample/resource across the selected source
+rounds. This is source/tooling evidence only, but it makes the remaining
+MakeOne redesign work more concrete: current `7/10` probes show that candidates
+like `11 + 111 - 11 × 11` require a paired move for the existing `7/14` owner
+Round 26 before they can reduce a repeated source group. The summary now
+includes `directlyApplicable`, `blockingRounds`, `expectedEffect` and
+`followUpCommands`, so a future pass can see both the expected resource-group
+impact and the exact blocker probe to run next. A local in-memory two-round
+simulation found a metrics-improving Round 26 move, but no round data was
+changed because that replacement repeated Round 22's visible
+multiplication-offset motif too closely.
 Round 26's authored MakeOne sample is now `111 - 11 × 11 + 11`, replacing the
 previous visible `N/N * N/N` chain while keeping the same 7-slot/14-stick
 resource budget and alternate-answer behavior.
@@ -854,9 +894,14 @@ late-round shortcut samples can be reviewed separately from valid alternate
 answers.
 Resource candidate reports now also classify `highEqualityEcho` candidates,
 which prevents Round 30-style replacements that merely swap visible `N/N` for a
-same-expression equality dominated answer map from looking recommendable.
+same-expression equality dominated answer map from looking recommendable,
+and the local pattern classifier now treats chained multiplicative/division
+returns such as `11 / 111 / 11 × 111` as reciprocal-cancellation authored
+shortcut samples. This is a design-analysis/tooling change only: it does not
+change accepted answers, but it prevents review tooling from ranking those
+visibly shortcut-like samples ahead of stronger structural swap candidates.
 `node --test
-scripts/test-one-plus-one-minus-one-round-identity.mjs` passes 61/61 and
+scripts/test-one-plus-one-minus-one-round-identity.mjs` passes 62/62 and
 `bash scripts/verify-one-plus-one-minus-one-static.sh` passes. The current
 WebGL artifacts are still older than the latest source because a fresh WebGL QA
 build is blocked by Unity licensing initialization timing out; do not use the

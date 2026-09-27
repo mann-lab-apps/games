@@ -3,18 +3,17 @@
 This draft is for store-submission preparation. Re-check it against the final
 build, privacy policy, Firebase settings, and AdMob settings before upload.
 
-## Candidate Boundary (2026-09-18)
+## Candidate Boundary (2026-09-27)
 
-iOS `1.0.0 (2)` is the last uploaded App Store candidate confirmed in the repo
-history. A local `1.0.0 (3)` archive and IPA export now exist under
-`Builds/iOS/Archives/OneEqualsOne-1.0.0-3.xcarchive` and
-`Builds/iOS/Export/1.0.0-3/11.ipa`, but App Store Connect upload, processing,
-TestFlight installation, and review selection for build 3 are not verified by
-this document.
+iOS `1.0.0 (4)` is the last uploaded App Store candidate confirmed in the repo
+history. Local source is newer than that upload and now includes the MakeOne
+pattern-quality passes plus the first-minute `Found` / `Discoveries` UI wording
+pass. App Store Connect review outcome and any future build selection remain
+external follow-up items.
 
-The local source is newer than uploaded build 2 and includes the 4.3(a)
+The local source is newer than uploaded build 4 and includes the 4.3(a)
 positioning changes, exact-rational solve correctness, round-identity edits,
-and universal shortcut redesign. Updated screenshot candidates are kept in
+universal shortcut redesign, and discovery UI copy changes. Updated screenshot candidates are kept in
 `Builds/AppStoreScreenshots/Candidates-next-build`, separate from the existing
 `Candidates`. They are browser-rendered candidates, not native-device captures,
 and must be compared against the exact submitted build before submission.
@@ -43,7 +42,7 @@ verified by this audit.
 
 ## Promotional Text
 
-Build odd little equations from living stick friends. Empty boxes, flexible answers, and 30 focused rounds.
+Build odd little equations from living stick friends. Empty boxes, flexible answers, and saved discoveries.
 
 ## Short Description
 
@@ -64,7 +63,9 @@ Rounds ask you to build an expression that reaches the displayed `= 1` target,
 while alternate valid expressions are still accepted.
 
 Complete 30 compact puzzles, discover alternate answers, and finish with the
-odd little equation that started it all.
+odd little equation that started it all. The `Found` button opens your
+Discoveries: shape friends, saved expressions, and badges from the answers you
+constructed.
 
 ## Keywords
 
@@ -100,7 +101,10 @@ The solver does not force a single preset answer. It accepts mathematically
 valid alternate expressions, and each round is built around the displayed
 `= 1` target instead of repairing a preset broken equation. The release set
 contains 30 focused rounds, including rounds focused on packed numbers,
-operator combinations, and compact fixed-target expression construction. The round set was also
+operator combinations, and compact fixed-target expression construction. The
+top-right `Found` button opens a `Discoveries` screen that records shape
+friends, built expressions, and badges, reinforcing that the player is
+constructing expressions rather than matching one preset move sequence. The round set was also
 reviewed for over-reusable shortcut patterns: late standalone `N / N = 1`
 solutions and copied-expression equality samples were removed without adding
 token bans or sample-answer enforcement.
@@ -118,10 +122,12 @@ equality, then tap Check. Alternative valid solutions are accepted. Reset
 affects the current puzzle only. First launch starts Round 1; returning players
 with cleared rounds see round selection.
 
-Suggested review path: Round 1 introduces the living `1` piece, Round 5 shows a
-constructed `×`, Round 8 shows `111`, Round 9 shows `*`, Round 18/19 introduce
-player-built equality, and Round 30 or Round 100 show larger expressions that
-are composed from empty slots rather than repaired from a preset equation.
+Suggested review path: Round 1 introduces the living `1` piece and an empty
+slot, Round 5 shows packed-number division, Round 8 shows a combined expression
+using all pieces, Round 10 shows a compact multi-token expression, the top-right
+`Found` button shows saved shape and expression discoveries, and later rounds
+such as Round 22 or Round 30 show larger expressions that are composed from
+empty slots rather than repaired from a preset equation.
 
 The supplied review video shows Rounds 1-10 and entry into Round 11. It is a
 replay with prior progress, not a fresh-install or first-ad demonstration. Add

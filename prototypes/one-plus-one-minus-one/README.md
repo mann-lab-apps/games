@@ -110,6 +110,10 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
   QA and App Store capture PNGs for dimensions, alpha policy, blank/dark
   content, and mobile content-start position.
 - Run `./scripts/verify-one-plus-one-minus-one-rounds.mjs` when Unity is unavailable; it statically checks the 100 legacy goal rounds, 30 default fixed-target rounds, tutorial scope, title hint policy, and narrow portrait layout plan.
+- The default mode's first-minute review surface uses the top-right `Found`
+  button and `Discoveries` overlay to show discovered shape friends, saved
+  expressions and badges together. Keep this as a lightweight discovery log:
+  do not turn it into a hint panel, answer lock, or separate mode selector.
 - Run `./scripts/report-one-plus-one-minus-one-round-quality.mjs --strict` after
   legacy goal round edits to review token-band coverage, target spread, and
   repeated pattern warnings.
@@ -118,7 +122,10 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
   and to keep bounded, incomplete pattern rows visible. The summary also
   includes `resourceReview`, which lists repeated slot/stick budgets with
   found shared-equality witnesses so same-resource fatigue stays visible
-  without banning valid alternate answers.
+  without banning valid alternate answers. Use `--pattern-rounds 20,22` with a
+  higher `--max-nodes` / `--max-solutions` budget for focused follow-up on
+  bounded rows; generated `incompleteReview.recheckCommand` entries already
+  include the relevant `--pattern-rounds <round>` selector.
 - Run `./scripts/report-one-plus-one-minus-one-round-quality.mjs --make-one --evaluate-sample '1 - 1 + 1 / 1' --target 1`
   before editing a hand-designed default-mode round to inspect the candidate's
   slot count, stick cost, sample patterns and dominant shortcut profile.
@@ -144,8 +151,27 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
   redesign can see promising swaps without treating them as direct replacements.
   When a capped evaluation would otherwise be filled by one source, the report
   uses `search.sourceDiverseEvaluation` to show that it kept at least one
-  candidate from each generated source in view. Prefer one round at a time, or set
+  candidate from each generated source in view. When several generated samples
+  share the same slot/stick/target identity, the pool, final candidate order and
+  `bestBySource` summary now prefer fewer visible authored-shortcut patterns and
+  more visible combination tags before the generic score, keeping stronger
+  structural samples from being hidden by simple cancellation witnesses.
+  `candidateSummary.swapPlanningCandidates` lists occupied-resource candidates
+  that are still analysis-only but have no authored shortcut sample and enough
+  visible combination structure to guide future multi-round swaps. These rows
+  include `existingResourceDetails` so the occupying round name and sample are
+  visible alongside the candidate. The top-level `swapPlanSummary` groups the
+  same occupied-resource candidates across every selected source round, so a
+  repeated-resource probe can show which existing round must move before a
+  promising swap candidate can become a direct replacement. Each grouped plan
+  also reports `directlyApplicable`, `blockingRounds`, `expectedEffect` and
+  `followUpCommands`, making blocked multi-round swaps actionable without
+  changing round data automatically. Prefer one round at a time, or set
   `--max-nearby-nodes` explicitly when probing a whole repeated-resource group.
+  The authored-shortcut classifier treats both adjacent reciprocal returns
+  (`A / B × B`) and chained multiplicative/division returns (`A / B / A × B`)
+  as reciprocal-cancellation review material, so these candidates remain legal
+  answers but are not preferred as post-learning authored samples.
 - Round 26 currently uses `111 - 11 × 11 + 11` to surface the multiplication-offset
   idea instead of presenting a visible `N/N * N/N` route, while preserving the
   same resource budget and free alternate-answer validation.

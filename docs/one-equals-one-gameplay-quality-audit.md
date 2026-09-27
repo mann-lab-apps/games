@@ -1,5 +1,39 @@
 # 1 = 1 Gameplay Quality Audit
 
+## First 60-Second Differentiation Pass (2026-09-27)
+
+App Review 4.3(a) follow-up now treats the first minute as a design surface,
+not only a metadata problem. The latest local source keeps the MakeOne rules
+unchanged, but makes the discovery loop more visible:
+
+- the top-right collection entry now reads `Found` instead of `Album`, so the
+  first screen presents it as a discovery log rather than a generic menu.
+- the collection overlay title now reads `Discoveries`.
+- the collection stats now include the number of saved answers alongside shape
+  friends and badges, making built expressions part of the visible collection
+  economy.
+- saved-expression section titles now say `Round N Expressions` or
+  `Recent Round N Expressions`, aligning the UI with expression construction
+  rather than a single intended answer.
+
+No token bans, fixed-answer checks, round rules, ad cadence or character art
+were changed in this pass. The intent is to make "place stick friends, build
+expressions, collect discoveries" readable in the first review session without
+weakening free-form solving.
+
+Verification for this local pass:
+
+- Node round-identity tests pass 62/62.
+- `bash scripts/verify-one-plus-one-minus-one-static.sh` passes, with expected
+  warnings for stale WebGL artifacts, external release env vars and manual
+  device QA.
+- Unity PlayMode did not reach tests: the 2026-09-27 rerun timed out during
+  Unity licensing initialization after `74.83s`
+  (`/tmp/one-equals-one-playmode.log`). Treat this as runtime verification
+  blocked by the local Unity licensing environment, not as gameplay evidence.
+- The existing WebGL build is older than this UI pass and must not be used as
+  runtime proof for the `Found` / `Discoveries` surface.
+
 ## Default `= 1` Mode Pattern Pass (2026-09-26)
 
 The shipped first-run/default content is now the 30-round fixed-target `= 1`
@@ -50,14 +84,20 @@ Changed default-mode samples:
 Verification:
 
 - `node scripts/verify-one-plus-one-minus-one-rounds.mjs`
-- `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` (61/61 after the authored-sample shortcut review test was added)
+- `node --test scripts/test-one-plus-one-minus-one-round-identity.mjs` (62/62 after the targeted `--pattern-rounds` regression was added)
 - the new `--make-one --patterns --summary --strict-patterns` regression is
   covered by the Node identity test suite.
 - The MakeOne summary now includes an explicit `incompleteReview` section so
   bounded rows cannot be mistaken for full pattern coverage. Under the current
   `200000` node / `1000` solution budget, Rounds 20, 22, 23 and 29 remain
   incomplete `node_budget` rows; their observed pattern counts are prefix
-  evidence only, not a proof that the rows are fully exhausted.
+  evidence only, not a proof that the rows are fully exhausted. A targeted
+  `1000000` node / `5000` solution recheck exhausts Rounds 23 and 29, leaving
+  only Rounds 20 and 22 incomplete under that higher budget; both remain
+  bounded design-review rows rather than strict failures. The report now
+  accepts `--pattern-rounds 20,22`, and generated `incompleteReview`
+  `recheckCommand` values include the specific round number so high-budget
+  follow-ups can avoid re-enumerating unrelated rows.
 - The same summary now includes `resourceReview`, which keeps repeated
   slot/stick groups visible in JSON automation. Current default-mode review
   groups include `5/8` (Rounds 8, 11, 12, 17), `7/10` (13, 14, 19, 25)
@@ -148,9 +188,40 @@ Verification:
   multi-round swap planning visible without recommending already-used budgets as
   direct replacements. The report now also exposes `authoredSampleShortcut`
   risk counts so visible self-subtraction, self-division, divide-by-one,
-  multiply-by-one, additive/reciprocal cancellation and same-expression-equality samples cannot stay
-  recommendable after the learning window just because the broader answer set is
-  diverse. The report
+  multiply-by-one, additive/reciprocal cancellation and same-expression-equality
+  samples cannot stay recommendable after the learning window just because the
+  broader answer set is diverse. The reciprocal-cancellation classifier now also catches chained
+  multiplicative/division returns such as `11 / 111 / 11 × 111`, so those
+  samples no longer look like stronger structural swap candidates merely
+  because the cancelling factors are not adjacent. Candidate generation, final
+  candidate sorting and `bestBySource` selection now also prefer lower authored-shortcut counts and higher visible
+  combination scores when several samples share the same slot/stick/target
+  identity, so simple cancellation witnesses do not hide a stronger structural
+  sample for the same resource move. `candidateSummary.swapPlanningCandidates`
+  now separates occupied-resource candidates that are not direct replacements
+  but have no visible authored shortcut and enough visible combination structure
+  to be useful for future multi-round swaps, such as `11 + 111 - 11 × 11`.
+  These rows include `existingResourceDetails` with the occupying round names
+  and samples, so a swap candidate points directly at the round that must move
+  next instead of leaving only a raw resource number.
+  Resource-candidate reports now also expose a top-level `swapPlanSummary`,
+  grouping those occupied-resource candidates across every selected source
+  round. A capped `7/10` probe now shows that `11 + 111 - 11 × 11` could help
+  Rounds 13, 14, 19 or 25 only after the current `7/14` owner, Round 26
+  `Folded Path`, is moved or redesigned first. This keeps the next design step
+  focused on multi-round swaps instead of retrying the same analysis-only
+  candidate as a direct replacement. The summary now includes
+  `directlyApplicable`, `blockingRounds`, `expectedEffect` and
+  `followUpCommands`, so reports say both why a plan is blocked and which
+  `--resource-candidates` command to run next.
+  A follow-up in-memory two-round simulation checked moving one `5/8`, `7/10`
+  or `6/10` source round into `11 + 111 - 11 × 11` while moving Round 26 to
+  `11 × 11 - 111 - 11 + 1 + 1`. This can raise distinct resources from 22 to 23
+  and reduce unresolved found shared-equality pairs from 13 to 10 for a `5/8`
+  or `7/10` source, but it was not applied because the Round 26 replacement is
+  too close to Round 22's current `11 * 11 - 111 - 11 + 1 + 1` path and would
+  trade one repetition problem for another visible motif repetition.
+  The report
   includes `candidateSummary`, so `recommendableCount: 0` plus risk counts such
   as `latePureSelfDivision`, `dominantShortcut`, `highEqualityEcho` or
   `boundedEvidence` explain why a bounded probe should not become a data edit.
@@ -1685,9 +1756,10 @@ equality puzzle rather than a quick data tweak.
   saved progress to Round 11, and wrote evidence under
   `/tmp/one-equals-one-input-smoke/input/results.json`. This is browser
   automation evidence, not physical-device touch signoff.
-- Extended that browser run to open the Badges/collection overlay after Round
-  10. The QA state log verifies `friends=8`, `badges=5`, `active=true` and the
-  screenshot is `/tmp/one-equals-one-input-smoke/input/collection-after-first-ten.png`.
+- Extended that browser run to open the then-current Badges/collection overlay
+  after Round 10. The QA state log verifies `friends=8`, `badges=5`,
+  `active=true` and the screenshot is
+  `/tmp/one-equals-one-input-smoke/input/collection-after-first-ten.png`.
   The coordinate probe now emits RectTransform centers so top-right anchored
   buttons are tapped at their visual center.
 - Improved collection answer display so an unplayed current round shows the
@@ -1695,8 +1767,9 @@ equality puzzle rather than a quick data tweak.
   evidence now verifies `answerRound=10`, `answers=1`, and
   `firstAnswer="1 + 1 - 1 × 1 / 1"` after the first-ten run.
 - Renamed the top-right entry from `Badges` to `Album` and changed achievement
-  rows to `Done:` / `Locked:` prefixes so the collection surface reads as a
-  broader progress album rather than a narrow badge list.
+  rows to `Done:` / `Locked:` prefixes so the collection surface read as a
+  broader progress album rather than a narrow badge list. This label was later
+  superseded by the 2026-09-27 `Found` / `Discoveries` first-minute pass.
 
 2026-09-26 MakeOne pattern-quality continuation:
 

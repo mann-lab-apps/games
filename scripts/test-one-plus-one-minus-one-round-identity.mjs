@@ -406,6 +406,8 @@ test('solution pattern classifier identifies universal shortcut families', () =>
     ['additive-cancellation']);
   assert.deepEqual(classifySolutionPatterns(['1', '/', '111', '×', '111']),
     ['reciprocal-cancellation']);
+  assert.deepEqual(classifySolutionPatterns(['11', '/', '111', '/', '11', '×', '111']),
+    ['reciprocal-cancellation']);
   assert.deepEqual(classifySolutionPatterns(['111', '-', '11', '×', '11', '+', '11']),
     []);
   assert.deepEqual(classifySolutionPatterns(['111', '×', '11', '/', '11']),
@@ -516,6 +518,7 @@ test('make-one pattern CLI tracks default mode shortcut regressions separately',
   assert.ok(report.incompleteReview.rows.every(row =>
     row.limitReason === 'node_budget' &&
     row.recheckCommand.includes('--make-one') &&
+    row.recheckCommand.includes(`--pattern-rounds ${row.number}`) &&
     row.recheckCommand.includes('--max-nodes 1000000') &&
     row.interpretation.includes('prefix evidence')));
   assert.deepEqual(report.shortcutPolicy.dominantPatternReview.highPriorityRows, []);
@@ -534,6 +537,39 @@ test('make-one pattern CLI tracks default mode shortcut regressions separately',
   assert.equal(report.resourceReview.reviewRows.some(row =>
     row.rounds.join(',') === '18,29' ||
     row.key === '6/8'), false);
+});
+
+test('pattern CLI can target bounded MakeOne rows for high-budget follow-up', () => {
+  const run = spawnSync(process.execPath, [
+    'scripts/report-one-plus-one-minus-one-round-quality.mjs',
+    '--make-one',
+    '--patterns',
+    '--summary',
+    '--pattern-rounds',
+    '20,22',
+    '--max-nodes',
+    '1000',
+    '--max-solutions',
+    '100',
+  ], reportSpawnOptions);
+  assert.equal(run.status, 0, run.stderr);
+  const report = JSON.parse(run.stdout);
+  assert.deepEqual(report.selectedRounds, [20, 22]);
+  assert.equal(report.summary.rounds, 2);
+  assert.deepEqual(report.incompleteReview.rows.map(row => row.number), [20, 22]);
+  assert.ok(report.incompleteReview.rows.every(row =>
+    row.recheckCommand.includes(`--pattern-rounds ${row.number}`)));
+
+  const duplicate = spawnSync(process.execPath, [
+    'scripts/report-one-plus-one-minus-one-round-quality.mjs',
+    '--make-one',
+    '--patterns',
+    '--summary',
+    '--pattern-rounds',
+    '20,20',
+  ], reportSpawnOptions);
+  assert.notEqual(duplicate.status, 0);
+  assert.match(duplicate.stderr, /--pattern-rounds expects unique round numbers/);
 });
 
 test('make-one authored sample review keeps late shortcut evidence visible', () => {
@@ -620,20 +656,33 @@ test('make-one resource candidate search flags shortcut-risk replacements', () =
   assert.ok(report.rounds[0].candidateSummary.sourceCounts['nearby-resource-enumeration'] > 0);
   assert.match(report.rounds[0].candidateSummary.bestBySource['composite-target-one'].sample, /\S/);
   assert.match(report.rounds[0].candidateSummary.bestBySource['nearby-resource-enumeration'].sample, /\S/);
+  assert.equal(report.rounds[0].candidateSummary.bestBySource['occupied-resource-swap'].sample,
+    '11 + 111 - 11 × 11');
+  assert.equal(report.rounds[0].candidateSummary.swapPlanningCount, 2);
+  assert.deepEqual(
+    report.rounds[0].candidateSummary.swapPlanningCandidates.map(candidate => candidate.sample),
+    ['11 + 111 - 11 × 11', '1 1 + 111 - 11 × 11'],
+  );
+  assert.deepEqual(
+    report.rounds[0].candidateSummary.swapPlanningCandidates.map(candidate =>
+      candidate.existingResourceDetails.map(existing => [existing.number, existing.name, existing.sample])),
+    [[[26, 'Folded Path', '111 - 11 × 11 + 11']], [[29, 'Short Spark', '1 1 + 111 - 11 × 11']]],
+  );
+  assert.ok(report.rounds[0].candidateSummary.swapPlanningCandidates.every(candidate =>
+    candidate.combinationTags.includes('nontrivial-multiply')));
   assert.ok(report.rounds[0].candidateSummary.riskCounts.latePureSelfDivision > 0);
-  assert.ok(report.rounds[0].candidateSummary.riskCounts.dominantShortcut > 0);
   assert.ok(report.rounds[0].candidateSummary.riskCounts.authoredSampleShortcut > 0);
   assert.ok(report.rounds[0].candidates.length > 0);
   assert.ok(report.rounds[0].candidates.every(candidate => candidate.target === 1));
   assert.ok(report.rounds[0].candidates.some(candidate =>
-    candidate.sample === '1 - 1 / 111 * 111 + 1' &&
-    candidate.source === 'composite-target-one' &&
-    candidate.combinationTags.includes('nontrivial-division') &&
+    candidate.sample === '11 + 111 - 11 × 11' &&
+    candidate.source === 'occupied-resource-swap' &&
+    candidate.samplePatterns.length === 0 &&
     candidate.combinationTags.includes('nontrivial-multiply')));
   assert.ok(report.rounds[0].candidates.some(candidate =>
     candidate.analysisOnly &&
-    candidate.pureDivisionResource === false &&
-    candidate.analysisNotes.some(note => note.includes('dominant shortcut'))));
+    candidate.samplePatterns.includes('reciprocal-cancellation') &&
+    candidate.analysisNotes.some(note => note.includes('authored sample uses shortcut pattern'))));
 
   const groupedRun = spawnSync(process.execPath, [
     'scripts/report-one-plus-one-minus-one-round-quality.mjs',
@@ -656,6 +705,34 @@ test('make-one resource candidate search flags shortcut-risk replacements', () =
   assert.equal(groupedRun.status, 0, groupedRun.stderr);
   const groupedReport = JSON.parse(groupedRun.stdout);
   assert.equal(groupedReport.rounds.length, 4);
+  assert.equal(groupedReport.swapPlanSummary.planCount, 2);
+  assert.equal(groupedReport.swapPlanSummary.plans[0].sample, '11 + 111 - 11 × 11');
+  assert.deepEqual(
+    groupedReport.swapPlanSummary.plans[0].sourceRounds.map(round => round.number),
+    [13, 14, 19, 25],
+  );
+  assert.deepEqual(
+    groupedReport.swapPlanSummary.plans[0].existingResourceDetails.map(round => [round.number, round.name, round.sample]),
+    [[26, 'Folded Path', '111 - 11 × 11 + 11']],
+  );
+  assert.equal(groupedReport.swapPlanSummary.plans[0].resourceKey, '7/14');
+  assert.equal(groupedReport.swapPlanSummary.plans[0].sourceResourceKeys.join(','), '7/10');
+  assert.match(groupedReport.swapPlanSummary.plans[0].planningNote, /Move or redesign/);
+  assert.equal(groupedReport.swapPlanSummary.plans[0].directlyApplicable, false);
+  assert.deepEqual(groupedReport.swapPlanSummary.plans[0].blockingRounds.map(round => [round.number, round.resourceKey]),
+    [[26, '7/14']]);
+  assert.deepEqual(groupedReport.swapPlanSummary.plans[0].expectedEffect, {
+    sourceRoundCount:4,
+    blockingRoundCount:1,
+    affectedRepeatedResourceKeys:['7/10'],
+    sourceGroupSizes:{'7/10':4},
+    requiresExistingResourceMove:true,
+    directReplacementWouldCreateSharedResource:true,
+    estimatedRepeatedGroupReduction:1,
+  });
+  assert.deepEqual(groupedReport.swapPlanSummary.plans[0].followUpCommands, [
+    'node scripts/report-one-plus-one-minus-one-round-quality.mjs --make-one --resource-candidates 26 --max-evaluations 20 --max-results 10 --candidate-budget 80 --max-nearby-nodes 700000 --max-nodes 200000 --max-solutions 1000',
+  ]);
   for (const row of groupedReport.rounds) {
     assert.equal(row.search.sourceDiverseEvaluation, true);
     assert.ok(row.candidateSummary.sourceCounts['composite-target-one'] > 0);
@@ -719,9 +796,11 @@ test('make-one resource candidates reject visible shortcut samples after the lea
   assert.equal(row.number, 13);
   assert.equal(row.candidateSummary.recommendableCount, 0);
   assert.ok(row.candidateSummary.riskCounts.authoredSampleShortcut > 0);
+  assert.ok(row.candidates.every(candidate =>
+    candidate.sample !== '1 1 - 11 + 1'));
   assert.ok(row.candidates.some(candidate =>
-    candidate.sample === '1 1 - 11 + 1' &&
-    candidate.samplePatterns.includes('self-subtraction') &&
+    candidate.combinationTags.includes('nontrivial-division') &&
+    candidate.combinationTags.includes('nontrivial-multiply') &&
     candidate.analysisOnly &&
     candidate.analysisNotes.some(note => note.includes('authored sample uses shortcut pattern'))));
 });

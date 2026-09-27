@@ -204,8 +204,19 @@ if (resourceCandidatesIndex >= 0) {
   process.exit(strict && identityErrors(rounds).length ? 1 : 0);
 }
 if (process.argv.includes('--patterns')) {
-  const identity = analyzeIdentity(rounds);
-  const patternRows = analyzeRoundPatterns(rounds, {
+  const patternRoundsIndex = process.argv.indexOf('--pattern-rounds');
+  const selectedPatternRoundNumbers = patternRoundsIndex >= 0
+    ? parseRoundOrResourceSelection(process.argv[patternRoundsIndex + 1] ?? '')
+    : [];
+  if (selectedPatternRoundNumbers.some(n => !Number.isInteger(n) || n < 1 || n > rounds.length) ||
+      new Set(selectedPatternRoundNumbers).size !== selectedPatternRoundNumbers.length) {
+    throw new Error(`--pattern-rounds expects unique round numbers from 1 to ${rounds.length}, comma separated`);
+  }
+  const patternRounds = selectedPatternRoundNumbers.length > 0
+    ? selectedPatternRoundNumbers.map(number => rounds[number - 1])
+    : rounds;
+  const identity = analyzeIdentity(patternRounds);
+  const patternRows = analyzeRoundPatterns(patternRounds, {
     maxNodes:numberOption('--max-nodes'),
     maxSolutions:numberOption('--max-solutions'),
   });
@@ -270,8 +281,9 @@ if (process.argv.includes('--patterns')) {
   });
   const resourceReview = resourceRepeatReview(identity);
   const payload = summaryOnly ? {
-    method:'Summary of accepted canonical token sequence shortcut patterns. Use --patterns without --summary for full per-round rows.',
+    method:'Summary of accepted canonical token sequence shortcut patterns. Use --patterns without --summary for full per-round rows. Use --pattern-rounds to inspect selected rounds with a higher budget.',
     complete:patternRows.every(row => row.complete),
+    selectedRounds:selectedPatternRoundNumbers,
     summary:{
       rounds:patternRows.length,
       uniqueResources:identity.uniqueResources,
@@ -286,6 +298,7 @@ if (process.argv.includes('--patterns')) {
   } : {
     method:'Classifies accepted canonical token sequences by reusable arithmetic patterns. This is a design-review map, not proof of human difficulty or fun. Incomplete rows only classify the enumerated prefix.',
     complete:patternRows.every(row => row.complete),
+    selectedRounds:selectedPatternRoundNumbers,
     rows:patternRows,
     shortcutPolicy,
     shortcutReview,
@@ -567,6 +580,8 @@ function incompletePatternReview(patternRows, {maxNodes, maxSolutions}) {
       '--patterns',
       '--summary',
       '--strict-patterns',
+      '--pattern-rounds',
+      String(row.number),
       '--max-nodes',
       String(Math.max(rowMaxNodes * 5, 1000000)),
       '--max-solutions',
