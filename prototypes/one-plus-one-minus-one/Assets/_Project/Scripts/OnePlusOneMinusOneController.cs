@@ -318,6 +318,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private readonly HashSet<string> discoveredShapes = new HashSet<string>();
         private readonly HashSet<string> unlockedAchievements = new HashSet<string>();
         private readonly List<Text> expressionCollectionLabels = new List<Text>();
+        private readonly Queue<string> toastMessages = new Queue<string>();
         private readonly Dictionary<SfxCue, AudioClip> sfxClips = new Dictionary<SfxCue, AudioClip>();
         private readonly Dictionary<SfxCue, float> sfxLastPlayedAt = new Dictionary<SfxCue, float>();
         private const int RoundSelectPageSize = ReleaseRoundSelectPageSize;
@@ -383,6 +384,7 @@ namespace MannLab.Games.OnePlusOneMinusOne
         private RectTransform toastRoot;
         private Text toastText;
         private Coroutine toastRoutine;
+        private Coroutine collectionPulseRoutine;
         private GridLayoutGroup roundSelectGrid;
         private LayoutElement roundSelectGridLayout;
         private LayoutElement equationAreaLayout;
@@ -2021,7 +2023,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
 
             if (discoveredNewExpression)
             {
-                ShowToast($"New answer: {expression}");
+                ShowToast("Saved expression");
+                PulseFoundButton();
             }
         }
 
@@ -2168,7 +2171,8 @@ namespace MannLab.Games.OnePlusOneMinusOne
             }
 
             RefreshCollectionOverlay();
-            ShowToast($"New friend: {shape}");
+            ShowToast($"Found: {shape}");
+            PulseFoundButton();
         }
 
         private void UnlockAchievement(string id)
@@ -2354,21 +2358,55 @@ namespace MannLab.Games.OnePlusOneMinusOne
                 return;
             }
 
-            if (toastRoutine != null)
-            {
-                StopCoroutine(toastRoutine);
-            }
+            toastMessages.Enqueue(message.Trim());
 
-            toastText.text = message;
-            toastRoutine = StartCoroutine(ToastRoutine());
+            if (toastRoutine == null)
+            {
+                toastRoutine = StartCoroutine(ToastRoutine());
+            }
         }
 
         private IEnumerator ToastRoutine()
         {
-            toastRoot.gameObject.SetActive(true);
-            yield return new WaitForSeconds(1.8f);
+            while (toastMessages.Count > 0)
+            {
+                toastText.text = toastMessages.Dequeue();
+                toastRoot.gameObject.SetActive(true);
+                yield return new WaitForSeconds(1.15f);
+            }
+
             toastRoot.gameObject.SetActive(false);
             toastRoutine = null;
+        }
+
+        private void PulseFoundButton()
+        {
+            if (collectionButton == null)
+            {
+                return;
+            }
+
+            var target = collectionButton.GetComponent<RectTransform>();
+            if (target == null)
+            {
+                return;
+            }
+
+            if (collectionPulseRoutine != null)
+            {
+                StopCoroutine(collectionPulseRoutine);
+                target.localScale = Vector3.one;
+            }
+
+            collectionPulseRoutine = StartCoroutine(PulseFoundButtonRoutine(target));
+        }
+
+        private IEnumerator PulseFoundButtonRoutine(RectTransform target)
+        {
+            yield return Bump(target, 1.08f);
+            yield return new WaitForSeconds(0.05f);
+            yield return Bump(target, 1.045f);
+            collectionPulseRoutine = null;
         }
 
         private string SuccessFeedback()

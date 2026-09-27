@@ -18,6 +18,10 @@ rules:
   badges;
 - expression rows are titled as `Round N Expressions` / `Recent Round N
   Expressions`.
+- new shape/expression discovery toasts now queue, so `Found: 1` and
+  `Saved expression` are not lost when Round 1 also unlocks badges;
+- new discoveries briefly pulse the `Found` button without blocking play or
+  forcing the collection overlay open.
 
 This is not a gameplay-rule change and not a substitute for App Review
 approval. It is a review-safe differentiation pass: the game still starts from
@@ -31,6 +35,9 @@ Current validation:
 - Static verification passes with expected stale-WebGL, release-env and manual
   device-QA warnings.
 - Commit `38b7326b` containing this pass is pushed to `origin/main`.
+- Current local source adds a PlayMode assertion for the queued Round 1
+  `Found: 1` / `Saved expression` discovery flow, but Unity still needs to
+  execute it after licensing recovers.
 - A fresh PlayMode rerun was attempted on 2026-09-27 but Unity licensing
   initialization timed out after `74.83s`
   (`/tmp/one-equals-one-playmode.log`), so the UI pass still needs fresh Unity

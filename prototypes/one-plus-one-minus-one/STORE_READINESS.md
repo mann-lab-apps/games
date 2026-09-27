@@ -8,11 +8,13 @@ Current completion judgment is tracked in
 
 ## Current Runtime Caveat
 
-The local source is newer than uploaded iOS `1.0.0 (4)` and the existing WebGL
-artifacts. The local source now includes MakeOne quality changes and the
-`Found` / `Discoveries` first-minute differentiation UI pass, so another fresh
-Unity runtime pass is required before those changes can be treated as
-player-build evidence.
+iOS `1.0.0 (5)` was archived and uploaded to App Store Connect on 2026-09-27
+with the MakeOne quality changes and the `Found` / `Discoveries` first-minute
+differentiation UI pass. It also queues short `Found: ...` and
+`Saved expression` discovery notes and pulses the `Found` button after new
+discoveries. The existing WebGL artifacts are still older than those changes,
+so a fresh WebGL runtime pass is still required before browser evidence can be
+treated as current-source evidence.
 
 Before running PlayMode, WebGL rebuilds, iOS readiness or Android readiness,
 run:
@@ -50,8 +52,8 @@ Unity-gated checks when it fails instead of repeating the same Unity timeout.
 - 4.3(a) differentiation:
   - Avoid positioning this as a generic matchstick repair puzzle.
   - Emphasize empty-slot expression construction, living stick characters,
-    alternate valid answers, direct equality validation, and the
-    `Found`/`Discoveries` collection loop.
+    alternate valid answers, direct equality validation, queued discovery
+    feedback, and the `Found`/`Discoveries` collection loop.
   - Review notes should explicitly explain that the player composes equations
     rather than moving one match to fix a prebuilt equation.
   - Recent round-design evidence also removes late standalone `N / N = 1`
@@ -82,8 +84,8 @@ Unity-gated checks when it fails instead of repeating the same Unity timeout.
 - iOS marketing icon after export:
   - `Builds/iOS/Xcode/Unity-iPhone/Images.xcassets/AppIcon.appiconset/Icon-AppStore-1024.png`
 - Next iOS build number:
-  - App Store Connect already has iOS `1.0.0 (4)`, so the next release candidate
-    must use build number `5` or higher unless the submitted version changes.
+  - App Store Connect already has iOS `1.0.0 (5)`, so the next release candidate
+    must use build number `6` or higher unless the submitted version changes.
   - `ONE_EQUALS_ONE_MIN_IOS_BUILD_NUMBER` can override this verifier minimum for
     future releases.
 - Next Android version code:

@@ -15,6 +15,11 @@ unchanged, but makes the discovery loop more visible:
 - saved-expression section titles now say `Round N Expressions` or
   `Recent Round N Expressions`, aligning the UI with expression construction
   rather than a single intended answer.
+- discovery toasts now queue instead of replacing each other, so early events
+  like `Found: 1`, badges and `Saved expression` can be seen in order.
+- new shape friends and newly saved expressions pulse the `Found` button briefly
+  instead of forcing the overlay open, making the discovery log visible without
+  turning it into a tutorial or hint panel.
 
 No token bans, fixed-answer checks, round rules, ad cadence or character art
 were changed in this pass. The intent is to make "place stick friends, build
@@ -27,6 +32,10 @@ Verification for this local pass:
 - `bash scripts/verify-one-plus-one-minus-one-static.sh` passes, with expected
   warnings for stale WebGL artifacts, external release env vars and manual
   device QA.
+- The PlayMode first-clear regression now asserts that Round 1 exposes
+  `Found: 1` and queues `Saved expression` after the accepted expression is
+  recorded. This test awaits Unity runtime execution because the local Unity
+  licensing environment remains blocked.
 - Unity PlayMode did not reach tests: the 2026-09-27 rerun timed out during
   Unity licensing initialization after `74.83s`
   (`/tmp/one-equals-one-playmode.log`). Treat this as runtime verification

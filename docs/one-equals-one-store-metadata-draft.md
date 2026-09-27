@@ -67,6 +67,10 @@ odd little equation that started it all. The `Found` button opens your
 Discoveries: shape friends, saved expressions, and badges from the answers you
 constructed.
 
+When new shapes or expressions are found, short in-game notes such as
+`Found: 1` and `Saved expression` keep the discovery loop visible without
+showing hints or forcing a single solution.
+
 ## Keywords
 
 puzzle,logic,equation,characters,numbers,brain,casual,math
@@ -123,11 +127,13 @@ affects the current puzzle only. First launch starts Round 1; returning players
 with cleared rounds see round selection.
 
 Suggested review path: Round 1 introduces the living `1` piece and an empty
-slot, Round 5 shows packed-number division, Round 8 shows a combined expression
-using all pieces, Round 10 shows a compact multi-token expression, the top-right
-`Found` button shows saved shape and expression discoveries, and later rounds
-such as Round 22 or Round 30 show larger expressions that are composed from
-empty slots rather than repaired from a preset equation.
+slot; after the first accepted answer, the app surfaces the `Found: 1` and
+`Saved expression` discovery flow. Round 5 shows packed-number division, Round
+8 shows a combined expression using all pieces, Round 10 shows a compact
+multi-token expression, the top-right `Found` button shows saved shape and
+expression discoveries, and later rounds such as Round 22 or Round 30 show
+larger expressions that are composed from empty slots rather than repaired from
+a preset equation.
 
 The supplied review video shows Rounds 1-10 and entry into Round 11. It is a
 replay with prior progress, not a fresh-install or first-ad demonstration. Add

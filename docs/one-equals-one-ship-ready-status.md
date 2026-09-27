@@ -1,14 +1,16 @@
 # 1 = 1 Ship-Ready Status
 
-Status date: 2026-09-26
+Status date: 2026-09-27
 
 Current completion judgment: `not yet`
 
-Current execution: iOS `1.0.0 (4)` was archived and uploaded to App Store
-Connect on 2026-09-25. The archive metadata records `uploadedBuildNumber` `4`
-for app `6811571680`, with no upload errors or warnings. TestFlight processing,
-installation, review selection and App Review outcome are still external
-follow-up items.
+Current execution: iOS `1.0.0 (5)` was archived and uploaded to App Store
+Connect on 2026-09-27. The archive metadata records bundle
+`com.mannlab.games.oneplusoneminusone`, version `1.0.0`, build `5`, Team
+`ZRA4DHHKQ4`, and App Store Connect upload logs report `Upload succeeded` /
+`EXPORT SUCCEEDED` (`/tmp/one-plus-one-minus-one-xcode-export-upload-5.log`).
+TestFlight processing, installation, review selection and App Review outcome
+are still external follow-up items.
 
 Post-commit note: commit `38b7326b` (`Polish 1=1 review differentiation`) is
 now pushed to `origin/main`. A post-push static suite rerun passes. A fresh
@@ -17,17 +19,19 @@ then times out after `74.83s` during licensing initialization
 (`/tmp/one-equals-one-playmode.log`). Do not treat the interrupted PlayMode
 process as gameplay failure or runtime pass evidence.
 
-Local source after that upload includes additional default-mode quality edits
-and a first-minute differentiation UI pass:
+The uploaded iOS build `1.0.0 (5)` includes the additional default-mode quality
+edits and first-minute differentiation UI pass:
 the top-right collection entry now reads `Found`, the overlay title reads
 `Discoveries`, the stats include saved answer count, and answer rows are titled
-as expressions. This is intended to make the empty-box expression-construction
-and discovery loop more visible during review without changing puzzle rules.
-Node round-identity tests and the static verification suite pass for this local
-pass, but the fresh Unity PlayMode rerun did not reach tests because Unity
-licensing initialization timed out after `74.83s`
-(`/tmp/one-equals-one-playmode.log`). The existing WebGL build remains older
-than this UI pass.
+as expressions. Current local source further queues discovery toasts such as
+`Found: 1` and `Saved expression`, and pulses the `Found` button after new
+shape/expression discoveries. This is intended to make the empty-box
+expression-construction and discovery loop more visible during review without
+changing puzzle rules.
+Node round-identity tests and the static verification suite pass for this pass,
+and the iOS release preflight, Unity iOS export, signed Xcode archive and App
+Store Connect upload all succeeded for build `5`. The existing WebGL build
+remains older than this UI pass.
 
 Local source after that upload also includes additional default-mode quality edits:
 the default 30-round fixed-target `= 1` ladder now has its own `--make-one`
@@ -64,8 +68,8 @@ After the next local source pass, Round 29 changed from `11 + 1 - 1 1` to
 `1 1 + 111 - 11 × 11`, reducing the default ladder again to four repeated
 slot/stick groups and 13 unresolved found shared-equality pairs. This is also a
 local source improvement only until a fresh WebGL/native build is produced.
-These 2026-09-26 edits are newer than uploaded iOS `1.0.0 (4)` until another
-native build is produced.
+These 2026-09-26 edits are included in uploaded iOS `1.0.0 (5)` as of
+2026-09-27.
 The latest WebGL QA rebuild attempt after the final Round 23/Thin Return data
 change did not produce fresh runtime evidence: Unity launched from
 `scripts/verify-one-plus-one-minus-one-webgl-qa.sh`, then failed licensing
@@ -102,11 +106,12 @@ sample-level equality echoes left, and 16 alternate-only equality-echo review
 rows remain for future play/design review. Full static verification passes
 after this redesign with expected stale-WebGL/external-release warnings.
 
-Local iOS `1.0.0 (4)` archive/upload artifacts exist
-(`Builds/iOS/Archives/OneEqualsOne-1.0.0-4.xcarchive`, with upload evidence in
-`/tmp/one-equals-one-ios-upload-4.log`). Build 4 is the latest App Store Connect
-upload confirmed by local evidence. It does not include the 2026-09-26
-default-mode pattern edits described above.
+Local iOS `1.0.0 (5)` archive/upload artifacts exist
+(`Builds/iOS/Archives/OneEqualsOne-1.0.0-5.xcarchive`, with upload evidence in
+`/tmp/one-plus-one-minus-one-xcode-export-upload-5.log`). Build 5 is the latest
+App Store Connect upload confirmed by local evidence and includes the
+2026-09-26 default-mode pattern edits plus the 2026-09-27 first-minute discovery
+visibility pass described above.
 
 Latest Unity runtime evidence is healthy for the source state before the later
 Round 18 data change and resource-review tooling pass: after aligning the
@@ -209,8 +214,8 @@ tests while this command still reports `LICENSING_CLIENT_UNAVAILABLE`; the
 scripts will fast-fail by design.
 
 Latest browser URL: http://127.0.0.1:8093/ is still the older batch 4 ordinary
-build unless rebuilt. Uploaded iOS `1.0.0 (4)` does not include the later
-MakeOne quality edits or the `Found` / `Discoveries` first-minute UI pass.
+WebGL build unless rebuilt. Uploaded iOS `1.0.0 (5)` includes the later MakeOne
+quality edits and the `Found` / `Discoveries` first-minute UI pass.
 
 Latest evidence: the 2026-09-16 sections atop the gameplay audit and commercial
 polish backlog. Older sections below retain historical pending/blocked results.

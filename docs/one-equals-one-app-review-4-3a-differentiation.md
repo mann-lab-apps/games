@@ -54,6 +54,9 @@ Distinct mechanics:
 - The top-right `Found` button opens a `Discoveries` screen for shape friends,
   saved expressions and badges, making expression construction visible as a
   collection loop.
+- New shape/expression events now surface as short queued notes such as
+  `Found: 1` and `Saved expression`, and the `Found` button pulses after new
+  discoveries so the collection loop is visible during the first review minute.
 
 ## Metadata Changes Made
 
@@ -93,6 +96,8 @@ The review notes now explicitly explain:
 - Direct equalities are validated when the player builds `=`.
 - Recommended review path: Rounds 1, 5, 8, 10, the `Found` / `Discoveries`
   screen, and later MakeOne rounds such as 22 or 30.
+- Round 1 now visibly demonstrates the discovery loop through `Found: 1` and
+  `Saved expression` before the reviewer opens `Discoveries`.
 
 ## Screenshot And Video Direction
 
@@ -101,7 +106,8 @@ looks like a tutorial and may underplay the app's differences.
 
 Recommended 60-90 second review video:
 
-1. Round 1: show the living `1` character and empty boxes.
+1. Round 1: show the living `1` character, empty boxes, `Found: 1`, and
+   `Saved expression`.
 2. Round 5: show pieces being arranged into `×`.
 3. Round 8: show three pieces becoming `111`.
 4. Round 9: show the three-piece `*`.

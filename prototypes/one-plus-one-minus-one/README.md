@@ -114,6 +114,9 @@ AdMob uses the shared game-over interstitial bridge. Development builds and AdMo
   button and `Discoveries` overlay to show discovered shape friends, saved
   expressions and badges together. Keep this as a lightweight discovery log:
   do not turn it into a hint panel, answer lock, or separate mode selector.
+- First-minute discovery feedback is intentionally short: new shape friends use
+  `Found: ...`, accepted new expressions use `Saved expression`, and the
+  `Found` button briefly pulses instead of opening automatically.
 - Run `./scripts/report-one-plus-one-minus-one-round-quality.mjs --strict` after
   legacy goal round edits to review token-band coverage, target spread, and
   repeated pattern warnings.

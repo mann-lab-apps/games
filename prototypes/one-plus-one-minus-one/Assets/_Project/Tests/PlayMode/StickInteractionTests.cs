@@ -131,6 +131,9 @@ namespace MannLab.Games.OnePlusOneMinusOne.Tests
             Assert.That(PlayerPrefs.GetInt("OnePlusOneMinusOne.Achievement.first_shape", 0), Is.EqualTo(1));
             Assert.That(PlayerPrefs.GetInt("OnePlusOneMinusOne.Achievement.first_clear", 0), Is.EqualTo(1));
             Assert.That(PlayerPrefs.GetString("OnePlusOneMinusOne.Collection.RoundExpression.make_one.0", string.Empty), Is.EqualTo("1"));
+            Assert.That(Field<RectTransform>("toastRoot").gameObject.activeSelf, Is.True);
+            Assert.That(Field<Text>("toastText").text, Is.EqualTo("Found: 1"));
+            CollectionAssert.Contains(Field<Queue<string>>("toastMessages").ToArray(), "Saved expression");
 
             yield return new WaitForSeconds(1.3f);
             Call("LoadRound", 0);
