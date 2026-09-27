@@ -10,6 +10,13 @@ for app `6811571680`, with no upload errors or warnings. TestFlight processing,
 installation, review selection and App Review outcome are still external
 follow-up items.
 
+Post-commit note: commit `38b7326b` (`Polish 1=1 review differentiation`) is
+now pushed to `origin/main`. A post-push static suite rerun passes. A fresh
+PlayMode rerun still does not reach tests: Unity launches the licensing client,
+then times out after `74.83s` during licensing initialization
+(`/tmp/one-equals-one-playmode.log`). Do not treat the interrupted PlayMode
+process as gameplay failure or runtime pass evidence.
+
 Local source after that upload includes additional default-mode quality edits
 and a first-minute differentiation UI pass:
 the top-right collection entry now reads `Found`, the overlay title reads

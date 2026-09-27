@@ -30,6 +30,7 @@ Current validation:
 - Node round-identity tests pass 62/62.
 - Static verification passes with expected stale-WebGL, release-env and manual
   device-QA warnings.
+- Commit `38b7326b` containing this pass is pushed to `origin/main`.
 - A fresh PlayMode rerun was attempted on 2026-09-27 but Unity licensing
   initialization timed out after `74.83s`
   (`/tmp/one-equals-one-playmode.log`), so the UI pass still needs fresh Unity
